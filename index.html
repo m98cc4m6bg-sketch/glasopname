@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a3a5c">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Glasopname Formulier – Jelier Bouw</title>
+<style>
+  :root {
+    --blauw: #1a3a5c;
+    --blauw-mid: #2c5f8a;
+    --blauw-licht: #e8f0f8;
+    --geel: #f0a500;
+    --wit: #ffffff;
+    --grijs-licht: #f5f6f8;
+    --grijs-rand: #d0d8e4;
+    --grijs-tekst: #5a6a7a;
+    --rood: #c0392b;
+    --groen: #217a45;
+    --radius: 6px;
+    --shadow: 0 2px 8px rgba(26,58,92,0.10);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    background: var(--grijs-licht);
+    color: #1a2a3a;
+    min-height: 100vh;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: var(--blauw);
+    color: white;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  header .subtitle { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  /* ─── TOOLBAR / PROJECT INFO ─── */
+  .toolbar {
+    background: white;
+    border-bottom: 2px solid var(--blauw-licht);
+    padding: 10px 20px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .toolbar label { font-weight: 600; font-size: 12px; color: var(--grijs-tekst); white-space: nowrap; }
+  .toolbar input[type=text] {
+    border: 1px solid var(--grijs-rand);
+    border-radius: var(--radius);
+    padding: 5px 10px;
+    font-size: 13px;
+    min-width: 180px;
+  }
+  .toolbar .speling-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .toolbar select {
+    border: 1px solid var(--grijs-rand);
+    border-radius: var(--radius);
+    padding: 5px 8px;
+    font-size: 13px;
+  }
+  .toolbar .info-icon {
+    cursor: help;
+    color: var(--blauw-mid);
+    font-size: 14px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  /* ─── TABBLADEN ─── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: var(--blauw);
+    padding: 0 20px;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.65);
+    padding: 10px 18px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 3px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  .tab-btn:hover { color: white; }
+  .tab-btn.active { color: var(--geel); border-bottom-color: var(--geel); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ─── MAIN CONTAINER ─── */
+  .container { padding: 16px 20px; }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    border: none;
+    border-radius: var(--radius);
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity .15s, background .15s;
+  }
+  .btn:hover { opacity: .88; }
+  .btn-primary { background: var(--geel); color: var(--blauw); }
+  .btn-secondary { background: var(--blauw-mid); color: white; }
+  .btn-danger { background: var(--rood); color: white; }
+  .btn-ghost { background: transparent; border: 1px solid var(--grijs-rand); color: var(--grijs-tekst); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ─── INVOERTABEL ─── */
+  .invoer-wrap { overflow-x: auto; }
+  table.invoer {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 1200px;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  table.invoer th {
+    background: var(--blauw);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 6px;
+    text-align: center;
+    white-space: nowrap;
+    border-right: 1px solid rgba(255,255,255,0.12);
+    vertical-align: bottom;
+  }
+  table.invoer th.groep-algemeen { background: #1a3a5c; }
+  table.invoer th.groep-maat { background: #1d4d74; }
+  table.invoer th.groep-glas { background: #1a5c4a; }
+  table.invoer th.groep-roeden { background: #4a3a1a; }
+
+  table.invoer td {
+    padding: 4px 4px;
+    border-bottom: 1px solid var(--grijs-rand);
+    border-right: 1px solid #eef1f5;
+    vertical-align: middle;
+  }
+  table.invoer tr:hover td { background: #f0f6ff; }
+  table.invoer tr.even td { background: #fafbfd; }
+  table.invoer tr.even:hover td { background: #f0f6ff; }
+
+  table.invoer .rijnr {
+    text-align: center;
+    font-weight: 700;
+    color: var(--grijs-tekst);
+    font-size: 11px;
+    width: 28px;
+    min-width: 28px;
+  }
+  table.invoer td.berekend {
+    background: #f0f8f0 !important;
+    color: var(--groen);
+    font-weight: 700;
+    text-align: right;
+    font-size: 12px;
+    padding-right: 8px;
+  }
+  table.invoer td.berekend.ongeldig { color: var(--grijs-tekst); font-weight: 400; }
+
+  table.invoer input[type=number],
+  table.invoer input[type=text] {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 4px 5px;
+    font-size: 12px;
+    background: transparent;
+    transition: border-color .1s, background .1s;
+  }
+  table.invoer input:focus {
+    outline: none;
+    border-color: var(--blauw-mid);
+    background: white;
+    box-shadow: 0 0 0 2px rgba(44,95,138,0.2);
+  }
+  table.invoer select {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 4px 4px;
+    font-size: 12px;
+    background: transparent;
+    transition: border-color .1s;
+    cursor: pointer;
+  }
+  table.invoer select:focus {
+    outline: none;
+    border-color: var(--blauw-mid);
+    background: white;
+  }
+  table.invoer select.rooster-select option.incompatibel {
+    color: #bbb;
+  }
+
+  .aantal-input { width: 52px !important; text-align: center; }
+  .breedte-input, .hoogte-input { width: 78px !important; text-align: right; }
+  .merk-input { width: 90px !important; }
+
+  td.delete-cel {
+    text-align: center;
+    width: 28px;
+    min-width: 28px;
+  }
+  .btn-del {
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    line-height: 1;
+  }
+  .btn-del:hover { color: var(--rood); background: #fee; }
+
+  /* Rooster waarschuwing als rode cel */
+  .cel-waarschuwing {
+    background: var(--rood) !important;
+    color: white !important;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    vertical-align: middle;
+  }
+  .cel-waarschuwing select {
+    background: var(--rood) !important;
+    color: white !important;
+    font-weight: 700;
+    border-color: rgba(255,255,255,0.4) !important;
+  }
+  .ok-badge {
+    font-size: 10px;
+    color: var(--groen);
+    font-weight: 600;
+  }
+
+  /* ─── TABEL-FOOTER ─── */
+  .tabel-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0 6px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ─── SAMENVATTING / BESTELLIJST ─── */
+  .card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--blauw);
+    margin-bottom: 12px;
+    border-bottom: 2px solid var(--blauw-licht);
+    padding-bottom: 8px;
+  }
+  .info-note {
+    font-size: 11px;
+    color: var(--grijs-tekst);
+    background: var(--blauw-licht);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 12px;
+  }
+
+  table.samenvatting {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.samenvatting th {
+    background: var(--grijs-licht);
+    font-weight: 700;
+    padding: 7px 8px;
+    text-align: left;
+    border-bottom: 2px solid var(--grijs-rand);
+    color: var(--blauw);
+    font-size: 11px;
+  }
+  table.samenvatting td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #eef1f5;
+    vertical-align: middle;
+  }
+  table.samenvatting tr:hover td { background: var(--grijs-licht); }
+  table.samenvatting .rijnr { font-weight: 700; color: var(--grijs-tekst); width: 30px; }
+  table.samenvatting .num { text-align: right; }
+  table.samenvatting .highlight { font-weight: 700; }
+  .totaal-rij { background: var(--blauw-licht) !important; font-weight: 700; }
+
+  /* ─── LEGENDA ─── */
+  table.legenda {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.legenda th {
+    background: var(--blauw);
+    color: white;
+    padding: 7px 10px;
+    text-align: left;
+    font-size: 11px;
+  }
+  table.legenda td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--grijs-rand);
+    vertical-align: top;
+  }
+  table.legenda tr:nth-child(even) td { background: var(--grijs-licht); }
+  .legenda-sectie {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--blauw);
+    margin: 16px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid var(--blauw-licht);
+  }
+
+  /* ─── PRINT ─── */
+  @media print {
+    header, .toolbar, .tabs, .tabel-footer, .btn-del, td.delete-cel,
+    #panel-invoer, #panel-samenvatting, #panel-legenda { display: none !important; }
+    body { background: white; font-size: 11px; }
+    .container { padding: 0; }
+    .card { box-shadow: none; border: none; padding: 0; }
+    #panel-bestellijst { display: block !important; }
+    .info-note { display: none; }
+    @page { size: A4 landscape; margin: 12mm; }
+  }
+
+  /* ─── TOOLTIP ─── */
+  [title] { cursor: help; }
+
+  /* ══════════════════════════════════════════
+     iPad / touch optimalisaties
+     Triggert op schermen ≤ 1200px breed
+     ══════════════════════════════════════════ */
+  @media (max-width: 1200px) {
+
+    /* Header compacter */
+    header { padding: 12px 16px; gap: 10px; }
+    header h1 { font-size: 16px; }
+    header .subtitle { display: none; }
+    .btn-sm { padding: 9px 14px; font-size: 13px; }
+
+    /* Toolbar: twee rijen */
+    .toolbar {
+      padding: 10px 14px;
+      gap: 10px;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .toolbar .speling-wrap {
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-left: 0;
+      width: 100%;
+    }
+    .toolbar label { font-size: 13px; }
+    .toolbar input[type=text] {
+      font-size: 16px; /* voorkomt auto-zoom op iOS */
+      padding: 8px 10px;
+      min-width: 160px;
+    }
+    .toolbar select {
+      font-size: 16px;
+      padding: 8px 8px;
+    }
+
+    /* Tabs grotere touch targets */
+    .tab-btn { padding: 12px 16px; font-size: 13px; }
+
+    /* Tabel: grotere rijen en inputs */
+    table.invoer th { font-size: 11px; padding: 10px 6px; }
+    table.invoer td { padding: 6px 4px; }
+
+    table.invoer input[type=number],
+    table.invoer input[type=text] {
+      font-size: 16px; /* geen auto-zoom iOS */
+      padding: 7px 5px;
+      border: 1px solid var(--grijs-rand);
+      background: white;
+      border-radius: 4px;
+    }
+    table.invoer select {
+      font-size: 16px;
+      padding: 7px 4px;
+      border: 1px solid var(--grijs-rand);
+      background: white;
+      border-radius: 4px;
+      -webkit-appearance: auto;
+      min-height: 36px;
+    }
+
+    /* Grotere delete knop */
+    .btn-del { font-size: 20px; padding: 6px 8px; }
+
+    /* Tabel footer */
+    .tabel-footer { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .tabel-footer .btn { padding: 11px 18px; font-size: 14px; }
+
+    /* Samenvatting / bestellijst tabel */
+    table.samenvatting th { font-size: 11px; padding: 8px 6px; }
+    table.samenvatting td { padding: 8px 6px; font-size: 12px; }
+
+    /* Cards */
+    .card { padding: 14px 14px; }
+    .container { padding: 12px 14px; }
+  }
+
+  /* Telefoon (landscape) — extra aanpassingen */
+  @media (max-width: 768px) {
+    header h1 { font-size: 14px; }
+    .tab-btn { padding: 10px 10px; font-size: 12px; }
+  }
+
+  /* ─── CLOUD: login, projecten, status ─── */
+  .cloud-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(26,58,92,0.55); backdrop-filter: blur(2px);
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .cloud-paneel {
+    background: white; border-radius: var(--radius); box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+    width: 100%; max-width: 460px; overflow: hidden;
+  }
+  .cloud-paneel.breed { max-width: 620px; }
+  .cloud-paneel header {
+    background: var(--blauw); color: white; padding: 14px 20px; display: block;
+  }
+  .cloud-paneel h2 { font-size: 16px; font-weight: 700; }
+  .cloud-paneel .sub { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+  .cloud-body { padding: 20px; }
+  .cloud-body label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--blauw); }
+  .cloud-body input[type=email], .cloud-body input[type=password] {
+    width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); margin-bottom: 14px;
+  }
+  .cloud-fout { font-size: 12px; color: var(--rood); min-height: 18px; margin-bottom: 10px; }
+  .cloud-lijst { max-height: 55vh; overflow-y: auto; }
+  .cloud-project {
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--grijs-rand); padding: 4px 6px;
+  }
+  .cloud-project.actief { background: var(--blauw-licht); }
+  .cloud-project-info { flex: 1; padding: 10px 6px; cursor: pointer; }
+  .cloud-project-info strong { display: block; font-size: 14px; color: var(--blauw); }
+  .cloud-project-info span { display: block; font-size: 11px; color: var(--grijs-tekst); margin-top: 2px; }
+  .cloud-project-info:hover strong { text-decoration: underline; }
+  .cloud-voet { padding: 14px 20px; border-top: 1px solid var(--grijs-rand); display: flex; gap: 10px; justify-content: space-between; }
+  #cloudStatus {
+    font-size: 11px; padding: 5px 10px; border-radius: 20px;
+    background: rgba(255,255,255,0.14); color: white; white-space: nowrap;
+  }
+  @media print { .cloud-overlay { display: none !important; } }
+
+  /* ─── IMPORTEREN ─── */
+  .imp-uitleg { font-size: 12px; color: var(--grijs-tekst); margin-bottom: 14px; line-height: 1.5; }
+  .imp-vak {
+    border: 2px dashed var(--grijs-rand); border-radius: var(--radius);
+    padding: 22px; text-align: center; margin-bottom: 14px; background: var(--grijs-licht);
+  }
+  .imp-vak input[type=file] { display: block; margin: 0 auto; font-size: 12px; }
+  .imp-of { text-align: center; font-size: 11px; color: var(--grijs-tekst); margin: 10px 0; text-transform: uppercase; letter-spacing: 1px; }
+  #impPlak {
+    width: 100%; min-height: 90px; font-family: 'Consolas', monospace; font-size: 12px;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); padding: 8px; resize: vertical;
+  }
+  .imp-scroll { overflow-x: auto; max-height: 46vh; border: 1px solid var(--grijs-rand); border-radius: var(--radius); }
+  table.imp-tabel { border-collapse: collapse; font-size: 12px; width: 100%; }
+  table.imp-tabel th { background: var(--blauw-licht); padding: 6px; text-align: left; vertical-align: top; border: 1px solid var(--grijs-rand); }
+  table.imp-tabel th select { width: 100%; font-size: 11px; padding: 3px; margin-top: 4px; border: 1px solid var(--grijs-rand); border-radius: 3px; }
+  .imp-kolomnaam { font-weight: 700; color: var(--blauw); white-space: nowrap; font-size: 11px; }
+  table.imp-tabel td { padding: 5px 6px; border: 1px solid var(--grijs-rand); color: var(--grijs-tekst); white-space: nowrap; }
+  table.imp-tabel td.imp-actief { color: #1a2a3a; background: white; font-weight: 600; }
+  .imp-telling { font-size: 12px; font-weight: 600; color: var(--blauw); margin: 12px 0; }
+  .imp-maatsoort { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 12px; }
+  .imp-maatsoort select { padding: 5px 8px; font-size: 12px; border: 1px solid var(--grijs-rand); border-radius: var(--radius); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🪟 Glasopname Formulier</h1>
+    <div class="subtitle">Jelier Bouw B.V. — Glas inmeetformulier</div>
+  </div>
+  <div class="header-actions">
+    <span id="cloudStatus">Verbinden…</span>
+    <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="cloudProjectenTonen()">📁 Projecten</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
+    <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV Export</button>
+    <button class="btn btn-primary btn-sm" onclick="printBestellijst()">🖨 Bestellijst afdrukken</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <label>Project:</label>
+  <input type="text" id="projectNaam" placeholder="Projectnaam…" oninput="opslaan()">
+  <label>Datum:</label>
+  <input type="text" id="projectDatum" placeholder="dd-mm-jjjj" style="min-width:110px;" oninput="opslaan()">
+  <div class="speling-wrap">
+    <label>Speling sponningmaat (rondom):</label>
+    <select id="spelingGlobal" onchange="herbereken(); opslaan()"><option value="4" selected>4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11">11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
+    <i class="info-icon" title="Wordt 2× afgetrokken van de sponningmaat. Standaard 4 mm per zijde.">i</i>
+    <label style="margin-left:12px;">Bijtelling dagmaat (rondom):</label>
+    <select id="bijtelling" onchange="herbereken(); opslaan()"><option value="4">4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11" selected>11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
+    <i class="info-icon" title="Wordt 2× opgeteld bij de dagmaat. Standaard 10 mm per zijde.">i</i>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="toon('invoer')">📋 Invoer</button>
+  <button class="tab-btn" onclick="toon('samenvatting')">📊 Samenvatting</button>
+  <button class="tab-btn" onclick="toon('bestellijst')">📦 Bestellijst</button>
+  <button class="tab-btn" onclick="toon('legenda')">📖 Legenda</button>
+</div>
+
+<!-- ═══════════════════════ INVOER ═══════════════════════ -->
+<div id="panel-invoer" class="tab-panel active">
+<div class="container">
+  <div class="invoer-wrap">
+  <table class="invoer" id="invoerTabel">
+    <thead>
+      <tr>
+        <th rowspan="2" style="width:28px"></th>
+        <th colspan="2" class="groep-algemeen">Algemeen</th>
+        <th colspan="3" class="groep-maat">Maatvoering</th>
+        <th colspan="2" style="background:#145c3a;">Glasmaat (auto)</th>
+        <th colspan="3" class="groep-glas">Glasspecificatie</th>
+        <th colspan="4" style="background:#2a4a1a;">Ventilatie</th>
+        <th colspan="3" class="groep-glas">Afwerking</th>
+        <th colspan="3" class="groep-roeden">Roeden</th>
+        <th rowspan="2" style="background:#333; width:28px"></th>
+      </tr>
+      <tr>
+        <th class="groep-algemeen">Aantal</th>
+        <th class="groep-algemeen">Merk</th>
+        <th class="groep-maat">Maat­soort</th>
+        <th class="groep-maat">Breedte (mm)</th>
+        <th class="groep-maat">Hoogte (mm)</th>
+        <th style="background:#145c3a;">Glasbreedte</th>
+        <th style="background:#145c3a;">Glashoogte</th>
+        <th class="groep-glas">Glas Type</th>
+        <th class="groep-glas">Opbouw</th>
+        <th class="groep-glas">Dikte / Gewicht</th>
+        <th style="background:#2a4a1a;">Rooster</th>
+        <th style="background:#2a4a1a;">Duco Type</th>
+        <th style="background:#2a4a1a;">RAL Kleur</th>
+        <th class="groep-glas">Glasbewerking</th>
+        <th class="groep-glas">Opmerking</th>
+        <th class="groep-roeden">Verdeling</th>
+        <th class="groep-roeden">Breedte</th>
+        <th class="groep-roeden">Opmerking</th>
+      </tr>
+    </thead>
+    <tbody id="invoerBody">
+    </tbody>
+  </table>
+  </div>
+
+  <div class="tabel-footer">
+    <button class="btn btn-secondary" onclick="voegRijToe()">+ Regel toevoegen</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="voegRijenToe(5)">+5 regels</button>
+      <button class="btn btn-ghost btn-sm" onclick="voegRijenToe(10)">+10 regels</button>
+    </div>
+    <div id="statusBar" style="font-size:12px;color:var(--grijs-tekst);"></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════ SAMENVATTING ═══════════════════════ -->
+<div id="panel-samenvatting" class="tab-panel">
+<div class="container">
+  <div class="card">
+    <h2>Samenvatting Glasopname</h2>
+    <div class="info-note">ℹ Glasmaten zijn netto bestelmaten na omrekening. Gewicht per stuk = totale glasdikte (mm) × 2,5 kg/m² × oppervlakte. Spouwen tellen NIET mee voor het gewicht.</div>
+    <div id="samenvattingInhoud"><em style="color:var(--grijs-tekst)">Vul regels in op het Invoer tabblad.</em></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════ BESTELLIJST ═══════════════════════ -->
+<div id="panel-bestellijst" class="tab-panel">
+<div class="container">
+  <div class="card">
+    <h2>Bestellijst</h2>
+    <div id="bestellijstInhoud"><em style="color:var(--grijs-tekst)">Vul regels in op het Invoer tabblad.</em></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════ LEGENDA ═══════════════════════ -->
+<div id="panel-legenda" class="tab-panel">
+<div class="container">
+  <div class="card">
+    <div class="legenda-sectie">Glastypen, U-waarde & Gewicht</div>
+    <table class="legenda">
+      <thead><tr><th>Glastype</th><th>U-waarde (W/m²K)</th><th>Gewicht (kg/m²)</th><th>Toelichting</th></tr></thead>
+      <tbody>
+        <tr><td>Enkel glas</td><td>± 5,6</td><td>7,5–47,5</td><td>1 glasblad. Gewicht = dikte(mm) × 2,5 kg/m².</td></tr>
+        <tr><td>HR glas</td><td>± 2,5</td><td>20–30</td><td>Dubbelglas luchtspouw + coating. Bijv. 4-12-4.</td></tr>
+        <tr><td>HR+ glas</td><td>± 1,8</td><td>20–30</td><td>Coating + argon, spouw 12-15 mm. Bijv. 4-14-4.</td></tr>
+        <tr><td>HR++ glas</td><td>± 1,1</td><td>20–35</td><td>Verbeterde coating + argon, spouw ≥13 mm. Bijv. 4-16-4.</td></tr>
+        <tr><td>HR+++ glas (Triple)</td><td>± 0,6</td><td>30–45</td><td>Driedubbel glas, 2 spouwen + edelgas. Bijv. 4-16-4-16-4.</td></tr>
+        <tr><td>Gelaagd glas (VSG)</td><td>—</td><td>15–40</td><td>PVB-folie tussen glasbladen. Doorvalveilig. Bijv. 44.2.</td></tr>
+        <tr><td>Gehard gelaagd (ESG+VSG)</td><td>—</td><td>20–50</td><td>Gehard + gelaagd. Sterk & doorvalveilig. Bijv. 66.2.</td></tr>
+        <tr><td>Gehard glas (ESG)</td><td>—</td><td>10–47,5</td><td>Thermisch gehard, breekt in korrels. Bijv. 6 mm ESG.</td></tr>
+        <tr><td>Zonwerend glas</td><td>± 1,1</td><td>20–30</td><td>HR++ + zonwerende coating (lage g-waarde). Bijv. 4-16-4 ZW.</td></tr>
+        <tr><td>Akoestisch glas</td><td>± 1,1</td><td>20–35</td><td>Akoestische PVB-folie (PVB-A). Rw 38-45 dB. Bijv. 4-16-44.2A.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="legenda-sectie" style="margin-top:20px;">Maatsoorten & Speling</div>
+    <table class="legenda">
+      <thead><tr><th>Maatsoort</th><th colspan="3">Uitleg</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Glasmaat (direct)</strong></td><td colspan="3">Directe netto bestelmaat. Geen correctie nodig. Voer de exacte glasmaat in.</td></tr>
+        <tr><td><strong>Sponningmaat</strong></td><td colspan="3">Binnenwerks kozijn (de sleuf). 2× speling wordt afgetrokken. Bijv. 4 mm speling → −8 mm totaal.</td></tr>
+        <tr><td><strong>Dagmaat</strong></td><td colspan="3">Zichtmaat van de ruit met glaslatten. 2× speling wordt opgeteld. Bijv. 4 mm speling → +8 mm totaal.</td></tr>
+        <tr><td><strong>Speling (rondom)</strong></td><td colspan="3">Instelbare randspeling per zijde. Standaard 4 mm. Kies hoger bij grote ruiten of kunststof kozijnen.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="legenda-sectie" style="margin-top:20px;">Duco Ventilatieroosters op glas</div>
+    <table class="legenda">
+      <thead><tr><th>Roostertype</th><th>Min. glasdikte</th><th>Max. glasdikte</th><th>Toelichting</th></tr></thead>
+      <tbody>
+        <tr><td>DucoTon 10</td><td>≥ 4 mm</td><td>≤ 30 mm</td><td>Klassiek tonrooster, handmatig instelbaar | glasaftrek 80 mm</td></tr>
+        <tr><td>DucoTon 10 ZR</td><td>≥ 18 mm</td><td>≤ 30 mm</td><td>Zelfregelend tonrooster, meest verkocht | glasaftrek 80 mm</td></tr>
+        <tr><td>DucoTon 18</td><td>≥ 18 mm</td><td>≤ 22 mm</td><td>Groot tonrooster voor renovatie | glasaftrek 120 mm</td></tr>
+        <tr><td>DucoSmart 60</td><td>≥ 13 mm</td><td>≤ 22 mm</td><td>Compact klepventilator, minimale glasaftrek 60 mm</td></tr>
+        <tr><td>DucoKlep 15 ZR</td><td>≥ 18 mm</td><td>≤ 46 mm</td><td>Vlak klepprofiel, ook voor triple glas | glasaftrek 80 mm</td></tr>
+        <tr><td>DucoFlat 12 ZR</td><td>≥ 18 mm</td><td>≤ 30 mm</td><td>Plat profiel voor schuiframen | glasaftrek 80 mm</td></tr>
+        <tr><td>DucoGlasMax ZR</td><td>≥ 8 mm</td><td>≤ 38 mm</td><td>Geluidswerend, zelfregelend | glasaftrek 80 mm</td></tr>
+        <tr><td>DucoGlasMax SR</td><td>≥ 8 mm</td><td>≤ 38 mm</td><td>Geluidswerend akoestisch (sound-reducing) | glasaftrek 80 mm</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ IMPORTEREN ═══════════════ -->
+<div class="cloud-overlay" id="impVenster">
+  <div class="cloud-paneel" style="max-width:860px;">
+    <header>
+      <h2>📄 Sponningmaten importeren</h2>
+      <div class="sub">PDF, Excel, CSV of geplakte tekst</div>
+    </header>
+
+    <div class="cloud-body" id="impStap1">
+      <div class="imp-uitleg">
+        Kies een bestand met een tabel van sponningmaten. Je ziet eerst een voorbeeld
+        en koppelt zelf de kolommen, voordat er iets in de lijst komt.
+      </div>
+      <div class="imp-vak">
+        <input type="file" id="impBestand" accept=".pdf,.xlsx,.xls,.csv,.txt" onchange="impBestandGekozen(this)">
+      </div>
+      <div class="imp-of">of plak een tabel</div>
+      <textarea id="impPlak" placeholder="Plak hier de gekopieerde regels uit een PDF, Excel of e-mail…"></textarea>
+      <div class="cloud-fout" id="impMelding" style="color:var(--grijs-tekst)"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-secondary btn-sm" onclick="impSluit()">Annuleren</button>
+        <button class="btn btn-primary btn-sm" onclick="impPlakVerwerken()">Tekst inlezen</button>
+      </div>
+    </div>
+
+    <div class="cloud-body" id="impStap2" style="display:none;">
+      <div class="imp-uitleg">
+        Kies onder elke kolom waar hij naartoe moet. Gekleurde kolommen worden overgenomen,
+        grijze niet. Breedte en hoogte zijn verplicht.
+      </div>
+      <div class="imp-maatsoort">
+        <label for="impMaatsoort">Deze maten zijn:</label>
+        <select id="impMaatsoort">
+          <option value="Sponningmaat" selected>Sponningmaat</option>
+          <option value="Glasmaat (direct)">Glasmaat (direct)</option>
+          <option value="Dagmaat">Dagmaat</option>
+        </select>
+      </div>
+      <div class="imp-scroll" id="impVoorbeeld"></div>
+      <div class="imp-telling" id="impTelling"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="impOpen()">← Ander bestand</button>
+        <button class="btn btn-ghost btn-sm" id="impVervangen" onclick="impVervangen()">Alles vervangen</button>
+        <button class="btn btn-primary btn-sm" id="impToevoegen" onclick="impToevoegen()">Toevoegen aan lijst</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CLOUD: INLOGGEN ═══════════════ -->
+<div class="cloud-overlay" id="cloudLogin">
+  <div class="cloud-paneel">
+    <header>
+      <h2>🪟 Glasopname — inloggen</h2>
+      <div class="sub">Jelier Bouw B.V.</div>
+    </header>
+    <div class="cloud-body">
+      <label for="cloudEmail">E-mailadres</label>
+      <input type="email" id="cloudEmail" autocomplete="username" inputmode="email">
+      <label for="cloudWachtwoord">Wachtwoord</label>
+      <input type="password" id="cloudWachtwoord" autocomplete="current-password">
+      <div class="cloud-fout" id="cloudLoginFout"></div>
+      <button class="btn btn-primary" id="cloudLoginKnop" style="width:100%" onclick="cloudLogin()">Inloggen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CLOUD: PROJECTEN ══════════════ -->
+<div class="cloud-overlay" id="cloudProjecten">
+  <div class="cloud-paneel breed">
+    <header>
+      <h2>📁 Projecten</h2>
+      <div class="sub">Gedeeld met iedereen bij Jelier Bouw</div>
+    </header>
+    <div class="cloud-lijst" id="cloudProjectLijst"></div>
+    <div class="cloud-voet">
+      <button class="btn btn-ghost btn-sm" onclick="cloudUitloggen()">Uitloggen</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary btn-sm" onclick="cloudSluitProjecten()">Sluiten</button>
+        <button class="btn btn-primary btn-sm" onclick="cloudNieuw()">+ Nieuw project</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script>
+// ═══════════════ DATA ═══════════════
+const DATA = {"opbouw_per_type": {"Enkel glas": ["3 mm", "4 mm", "5 mm", "6 mm", "8 mm", "10 mm", "12 mm", "15 mm", "19 mm"], "HR glas": ["4-6-4", "4-8-4", "4-9-4", "4-10-4", "4-12-4", "5-6-4", "5-8-4", "5-9-4", "5-10-4", "5-12-4", "6-6-4", "6-8-4", "6-9-4", "6-10-4", "6-12-4", "5-6-5", "5-8-5", "5-9-5", "5-10-5", "5-12-5", "6-6-6", "6-8-6", "6-9-6", "6-10-6", "6-12-6", "8-6-4", "8-8-4", "8-10-4", "8-12-4", "8-6-6", "8-10-6", "8-12-6"], "HR+ glas": ["4-9-4", "4-10-4", "4-11-4", "4-12-4", "4-9-5", "4-10-5", "4-11-5", "4-12-5", "5-9-4", "5-10-4", "5-11-4", "5-12-4", "5-9-5", "5-10-5", "5-11-5", "5-12-5", "6-9-4", "6-10-4", "6-11-4", "6-12-4", "6-9-5", "6-10-5", "6-11-5", "6-12-5", "6-9-6", "6-10-6", "6-11-6", "6-12-6", "8-10-4", "8-10-5", "8-10-6", "8-12-4", "8-12-5", "8-12-6"], "HR++ glas": ["4-13-4", "4-14-4", "4-15-4", "4-16-4", "4-13-5", "4-14-5", "4-15-5", "4-16-5", "5-13-4", "5-14-4", "5-15-4", "5-16-4", "5-13-5", "5-14-5", "5-15-5", "5-16-5", "4-13-6", "4-14-6", "4-15-6", "4-16-6", "5-13-6", "5-14-6", "5-15-6", "5-16-6", "6-13-4", "6-14-4", "6-15-4", "6-16-4", "6-13-5", "6-14-5", "6-15-5", "6-16-5", "6-13-6", "6-14-6", "6-15-6", "6-16-6", "6-14-8", "6-15-8", "6-16-8", "8-13-4", "8-14-4", "8-15-4", "8-16-4", "8-13-5", "8-14-5", "8-15-5", "8-16-5", "8-13-6", "8-14-6", "8-15-6", "8-16-6", "8-14-8", "8-15-8", "8-16-8", "10-14-6", "10-15-6", "10-16-6", "10-14-8", "10-15-8", "10-16-8", "4-18-4", "4-20-4", "4-24-4", "6-18-4", "6-18-6", "6-20-4", "6-20-6"], "HR+++ glas (Triple)": ["4-8-4-8-4", "4-8-4-8-5", "4-8-4-8-6", "4-8-4-8-8", "4-8-4-8-10", "4-8-5-8-4", "4-8-5-8-5", "4-8-5-8-6", "4-8-5-8-8", "4-8-5-8-10", "4-8-6-8-4", "4-8-6-8-5", "4-8-6-8-6", "4-8-6-8-8", "4-8-6-8-10", "4-12-4-12-4", "4-12-4-12-5", "4-12-4-12-6", "4-12-4-12-8", "4-12-4-12-10", "4-12-5-12-4", "4-12-5-12-5", "4-12-5-12-6", "4-12-5-12-8", "4-12-5-12-10", "4-12-6-12-4", "4-12-6-12-5", "4-12-6-12-6", "4-12-6-12-8", "4-12-6-12-10", "4-13-4-13-4", "4-13-4-13-5", "4-13-4-13-6", "4-13-4-13-8", "4-13-4-13-10", "4-13-5-13-4", "4-13-5-13-5", "4-13-5-13-6", "4-13-5-13-8", "4-13-5-13-10", "4-13-6-13-4", "4-13-6-13-5", "4-13-6-13-6", "4-13-6-13-8", "4-13-6-13-10", "4-14-4-14-4", "4-14-4-14-5", "4-14-4-14-6", "4-14-4-14-8", "4-14-4-14-10", "4-14-5-14-4", "4-14-5-14-5", "4-14-5-14-6", "4-14-5-14-8", "4-14-5-14-10", "4-14-6-14-4", "4-14-6-14-5", "4-14-6-14-6", "4-14-6-14-8", "4-14-6-14-10", "4-15-4-15-4", "4-15-4-15-5", "4-15-4-15-6", "4-15-4-15-8", "4-15-4-15-10", "4-15-5-15-4", "4-15-5-15-5", "4-15-5-15-6", "4-15-5-15-8", "4-15-5-15-10", "4-15-6-15-4", "4-15-6-15-5", "4-15-6-15-6", "4-15-6-15-8", "4-15-6-15-10", "4-16-4-16-4", "4-16-4-16-5", "4-16-4-16-6", "4-16-4-16-8", "4-16-4-16-10", "4-16-5-16-4", "4-16-5-16-5", "4-16-5-16-6", "4-16-5-16-8", "4-16-5-16-10", "4-16-6-16-4", "4-16-6-16-5", "4-16-6-16-6", "4-16-6-16-8", "4-16-6-16-10", "5-8-4-8-4", "5-8-4-8-5", "5-8-4-8-6", "5-8-4-8-8", "5-8-4-8-10", "5-8-5-8-4", "5-8-5-8-5", "5-8-5-8-6", "5-8-5-8-8", "5-8-5-8-10", "5-8-6-8-4", "5-8-6-8-5", "5-8-6-8-6", "5-8-6-8-8", "5-8-6-8-10", "5-12-4-12-4", "5-12-4-12-5", "5-12-4-12-6", "5-12-4-12-8", "5-12-4-12-10", "5-12-5-12-4", "5-12-5-12-5", "5-12-5-12-6", "5-12-5-12-8", "5-12-5-12-10", "5-12-6-12-4", "5-12-6-12-5", "5-12-6-12-6", "5-12-6-12-8", "5-12-6-12-10", "5-13-4-13-4", "5-13-4-13-5", "5-13-4-13-6", "5-13-4-13-8", "5-13-4-13-10", "5-13-5-13-4", "5-13-5-13-5", "5-13-5-13-6", "5-13-5-13-8", "5-13-5-13-10", "5-13-6-13-4", "5-13-6-13-5", "5-13-6-13-6", "5-13-6-13-8", "5-13-6-13-10", "5-14-4-14-4", "5-14-4-14-5", "5-14-4-14-6", "5-14-4-14-8", "5-14-4-14-10", "5-14-5-14-4", "5-14-5-14-5", "5-14-5-14-6", "5-14-5-14-8", "5-14-5-14-10", "5-14-6-14-4", "5-14-6-14-5", "5-14-6-14-6", "5-14-6-14-8", "5-14-6-14-10", "5-15-4-15-4", "5-15-4-15-5", "5-15-4-15-6", "5-15-4-15-8", "5-15-4-15-10", "5-15-5-15-4", "5-15-5-15-5", "5-15-5-15-6", "5-15-5-15-8", "5-15-5-15-10", "5-15-6-15-4", "5-15-6-15-5", "5-15-6-15-6", "5-15-6-15-8", "5-15-6-15-10", "5-16-4-16-4", "5-16-4-16-5", "5-16-4-16-6", "5-16-4-16-8", "5-16-4-16-10", "5-16-5-16-4", "5-16-5-16-5", "5-16-5-16-6", "5-16-5-16-8", "5-16-5-16-10", "5-16-6-16-4", "5-16-6-16-5", "5-16-6-16-6", "5-16-6-16-8", "5-16-6-16-10", "6-8-4-8-4", "6-8-4-8-5", "6-8-4-8-6", "6-8-4-8-8", "6-8-4-8-10", "6-8-5-8-4", "6-8-5-8-5", "6-8-5-8-6", "6-8-5-8-8", "6-8-5-8-10", "6-8-6-8-4", "6-8-6-8-5", "6-8-6-8-6", "6-8-6-8-8", "6-8-6-8-10", "6-12-4-12-4", "6-12-4-12-5", "6-12-4-12-6", "6-12-4-12-8", "6-12-4-12-10", "6-12-5-12-4", "6-12-5-12-5", "6-12-5-12-6", "6-12-5-12-8", "6-12-5-12-10", "6-12-6-12-4", "6-12-6-12-5", "6-12-6-12-6", "6-12-6-12-8", "6-12-6-12-10", "6-13-4-13-4", "6-13-4-13-5", "6-13-4-13-6", "6-13-4-13-8", "6-13-4-13-10", "6-13-5-13-4", "6-13-5-13-5", "6-13-5-13-6", "6-13-5-13-8", "6-13-5-13-10", "6-13-6-13-4", "6-13-6-13-5", "6-13-6-13-6", "6-13-6-13-8", "6-13-6-13-10", "6-14-4-14-4", "6-14-4-14-5", "6-14-4-14-6", "6-14-4-14-8", "6-14-4-14-10", "6-14-5-14-4", "6-14-5-14-5", "6-14-5-14-6", "6-14-5-14-8", "6-14-5-14-10", "6-14-6-14-4", "6-14-6-14-5", "6-14-6-14-6", "6-14-6-14-8", "6-14-6-14-10", "6-15-4-15-4", "6-15-4-15-5", "6-15-4-15-6", "6-15-4-15-8", "6-15-4-15-10", "6-15-5-15-4", "6-15-5-15-5", "6-15-5-15-6", "6-15-5-15-8", "6-15-5-15-10", "6-15-6-15-4", "6-15-6-15-5", "6-15-6-15-6", "6-15-6-15-8", "6-15-6-15-10", "6-16-4-16-4", "6-16-4-16-5", "6-16-4-16-6", "6-16-4-16-8", "6-16-4-16-10", "6-16-5-16-4", "6-16-5-16-5", "6-16-5-16-6", "6-16-5-16-8", "6-16-5-16-10", "6-16-6-16-4", "6-16-6-16-5", "6-16-6-16-6", "6-16-6-16-8", "6-16-6-16-10", "8-8-4-8-4", "8-8-4-8-5", "8-8-4-8-6", "8-8-4-8-8", "8-8-4-8-10", "8-8-5-8-4", "8-8-5-8-5", "8-8-5-8-6", "8-8-5-8-8", "8-8-5-8-10", "8-8-6-8-4", "8-8-6-8-5", "8-8-6-8-6", "8-8-6-8-8", "8-8-6-8-10", "8-12-4-12-4", "8-12-4-12-5", "8-12-4-12-6", "8-12-4-12-8", "8-12-4-12-10", "8-12-5-12-4", "8-12-5-12-5", "8-12-5-12-6", "8-12-5-12-8", "8-12-5-12-10", "8-12-6-12-4", "8-12-6-12-5", "8-12-6-12-6", "8-12-6-12-8", "8-12-6-12-10", "8-13-4-13-4", "8-13-4-13-5", "8-13-4-13-6", "8-13-4-13-8", "8-13-4-13-10", "8-13-5-13-4", "8-13-5-13-5", "8-13-5-13-6", "8-13-5-13-8", "8-13-5-13-10", "8-13-6-13-4", "8-13-6-13-5", "8-13-6-13-6", "8-13-6-13-8", "8-13-6-13-10", "8-14-4-14-4", "8-14-4-14-5", "8-14-4-14-6", "8-14-4-14-8", "8-14-4-14-10", "8-14-5-14-4", "8-14-5-14-5", "8-14-5-14-6", "8-14-5-14-8", "8-14-5-14-10", "8-14-6-14-4", "8-14-6-14-5", "8-14-6-14-6", "8-14-6-14-8", "8-14-6-14-10", "8-15-4-15-4", "8-15-4-15-5", "8-15-4-15-6", "8-15-4-15-8", "8-15-4-15-10", "8-15-5-15-4", "8-15-5-15-5", "8-15-5-15-6", "8-15-5-15-8", "8-15-5-15-10", "8-15-6-15-4", "8-15-6-15-5", "8-15-6-15-6", "8-15-6-15-8", "8-15-6-15-10", "8-16-4-16-4", "8-16-4-16-5", "8-16-4-16-6", "8-16-4-16-8", "8-16-4-16-10", "8-16-5-16-4", "8-16-5-16-5", "8-16-5-16-6", "8-16-5-16-8", "8-16-5-16-10", "8-16-6-16-4", "8-16-6-16-5", "8-16-6-16-6", "8-16-6-16-8", "8-16-6-16-10", "10-8-4-8-4", "10-8-4-8-5", "10-8-4-8-6", "10-8-4-8-8", "10-8-5-8-4", "10-8-5-8-5", "10-8-5-8-6", "10-8-5-8-8", "10-8-6-8-4", "10-8-6-8-5", "10-8-6-8-6", "10-8-6-8-8", "10-12-4-12-4", "10-12-4-12-5", "10-12-4-12-6", "10-12-4-12-8", "10-12-5-12-4", "10-12-5-12-5", "10-12-5-12-6", "10-12-5-12-8", "10-12-6-12-4", "10-12-6-12-5", "10-12-6-12-6", "10-12-6-12-8", "10-13-4-13-4", "10-13-4-13-5", "10-13-4-13-6", "10-13-4-13-8", "10-13-5-13-4", "10-13-5-13-5", "10-13-5-13-6", "10-13-5-13-8", "10-13-6-13-4", "10-13-6-13-5", "10-13-6-13-6", "10-13-6-13-8", "10-14-4-14-4", "10-14-4-14-5", "10-14-4-14-6", "10-14-4-14-8", "10-14-5-14-4", "10-14-5-14-5", "10-14-5-14-6", "10-14-5-14-8", "10-14-6-14-4", "10-14-6-14-5", "10-14-6-14-6", "10-14-6-14-8", "10-15-4-15-4", "10-15-4-15-5", "10-15-4-15-6", "10-15-4-15-8", "10-15-5-15-4", "10-15-5-15-5", "10-15-5-15-6", "10-15-5-15-8", "10-15-6-15-4", "10-15-6-15-5", "10-15-6-15-6", "10-15-6-15-8", "10-16-4-16-4", "10-16-4-16-5", "10-16-4-16-6", "10-16-4-16-8", "10-16-5-16-4", "10-16-5-16-5", "10-16-5-16-6", "10-16-5-16-8", "10-16-6-16-4", "10-16-6-16-5", "10-16-6-16-6", "10-16-6-16-8"], "Gelaagd glas (VSG)": ["33.1", "33.2", "44.1", "44.2", "55.1", "55.2", "66.1", "66.2", "66.4", "76.2", "77.2", "88.2", "88.4", "1010.2", "33.1-13-4", "33.1-14-4", "33.1-15-4", "33.1-16-4", "33.2-13-4", "33.2-14-4", "33.2-15-4", "33.2-16-4", "33.1-13-5", "33.1-14-5", "33.1-15-5", "33.1-16-5", "33.2-13-5", "33.2-14-5", "33.2-15-5", "33.2-16-5", "44.1-13-4", "44.1-14-4", "44.1-15-4", "44.1-16-4", "44.2-13-4", "44.2-14-4", "44.2-15-4", "44.2-16-4", "44.1-13-5", "44.1-14-5", "44.1-15-5", "44.1-16-5", "44.2-13-5", "44.2-14-5", "44.2-15-5", "44.2-16-5", "44.2-13-6", "44.2-14-6", "44.2-15-6", "44.2-16-6", "55.2-13-4", "55.2-14-4", "55.2-15-4", "55.2-16-4", "55.2-13-5", "55.2-14-5", "55.2-15-5", "55.2-16-5", "66.2-13-4", "66.2-14-4", "66.2-15-4", "66.2-16-4", "66.2-13-6", "66.2-14-6", "66.2-15-6", "66.2-16-6", "6-13-33.1", "6-14-33.1", "6-15-33.1", "6-16-33.1", "33.1-13-33.1", "33.1-14-33.1", "33.1-15-33.1", "33.1-16-33.1", "33.2-13-33.2", "33.2-14-33.2", "33.2-15-33.2", "33.2-16-33.2", "44.2-13-33.1", "44.2-14-33.1", "44.2-15-33.1", "44.2-16-33.1", "44.2-13-44.2", "44.2-14-44.2", "44.2-15-44.2", "44.2-16-44.2", "55.2-14-44.2", "55.2-15-44.2", "55.2-16-44.2", "66.2-14-44.2", "66.2-15-44.2", "66.2-16-44.2"], "Gehard gelaagd (ESG+VSG)": ["44.2 ESG", "55.2 ESG", "66.2 ESG", "66.4 ESG", "77.2 ESG", "88.2 ESG", "88.4 ESG", "1010.2 ESG", "1010.4 ESG", "44.2 ESG-13-4", "44.2 ESG-14-4", "44.2 ESG-15-4", "44.2 ESG-16-4", "44.2 ESG-13-5", "44.2 ESG-14-5", "44.2 ESG-15-5", "44.2 ESG-16-5", "44.2 ESG-13-6", "44.2 ESG-14-6", "44.2 ESG-15-6", "44.2 ESG-16-6", "66.2 ESG-13-4", "66.2 ESG-14-4", "66.2 ESG-15-4", "66.2 ESG-16-4", "66.2 ESG-13-6", "66.2 ESG-14-6", "66.2 ESG-15-6", "66.2 ESG-16-6", "4-13-44.2 ESG", "4-14-44.2 ESG", "4-15-44.2 ESG", "4-16-44.2 ESG", "6-13-44.2 ESG", "6-14-44.2 ESG", "6-15-44.2 ESG", "6-16-44.2 ESG", "44.2 ESG-14-44.2 ESG", "44.2 ESG-15-44.2 ESG", "44.2 ESG-16-44.2 ESG", "66.2 ESG-15-44.2 ESG", "66.2 ESG-16-44.2 ESG"], "Gehard glas (ESG)": ["4 mm ESG", "5 mm ESG", "6 mm ESG", "8 mm ESG", "10 mm ESG", "12 mm ESG", "15 mm ESG", "19 mm ESG"], "Zonwerend glas": ["4-13-4 ZW", "4-14-4 ZW", "4-15-4 ZW", "4-16-4 ZW", "4-13-5 ZW", "4-14-5 ZW", "4-15-5 ZW", "4-16-5 ZW", "5-13-5 ZW", "5-14-5 ZW", "5-15-5 ZW", "5-16-5 ZW", "6-13-4 ZW", "6-14-4 ZW", "6-15-4 ZW", "6-16-4 ZW", "6-13-5 ZW", "6-14-5 ZW", "6-15-5 ZW", "6-16-5 ZW", "6-13-6 ZW", "6-14-6 ZW", "6-15-6 ZW", "6-16-6 ZW", "8-14-6 ZW", "8-15-6 ZW", "8-16-6 ZW", "33.1-13-4 ZW", "33.1-14-4 ZW", "33.1-15-4 ZW", "33.1-16-4 ZW", "44.2-13-4 ZW", "44.2-14-4 ZW", "44.2-15-4 ZW", "44.2-16-4 ZW", "44.2-13-5 ZW", "44.2-14-5 ZW", "44.2-15-5 ZW", "44.2-16-5 ZW", "44.2-13-6 ZW", "44.2-14-6 ZW", "44.2-15-6 ZW", "44.2-16-6 ZW", "55.2-14-4 ZW", "55.2-15-4 ZW", "55.2-16-4 ZW", "4-14-4-14-4 ZW", "4-16-4-16-4 ZW", "6-14-4-14-4 ZW", "6-16-4-16-4 ZW"], "Akoestisch glas": ["4-13-33.2A", "4-14-33.2A", "4-15-33.2A", "4-16-33.2A", "4-13-44.2A", "4-14-44.2A", "4-15-44.2A", "4-16-44.2A", "5-13-33.2A", "5-14-33.2A", "5-15-33.2A", "5-16-33.2A", "5-13-44.2A", "5-14-44.2A", "5-15-44.2A", "5-16-44.2A", "6-13-33.2A", "6-14-33.2A", "6-15-33.2A", "6-16-33.2A", "6-13-44.2A", "6-14-44.2A", "6-15-44.2A", "6-16-44.2A", "6-13-44.4A", "6-14-44.4A", "6-15-44.4A", "6-16-44.4A", "8-13-44.2A", "8-14-44.2A", "8-15-44.2A", "8-16-44.2A", "33.2A-13-4", "33.2A-14-4", "33.2A-15-4", "33.2A-16-4", "44.2A-13-4", "44.2A-14-4", "44.2A-15-4", "44.2A-16-4", "44.2A-13-5", "44.2A-14-5", "44.2A-15-5", "44.2A-16-5", "44.2A-13-6", "44.2A-14-6", "44.2A-15-6", "44.2A-16-6", "33.2A-13-44.2A", "33.2A-14-44.2A", "33.2A-15-44.2A", "33.2A-16-44.2A", "44.2A-13-44.2A", "44.2A-14-44.2A", "44.2A-15-44.2A", "44.2A-16-44.2A", "4-14-4-14-44.2A", "4-16-4-16-44.2A", "6-14-4-14-44.2A", "6-16-4-16-44.2A", "33.2A-14-4-14-4", "44.2A-14-4-14-4"]}, "lookup": {"Enkel glas|3 mm": {"glasOnly": 3, "totaal": 3, "kg_m2": 7.5}, "Enkel glas|4 mm": {"glasOnly": 4, "totaal": 4, "kg_m2": 10}, "Enkel glas|5 mm": {"glasOnly": 5, "totaal": 5, "kg_m2": 12.5}, "Enkel glas|6 mm": {"glasOnly": 6, "totaal": 6, "kg_m2": 15}, "Enkel glas|8 mm": {"glasOnly": 8, "totaal": 8, "kg_m2": 20}, "Enkel glas|10 mm": {"glasOnly": 10, "totaal": 10, "kg_m2": 25}, "Enkel glas|12 mm": {"glasOnly": 12, "totaal": 12, "kg_m2": 30}, "Enkel glas|15 mm": {"glasOnly": 15, "totaal": 15, "kg_m2": 37.5}, "Enkel glas|19 mm": {"glasOnly": 19, "totaal": 19, "kg_m2": 47.5}, "HR glas|4-6-4": {"glasOnly": 8, "totaal": 14, "kg_m2": 20}, "HR glas|4-8-4": {"glasOnly": 8, "totaal": 16, "kg_m2": 20}, "HR glas|4-9-4": {"glasOnly": 8, "totaal": 17, "kg_m2": 20}, "HR glas|4-10-4": {"glasOnly": 8, "totaal": 18, "kg_m2": 20}, "HR glas|4-12-4": {"glasOnly": 8, "totaal": 20, "kg_m2": 20}, "HR glas|5-6-4": {"glasOnly": 9, "totaal": 15, "kg_m2": 22.5}, "HR glas|5-8-4": {"glasOnly": 9, "totaal": 17, "kg_m2": 22.5}, "HR glas|5-9-4": {"glasOnly": 9, "totaal": 18, "kg_m2": 22.5}, "HR glas|5-10-4": {"glasOnly": 9, "totaal": 19, "kg_m2": 22.5}, "HR glas|5-12-4": {"glasOnly": 9, "totaal": 21, "kg_m2": 22.5}, "HR glas|6-6-4": {"glasOnly": 10, "totaal": 16, "kg_m2": 25}, "HR glas|6-8-4": {"glasOnly": 10, "totaal": 18, "kg_m2": 25}, "HR glas|6-9-4": {"glasOnly": 10, "totaal": 19, "kg_m2": 25}, "HR glas|6-10-4": {"glasOnly": 10, "totaal": 20, "kg_m2": 25}, "HR glas|6-12-4": {"glasOnly": 10, "totaal": 22, "kg_m2": 25}, "HR glas|5-6-5": {"glasOnly": 10, "totaal": 16, "kg_m2": 25}, "HR glas|5-8-5": {"glasOnly": 10, "totaal": 18, "kg_m2": 25}, "HR glas|5-9-5": {"glasOnly": 10, "totaal": 19, "kg_m2": 25}, "HR glas|5-10-5": {"glasOnly": 10, "totaal": 20, "kg_m2": 25}, "HR glas|5-12-5": {"glasOnly": 10, "totaal": 22, "kg_m2": 25}, "HR glas|6-6-6": {"glasOnly": 12, "totaal": 18, "kg_m2": 30}, "HR glas|6-8-6": {"glasOnly": 12, "totaal": 20, "kg_m2": 30}, "HR glas|6-9-6": {"glasOnly": 12, "totaal": 21, "kg_m2": 30}, "HR glas|6-10-6": {"glasOnly": 12, "totaal": 22, "kg_m2": 30}, "HR glas|6-12-6": {"glasOnly": 12, "totaal": 24, "kg_m2": 30}, "HR glas|8-6-4": {"glasOnly": 12, "totaal": 18, "kg_m2": 30}, "HR glas|8-8-4": {"glasOnly": 12, "totaal": 20, "kg_m2": 30}, "HR glas|8-10-4": {"glasOnly": 12, "totaal": 22, "kg_m2": 30}, "HR glas|8-12-4": {"glasOnly": 12, "totaal": 24, "kg_m2": 30}, "HR glas|8-6-6": {"glasOnly": 14, "totaal": 20, "kg_m2": 35}, "HR glas|8-10-6": {"glasOnly": 14, "totaal": 24, "kg_m2": 35}, "HR glas|8-12-6": {"glasOnly": 14, "totaal": 26, "kg_m2": 35}, "HR+ glas|4-9-4": {"glasOnly": 8, "totaal": 17, "kg_m2": 20}, "HR+ glas|4-10-4": {"glasOnly": 8, "totaal": 18, "kg_m2": 20}, "HR+ glas|4-11-4": {"glasOnly": 8, "totaal": 19, "kg_m2": 20}, "HR+ glas|4-12-4": {"glasOnly": 8, "totaal": 20, "kg_m2": 20}, "HR+ glas|4-9-5": {"glasOnly": 9, "totaal": 18, "kg_m2": 22.5}, "HR+ glas|4-10-5": {"glasOnly": 9, "totaal": 19, "kg_m2": 22.5}, "HR+ glas|4-11-5": {"glasOnly": 9, "totaal": 20, "kg_m2": 22.5}, "HR+ glas|4-12-5": {"glasOnly": 9, "totaal": 21, "kg_m2": 22.5}, "HR+ glas|5-9-4": {"glasOnly": 9, "totaal": 18, "kg_m2": 22.5}, "HR+ glas|5-10-4": {"glasOnly": 9, "totaal": 19, "kg_m2": 22.5}, "HR+ glas|5-11-4": {"glasOnly": 9, "totaal": 20, "kg_m2": 22.5}, "HR+ glas|5-12-4": {"glasOnly": 9, "totaal": 21, "kg_m2": 22.5}, "HR+ glas|5-9-5": {"glasOnly": 10, "totaal": 19, "kg_m2": 25}, "HR+ glas|5-10-5": {"glasOnly": 10, "totaal": 20, "kg_m2": 25}, "HR+ glas|5-11-5": {"glasOnly": 10, "totaal": 21, "kg_m2": 25}, "HR+ glas|5-12-5": {"glasOnly": 10, "totaal": 22, "kg_m2": 25}, "HR+ glas|6-9-4": {"glasOnly": 10, "totaal": 19, "kg_m2": 25}, "HR+ glas|6-10-4": {"glasOnly": 10, "totaal": 20, "kg_m2": 25}, "HR+ glas|6-11-4": {"glasOnly": 10, "totaal": 21, "kg_m2": 25}, "HR+ glas|6-12-4": {"glasOnly": 10, "totaal": 22, "kg_m2": 25}, "HR+ glas|6-9-5": {"glasOnly": 11, "totaal": 20, "kg_m2": 27.5}, "HR+ glas|6-10-5": {"glasOnly": 11, "totaal": 21, "kg_m2": 27.5}, "HR+ glas|6-11-5": {"glasOnly": 11, "totaal": 22, "kg_m2": 27.5}, "HR+ glas|6-12-5": {"glasOnly": 11, "totaal": 23, "kg_m2": 27.5}, "HR+ glas|6-9-6": {"glasOnly": 12, "totaal": 21, "kg_m2": 30}, "HR+ glas|6-10-6": {"glasOnly": 12, "totaal": 22, "kg_m2": 30}, "HR+ glas|6-11-6": {"glasOnly": 12, "totaal": 23, "kg_m2": 30}, "HR+ glas|6-12-6": {"glasOnly": 12, "totaal": 24, "kg_m2": 30}, "HR+ glas|8-10-4": {"glasOnly": 12, "totaal": 22, "kg_m2": 30}, "HR+ glas|8-10-5": {"glasOnly": 13, "totaal": 23, "kg_m2": 32.5}, "HR+ glas|8-10-6": {"glasOnly": 14, "totaal": 24, "kg_m2": 35}, "HR+ glas|8-12-4": {"glasOnly": 12, "totaal": 24, "kg_m2": 30}, "HR+ glas|8-12-5": {"glasOnly": 13, "totaal": 25, "kg_m2": 32.5}, "HR+ glas|8-12-6": {"glasOnly": 14, "totaal": 26, "kg_m2": 35}, "HR++ glas|4-13-4": {"glasOnly": 8, "totaal": 21, "kg_m2": 20}, "HR++ glas|4-14-4": {"glasOnly": 8, "totaal": 22, "kg_m2": 20}, "HR++ glas|4-15-4": {"glasOnly": 8, "totaal": 23, "kg_m2": 20}, "HR++ glas|4-16-4": {"glasOnly": 8, "totaal": 24, "kg_m2": 20}, "HR++ glas|4-13-5": {"glasOnly": 9, "totaal": 22, "kg_m2": 22.5}, "HR++ glas|4-14-5": {"glasOnly": 9, "totaal": 23, "kg_m2": 22.5}, "HR++ glas|4-15-5": {"glasOnly": 9, "totaal": 24, "kg_m2": 22.5}, "HR++ glas|4-16-5": {"glasOnly": 9, "totaal": 25, "kg_m2": 22.5}, "HR++ glas|5-13-4": {"glasOnly": 9, "totaal": 22, "kg_m2": 22.5}, "HR++ glas|5-14-4": {"glasOnly": 9, "totaal": 23, "kg_m2": 22.5}, "HR++ glas|5-15-4": {"glasOnly": 9, "totaal": 24, "kg_m2": 22.5}, "HR++ glas|5-16-4": {"glasOnly": 9, "totaal": 25, "kg_m2": 22.5}, "HR++ glas|5-13-5": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "HR++ glas|5-14-5": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "HR++ glas|5-15-5": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "HR++ glas|5-16-5": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "HR++ glas|4-13-6": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "HR++ glas|4-14-6": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "HR++ glas|4-15-6": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "HR++ glas|4-16-6": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "HR++ glas|5-13-6": {"glasOnly": 11, "totaal": 24, "kg_m2": 27.5}, "HR++ glas|5-14-6": {"glasOnly": 11, "totaal": 25, "kg_m2": 27.5}, "HR++ glas|5-15-6": {"glasOnly": 11, "totaal": 26, "kg_m2": 27.5}, "HR++ glas|5-16-6": {"glasOnly": 11, "totaal": 27, "kg_m2": 27.5}, "HR++ glas|6-13-4": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "HR++ glas|6-14-4": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "HR++ glas|6-15-4": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "HR++ glas|6-16-4": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "HR++ glas|6-13-5": {"glasOnly": 11, "totaal": 24, "kg_m2": 27.5}, "HR++ glas|6-14-5": {"glasOnly": 11, "totaal": 25, "kg_m2": 27.5}, "HR++ glas|6-15-5": {"glasOnly": 11, "totaal": 26, "kg_m2": 27.5}, "HR++ glas|6-16-5": {"glasOnly": 11, "totaal": 27, "kg_m2": 27.5}, "HR++ glas|6-13-6": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "HR++ glas|6-14-6": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "HR++ glas|6-15-6": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "HR++ glas|6-16-6": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "HR++ glas|6-14-8": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "HR++ glas|6-15-8": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "HR++ glas|6-16-8": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "HR++ glas|8-13-4": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "HR++ glas|8-14-4": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "HR++ glas|8-15-4": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "HR++ glas|8-16-4": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "HR++ glas|8-13-5": {"glasOnly": 13, "totaal": 26, "kg_m2": 32.5}, "HR++ glas|8-14-5": {"glasOnly": 13, "totaal": 27, "kg_m2": 32.5}, "HR++ glas|8-15-5": {"glasOnly": 13, "totaal": 28, "kg_m2": 32.5}, "HR++ glas|8-16-5": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "HR++ glas|8-13-6": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "HR++ glas|8-14-6": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "HR++ glas|8-15-6": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "HR++ glas|8-16-6": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "HR++ glas|8-14-8": {"glasOnly": 16, "totaal": 30, "kg_m2": 40}, "HR++ glas|8-15-8": {"glasOnly": 16, "totaal": 31, "kg_m2": 40}, "HR++ glas|8-16-8": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR++ glas|10-14-6": {"glasOnly": 16, "totaal": 30, "kg_m2": 40}, "HR++ glas|10-15-6": {"glasOnly": 16, "totaal": 31, "kg_m2": 40}, "HR++ glas|10-16-6": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR++ glas|10-14-8": {"glasOnly": 18, "totaal": 32, "kg_m2": 45}, "HR++ glas|10-15-8": {"glasOnly": 18, "totaal": 33, "kg_m2": 45}, "HR++ glas|10-16-8": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR++ glas|4-18-4": {"glasOnly": 8, "totaal": 26, "kg_m2": 20}, "HR++ glas|4-20-4": {"glasOnly": 8, "totaal": 28, "kg_m2": 20}, "HR++ glas|4-24-4": {"glasOnly": 8, "totaal": 32, "kg_m2": 20}, "HR++ glas|6-18-4": {"glasOnly": 10, "totaal": 28, "kg_m2": 25}, "HR++ glas|6-18-6": {"glasOnly": 12, "totaal": 30, "kg_m2": 30}, "HR++ glas|6-20-4": {"glasOnly": 10, "totaal": 30, "kg_m2": 25}, "HR++ glas|6-20-6": {"glasOnly": 12, "totaal": 32, "kg_m2": 30}, "HR+++ glas (Triple)|4-8-4-8-4": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "HR+++ glas (Triple)|4-8-4-8-5": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-8-4-8-6": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "HR+++ glas (Triple)|4-8-4-8-8": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR+++ glas (Triple)|4-8-4-8-10": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|4-8-5-8-4": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-8-5-8-5": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "HR+++ glas (Triple)|4-8-5-8-6": {"glasOnly": 15, "totaal": 31, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-8-5-8-8": {"glasOnly": 17, "totaal": 33, "kg_m2": 42.5}, "HR+++ glas (Triple)|4-8-5-8-10": {"glasOnly": 19, "totaal": 35, "kg_m2": 47.5}, "HR+++ glas (Triple)|4-8-6-8-4": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "HR+++ glas (Triple)|4-8-6-8-5": {"glasOnly": 15, "totaal": 31, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-8-6-8-6": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR+++ glas (Triple)|4-8-6-8-8": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|4-8-6-8-10": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|4-12-4-12-4": {"glasOnly": 12, "totaal": 36, "kg_m2": 30}, "HR+++ glas (Triple)|4-12-4-12-5": {"glasOnly": 13, "totaal": 37, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-12-4-12-6": {"glasOnly": 14, "totaal": 38, "kg_m2": 35}, "HR+++ glas (Triple)|4-12-4-12-8": {"glasOnly": 16, "totaal": 40, "kg_m2": 40}, "HR+++ glas (Triple)|4-12-4-12-10": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|4-12-5-12-4": {"glasOnly": 13, "totaal": 37, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-12-5-12-5": {"glasOnly": 14, "totaal": 38, "kg_m2": 35}, "HR+++ glas (Triple)|4-12-5-12-6": {"glasOnly": 15, "totaal": 39, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-12-5-12-8": {"glasOnly": 17, "totaal": 41, "kg_m2": 42.5}, "HR+++ glas (Triple)|4-12-5-12-10": {"glasOnly": 19, "totaal": 43, "kg_m2": 47.5}, "HR+++ glas (Triple)|4-12-6-12-4": {"glasOnly": 14, "totaal": 38, "kg_m2": 35}, "HR+++ glas (Triple)|4-12-6-12-5": {"glasOnly": 15, "totaal": 39, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-12-6-12-6": {"glasOnly": 16, "totaal": 40, "kg_m2": 40}, "HR+++ glas (Triple)|4-12-6-12-8": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|4-12-6-12-10": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|4-13-4-13-4": {"glasOnly": 12, "totaal": 38, "kg_m2": 30}, "HR+++ glas (Triple)|4-13-4-13-5": {"glasOnly": 13, "totaal": 39, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-13-4-13-6": {"glasOnly": 14, "totaal": 40, "kg_m2": 35}, "HR+++ glas (Triple)|4-13-4-13-8": {"glasOnly": 16, "totaal": 42, "kg_m2": 40}, "HR+++ glas (Triple)|4-13-4-13-10": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|4-13-5-13-4": {"glasOnly": 13, "totaal": 39, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-13-5-13-5": {"glasOnly": 14, "totaal": 40, "kg_m2": 35}, "HR+++ glas (Triple)|4-13-5-13-6": {"glasOnly": 15, "totaal": 41, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-13-5-13-8": {"glasOnly": 17, "totaal": 43, "kg_m2": 42.5}, "HR+++ glas (Triple)|4-13-5-13-10": {"glasOnly": 19, "totaal": 45, "kg_m2": 47.5}, "HR+++ glas (Triple)|4-13-6-13-4": {"glasOnly": 14, "totaal": 40, "kg_m2": 35}, "HR+++ glas (Triple)|4-13-6-13-5": {"glasOnly": 15, "totaal": 41, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-13-6-13-6": {"glasOnly": 16, "totaal": 42, "kg_m2": 40}, "HR+++ glas (Triple)|4-13-6-13-8": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|4-13-6-13-10": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|4-14-4-14-4": {"glasOnly": 12, "totaal": 40, "kg_m2": 30}, "HR+++ glas (Triple)|4-14-4-14-5": {"glasOnly": 13, "totaal": 41, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-14-4-14-6": {"glasOnly": 14, "totaal": 42, "kg_m2": 35}, "HR+++ glas (Triple)|4-14-4-14-8": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "HR+++ glas (Triple)|4-14-4-14-10": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|4-14-5-14-4": {"glasOnly": 13, "totaal": 41, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-14-5-14-5": {"glasOnly": 14, "totaal": 42, "kg_m2": 35}, "HR+++ glas (Triple)|4-14-5-14-6": {"glasOnly": 15, "totaal": 43, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-14-5-14-8": {"glasOnly": 17, "totaal": 45, "kg_m2": 42.5}, "HR+++ glas (Triple)|4-14-5-14-10": {"glasOnly": 19, "totaal": 47, "kg_m2": 47.5}, "HR+++ glas (Triple)|4-14-6-14-4": {"glasOnly": 14, "totaal": 42, "kg_m2": 35}, "HR+++ glas (Triple)|4-14-6-14-5": {"glasOnly": 15, "totaal": 43, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-14-6-14-6": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "HR+++ glas (Triple)|4-14-6-14-8": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|4-14-6-14-10": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|4-15-4-15-4": {"glasOnly": 12, "totaal": 42, "kg_m2": 30}, "HR+++ glas (Triple)|4-15-4-15-5": {"glasOnly": 13, "totaal": 43, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-15-4-15-6": {"glasOnly": 14, "totaal": 44, "kg_m2": 35}, "HR+++ glas (Triple)|4-15-4-15-8": {"glasOnly": 16, "totaal": 46, "kg_m2": 40}, "HR+++ glas (Triple)|4-15-4-15-10": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|4-15-5-15-4": {"glasOnly": 13, "totaal": 43, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-15-5-15-5": {"glasOnly": 14, "totaal": 44, "kg_m2": 35}, "HR+++ glas (Triple)|4-15-5-15-6": {"glasOnly": 15, "totaal": 45, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-15-5-15-8": {"glasOnly": 17, "totaal": 47, "kg_m2": 42.5}, "HR+++ glas (Triple)|4-15-5-15-10": {"glasOnly": 19, "totaal": 49, "kg_m2": 47.5}, "HR+++ glas (Triple)|4-15-6-15-4": {"glasOnly": 14, "totaal": 44, "kg_m2": 35}, "HR+++ glas (Triple)|4-15-6-15-5": {"glasOnly": 15, "totaal": 45, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-15-6-15-6": {"glasOnly": 16, "totaal": 46, "kg_m2": 40}, "HR+++ glas (Triple)|4-15-6-15-8": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|4-15-6-15-10": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|4-16-4-16-4": {"glasOnly": 12, "totaal": 44, "kg_m2": 30}, "HR+++ glas (Triple)|4-16-4-16-5": {"glasOnly": 13, "totaal": 45, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-16-4-16-6": {"glasOnly": 14, "totaal": 46, "kg_m2": 35}, "HR+++ glas (Triple)|4-16-4-16-8": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "HR+++ glas (Triple)|4-16-4-16-10": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|4-16-5-16-4": {"glasOnly": 13, "totaal": 45, "kg_m2": 32.5}, "HR+++ glas (Triple)|4-16-5-16-5": {"glasOnly": 14, "totaal": 46, "kg_m2": 35}, "HR+++ glas (Triple)|4-16-5-16-6": {"glasOnly": 15, "totaal": 47, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-16-5-16-8": {"glasOnly": 17, "totaal": 49, "kg_m2": 42.5}, "HR+++ glas (Triple)|4-16-5-16-10": {"glasOnly": 19, "totaal": 51, "kg_m2": 47.5}, "HR+++ glas (Triple)|4-16-6-16-4": {"glasOnly": 14, "totaal": 46, "kg_m2": 35}, "HR+++ glas (Triple)|4-16-6-16-5": {"glasOnly": 15, "totaal": 47, "kg_m2": 37.5}, "HR+++ glas (Triple)|4-16-6-16-6": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "HR+++ glas (Triple)|4-16-6-16-8": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|4-16-6-16-10": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|5-8-4-8-4": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "HR+++ glas (Triple)|5-8-4-8-5": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "HR+++ glas (Triple)|5-8-4-8-6": {"glasOnly": 15, "totaal": 31, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-8-4-8-8": {"glasOnly": 17, "totaal": 33, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-8-4-8-10": {"glasOnly": 19, "totaal": 35, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-8-5-8-4": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "HR+++ glas (Triple)|5-8-5-8-5": {"glasOnly": 15, "totaal": 31, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-8-5-8-6": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR+++ glas (Triple)|5-8-5-8-8": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|5-8-5-8-10": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|5-8-6-8-4": {"glasOnly": 15, "totaal": 31, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-8-6-8-5": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR+++ glas (Triple)|5-8-6-8-6": {"glasOnly": 17, "totaal": 33, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-8-6-8-8": {"glasOnly": 19, "totaal": 35, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-8-6-8-10": {"glasOnly": 21, "totaal": 37, "kg_m2": 52.5}, "HR+++ glas (Triple)|5-12-4-12-4": {"glasOnly": 13, "totaal": 37, "kg_m2": 32.5}, "HR+++ glas (Triple)|5-12-4-12-5": {"glasOnly": 14, "totaal": 38, "kg_m2": 35}, "HR+++ glas (Triple)|5-12-4-12-6": {"glasOnly": 15, "totaal": 39, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-12-4-12-8": {"glasOnly": 17, "totaal": 41, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-12-4-12-10": {"glasOnly": 19, "totaal": 43, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-12-5-12-4": {"glasOnly": 14, "totaal": 38, "kg_m2": 35}, "HR+++ glas (Triple)|5-12-5-12-5": {"glasOnly": 15, "totaal": 39, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-12-5-12-6": {"glasOnly": 16, "totaal": 40, "kg_m2": 40}, "HR+++ glas (Triple)|5-12-5-12-8": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|5-12-5-12-10": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|5-12-6-12-4": {"glasOnly": 15, "totaal": 39, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-12-6-12-5": {"glasOnly": 16, "totaal": 40, "kg_m2": 40}, "HR+++ glas (Triple)|5-12-6-12-6": {"glasOnly": 17, "totaal": 41, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-12-6-12-8": {"glasOnly": 19, "totaal": 43, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-12-6-12-10": {"glasOnly": 21, "totaal": 45, "kg_m2": 52.5}, "HR+++ glas (Triple)|5-13-4-13-4": {"glasOnly": 13, "totaal": 39, "kg_m2": 32.5}, "HR+++ glas (Triple)|5-13-4-13-5": {"glasOnly": 14, "totaal": 40, "kg_m2": 35}, "HR+++ glas (Triple)|5-13-4-13-6": {"glasOnly": 15, "totaal": 41, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-13-4-13-8": {"glasOnly": 17, "totaal": 43, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-13-4-13-10": {"glasOnly": 19, "totaal": 45, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-13-5-13-4": {"glasOnly": 14, "totaal": 40, "kg_m2": 35}, "HR+++ glas (Triple)|5-13-5-13-5": {"glasOnly": 15, "totaal": 41, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-13-5-13-6": {"glasOnly": 16, "totaal": 42, "kg_m2": 40}, "HR+++ glas (Triple)|5-13-5-13-8": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|5-13-5-13-10": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|5-13-6-13-4": {"glasOnly": 15, "totaal": 41, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-13-6-13-5": {"glasOnly": 16, "totaal": 42, "kg_m2": 40}, "HR+++ glas (Triple)|5-13-6-13-6": {"glasOnly": 17, "totaal": 43, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-13-6-13-8": {"glasOnly": 19, "totaal": 45, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-13-6-13-10": {"glasOnly": 21, "totaal": 47, "kg_m2": 52.5}, "HR+++ glas (Triple)|5-14-4-14-4": {"glasOnly": 13, "totaal": 41, "kg_m2": 32.5}, "HR+++ glas (Triple)|5-14-4-14-5": {"glasOnly": 14, "totaal": 42, "kg_m2": 35}, "HR+++ glas (Triple)|5-14-4-14-6": {"glasOnly": 15, "totaal": 43, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-14-4-14-8": {"glasOnly": 17, "totaal": 45, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-14-4-14-10": {"glasOnly": 19, "totaal": 47, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-14-5-14-4": {"glasOnly": 14, "totaal": 42, "kg_m2": 35}, "HR+++ glas (Triple)|5-14-5-14-5": {"glasOnly": 15, "totaal": 43, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-14-5-14-6": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "HR+++ glas (Triple)|5-14-5-14-8": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|5-14-5-14-10": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|5-14-6-14-4": {"glasOnly": 15, "totaal": 43, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-14-6-14-5": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "HR+++ glas (Triple)|5-14-6-14-6": {"glasOnly": 17, "totaal": 45, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-14-6-14-8": {"glasOnly": 19, "totaal": 47, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-14-6-14-10": {"glasOnly": 21, "totaal": 49, "kg_m2": 52.5}, "HR+++ glas (Triple)|5-15-4-15-4": {"glasOnly": 13, "totaal": 43, "kg_m2": 32.5}, "HR+++ glas (Triple)|5-15-4-15-5": {"glasOnly": 14, "totaal": 44, "kg_m2": 35}, "HR+++ glas (Triple)|5-15-4-15-6": {"glasOnly": 15, "totaal": 45, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-15-4-15-8": {"glasOnly": 17, "totaal": 47, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-15-4-15-10": {"glasOnly": 19, "totaal": 49, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-15-5-15-4": {"glasOnly": 14, "totaal": 44, "kg_m2": 35}, "HR+++ glas (Triple)|5-15-5-15-5": {"glasOnly": 15, "totaal": 45, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-15-5-15-6": {"glasOnly": 16, "totaal": 46, "kg_m2": 40}, "HR+++ glas (Triple)|5-15-5-15-8": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|5-15-5-15-10": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|5-15-6-15-4": {"glasOnly": 15, "totaal": 45, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-15-6-15-5": {"glasOnly": 16, "totaal": 46, "kg_m2": 40}, "HR+++ glas (Triple)|5-15-6-15-6": {"glasOnly": 17, "totaal": 47, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-15-6-15-8": {"glasOnly": 19, "totaal": 49, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-15-6-15-10": {"glasOnly": 21, "totaal": 51, "kg_m2": 52.5}, "HR+++ glas (Triple)|5-16-4-16-4": {"glasOnly": 13, "totaal": 45, "kg_m2": 32.5}, "HR+++ glas (Triple)|5-16-4-16-5": {"glasOnly": 14, "totaal": 46, "kg_m2": 35}, "HR+++ glas (Triple)|5-16-4-16-6": {"glasOnly": 15, "totaal": 47, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-16-4-16-8": {"glasOnly": 17, "totaal": 49, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-16-4-16-10": {"glasOnly": 19, "totaal": 51, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-16-5-16-4": {"glasOnly": 14, "totaal": 46, "kg_m2": 35}, "HR+++ glas (Triple)|5-16-5-16-5": {"glasOnly": 15, "totaal": 47, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-16-5-16-6": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "HR+++ glas (Triple)|5-16-5-16-8": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|5-16-5-16-10": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|5-16-6-16-4": {"glasOnly": 15, "totaal": 47, "kg_m2": 37.5}, "HR+++ glas (Triple)|5-16-6-16-5": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "HR+++ glas (Triple)|5-16-6-16-6": {"glasOnly": 17, "totaal": 49, "kg_m2": 42.5}, "HR+++ glas (Triple)|5-16-6-16-8": {"glasOnly": 19, "totaal": 51, "kg_m2": 47.5}, "HR+++ glas (Triple)|5-16-6-16-10": {"glasOnly": 21, "totaal": 53, "kg_m2": 52.5}, "HR+++ glas (Triple)|6-8-4-8-4": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "HR+++ glas (Triple)|6-8-4-8-5": {"glasOnly": 15, "totaal": 31, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-8-4-8-6": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR+++ glas (Triple)|6-8-4-8-8": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|6-8-4-8-10": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|6-8-5-8-4": {"glasOnly": 15, "totaal": 31, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-8-5-8-5": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR+++ glas (Triple)|6-8-5-8-6": {"glasOnly": 17, "totaal": 33, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-8-5-8-8": {"glasOnly": 19, "totaal": 35, "kg_m2": 47.5}, "HR+++ glas (Triple)|6-8-5-8-10": {"glasOnly": 21, "totaal": 37, "kg_m2": 52.5}, "HR+++ glas (Triple)|6-8-6-8-4": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR+++ glas (Triple)|6-8-6-8-5": {"glasOnly": 17, "totaal": 33, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-8-6-8-6": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|6-8-6-8-8": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|6-8-6-8-10": {"glasOnly": 22, "totaal": 38, "kg_m2": 55}, "HR+++ glas (Triple)|6-12-4-12-4": {"glasOnly": 14, "totaal": 38, "kg_m2": 35}, "HR+++ glas (Triple)|6-12-4-12-5": {"glasOnly": 15, "totaal": 39, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-12-4-12-6": {"glasOnly": 16, "totaal": 40, "kg_m2": 40}, "HR+++ glas (Triple)|6-12-4-12-8": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|6-12-4-12-10": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|6-12-5-12-4": {"glasOnly": 15, "totaal": 39, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-12-5-12-5": {"glasOnly": 16, "totaal": 40, "kg_m2": 40}, "HR+++ glas (Triple)|6-12-5-12-6": {"glasOnly": 17, "totaal": 41, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-12-5-12-8": {"glasOnly": 19, "totaal": 43, "kg_m2": 47.5}, "HR+++ glas (Triple)|6-12-5-12-10": {"glasOnly": 21, "totaal": 45, "kg_m2": 52.5}, "HR+++ glas (Triple)|6-12-6-12-4": {"glasOnly": 16, "totaal": 40, "kg_m2": 40}, "HR+++ glas (Triple)|6-12-6-12-5": {"glasOnly": 17, "totaal": 41, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-12-6-12-6": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|6-12-6-12-8": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|6-12-6-12-10": {"glasOnly": 22, "totaal": 46, "kg_m2": 55}, "HR+++ glas (Triple)|6-13-4-13-4": {"glasOnly": 14, "totaal": 40, "kg_m2": 35}, "HR+++ glas (Triple)|6-13-4-13-5": {"glasOnly": 15, "totaal": 41, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-13-4-13-6": {"glasOnly": 16, "totaal": 42, "kg_m2": 40}, "HR+++ glas (Triple)|6-13-4-13-8": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|6-13-4-13-10": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|6-13-5-13-4": {"glasOnly": 15, "totaal": 41, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-13-5-13-5": {"glasOnly": 16, "totaal": 42, "kg_m2": 40}, "HR+++ glas (Triple)|6-13-5-13-6": {"glasOnly": 17, "totaal": 43, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-13-5-13-8": {"glasOnly": 19, "totaal": 45, "kg_m2": 47.5}, "HR+++ glas (Triple)|6-13-5-13-10": {"glasOnly": 21, "totaal": 47, "kg_m2": 52.5}, "HR+++ glas (Triple)|6-13-6-13-4": {"glasOnly": 16, "totaal": 42, "kg_m2": 40}, "HR+++ glas (Triple)|6-13-6-13-5": {"glasOnly": 17, "totaal": 43, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-13-6-13-6": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|6-13-6-13-8": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|6-13-6-13-10": {"glasOnly": 22, "totaal": 48, "kg_m2": 55}, "HR+++ glas (Triple)|6-14-4-14-4": {"glasOnly": 14, "totaal": 42, "kg_m2": 35}, "HR+++ glas (Triple)|6-14-4-14-5": {"glasOnly": 15, "totaal": 43, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-14-4-14-6": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "HR+++ glas (Triple)|6-14-4-14-8": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|6-14-4-14-10": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|6-14-5-14-4": {"glasOnly": 15, "totaal": 43, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-14-5-14-5": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "HR+++ glas (Triple)|6-14-5-14-6": {"glasOnly": 17, "totaal": 45, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-14-5-14-8": {"glasOnly": 19, "totaal": 47, "kg_m2": 47.5}, "HR+++ glas (Triple)|6-14-5-14-10": {"glasOnly": 21, "totaal": 49, "kg_m2": 52.5}, "HR+++ glas (Triple)|6-14-6-14-4": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "HR+++ glas (Triple)|6-14-6-14-5": {"glasOnly": 17, "totaal": 45, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-14-6-14-6": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|6-14-6-14-8": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|6-14-6-14-10": {"glasOnly": 22, "totaal": 50, "kg_m2": 55}, "HR+++ glas (Triple)|6-15-4-15-4": {"glasOnly": 14, "totaal": 44, "kg_m2": 35}, "HR+++ glas (Triple)|6-15-4-15-5": {"glasOnly": 15, "totaal": 45, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-15-4-15-6": {"glasOnly": 16, "totaal": 46, "kg_m2": 40}, "HR+++ glas (Triple)|6-15-4-15-8": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|6-15-4-15-10": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|6-15-5-15-4": {"glasOnly": 15, "totaal": 45, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-15-5-15-5": {"glasOnly": 16, "totaal": 46, "kg_m2": 40}, "HR+++ glas (Triple)|6-15-5-15-6": {"glasOnly": 17, "totaal": 47, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-15-5-15-8": {"glasOnly": 19, "totaal": 49, "kg_m2": 47.5}, "HR+++ glas (Triple)|6-15-5-15-10": {"glasOnly": 21, "totaal": 51, "kg_m2": 52.5}, "HR+++ glas (Triple)|6-15-6-15-4": {"glasOnly": 16, "totaal": 46, "kg_m2": 40}, "HR+++ glas (Triple)|6-15-6-15-5": {"glasOnly": 17, "totaal": 47, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-15-6-15-6": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|6-15-6-15-8": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|6-15-6-15-10": {"glasOnly": 22, "totaal": 52, "kg_m2": 55}, "HR+++ glas (Triple)|6-16-4-16-4": {"glasOnly": 14, "totaal": 46, "kg_m2": 35}, "HR+++ glas (Triple)|6-16-4-16-5": {"glasOnly": 15, "totaal": 47, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-16-4-16-6": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "HR+++ glas (Triple)|6-16-4-16-8": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|6-16-4-16-10": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|6-16-5-16-4": {"glasOnly": 15, "totaal": 47, "kg_m2": 37.5}, "HR+++ glas (Triple)|6-16-5-16-5": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "HR+++ glas (Triple)|6-16-5-16-6": {"glasOnly": 17, "totaal": 49, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-16-5-16-8": {"glasOnly": 19, "totaal": 51, "kg_m2": 47.5}, "HR+++ glas (Triple)|6-16-5-16-10": {"glasOnly": 21, "totaal": 53, "kg_m2": 52.5}, "HR+++ glas (Triple)|6-16-6-16-4": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "HR+++ glas (Triple)|6-16-6-16-5": {"glasOnly": 17, "totaal": 49, "kg_m2": 42.5}, "HR+++ glas (Triple)|6-16-6-16-6": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|6-16-6-16-8": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|6-16-6-16-10": {"glasOnly": 22, "totaal": 54, "kg_m2": 55}, "HR+++ glas (Triple)|8-8-4-8-4": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "HR+++ glas (Triple)|8-8-4-8-5": {"glasOnly": 17, "totaal": 33, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-8-4-8-6": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|8-8-4-8-8": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|8-8-4-8-10": {"glasOnly": 22, "totaal": 38, "kg_m2": 55}, "HR+++ glas (Triple)|8-8-5-8-4": {"glasOnly": 17, "totaal": 33, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-8-5-8-5": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|8-8-5-8-6": {"glasOnly": 19, "totaal": 35, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-8-5-8-8": {"glasOnly": 21, "totaal": 37, "kg_m2": 52.5}, "HR+++ glas (Triple)|8-8-5-8-10": {"glasOnly": 23, "totaal": 39, "kg_m2": 57.5}, "HR+++ glas (Triple)|8-8-6-8-4": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|8-8-6-8-5": {"glasOnly": 19, "totaal": 35, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-8-6-8-6": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|8-8-6-8-8": {"glasOnly": 22, "totaal": 38, "kg_m2": 55}, "HR+++ glas (Triple)|8-8-6-8-10": {"glasOnly": 24, "totaal": 40, "kg_m2": 60}, "HR+++ glas (Triple)|8-12-4-12-4": {"glasOnly": 16, "totaal": 40, "kg_m2": 40}, "HR+++ glas (Triple)|8-12-4-12-5": {"glasOnly": 17, "totaal": 41, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-12-4-12-6": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|8-12-4-12-8": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|8-12-4-12-10": {"glasOnly": 22, "totaal": 46, "kg_m2": 55}, "HR+++ glas (Triple)|8-12-5-12-4": {"glasOnly": 17, "totaal": 41, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-12-5-12-5": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|8-12-5-12-6": {"glasOnly": 19, "totaal": 43, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-12-5-12-8": {"glasOnly": 21, "totaal": 45, "kg_m2": 52.5}, "HR+++ glas (Triple)|8-12-5-12-10": {"glasOnly": 23, "totaal": 47, "kg_m2": 57.5}, "HR+++ glas (Triple)|8-12-6-12-4": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|8-12-6-12-5": {"glasOnly": 19, "totaal": 43, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-12-6-12-6": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|8-12-6-12-8": {"glasOnly": 22, "totaal": 46, "kg_m2": 55}, "HR+++ glas (Triple)|8-12-6-12-10": {"glasOnly": 24, "totaal": 48, "kg_m2": 60}, "HR+++ glas (Triple)|8-13-4-13-4": {"glasOnly": 16, "totaal": 42, "kg_m2": 40}, "HR+++ glas (Triple)|8-13-4-13-5": {"glasOnly": 17, "totaal": 43, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-13-4-13-6": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|8-13-4-13-8": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|8-13-4-13-10": {"glasOnly": 22, "totaal": 48, "kg_m2": 55}, "HR+++ glas (Triple)|8-13-5-13-4": {"glasOnly": 17, "totaal": 43, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-13-5-13-5": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|8-13-5-13-6": {"glasOnly": 19, "totaal": 45, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-13-5-13-8": {"glasOnly": 21, "totaal": 47, "kg_m2": 52.5}, "HR+++ glas (Triple)|8-13-5-13-10": {"glasOnly": 23, "totaal": 49, "kg_m2": 57.5}, "HR+++ glas (Triple)|8-13-6-13-4": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|8-13-6-13-5": {"glasOnly": 19, "totaal": 45, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-13-6-13-6": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|8-13-6-13-8": {"glasOnly": 22, "totaal": 48, "kg_m2": 55}, "HR+++ glas (Triple)|8-13-6-13-10": {"glasOnly": 24, "totaal": 50, "kg_m2": 60}, "HR+++ glas (Triple)|8-14-4-14-4": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "HR+++ glas (Triple)|8-14-4-14-5": {"glasOnly": 17, "totaal": 45, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-14-4-14-6": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|8-14-4-14-8": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|8-14-4-14-10": {"glasOnly": 22, "totaal": 50, "kg_m2": 55}, "HR+++ glas (Triple)|8-14-5-14-4": {"glasOnly": 17, "totaal": 45, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-14-5-14-5": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|8-14-5-14-6": {"glasOnly": 19, "totaal": 47, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-14-5-14-8": {"glasOnly": 21, "totaal": 49, "kg_m2": 52.5}, "HR+++ glas (Triple)|8-14-5-14-10": {"glasOnly": 23, "totaal": 51, "kg_m2": 57.5}, "HR+++ glas (Triple)|8-14-6-14-4": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|8-14-6-14-5": {"glasOnly": 19, "totaal": 47, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-14-6-14-6": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|8-14-6-14-8": {"glasOnly": 22, "totaal": 50, "kg_m2": 55}, "HR+++ glas (Triple)|8-14-6-14-10": {"glasOnly": 24, "totaal": 52, "kg_m2": 60}, "HR+++ glas (Triple)|8-15-4-15-4": {"glasOnly": 16, "totaal": 46, "kg_m2": 40}, "HR+++ glas (Triple)|8-15-4-15-5": {"glasOnly": 17, "totaal": 47, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-15-4-15-6": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|8-15-4-15-8": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|8-15-4-15-10": {"glasOnly": 22, "totaal": 52, "kg_m2": 55}, "HR+++ glas (Triple)|8-15-5-15-4": {"glasOnly": 17, "totaal": 47, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-15-5-15-5": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|8-15-5-15-6": {"glasOnly": 19, "totaal": 49, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-15-5-15-8": {"glasOnly": 21, "totaal": 51, "kg_m2": 52.5}, "HR+++ glas (Triple)|8-15-5-15-10": {"glasOnly": 23, "totaal": 53, "kg_m2": 57.5}, "HR+++ glas (Triple)|8-15-6-15-4": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|8-15-6-15-5": {"glasOnly": 19, "totaal": 49, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-15-6-15-6": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|8-15-6-15-8": {"glasOnly": 22, "totaal": 52, "kg_m2": 55}, "HR+++ glas (Triple)|8-15-6-15-10": {"glasOnly": 24, "totaal": 54, "kg_m2": 60}, "HR+++ glas (Triple)|8-16-4-16-4": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "HR+++ glas (Triple)|8-16-4-16-5": {"glasOnly": 17, "totaal": 49, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-16-4-16-6": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|8-16-4-16-8": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|8-16-4-16-10": {"glasOnly": 22, "totaal": 54, "kg_m2": 55}, "HR+++ glas (Triple)|8-16-5-16-4": {"glasOnly": 17, "totaal": 49, "kg_m2": 42.5}, "HR+++ glas (Triple)|8-16-5-16-5": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|8-16-5-16-6": {"glasOnly": 19, "totaal": 51, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-16-5-16-8": {"glasOnly": 21, "totaal": 53, "kg_m2": 52.5}, "HR+++ glas (Triple)|8-16-5-16-10": {"glasOnly": 23, "totaal": 55, "kg_m2": 57.5}, "HR+++ glas (Triple)|8-16-6-16-4": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|8-16-6-16-5": {"glasOnly": 19, "totaal": 51, "kg_m2": 47.5}, "HR+++ glas (Triple)|8-16-6-16-6": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|8-16-6-16-8": {"glasOnly": 22, "totaal": 54, "kg_m2": 55}, "HR+++ glas (Triple)|8-16-6-16-10": {"glasOnly": 24, "totaal": 56, "kg_m2": 60}, "HR+++ glas (Triple)|10-8-4-8-4": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "HR+++ glas (Triple)|10-8-4-8-5": {"glasOnly": 19, "totaal": 35, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-8-4-8-6": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|10-8-4-8-8": {"glasOnly": 22, "totaal": 38, "kg_m2": 55}, "HR+++ glas (Triple)|10-8-5-8-4": {"glasOnly": 19, "totaal": 35, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-8-5-8-5": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|10-8-5-8-6": {"glasOnly": 21, "totaal": 37, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-8-5-8-8": {"glasOnly": 23, "totaal": 39, "kg_m2": 57.5}, "HR+++ glas (Triple)|10-8-6-8-4": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "HR+++ glas (Triple)|10-8-6-8-5": {"glasOnly": 21, "totaal": 37, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-8-6-8-6": {"glasOnly": 22, "totaal": 38, "kg_m2": 55}, "HR+++ glas (Triple)|10-8-6-8-8": {"glasOnly": 24, "totaal": 40, "kg_m2": 60}, "HR+++ glas (Triple)|10-12-4-12-4": {"glasOnly": 18, "totaal": 42, "kg_m2": 45}, "HR+++ glas (Triple)|10-12-4-12-5": {"glasOnly": 19, "totaal": 43, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-12-4-12-6": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|10-12-4-12-8": {"glasOnly": 22, "totaal": 46, "kg_m2": 55}, "HR+++ glas (Triple)|10-12-5-12-4": {"glasOnly": 19, "totaal": 43, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-12-5-12-5": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|10-12-5-12-6": {"glasOnly": 21, "totaal": 45, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-12-5-12-8": {"glasOnly": 23, "totaal": 47, "kg_m2": 57.5}, "HR+++ glas (Triple)|10-12-6-12-4": {"glasOnly": 20, "totaal": 44, "kg_m2": 50}, "HR+++ glas (Triple)|10-12-6-12-5": {"glasOnly": 21, "totaal": 45, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-12-6-12-6": {"glasOnly": 22, "totaal": 46, "kg_m2": 55}, "HR+++ glas (Triple)|10-12-6-12-8": {"glasOnly": 24, "totaal": 48, "kg_m2": 60}, "HR+++ glas (Triple)|10-13-4-13-4": {"glasOnly": 18, "totaal": 44, "kg_m2": 45}, "HR+++ glas (Triple)|10-13-4-13-5": {"glasOnly": 19, "totaal": 45, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-13-4-13-6": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|10-13-4-13-8": {"glasOnly": 22, "totaal": 48, "kg_m2": 55}, "HR+++ glas (Triple)|10-13-5-13-4": {"glasOnly": 19, "totaal": 45, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-13-5-13-5": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|10-13-5-13-6": {"glasOnly": 21, "totaal": 47, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-13-5-13-8": {"glasOnly": 23, "totaal": 49, "kg_m2": 57.5}, "HR+++ glas (Triple)|10-13-6-13-4": {"glasOnly": 20, "totaal": 46, "kg_m2": 50}, "HR+++ glas (Triple)|10-13-6-13-5": {"glasOnly": 21, "totaal": 47, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-13-6-13-6": {"glasOnly": 22, "totaal": 48, "kg_m2": 55}, "HR+++ glas (Triple)|10-13-6-13-8": {"glasOnly": 24, "totaal": 50, "kg_m2": 60}, "HR+++ glas (Triple)|10-14-4-14-4": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "HR+++ glas (Triple)|10-14-4-14-5": {"glasOnly": 19, "totaal": 47, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-14-4-14-6": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|10-14-4-14-8": {"glasOnly": 22, "totaal": 50, "kg_m2": 55}, "HR+++ glas (Triple)|10-14-5-14-4": {"glasOnly": 19, "totaal": 47, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-14-5-14-5": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|10-14-5-14-6": {"glasOnly": 21, "totaal": 49, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-14-5-14-8": {"glasOnly": 23, "totaal": 51, "kg_m2": 57.5}, "HR+++ glas (Triple)|10-14-6-14-4": {"glasOnly": 20, "totaal": 48, "kg_m2": 50}, "HR+++ glas (Triple)|10-14-6-14-5": {"glasOnly": 21, "totaal": 49, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-14-6-14-6": {"glasOnly": 22, "totaal": 50, "kg_m2": 55}, "HR+++ glas (Triple)|10-14-6-14-8": {"glasOnly": 24, "totaal": 52, "kg_m2": 60}, "HR+++ glas (Triple)|10-15-4-15-4": {"glasOnly": 18, "totaal": 48, "kg_m2": 45}, "HR+++ glas (Triple)|10-15-4-15-5": {"glasOnly": 19, "totaal": 49, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-15-4-15-6": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|10-15-4-15-8": {"glasOnly": 22, "totaal": 52, "kg_m2": 55}, "HR+++ glas (Triple)|10-15-5-15-4": {"glasOnly": 19, "totaal": 49, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-15-5-15-5": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|10-15-5-15-6": {"glasOnly": 21, "totaal": 51, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-15-5-15-8": {"glasOnly": 23, "totaal": 53, "kg_m2": 57.5}, "HR+++ glas (Triple)|10-15-6-15-4": {"glasOnly": 20, "totaal": 50, "kg_m2": 50}, "HR+++ glas (Triple)|10-15-6-15-5": {"glasOnly": 21, "totaal": 51, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-15-6-15-6": {"glasOnly": 22, "totaal": 52, "kg_m2": 55}, "HR+++ glas (Triple)|10-15-6-15-8": {"glasOnly": 24, "totaal": 54, "kg_m2": 60}, "HR+++ glas (Triple)|10-16-4-16-4": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "HR+++ glas (Triple)|10-16-4-16-5": {"glasOnly": 19, "totaal": 51, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-16-4-16-6": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|10-16-4-16-8": {"glasOnly": 22, "totaal": 54, "kg_m2": 55}, "HR+++ glas (Triple)|10-16-5-16-4": {"glasOnly": 19, "totaal": 51, "kg_m2": 47.5}, "HR+++ glas (Triple)|10-16-5-16-5": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|10-16-5-16-6": {"glasOnly": 21, "totaal": 53, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-16-5-16-8": {"glasOnly": 23, "totaal": 55, "kg_m2": 57.5}, "HR+++ glas (Triple)|10-16-6-16-4": {"glasOnly": 20, "totaal": 52, "kg_m2": 50}, "HR+++ glas (Triple)|10-16-6-16-5": {"glasOnly": 21, "totaal": 53, "kg_m2": 52.5}, "HR+++ glas (Triple)|10-16-6-16-6": {"glasOnly": 22, "totaal": 54, "kg_m2": 55}, "HR+++ glas (Triple)|10-16-6-16-8": {"glasOnly": 24, "totaal": 56, "kg_m2": 60}, "Gelaagd glas (VSG)|33.1": {"glasOnly": 6, "totaal": 6, "kg_m2": 15}, "Gelaagd glas (VSG)|33.2": {"glasOnly": 6, "totaal": 6, "kg_m2": 15}, "Gelaagd glas (VSG)|44.1": {"glasOnly": 8, "totaal": 8, "kg_m2": 20}, "Gelaagd glas (VSG)|44.2": {"glasOnly": 8, "totaal": 8, "kg_m2": 20}, "Gelaagd glas (VSG)|55.1": {"glasOnly": 10, "totaal": 10, "kg_m2": 25}, "Gelaagd glas (VSG)|55.2": {"glasOnly": 10, "totaal": 10, "kg_m2": 25}, "Gelaagd glas (VSG)|66.1": {"glasOnly": 12, "totaal": 12, "kg_m2": 30}, "Gelaagd glas (VSG)|66.2": {"glasOnly": 12, "totaal": 12, "kg_m2": 30}, "Gelaagd glas (VSG)|66.4": {"glasOnly": 12, "totaal": 12, "kg_m2": 30}, "Gelaagd glas (VSG)|76.2": {"glasOnly": 13, "totaal": 13, "kg_m2": 32.5}, "Gelaagd glas (VSG)|77.2": {"glasOnly": 14, "totaal": 14, "kg_m2": 35}, "Gelaagd glas (VSG)|88.2": {"glasOnly": 16, "totaal": 16, "kg_m2": 40}, "Gelaagd glas (VSG)|88.4": {"glasOnly": 16, "totaal": 16, "kg_m2": 40}, "Gelaagd glas (VSG)|1010.2": {"glasOnly": 2, "totaal": 2, "kg_m2": 5}, "Gelaagd glas (VSG)|33.1-13-4": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "Gelaagd glas (VSG)|33.1-14-4": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "Gelaagd glas (VSG)|33.1-15-4": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "Gelaagd glas (VSG)|33.1-16-4": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "Gelaagd glas (VSG)|33.2-13-4": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "Gelaagd glas (VSG)|33.2-14-4": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "Gelaagd glas (VSG)|33.2-15-4": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "Gelaagd glas (VSG)|33.2-16-4": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "Gelaagd glas (VSG)|33.1-13-5": {"glasOnly": 11, "totaal": 24, "kg_m2": 27.5}, "Gelaagd glas (VSG)|33.1-14-5": {"glasOnly": 11, "totaal": 25, "kg_m2": 27.5}, "Gelaagd glas (VSG)|33.1-15-5": {"glasOnly": 11, "totaal": 26, "kg_m2": 27.5}, "Gelaagd glas (VSG)|33.1-16-5": {"glasOnly": 11, "totaal": 27, "kg_m2": 27.5}, "Gelaagd glas (VSG)|33.2-13-5": {"glasOnly": 11, "totaal": 24, "kg_m2": 27.5}, "Gelaagd glas (VSG)|33.2-14-5": {"glasOnly": 11, "totaal": 25, "kg_m2": 27.5}, "Gelaagd glas (VSG)|33.2-15-5": {"glasOnly": 11, "totaal": 26, "kg_m2": 27.5}, "Gelaagd glas (VSG)|33.2-16-5": {"glasOnly": 11, "totaal": 27, "kg_m2": 27.5}, "Gelaagd glas (VSG)|44.1-13-4": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Gelaagd glas (VSG)|44.1-14-4": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Gelaagd glas (VSG)|44.1-15-4": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Gelaagd glas (VSG)|44.1-16-4": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Gelaagd glas (VSG)|44.2-13-4": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Gelaagd glas (VSG)|44.2-14-4": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Gelaagd glas (VSG)|44.2-15-4": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Gelaagd glas (VSG)|44.2-16-4": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Gelaagd glas (VSG)|44.1-13-5": {"glasOnly": 13, "totaal": 26, "kg_m2": 32.5}, "Gelaagd glas (VSG)|44.1-14-5": {"glasOnly": 13, "totaal": 27, "kg_m2": 32.5}, "Gelaagd glas (VSG)|44.1-15-5": {"glasOnly": 13, "totaal": 28, "kg_m2": 32.5}, "Gelaagd glas (VSG)|44.1-16-5": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "Gelaagd glas (VSG)|44.2-13-5": {"glasOnly": 13, "totaal": 26, "kg_m2": 32.5}, "Gelaagd glas (VSG)|44.2-14-5": {"glasOnly": 13, "totaal": 27, "kg_m2": 32.5}, "Gelaagd glas (VSG)|44.2-15-5": {"glasOnly": 13, "totaal": 28, "kg_m2": 32.5}, "Gelaagd glas (VSG)|44.2-16-5": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "Gelaagd glas (VSG)|44.2-13-6": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Gelaagd glas (VSG)|44.2-14-6": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Gelaagd glas (VSG)|44.2-15-6": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Gelaagd glas (VSG)|44.2-16-6": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Gelaagd glas (VSG)|55.2-13-4": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Gelaagd glas (VSG)|55.2-14-4": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Gelaagd glas (VSG)|55.2-15-4": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Gelaagd glas (VSG)|55.2-16-4": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Gelaagd glas (VSG)|55.2-13-5": {"glasOnly": 15, "totaal": 28, "kg_m2": 37.5}, "Gelaagd glas (VSG)|55.2-14-5": {"glasOnly": 15, "totaal": 29, "kg_m2": 37.5}, "Gelaagd glas (VSG)|55.2-15-5": {"glasOnly": 15, "totaal": 30, "kg_m2": 37.5}, "Gelaagd glas (VSG)|55.2-16-5": {"glasOnly": 15, "totaal": 31, "kg_m2": 37.5}, "Gelaagd glas (VSG)|66.2-13-4": {"glasOnly": 16, "totaal": 29, "kg_m2": 40}, "Gelaagd glas (VSG)|66.2-14-4": {"glasOnly": 16, "totaal": 30, "kg_m2": 40}, "Gelaagd glas (VSG)|66.2-15-4": {"glasOnly": 16, "totaal": 31, "kg_m2": 40}, "Gelaagd glas (VSG)|66.2-16-4": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "Gelaagd glas (VSG)|66.2-13-6": {"glasOnly": 18, "totaal": 31, "kg_m2": 45}, "Gelaagd glas (VSG)|66.2-14-6": {"glasOnly": 18, "totaal": 32, "kg_m2": 45}, "Gelaagd glas (VSG)|66.2-15-6": {"glasOnly": 18, "totaal": 33, "kg_m2": 45}, "Gelaagd glas (VSG)|66.2-16-6": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "Gelaagd glas (VSG)|6-13-33.1": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Gelaagd glas (VSG)|6-14-33.1": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Gelaagd glas (VSG)|6-15-33.1": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Gelaagd glas (VSG)|6-16-33.1": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Gelaagd glas (VSG)|33.1-13-33.1": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Gelaagd glas (VSG)|33.1-14-33.1": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Gelaagd glas (VSG)|33.1-15-33.1": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Gelaagd glas (VSG)|33.1-16-33.1": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Gelaagd glas (VSG)|33.2-13-33.2": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Gelaagd glas (VSG)|33.2-14-33.2": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Gelaagd glas (VSG)|33.2-15-33.2": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Gelaagd glas (VSG)|33.2-16-33.2": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Gelaagd glas (VSG)|44.2-13-33.1": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Gelaagd glas (VSG)|44.2-14-33.1": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Gelaagd glas (VSG)|44.2-15-33.1": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Gelaagd glas (VSG)|44.2-16-33.1": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Gelaagd glas (VSG)|44.2-13-44.2": {"glasOnly": 16, "totaal": 29, "kg_m2": 40}, "Gelaagd glas (VSG)|44.2-14-44.2": {"glasOnly": 16, "totaal": 30, "kg_m2": 40}, "Gelaagd glas (VSG)|44.2-15-44.2": {"glasOnly": 16, "totaal": 31, "kg_m2": 40}, "Gelaagd glas (VSG)|44.2-16-44.2": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "Gelaagd glas (VSG)|55.2-14-44.2": {"glasOnly": 18, "totaal": 32, "kg_m2": 45}, "Gelaagd glas (VSG)|55.2-15-44.2": {"glasOnly": 18, "totaal": 33, "kg_m2": 45}, "Gelaagd glas (VSG)|55.2-16-44.2": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "Gelaagd glas (VSG)|66.2-14-44.2": {"glasOnly": 20, "totaal": 34, "kg_m2": 50}, "Gelaagd glas (VSG)|66.2-15-44.2": {"glasOnly": 20, "totaal": 35, "kg_m2": 50}, "Gelaagd glas (VSG)|66.2-16-44.2": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "Gehard gelaagd (ESG+VSG)|44.2 ESG": {"glasOnly": 8, "totaal": 8, "kg_m2": 20}, "Gehard gelaagd (ESG+VSG)|55.2 ESG": {"glasOnly": 10, "totaal": 10, "kg_m2": 25}, "Gehard gelaagd (ESG+VSG)|66.2 ESG": {"glasOnly": 12, "totaal": 12, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|66.4 ESG": {"glasOnly": 12, "totaal": 12, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|77.2 ESG": {"glasOnly": 14, "totaal": 14, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|88.2 ESG": {"glasOnly": 16, "totaal": 16, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|88.4 ESG": {"glasOnly": 16, "totaal": 16, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|1010.2 ESG": {"glasOnly": 2, "totaal": 2, "kg_m2": 5}, "Gehard gelaagd (ESG+VSG)|1010.4 ESG": {"glasOnly": 2, "totaal": 2, "kg_m2": 5}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-13-4": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-14-4": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-15-4": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-16-4": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-13-5": {"glasOnly": 13, "totaal": 26, "kg_m2": 32.5}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-14-5": {"glasOnly": 13, "totaal": 27, "kg_m2": 32.5}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-15-5": {"glasOnly": 13, "totaal": 28, "kg_m2": 32.5}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-16-5": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-13-6": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-14-6": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-15-6": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-16-6": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-13-4": {"glasOnly": 16, "totaal": 29, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-14-4": {"glasOnly": 16, "totaal": 30, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-15-4": {"glasOnly": 16, "totaal": 31, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-16-4": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-13-6": {"glasOnly": 18, "totaal": 31, "kg_m2": 45}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-14-6": {"glasOnly": 18, "totaal": 32, "kg_m2": 45}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-15-6": {"glasOnly": 18, "totaal": 33, "kg_m2": 45}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-16-6": {"glasOnly": 18, "totaal": 34, "kg_m2": 45}, "Gehard gelaagd (ESG+VSG)|4-13-44.2 ESG": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|4-14-44.2 ESG": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|4-15-44.2 ESG": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|4-16-44.2 ESG": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Gehard gelaagd (ESG+VSG)|6-13-44.2 ESG": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|6-14-44.2 ESG": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|6-15-44.2 ESG": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|6-16-44.2 ESG": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-14-44.2 ESG": {"glasOnly": 16, "totaal": 30, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-15-44.2 ESG": {"glasOnly": 16, "totaal": 31, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|44.2 ESG-16-44.2 ESG": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-15-44.2 ESG": {"glasOnly": 20, "totaal": 35, "kg_m2": 50}, "Gehard gelaagd (ESG+VSG)|66.2 ESG-16-44.2 ESG": {"glasOnly": 20, "totaal": 36, "kg_m2": 50}, "Gehard glas (ESG)|4 mm ESG": {"glasOnly": 4, "totaal": 4, "kg_m2": 10}, "Gehard glas (ESG)|5 mm ESG": {"glasOnly": 5, "totaal": 5, "kg_m2": 12.5}, "Gehard glas (ESG)|6 mm ESG": {"glasOnly": 6, "totaal": 6, "kg_m2": 15}, "Gehard glas (ESG)|8 mm ESG": {"glasOnly": 8, "totaal": 8, "kg_m2": 20}, "Gehard glas (ESG)|10 mm ESG": {"glasOnly": 10, "totaal": 10, "kg_m2": 25}, "Gehard glas (ESG)|12 mm ESG": {"glasOnly": 12, "totaal": 12, "kg_m2": 30}, "Gehard glas (ESG)|15 mm ESG": {"glasOnly": 15, "totaal": 15, "kg_m2": 37.5}, "Gehard glas (ESG)|19 mm ESG": {"glasOnly": 19, "totaal": 19, "kg_m2": 47.5}, "Zonwerend glas|4-13-4 ZW": {"glasOnly": 8, "totaal": 21, "kg_m2": 20}, "Zonwerend glas|4-14-4 ZW": {"glasOnly": 8, "totaal": 22, "kg_m2": 20}, "Zonwerend glas|4-15-4 ZW": {"glasOnly": 8, "totaal": 23, "kg_m2": 20}, "Zonwerend glas|4-16-4 ZW": {"glasOnly": 8, "totaal": 24, "kg_m2": 20}, "Zonwerend glas|4-13-5 ZW": {"glasOnly": 9, "totaal": 22, "kg_m2": 22.5}, "Zonwerend glas|4-14-5 ZW": {"glasOnly": 9, "totaal": 23, "kg_m2": 22.5}, "Zonwerend glas|4-15-5 ZW": {"glasOnly": 9, "totaal": 24, "kg_m2": 22.5}, "Zonwerend glas|4-16-5 ZW": {"glasOnly": 9, "totaal": 25, "kg_m2": 22.5}, "Zonwerend glas|5-13-5 ZW": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "Zonwerend glas|5-14-5 ZW": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "Zonwerend glas|5-15-5 ZW": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "Zonwerend glas|5-16-5 ZW": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "Zonwerend glas|6-13-4 ZW": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "Zonwerend glas|6-14-4 ZW": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "Zonwerend glas|6-15-4 ZW": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "Zonwerend glas|6-16-4 ZW": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "Zonwerend glas|6-13-5 ZW": {"glasOnly": 11, "totaal": 24, "kg_m2": 27.5}, "Zonwerend glas|6-14-5 ZW": {"glasOnly": 11, "totaal": 25, "kg_m2": 27.5}, "Zonwerend glas|6-15-5 ZW": {"glasOnly": 11, "totaal": 26, "kg_m2": 27.5}, "Zonwerend glas|6-16-5 ZW": {"glasOnly": 11, "totaal": 27, "kg_m2": 27.5}, "Zonwerend glas|6-13-6 ZW": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Zonwerend glas|6-14-6 ZW": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Zonwerend glas|6-15-6 ZW": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Zonwerend glas|6-16-6 ZW": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Zonwerend glas|8-14-6 ZW": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Zonwerend glas|8-15-6 ZW": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Zonwerend glas|8-16-6 ZW": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Zonwerend glas|33.1-13-4 ZW": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "Zonwerend glas|33.1-14-4 ZW": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "Zonwerend glas|33.1-15-4 ZW": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "Zonwerend glas|33.1-16-4 ZW": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "Zonwerend glas|44.2-13-4 ZW": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Zonwerend glas|44.2-14-4 ZW": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Zonwerend glas|44.2-15-4 ZW": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Zonwerend glas|44.2-16-4 ZW": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Zonwerend glas|44.2-13-5 ZW": {"glasOnly": 13, "totaal": 26, "kg_m2": 32.5}, "Zonwerend glas|44.2-14-5 ZW": {"glasOnly": 13, "totaal": 27, "kg_m2": 32.5}, "Zonwerend glas|44.2-15-5 ZW": {"glasOnly": 13, "totaal": 28, "kg_m2": 32.5}, "Zonwerend glas|44.2-16-5 ZW": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "Zonwerend glas|44.2-13-6 ZW": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Zonwerend glas|44.2-14-6 ZW": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Zonwerend glas|44.2-15-6 ZW": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Zonwerend glas|44.2-16-6 ZW": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Zonwerend glas|55.2-14-4 ZW": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Zonwerend glas|55.2-15-4 ZW": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Zonwerend glas|55.2-16-4 ZW": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Zonwerend glas|4-14-4-14-4 ZW": {"glasOnly": 12, "totaal": 40, "kg_m2": 30}, "Zonwerend glas|4-16-4-16-4 ZW": {"glasOnly": 12, "totaal": 44, "kg_m2": 30}, "Zonwerend glas|6-14-4-14-4 ZW": {"glasOnly": 14, "totaal": 42, "kg_m2": 35}, "Zonwerend glas|6-16-4-16-4 ZW": {"glasOnly": 14, "totaal": 46, "kg_m2": 35}, "Akoestisch glas|4-13-33.2A": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "Akoestisch glas|4-14-33.2A": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "Akoestisch glas|4-15-33.2A": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "Akoestisch glas|4-16-33.2A": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "Akoestisch glas|4-13-44.2A": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Akoestisch glas|4-14-44.2A": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Akoestisch glas|4-15-44.2A": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Akoestisch glas|4-16-44.2A": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Akoestisch glas|5-13-33.2A": {"glasOnly": 11, "totaal": 24, "kg_m2": 27.5}, "Akoestisch glas|5-14-33.2A": {"glasOnly": 11, "totaal": 25, "kg_m2": 27.5}, "Akoestisch glas|5-15-33.2A": {"glasOnly": 11, "totaal": 26, "kg_m2": 27.5}, "Akoestisch glas|5-16-33.2A": {"glasOnly": 11, "totaal": 27, "kg_m2": 27.5}, "Akoestisch glas|5-13-44.2A": {"glasOnly": 13, "totaal": 26, "kg_m2": 32.5}, "Akoestisch glas|5-14-44.2A": {"glasOnly": 13, "totaal": 27, "kg_m2": 32.5}, "Akoestisch glas|5-15-44.2A": {"glasOnly": 13, "totaal": 28, "kg_m2": 32.5}, "Akoestisch glas|5-16-44.2A": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "Akoestisch glas|6-13-33.2A": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Akoestisch glas|6-14-33.2A": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Akoestisch glas|6-15-33.2A": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Akoestisch glas|6-16-33.2A": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Akoestisch glas|6-13-44.2A": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Akoestisch glas|6-14-44.2A": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Akoestisch glas|6-15-44.2A": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Akoestisch glas|6-16-44.2A": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Akoestisch glas|6-13-44.4A": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Akoestisch glas|6-14-44.4A": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Akoestisch glas|6-15-44.4A": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Akoestisch glas|6-16-44.4A": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Akoestisch glas|8-13-44.2A": {"glasOnly": 16, "totaal": 29, "kg_m2": 40}, "Akoestisch glas|8-14-44.2A": {"glasOnly": 16, "totaal": 30, "kg_m2": 40}, "Akoestisch glas|8-15-44.2A": {"glasOnly": 16, "totaal": 31, "kg_m2": 40}, "Akoestisch glas|8-16-44.2A": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "Akoestisch glas|33.2A-13-4": {"glasOnly": 10, "totaal": 23, "kg_m2": 25}, "Akoestisch glas|33.2A-14-4": {"glasOnly": 10, "totaal": 24, "kg_m2": 25}, "Akoestisch glas|33.2A-15-4": {"glasOnly": 10, "totaal": 25, "kg_m2": 25}, "Akoestisch glas|33.2A-16-4": {"glasOnly": 10, "totaal": 26, "kg_m2": 25}, "Akoestisch glas|44.2A-13-4": {"glasOnly": 12, "totaal": 25, "kg_m2": 30}, "Akoestisch glas|44.2A-14-4": {"glasOnly": 12, "totaal": 26, "kg_m2": 30}, "Akoestisch glas|44.2A-15-4": {"glasOnly": 12, "totaal": 27, "kg_m2": 30}, "Akoestisch glas|44.2A-16-4": {"glasOnly": 12, "totaal": 28, "kg_m2": 30}, "Akoestisch glas|44.2A-13-5": {"glasOnly": 13, "totaal": 26, "kg_m2": 32.5}, "Akoestisch glas|44.2A-14-5": {"glasOnly": 13, "totaal": 27, "kg_m2": 32.5}, "Akoestisch glas|44.2A-15-5": {"glasOnly": 13, "totaal": 28, "kg_m2": 32.5}, "Akoestisch glas|44.2A-16-5": {"glasOnly": 13, "totaal": 29, "kg_m2": 32.5}, "Akoestisch glas|44.2A-13-6": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Akoestisch glas|44.2A-14-6": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Akoestisch glas|44.2A-15-6": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Akoestisch glas|44.2A-16-6": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Akoestisch glas|33.2A-13-44.2A": {"glasOnly": 14, "totaal": 27, "kg_m2": 35}, "Akoestisch glas|33.2A-14-44.2A": {"glasOnly": 14, "totaal": 28, "kg_m2": 35}, "Akoestisch glas|33.2A-15-44.2A": {"glasOnly": 14, "totaal": 29, "kg_m2": 35}, "Akoestisch glas|33.2A-16-44.2A": {"glasOnly": 14, "totaal": 30, "kg_m2": 35}, "Akoestisch glas|44.2A-13-44.2A": {"glasOnly": 16, "totaal": 29, "kg_m2": 40}, "Akoestisch glas|44.2A-14-44.2A": {"glasOnly": 16, "totaal": 30, "kg_m2": 40}, "Akoestisch glas|44.2A-15-44.2A": {"glasOnly": 16, "totaal": 31, "kg_m2": 40}, "Akoestisch glas|44.2A-16-44.2A": {"glasOnly": 16, "totaal": 32, "kg_m2": 40}, "Akoestisch glas|4-14-4-14-44.2A": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}, "Akoestisch glas|4-16-4-16-44.2A": {"glasOnly": 16, "totaal": 48, "kg_m2": 40}, "Akoestisch glas|6-14-4-14-44.2A": {"glasOnly": 18, "totaal": 46, "kg_m2": 45}, "Akoestisch glas|6-16-4-16-44.2A": {"glasOnly": 18, "totaal": 50, "kg_m2": 45}, "Akoestisch glas|33.2A-14-4-14-4": {"glasOnly": 14, "totaal": 42, "kg_m2": 35}, "Akoestisch glas|44.2A-14-4-14-4": {"glasOnly": 16, "totaal": 44, "kg_m2": 40}}, "roosters": [{"naam": "DucoTon 10", "minDikte": 4, "maxDikte": 30, "beschrijving": "Klassiek tonrooster, handmatig instelbaar | glasaftrek 80 mm"}, {"naam": "DucoTon 10 ZR", "minDikte": 18, "maxDikte": 30, "beschrijving": "Zelfregelend tonrooster, meest verkocht | glasaftrek 80 mm"}, {"naam": "DucoTon 18", "minDikte": 18, "maxDikte": 22, "beschrijving": "Groot tonrooster voor renovatie | glasaftrek 120 mm"}, {"naam": "DucoSmart 60", "minDikte": 13, "maxDikte": 22, "beschrijving": "Compact klepventilator, minimale glasaftrek 60 mm"}, {"naam": "DucoKlep 15 ZR", "minDikte": 18, "maxDikte": 46, "beschrijving": "Vlak klepprofiel, ook voor triple glas | glasaftrek 80 mm"}, {"naam": "DucoFlat 12 ZR", "minDikte": 18, "maxDikte": 30, "beschrijving": "Plat profiel voor schuiframen | glasaftrek 80 mm"}, {"naam": "DucoGlasMax ZR", "minDikte": 8, "maxDikte": 38, "beschrijving": "Geluidswerend, zelfregelend | glasaftrek 80 mm"}, {"naam": "DucoGlasMax SR", "minDikte": 8, "maxDikte": 38, "beschrijving": "Geluidswerend akoestisch (sound-reducing) | glasaftrek 80 mm"}], "speling_opties": ["4 mm", "5 mm", "6 mm", "7 mm", "8 mm", "9 mm", "10 mm", "11 mm", "12 mm", "13 mm", "14 mm", "15 mm", "16 mm", "17 mm", "18 mm", "19 mm", "20 mm", "21 mm", "22 mm", "23 mm", "24 mm", "25 mm"], "ral_kleuren": ["F1 - Naturel aluminium (DAR)", "RAL 1001 - Beige", "RAL 1002 - Zandgeel", "RAL 1011 - Bruingeel", "RAL 1013 - Parelwit", "RAL 1014 - Ivoor", "RAL 1015 - Licht ivoor", "RAL 1019 - Grijsbeige", "RAL 1020 - Olijfgeel", "RAL 1035 - Parelbeige", "RAL 1036 - Parelgoud", "RAL 1247 - Gouden eik", "RAL 3000 - Vuurrood", "RAL 3003 - Robijnrood", "RAL 3004 - Paarsrood", "RAL 3005 - Wijnrood", "RAL 3007 - Zwartrood", "RAL 3009 - Oxyderood", "RAL 3011 - Bruinrood", "RAL 3020 - Verkeersrood", "RAL 5003 - Saffierenblauw", "RAL 5004 - Zwartblauw", "RAL 5008 - Grijsblauw", "RAL 5010 - Gentiaanblauw", "RAL 5011 - Staalblauw", "RAL 5013 - Kobaltblauw", "RAL 5017 - Verkeersblauw", "RAL 6001 - Smaragdgroen", "RAL 6003 - Olijfgroen", "RAL 6005 - Mosgroen", "RAL 6008 - Bruingroen", "RAL 6009 - Dennengroen", "RAL 6011 - Resedagroen", "RAL 6012 - Zwartgroen", "RAL 6021 - Paleisgroen", "RAL 6022 - Olijfdrab", "RAL 6064 - Grasgroen", "RAL 7000 - Pijlgrijsgrijs", "RAL 7001 - Zilvergrijs", "RAL 7002 - Olijfgrijs", "RAL 7003 - Mosgrijs", "RAL 7004 - Signaalgrijs", "RAL 7005 - Muisgrijs", "RAL 7006 - Beigegrijs", "RAL 7008 - Khaikigrijs", "RAL 7009 - Groene grijs", "RAL 7010 - Tenthoudend grijs", "RAL 7011 - IJzergrijs", "RAL 7012 - Bazaltgrijs", "RAL 7013 - Bruingrijs", "RAL 7023 - Betongrijs", "RAL 7024 - Grafietgrijs", "RAL 7026 - Granietgrijs", "RAL 7030 - Steengrijs", "RAL 7031 - Blauwgrijs", "RAL 7032 - Kiezelgrijs", "RAL 7033 - Cementgrijs", "RAL 7034 - Geelgrijs", "RAL 7035 - Lichtgrijs", "RAL 7036 - Platina grijs", "RAL 7037 - Stofgrijs", "RAL 7038 - Achaatgrijs", "RAL 7039 - Kwartsgrijs", "RAL 7040 - Venstergrijs", "RAL 7042 - Verkeersgrijs A", "RAL 7043 - Verkeersgrijs B", "RAL 7044 - Zijdegrijs", "RAL 7045 - Telegrijs 1", "RAL 7046 - Telegrijs 2", "RAL 7047 - Telegrijs 4", "RAL 7048 - Parelmoergrijs", "RAL 8000 - Groenbrown", "RAL 8002 - Signaalbruin", "RAL 8003 - Leembruin", "RAL 8004 - Koperbruin", "RAL 8007 - Hertbruin", "RAL 8008 - Olijfbruin", "RAL 8011 - Nootbruin", "RAL 8012 - Rode bruin", "RAL 8014 - Sepiabruin", "RAL 8015 - Kastanjebruin", "RAL 8016 - Mahogoni", "RAL 8017 - Chocoladebruin", "RAL 8019 - Grijsbruin", "RAL 8022 - Zwartbruin", "RAL 8024 - Beige bruin", "RAL 8025 - Bleke bruin", "RAL 8028 - Terrabruin", "RAL 9001 - Crèmewit", "RAL 9002 - Grijswit", "RAL 9003 - Signaalwit", "RAL 9004 - Signaalzwart", "RAL 9005 - Gitzwart", "RAL 9006 - Witgrijs aluminium", "RAL 9007 - Grijsaluminium", "RAL 9010 - Zuiverwit", "RAL 9011 - Grafietzwart", "RAL 9016 - Verkeerswit", "RAL 9017 - Verkeerszwart", "Andere RAL (op aanvraag, meerprijs)"], "glasbewerking": ["Helder (standaard)", "Mat / Satijn (gezuurd)", "Mat HR++ isolatieglas", "Figuurglas - Kathedraal Blank", "Figuurglas - Satijn/Mistlite", "Figuurglas - Ribbelglas", "Figuurglas - Silvit (Boomschors)", "Figuurglas - Master Carré", "Figuurglas - Master Ligner", "Figuurglas - Master Point", "Figuurglas - Moiré", "Figuurglas - Delta (Ijsglas)", "Figuurglas - Hammerglas", "Figuurglas HR++ isolatieglas", "Getint glas - Brons", "Getint glas - Grijs", "Getint glas - Groen", "Getint glas - Blauw", "Gekleurd glas (opgeven bij bestelling)", "Spiegelglas", "Overig (zie opmerking)"], "roedenverdeling": ["Geen roedenverdeling", "Wienersprossen - 1 kruising (+ vorm)", "Wienersprossen - 2 horizontaal", "Wienersprossen - 3 horizontaal", "Wienersprossen - 2 verticaal", "Wienersprossen - 3 verticaal", "Wienersprossen - 2H x 2V (raster)", "Wienersprossen - 3H x 2V (raster)", "Wienersprossen - 3H x 3V (raster)", "Wienersprossen - opgeven (zie opmerking)", "Opplakroeden - 1 kruising", "Opplakroeden - horizontaal", "Opplakroeden - verticaal", "Opplakroeden - raster (opgeven)", "Kruisroeden in glas", "Overig (zie opmerking)"], "roedenbreedte": ["18 mm", "26 mm", "28 mm", "30 mm", "38 mm", "45 mm", "Overig (zie opmerking)"]};
+
+const MAATSOORTEN = ['Glasmaat (direct)', 'Sponningmaat', 'Dagmaat'];
+const ROOSTER_JA_NEE = ['Nee', 'Ja'];
+const MAX_RIJEN = 50;
+
+// ═══════════════ STATE ═══════════════
+let rijen = [];
+let volgendId = 1;
+
+// ═══════════════ INIT ═══════════════
+document.addEventListener('DOMContentLoaded', () => {
+  laadOpgeslagen();
+  if (rijen.length === 0) {
+    voegRijenToe(20);
+  }
+  renderTabel();
+  herbereken();
+  setInterval(opslaan, 10000);
+});
+
+// ═══════════════ TABS ═══════════════
+function toon(tabNaam) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tabNaam).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (tabNaam === 'samenvatting') renderSamenvatting();
+  if (tabNaam === 'bestellijst') renderBestellijst();
+}
+
+// ═══════════════ RIJ BEHEER ═══════════════
+function nieuweRij() {
+  return {
+    id: volgendId++,
+    aantal: 1,
+    merk: '',
+    maatsoort: 'Sponningmaat',
+    breedte: '',
+    hoogte: '',
+    glasType: '',
+    opbouw: '',
+    rooster: 'Nee',
+    ducoType: '',
+    ralKleur: '',
+    glasbewerking: 'Helder (standaard)',
+    opmerking: '',
+    roedenverdeling: 'Geen roedenverdeling',
+    roedenbreedte: '',
+    roedenopmerking: '',
+    // berekend
+    glasBreedte: null,
+    glasHoogte: null,
+    totaalDikte: null,
+    kgM2: null,
+  };
+}
+
+function voegRijToe() { voegRijenToe(1); }
+function voegRijenToe(n) {
+  for (let i = 0; i < n; i++) rijen.push(nieuweRij());
+  renderTabel();
+}
+
+function verwijderRij(id) {
+  rijen = rijen.filter(r => r.id !== id);
+  renderTabel();
+  herbereken();
+  opslaan();
+}
+
+// ═══════════════ BEREKENINGEN ═══════════════
+function berekenGlasMaat(rij) {
+  const speling = parseInt(document.getElementById('spelingGlobal').value) || 4;
+  const bijtelling = parseInt((document.getElementById('bijtelling') || {}).value) || 11;
+  const b = parseFloat(rij.breedte);
+  const h = parseFloat(rij.hoogte);
+  if (isNaN(b) || isNaN(h) || b <= 0 || h <= 0) {
+    rij.glasBreedte = null; rij.glasHoogte = null;
+    return;
+  }
+  if (rij.maatsoort === 'Glasmaat (direct)') {
+    rij.glasBreedte = b; rij.glasHoogte = h;
+  } else if (rij.maatsoort === 'Sponningmaat') {
+    rij.glasBreedte = b - 2 * speling;
+    rij.glasHoogte = h - 2 * speling;
+  } else { // Dagmaat
+    rij.glasBreedte = b + 2 * bijtelling;
+    rij.glasHoogte = h + 2 * bijtelling;
+  }
+  rij.glasBreedte = Math.round(rij.glasBreedte);
+  rij.glasHoogte = Math.round(rij.glasHoogte);
+}
+
+function berekenDikte(rij) {
+  if (!rij.glasType || !rij.opbouw) { rij.totaalDikte = null; rij.kgM2 = null; return; }
+  const key = rij.glasType + '|' + rij.opbouw;
+  const entry = DATA.lookup[key];
+  if (entry) {
+    rij.totaalDikte = entry.totaal;
+    rij.kgM2 = entry.kg_m2;
+  } else {
+    rij.totaalDikte = null; rij.kgM2 = null;
+  }
+}
+
+function herbereken() {
+  rijen.forEach(r => { berekenGlasMaat(r); berekenDikte(r); });
+  updateBerekendCellen();
+  updateStatusBar();
+}
+
+// ═══════════════ RENDER TABEL ═══════════════
+function renderTabel() {
+  const tbody = document.getElementById('invoerBody');
+  tbody.innerHTML = '';
+  rijen.forEach((rij, idx) => {
+    const tr = document.createElement('tr');
+    tr.className = idx % 2 === 0 ? '' : 'even';
+    tr.id = 'rij-' + rij.id;
+    tr.innerHTML = rijHTML(rij, idx + 1);
+    tbody.appendChild(tr);
+  });
+}
+
+function rijHTML(rij, nr) {
+  const opbouwOpties = rij.glasType ? (DATA.opbouw_per_type[rij.glasType] || []) : [];
+  const heeftOpbouw = opbouwOpties.length > 0;
+
+  const maatsoortOpts = MAATSOORTEN.map(m =>
+    `<option value="${m}" ${rij.maatsoort === m ? 'selected' : ''}>${m}</option>`).join('');
+
+  const glasTypeOpts = '<option value="">— kies type —</option>' +
+    Object.keys(DATA.opbouw_per_type).map(t =>
+      `<option value="${t}" ${rij.glasType === t ? 'selected' : ''}>${t}</option>`).join('');
+
+  const opbouwOpts = '<option value="">— kies opbouw —</option>' +
+    opbouwOpties.map(o =>
+      `<option value="${o}" ${rij.opbouw === o ? 'selected' : ''}>${o}</option>`).join('');
+
+  const ducoOpts = '<option value="">— geen —</option>' +
+    DATA.roosters.map(r =>
+      `<option value="${r.naam}" ${rij.ducoType === r.naam ? 'selected' : ''}>${r.naam}</option>`).join('');
+
+  const ralOpts = '<option value="">— geen —</option>' +
+    DATA.ral_kleuren.map(c =>
+      `<option value="${c}" ${rij.ralKleur === c ? 'selected' : ''}>${c}</option>`).join('');
+
+  const bewerkingOpts = DATA.glasbewerking.map(b =>
+    `<option value="${b}" ${rij.glasbewerking === b ? 'selected' : ''}>${b}</option>`).join('');
+
+  const verdelingOpts = DATA.roedenverdeling.map(v =>
+    `<option value="${v}" ${rij.roedenverdeling === v ? 'selected' : ''}>${v}</option>`).join('');
+
+  const breedteOpts = '<option value="">—</option>' +
+    DATA.roedenbreedte.map(b =>
+      `<option value="${b}" ${rij.roedenbreedte === b ? 'selected' : ''}>${b}</option>`).join('');
+
+  const glasBr = rij.glasBreedte != null ? rij.glasBreedte + ' mm' : '—';
+  const glasH = rij.glasHoogte != null ? rij.glasHoogte + ' mm' : '—';
+  const dikteKg = rij.totaalDikte != null
+    ? `${rij.totaalDikte} mm / ${berekenGewicht(rij)} kg`
+    : '—';
+
+  const id = rij.id;
+  return `
+    <td class="rijnr">${nr}</td>
+    <td><input type="number" class="aantal-input" value="${rij.aantal}" min="1" max="999"
+       onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>
+    <td><input type="text" class="merk-input" value="${esc(rij.merk)}" placeholder="merk…"
+       oninput="setVal(${id},'merk',this.value); opslaan()"></td>
+    <td><select onchange="setVal(${id},'maatsoort',this.value); herbereken(); opslaan()">${maatsoortOpts}</select></td>
+    <td><input type="number" class="breedte-input" value="${rij.breedte}" placeholder="mm"
+       oninput="setVal(${id},'breedte',this.value); herbereken(); opslaan()"></td>
+    <td><input type="number" class="hoogte-input" value="${rij.hoogte}" placeholder="mm"
+       oninput="setVal(${id},'hoogte',this.value); herbereken(); opslaan()"></td>
+    <td class="berekend ${rij.glasBreedte == null ? 'ongeldig' : ''}" id="br-${id}">${glasBr}</td>
+    <td class="berekend ${rij.glasHoogte == null ? 'ongeldig' : ''}" id="bh-${id}">${glasH}</td>
+    <td><select onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
+    <td><select id="opb-${id}" onchange="setVal(${id},'opbouw',this.value); berekenDikte(getRij(${id})); updateBerekendCellen(); opslaan()">${opbouwOpts}</select></td>
+    <td class="berekend ${rij.totaalDikte == null ? 'ongeldig' : ''}" id="dk-${id}">${dikteKg}</td>
+    <td><select onchange="setVal(${id},'rooster',this.value); toggleDuco(${id},this.value); opslaan()">
+      <option value="Nee" ${rij.rooster==='Nee'?'selected':''}>Nee</option>
+      <option value="Ja" ${rij.rooster==='Ja'?'selected':''}>Ja</option>
+    </select></td>
+    <td id="duco-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
+      <select onchange="setVal(${id},'ducoType',this.value); opslaan()">${ducoOpts}</select>
+    </td>
+    <td id="ral-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
+      <select onchange="setVal(${id},'ralKleur',this.value); opslaan()">${ralOpts}</select>
+    </td>
+    <td><select onchange="setVal(${id},'glasbewerking',this.value); opslaan()">${bewerkingOpts}</select></td>
+    <td><input type="text" value="${esc(rij.opmerking)}" placeholder="opmerking…" style="width:110px"
+       oninput="setVal(${id},'opmerking',this.value); opslaan()"></td>
+    <td><select onchange="setVal(${id},'roedenverdeling',this.value); opslaan()">${verdelingOpts}</select></td>
+    <td><select onchange="setVal(${id},'roedenbreedte',this.value); opslaan()">${breedteOpts}</select></td>
+    <td><input type="text" value="${esc(rij.roedenopmerking)}" placeholder="opmerking…" style="width:90px"
+       oninput="setVal(${id},'roedenopmerking',this.value); opslaan()"></td>
+    <td class="delete-cel"><button class="btn-del" onclick="verwijderRij(${id})" title="Regel verwijderen">✕</button></td>
+  `;
+}
+
+function berekenGewicht(rij) {
+  if (!rij.glasBreedte || !rij.glasHoogte || !rij.kgM2) return '—';
+  const opp = (rij.glasBreedte / 1000) * (rij.glasHoogte / 1000);
+  return (opp * rij.kgM2).toFixed(1);
+}
+
+function updateBerekendCellen() {
+  rijen.forEach(rij => {
+    const brEl = document.getElementById('br-' + rij.id);
+    const bhEl = document.getElementById('bh-' + rij.id);
+    const dkEl = document.getElementById('dk-' + rij.id);
+    const ducoEl = document.getElementById('duco-' + rij.id);
+    if (!brEl) return;
+
+    const glasBr = rij.glasBreedte != null ? rij.glasBreedte + ' mm' : '—';
+    const glasH = rij.glasHoogte != null ? rij.glasHoogte + ' mm' : '—';
+    brEl.textContent = glasBr;
+    bhEl.textContent = glasH;
+    brEl.className = 'berekend' + (rij.glasBreedte == null ? ' ongeldig' : '');
+    bhEl.className = 'berekend' + (rij.glasHoogte == null ? ' ongeldig' : '');
+
+    const dikteKg = rij.totaalDikte != null
+      ? `${rij.totaalDikte} mm / ${berekenGewicht(rij)} kg`
+      : '—';
+    dkEl.textContent = dikteKg;
+    dkEl.className = 'berekend' + (rij.totaalDikte == null ? ' ongeldig' : '');
+
+    // Roosterwaarschuwing: kleur de Duco-cel rood indien incompatibel
+    if (ducoEl) {
+      let warn = '';
+      if (rij.rooster === 'Ja' && rij.ducoType && rij.totaalDikte != null) {
+        const rInfo = DATA.roosters.find(r => r.naam === rij.ducoType);
+        if (rInfo) {
+          if (rij.totaalDikte < rInfo.minDikte) {
+            warn = `Invullen A.U.B!`;
+          } else if (rij.totaalDikte > rInfo.maxDikte) {
+            warn = `Invullen A.U.B!`;
+          }
+        }
+      }
+      if (warn) {
+        ducoEl.classList.add('cel-waarschuwing');
+        ducoEl.title = warn;
+      } else {
+        ducoEl.classList.remove('cel-waarschuwing');
+        ducoEl.title = '';
+      }
+    }
+  });
+}
+
+function updateStatusBar() {
+  const ingevuld = rijen.filter(r => r.glasType && r.opbouw && r.breedte && r.hoogte);
+  const totAantal = ingevuld.reduce((s, r) => s + (parseInt(r.aantal) || 1), 0);
+  document.getElementById('statusBar').textContent =
+    `${ingevuld.length} regel(s) ingevuld · ${totAantal} stuks totaal`;
+}
+
+// ═══════════════ HELPERS ═══════════════
+function getRij(id) { return rijen.find(r => r.id === id); }
+function setVal(id, veld, waarde) {
+  const r = getRij(id);
+  if (r) r[veld] = waarde;
+}
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function wijzigGlasType(id, type) {
+  const rij = getRij(id);
+  if (!rij) return;
+  rij.glasType = type;
+  rij.opbouw = '';
+  berekenDikte(rij);
+  // Herrender alleen de opbouw-select van deze rij
+  const opbSel = document.getElementById('opb-' + id);
+  if (opbSel) {
+    const opties = type ? (DATA.opbouw_per_type[type] || []) : [];
+    opbSel.innerHTML = '<option value="">— kies opbouw —</option>' +
+      opties.map(o => `<option value="${o}">${o}</option>`).join('');
+  }
+  updateBerekendCellen();
+  opslaan();
+}
+
+function toggleDuco(id, val) {
+  const ducoEl = document.getElementById('duco-' + id);
+  const ralEl = document.getElementById('ral-' + id);
+  if (!ducoEl) return;
+  const uit = val === 'Nee';
+  ducoEl.style.opacity = uit ? '.35' : '1';
+  ducoEl.style.pointerEvents = uit ? 'none' : '';
+  ralEl.style.opacity = uit ? '.35' : '1';
+  ralEl.style.pointerEvents = uit ? 'none' : '';
+  if (uit) { setVal(id, 'ducoType', ''); setVal(id, 'ralKleur', ''); }
+  updateBerekendCellen();
+}
+
+// ═══════════════ SAMENVATTING ═══════════════
+function renderSamenvatting() {
+  const ingevuld = rijen.filter(r => r.glasType && r.opbouw && r.breedte && r.hoogte);
+  const el = document.getElementById('samenvattingInhoud');
+  if (ingevuld.length === 0) {
+    el.innerHTML = '<em style="color:var(--grijs-tekst)">Geen ingevulde regels gevonden.</em>';
+    return;
+  }
+
+  const project = document.getElementById('projectNaam').value || '—';
+  const datum = document.getElementById('projectDatum').value || '—';
+  let totAantal = 0, totGewicht = 0;
+
+  let rows = ingevuld.map((r, i) => {
+    berekenGlasMaat(r); berekenDikte(r);
+    const opp = r.glasBreedte && r.glasHoogte
+      ? ((r.glasBreedte/1000) * (r.glasHoogte/1000)).toFixed(3) : '—';
+    const gew = r.kgM2 && r.glasBreedte && r.glasHoogte
+      ? ((r.glasBreedte/1000) * (r.glasHoogte/1000) * r.kgM2).toFixed(1) : '—';
+    const ant = parseInt(r.aantal) || 1;
+    totAantal += ant;
+    if (gew !== '—') totGewicht += parseFloat(gew) * ant;
+
+    return `<tr>
+      <td class="rijnr">${i+1}</td>
+      <td>${esc(r.merk)}</td>
+      <td>${r.maatsoort}</td>
+      <td class="num">${r.breedte}</td>
+      <td class="num">${r.hoogte}</td>
+      <td class="num highlight">${r.glasBreedte ?? '—'}</td>
+      <td class="num highlight">${r.glasHoogte ?? '—'}</td>
+      <td>${esc(r.glasType)}</td>
+      <td>${esc(r.opbouw)}</td>
+      <td class="num">${r.rooster === 'Ja' ? 'Ja' : 'Nee'}</td>
+      <td class="num">${opp}</td>
+      <td class="num">${r.totaalDikte ?? '—'}</td>
+      <td class="num">${gew}</td>
+      <td class="num highlight">${ant}</td>
+      <td>${esc(r.ducoType)}</td>
+      <td>${esc(r.ralKleur)}</td>
+      <td>${esc(r.glasbewerking)}</td>
+      <td>${esc(r.roedenverdeling)}</td>
+      <td>${esc(r.roedenbreedte)}</td>
+      <td>${esc(r.roedenopmerking)}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="margin-bottom:10px;font-size:12px;color:var(--grijs-tekst)">
+      <strong>Project:</strong> ${esc(project)} &nbsp;|&nbsp; <strong>Datum:</strong> ${esc(datum)}
+    </div>
+    <div style="overflow-x:auto">
+    <table class="samenvatting">
+      <thead><tr>
+        <th>#</th><th>Merk</th><th>Maatsoort</th>
+        <th class="num">Breedte<br>invoer</th><th class="num">Hoogte<br>invoer</th>
+        <th class="num">Glasbreedte<br>(mm)</th><th class="num">Glashoogte<br>(mm)</th>
+        <th>Glas Type</th><th>Opbouw</th><th>Rooster</th>
+        <th class="num">Opp.<br>(m²)</th><th class="num">Dikte<br>(mm)</th>
+        <th class="num">Gewicht<br>p/stuk (kg)</th><th class="num">Aantal</th>
+        <th>Duco Type</th><th>RAL</th><th>Bewerking</th>
+        <th>Roedenv.</th><th>Roedenb.</th><th>Opmerking</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr class="totaal-rij">
+        <td colspan="13" style="text-align:right;padding-right:8px;">Totalen →</td>
+        <td class="num">${totAantal}</td>
+        <td colspan="6"></td>
+      </tr></tfoot>
+    </table>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--grijs-tekst)">
+      Totaal gewicht (excl. roeden, incl. alle aantallen): <strong>${totGewicht.toFixed(1)} kg</strong>
+    </div>`;
+}
+
+// ═══════════════ BESTELLIJST ═══════════════
+function renderBestellijst() {
+  const ingevuld = rijen.filter(r => r.glasType && r.opbouw && r.glasBreedte && r.glasHoogte);
+  const el = document.getElementById('bestellijstInhoud');
+  if (ingevuld.length === 0) {
+    el.innerHTML = '<em style="color:var(--grijs-tekst)">Geen volledige regels gevonden.</em>';
+    return;
+  }
+  const project = document.getElementById('projectNaam').value || '—';
+  const datum = document.getElementById('projectDatum').value || '—';
+
+  let rows = ingevuld.map((r, i) => `<tr>
+    <td class="rijnr">${i+1}</td>
+    <td class="num highlight">${parseInt(r.aantal)||1}</td>
+    <td>${esc(r.merk)}</td>
+    <td class="num highlight">${r.glasBreedte}</td>
+    <td class="num highlight">${r.glasHoogte}</td>
+    <td>${esc(r.glasType)}</td>
+    <td>${esc(r.opbouw)}</td>
+    <td>${r.rooster === 'Ja' ? '✓' : ''}</td>
+    <td>${esc(r.ducoType)}</td>
+    <td>${esc(r.ralKleur)}</td>
+    <td>${esc(r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '')}</td>
+    <td>${esc(r.roedenverdeling !== 'Geen roedenverdeling' ? r.roedenverdeling : '')}</td>
+    <td>${esc(r.roedenbreedte)}</td>
+    <td>${esc(r.roedenopmerking || r.opmerking)}</td>
+  </tr>`).join('');
+
+  el.innerHTML = `
+    <div style="margin-bottom:10px;font-size:12px;color:var(--grijs-tekst)">
+      <strong>Project:</strong> ${esc(project)} &nbsp;|&nbsp; <strong>Datum:</strong> ${esc(datum)}
+    </div>
+    <div style="overflow-x:auto">
+    <table class="samenvatting">
+      <thead><tr>
+        <th>Pos.</th><th class="num">Aantal</th><th>Merk</th>
+        <th class="num">Glasbreedte (mm)</th><th class="num">Glashoogte (mm)</th>
+        <th>Glas Type</th><th>Opbouw</th><th>Rooster</th>
+        <th>Duco Type</th><th>RAL Kleur</th>
+        <th>Glasbewerking</th><th>Roedenverdeling</th><th>Roedenb.</th><th>Opmerking</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>`;
+}
+
+// ═══════════════ OPSLAAN / LADEN ═══════════════
+function opslaan() {
+  const state = {
+    rijen,
+    volgendId,
+    project: document.getElementById('projectNaam').value,
+    datum: document.getElementById('projectDatum').value,
+    speling: document.getElementById('spelingGlobal').value,
+    bijtelling: (document.getElementById('bijtelling')||{}).value || '11',
+  };
+  try { localStorage.setItem('glasopname_v2', JSON.stringify(state)); } catch(e) {}
+}
+
+function laadOpgeslagen() {
+  try {
+    const raw = localStorage.getItem('glasopname_v2');
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    rijen = state.rijen || [];
+    volgendId = state.volgendId || (rijen.length + 1);
+    if (state.project) document.getElementById('projectNaam').value = state.project;
+    if (state.datum) document.getElementById('projectDatum').value = state.datum;
+    if (state.speling) document.getElementById('spelingGlobal').value = state.speling;
+    if (state.bijtelling && document.getElementById('bijtelling')) document.getElementById('bijtelling').value = state.bijtelling;
+  } catch(e) { rijen = []; }
+}
+
+function clearAlles() {
+  if (!confirm('Alle invoer wissen? Dit kan niet ongedaan worden gemaakt.')) return;
+  rijen = [];
+  volgendId = 1;
+  document.getElementById('projectNaam').value = '';
+  document.getElementById('projectDatum').value = '';
+  localStorage.removeItem('glasopname_v2');
+  voegRijenToe(20);
+}
+
+// ═══════════════ PRINT ═══════════════
+function printBestellijst() {
+  renderBestellijst();
+  window.print();
+}
+
+// ═══════════════ CSV EXPORT ═══════════════
+function exportCSV() {
+  const ingevuld = rijen.filter(r => r.glasType || r.breedte || r.hoogte);
+  if (ingevuld.length === 0) { alert('Geen data om te exporteren.'); return; }
+
+  const headers = ['Pos','Aantal','Merk','Maatsoort','Breedte invoer','Hoogte invoer',
+    'Glasbreedte','Glashoogte','Glas Type','Opbouw','Totaal dikte (mm)',
+    'Gewicht p/stuk (kg)','Rooster','Duco Type','RAL Kleur',
+    'Glasbewerking','Opmerking','Roedenverdeling','Roedenbreedte','Opmerking roeden'];
+
+  const csvRows = [headers.join(';')];
+  ingevuld.forEach((r, i) => {
+    berekenGlasMaat(r); berekenDikte(r);
+    const gew = r.kgM2 && r.glasBreedte && r.glasHoogte
+      ? ((r.glasBreedte/1000)*(r.glasHoogte/1000)*r.kgM2).toFixed(1) : '';
+    csvRows.push([
+      i+1, r.aantal, r.merk, r.maatsoort, r.breedte, r.hoogte,
+      r.glasBreedte??'', r.glasHoogte??'',
+      r.glasType, r.opbouw, r.totaalDikte??'', gew,
+      r.rooster==='Ja'?'Ja':'Nee', r.ducoType, r.ralKleur,
+      r.glasbewerking, r.opmerking, r.roedenverdeling, r.roedenbreedte, r.roedenopmerking
+    ].map(v => '"' + String(v??'').replace(/"/g,'""') + '"').join(';'));
+  });
+
+  const blob = new Blob([csvRows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'glasopname_' + (document.getElementById('projectNaam').value||'export') + '.csv';
+  a.click();
+}
+</script>
+<script src="cloud.js"></script>
+<script src="import.js"></script>
+</body>
+</html>

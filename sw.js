@@ -1,13 +1,14 @@
 /* Glasopname – service worker
    Doel: de app start ook zonder internet. Data gaat via cloud.js
    naar Supabase; die verzoeken worden nooit gecachet. */
-const CACHE = 'glasopname-v1';
+const CACHE = 'glasopname-v2';
 const SHELL = [
   './',
   './index.html',
   './config.js',
   './cloud.js',
   './import.js',
+  './bulk.js',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png'

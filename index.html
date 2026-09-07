@@ -520,6 +520,57 @@
   .imp-telling { font-size: 12px; font-weight: 600; color: var(--blauw); margin: 12px 0; }
   .imp-maatsoort { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 12px; }
   .imp-maatsoort select { padding: 5px 8px; font-size: 12px; border: 1px solid var(--grijs-rand); border-radius: var(--radius); }
+
+  /* ─── DOORVOEREN & SELECTIE ─── */
+  .bulk-vul {
+    display: inline-block; margin-left: 5px; cursor: pointer;
+    opacity: 0.5; font-weight: 700; user-select: none;
+  }
+  .bulk-vul:hover { opacity: 1; }
+  tr.geselecteerd > td { background: #fff8e6 !important; }
+  .rijnr-wrap { display: flex; align-items: center; gap: 4px; justify-content: center; }
+  .rijnr-wrap input[type=checkbox] { margin: 0; cursor: pointer; }
+  .bulk-balk {
+    display: none; align-items: center; gap: 12px;
+    background: var(--geel); color: #3a2a00; padding: 7px 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .bulk-balk button {
+    background: rgba(0,0,0,0.12); border: none; color: #3a2a00;
+    padding: 4px 10px; border-radius: var(--radius); font-size: 12px;
+    font-family: inherit; cursor: pointer; font-weight: 600;
+  }
+  .bulk-balk button:hover { background: rgba(0,0,0,0.22); }
+  .bulk-pop {
+    position: absolute; z-index: 8000; background: white; width: 270px;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+    box-shadow: 0 8px 28px rgba(26,58,92,0.28); overflow: hidden;
+  }
+  .bulk-pop-kop { background: var(--blauw); color: white; padding: 8px 12px; font-size: 12px; font-weight: 700; }
+  .bulk-pop-body { padding: 12px; }
+  .bulk-pop-body label { display: block; font-size: 11px; font-weight: 600; color: var(--blauw); margin-bottom: 3px; }
+  .bulk-pop-body > select, .bulk-pop-body > input {
+    width: 100%; padding: 6px 8px; font-size: 12px; font-family: inherit;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+  }
+  .bulk-bereik { margin: 12px 0 10px; border-top: 1px solid var(--grijs-rand); padding-top: 10px; }
+  .bulk-bereik label {
+    display: flex; align-items: center; gap: 6px; font-size: 12px;
+    font-weight: 400; color: #1a2a3a; margin-bottom: 5px; cursor: pointer;
+  }
+  .bulk-bereik label.uit { opacity: 0.4; cursor: default; }
+  .bulk-bereik input { margin: 0; }
+  .bulk-pop-knoppen { display: flex; gap: 8px; justify-content: flex-end; }
+  td.correctie-cel select {
+    font-size: 11px; padding: 3px 2px; width: 100%;
+    border: 1px solid var(--grijs-rand); border-radius: 3px; color: var(--grijs-tekst);
+  }
+  td.correctie-cel.afwijkend select {
+    background: #fff3d0; border-color: var(--geel);
+    color: #3a2a00; font-weight: 700;
+  }
+  td.correctie-cel.nvt { color: var(--grijs-tekst); text-align: center; font-size: 11px; }
+  @media print { .bulk-vul, .bulk-balk, .bulk-pop, .rijnr-wrap input { display: none !important; } }
 </style>
 </head>
 <body>
@@ -553,6 +604,13 @@
   </div>
 </div>
 
+<div class="bulk-balk" id="bulkBalk">
+  <span id="bulkAantal"></span>
+  <button onclick="bulkSelectieWissen()">Selectie wissen</button>
+  <button onclick="bulkVerwijderSelectie()">Geselecteerde verwijderen</button>
+  <span style="margin-left:auto;opacity:.75;font-weight:400;">Gebruik ⇣ in een kolomkop om een waarde door te voeren</span>
+</div>
+
 <div class="tabs">
   <button class="tab-btn active" onclick="toon('invoer')">📋 Invoer</button>
   <button class="tab-btn" onclick="toon('samenvatting')">📊 Samenvatting</button>
@@ -569,11 +627,11 @@
       <tr>
         <th rowspan="2" style="width:28px"></th>
         <th colspan="2" class="groep-algemeen">Algemeen</th>
-        <th colspan="3" class="groep-maat">Maatvoering</th>
+        <th colspan="4" class="groep-maat">Maatvoering</th>
         <th colspan="2" style="background:#145c3a;">Glasmaat (auto)</th>
         <th colspan="3" class="groep-glas">Glasspecificatie</th>
-        <th colspan="4" style="background:#2a4a1a;">Ventilatie</th>
-        <th colspan="3" class="groep-glas">Afwerking</th>
+        <th colspan="3" style="background:#2a4a1a;">Ventilatie</th>
+        <th colspan="2" class="groep-glas">Afwerking</th>
         <th colspan="3" class="groep-roeden">Roeden</th>
         <th rowspan="2" style="background:#333; width:28px"></th>
       </tr>
@@ -583,6 +641,7 @@
         <th class="groep-maat">Maat­soort</th>
         <th class="groep-maat">Breedte (mm)</th>
         <th class="groep-maat">Hoogte (mm)</th>
+        <th class="groep-maat">Correctie <i class="info-icon" title="Speling of bijtelling voor deze ene ruit. Leeg = de algemene waarde uit de balk bovenaan.">i</i></th>
         <th style="background:#145c3a;">Glasbreedte</th>
         <th style="background:#145c3a;">Glashoogte</th>
         <th class="groep-glas">Glas Type</th>
@@ -846,9 +905,44 @@ function verwijderRij(id) {
 }
 
 // ═══════════════ BEREKENINGEN ═══════════════
+function algemeneSpeling() {
+  return parseInt(document.getElementById('spelingGlobal').value) || 4;
+}
+function algemeneBijtelling() {
+  return parseInt((document.getElementById('bijtelling') || {}).value) || 11;
+}
+
+// Correctie voor deze ruit: eigen waarde als die is ingevuld,
+// anders de algemene waarde uit de balk bovenaan.
+function correctieVan(rij) {
+  if (rij.correctie != null && rij.correctie !== '') return parseInt(rij.correctie, 10);
+  return rij.maatsoort === 'Dagmaat' ? algemeneBijtelling() : algemeneSpeling();
+}
+
+function correctieCel(rij) {
+  if (rij.maatsoort === 'Glasmaat (direct)') {
+    return '<td class="correctie-cel nvt">n.v.t.</td>';
+  }
+  const alg = rij.maatsoort === 'Dagmaat' ? algemeneBijtelling() : algemeneSpeling();
+  const eigen = (rij.correctie != null && rij.correctie !== '');
+  const teken = rij.maatsoort === 'Dagmaat' ? '+' : '\u2212';
+  const opties = DATA.speling_opties.map(s => parseInt(s, 10))
+    .map(v => `<option value="${v}" ${eigen && +rij.correctie === v ? 'selected' : ''}>${teken}${v} mm</option>`).join('');
+  return `<td class="correctie-cel ${eigen ? 'afwijkend' : ''}">
+    <select onchange="setCorrectie(${rij.id}, this.value)">
+      <option value="" ${eigen ? '' : 'selected'}>${teken}${alg} alg.</option>${opties}
+    </select></td>`;
+}
+
+function setCorrectie(id, waarde) {
+  const rij = getRij(id);
+  if (!rij) return;
+  if (waarde === '') delete rij.correctie; else rij.correctie = parseInt(waarde, 10);
+  renderTabel(); herbereken(); opslaan();
+}
+
 function berekenGlasMaat(rij) {
-  const speling = parseInt(document.getElementById('spelingGlobal').value) || 4;
-  const bijtelling = parseInt((document.getElementById('bijtelling') || {}).value) || 11;
+  const correctie = correctieVan(rij);
   const b = parseFloat(rij.breedte);
   const h = parseFloat(rij.hoogte);
   if (isNaN(b) || isNaN(h) || b <= 0 || h <= 0) {
@@ -858,11 +952,11 @@ function berekenGlasMaat(rij) {
   if (rij.maatsoort === 'Glasmaat (direct)') {
     rij.glasBreedte = b; rij.glasHoogte = h;
   } else if (rij.maatsoort === 'Sponningmaat') {
-    rij.glasBreedte = b - 2 * speling;
-    rij.glasHoogte = h - 2 * speling;
+    rij.glasBreedte = b - 2 * correctie;
+    rij.glasHoogte = h - 2 * correctie;
   } else { // Dagmaat
-    rij.glasBreedte = b + 2 * bijtelling;
-    rij.glasHoogte = h + 2 * bijtelling;
+    rij.glasBreedte = b + 2 * correctie;
+    rij.glasHoogte = h + 2 * correctie;
   }
   rij.glasBreedte = Math.round(rij.glasBreedte);
   rij.glasHoogte = Math.round(rij.glasHoogte);
@@ -940,7 +1034,8 @@ function rijHTML(rij, nr) {
 
   const id = rij.id;
   return `
-    <td class="rijnr">${nr}</td>
+    <td class="rijnr"><div class="rijnr-wrap"><input type="checkbox" ${bulkIsGeselecteerd(id) ? 'checked' : ''}
+       onchange="bulkToggle(${id}, this.checked)" title="Selecteren"><span>${nr}</span></div></td>
     <td><input type="number" class="aantal-input" value="${rij.aantal}" min="1" max="999"
        onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>
     <td><input type="text" class="merk-input" value="${esc(rij.merk)}" placeholder="merk…"
@@ -950,6 +1045,7 @@ function rijHTML(rij, nr) {
        oninput="setVal(${id},'breedte',this.value); herbereken(); opslaan()"></td>
     <td><input type="number" class="hoogte-input" value="${rij.hoogte}" placeholder="mm"
        oninput="setVal(${id},'hoogte',this.value); herbereken(); opslaan()"></td>
+    ${correctieCel(rij)}
     <td class="berekend ${rij.glasBreedte == null ? 'ongeldig' : ''}" id="br-${id}">${glasBr}</td>
     <td class="berekend ${rij.glasHoogte == null ? 'ongeldig' : ''}" id="bh-${id}">${glasH}</td>
     <td><select onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
@@ -1270,5 +1366,6 @@ function exportCSV() {
 </script>
 <script src="cloud.js"></script>
 <script src="import.js"></script>
+<script src="bulk.js"></script>
 </body>
 </html>

@@ -504,9 +504,14 @@
   .cloud-project-info span { display: block; font-size: 11px; color: var(--grijs-tekst); margin-top: 2px; }
   .cloud-project-info:hover strong { text-decoration: underline; }
   .cloud-voet { padding: 14px 20px; border-top: 1px solid var(--grijs-rand); display: flex; gap: 10px; justify-content: space-between; }
+  /* Vaste breedte: anders herschikt de knoppenbalk zich telkens als de
+     tekst van lengte verandert, en schuift de pagina op smalle schermen. */
   #cloudStatus {
     font-size: 11px; padding: 5px 10px; border-radius: 20px;
     background: rgba(255,255,255,0.14); color: white; white-space: nowrap;
+    display: inline-block; box-sizing: border-box;
+    width: 132px; text-align: center; flex: 0 0 132px;
+    overflow: hidden; text-overflow: ellipsis;
   }
   @media print { .cloud-overlay { display: none !important; } }
 
@@ -899,7 +904,7 @@ function datumVandaag() {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v10';
+const APP_VERSIE = 'v12';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1083,8 +1088,16 @@ function updateCorrectieCellen() {
   rijen.forEach(rij => {
     const cel = document.getElementById('corr-' + rij.id);
     if (!cel) return;
-    const nieuw = correctieCel(rij);
-    if (cel.outerHTML !== nieuw) cel.outerHTML = nieuw;
+    // Alleen opnieuw opbouwen als er inhoudelijk iets verandert.
+    // Vergelijken met outerHTML kan niet: de browser schrijft HTML anders
+    // op dan wij hem genereren, dus dat verschilt altijd — en dan werd bij
+    // elke toetsaanslag de hele kolom vervangen en sprong het scherm.
+    const alg = rij.maatsoort === 'Dagmaat' ? algemeneBijtelling() : algemeneSpeling();
+    const kenmerk = [rij.maatsoort, alg, rij.correctie == null ? '' : rij.correctie].join('|');
+    if (cel.dataset.kenmerk === kenmerk) return;
+    cel.outerHTML = correctieCel(rij);
+    const nieuweCel = document.getElementById('corr-' + rij.id);
+    if (nieuweCel) nieuweCel.dataset.kenmerk = kenmerk;
   });
 }
 

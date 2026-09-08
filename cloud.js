@@ -21,6 +21,7 @@
   var gebruiker = null;
   var projectId = localStorage.getItem(LS_PROJECT) || null;
   var vuil      = false;   // er zijn wijzigingen die nog niet omhoog zijn
+  var laatsteJson = null;  // stand zoals die het laatst is weggeschreven
   var bezig     = false;
   var origOpslaan   = window.opslaan;
   var origClearAlles = window.clearAlles;
@@ -81,6 +82,12 @@
   }
 
   window.opslaan = function () {
+    // De app roept dit ook elke tien seconden vanzelf aan. Is er niets
+    // veranderd, dan hoeft er niets te gebeuren: anders knippert het
+    // statuspilletje elke tien seconden en verspringt de pagina.
+    var nu = JSON.stringify(huidigeStaat());
+    if (nu === laatsteJson && !vuil) return;
+    laatsteJson = nu;
     opslaanLokaal();
     vuil = true;
     localStorage.setItem(LS_PENDING, '1');
@@ -100,7 +107,7 @@
 
   function synchroniseer() {
     if (!sb || !gebruiker || !projectId || !vuil || bezig) return;
-    if (!navigator.onLine) { status('⚠ Offline — lokaal bewaard', 'rgba(192,57,43,0.85)'); return; }
+    if (!navigator.onLine) { status('⚠ Offline — lokaal', 'rgba(192,57,43,0.85)'); return; }
     bezig = true;
     status('… Opslaan');
     var state = huidigeStaat();
@@ -130,7 +137,7 @@
 
   window.addEventListener('online', function () { if (vuil) synchroniseer(); });
   window.addEventListener('offline', function () {
-    status('⚠ Offline — lokaal bewaard', 'rgba(192,57,43,0.85)');
+    status('⚠ Offline — lokaal', 'rgba(192,57,43,0.85)');
   });
   setInterval(function () { if (vuil) synchroniseer(); }, 20000);
 
@@ -274,6 +281,7 @@
       localStorage.setItem(LS_PROJECT, projectId);
       zetStaat(res.data.data || {});
       opslaanLokaal();
+      laatsteJson = JSON.stringify(huidigeStaat());
       vuil = false;
       el('cloudProjecten').style.display = 'none';
       statusOpgeslagen();
@@ -344,6 +352,7 @@
           } else {
             zetStaat(res.data.data || {});
             opslaanLokaal();
+            laatsteJson = JSON.stringify(huidigeStaat());
             statusOpgeslagen();
           }
         });

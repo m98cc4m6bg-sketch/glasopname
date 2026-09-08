@@ -921,14 +921,14 @@ function correctieVan(rij) {
 
 function correctieCel(rij) {
   if (rij.maatsoort === 'Glasmaat (direct)') {
-    return '<td class="correctie-cel nvt">n.v.t.</td>';
+    return `<td class="correctie-cel nvt" id="corr-${rij.id}">n.v.t.</td>`;
   }
   const alg = rij.maatsoort === 'Dagmaat' ? algemeneBijtelling() : algemeneSpeling();
   const eigen = (rij.correctie != null && rij.correctie !== '');
   const teken = rij.maatsoort === 'Dagmaat' ? '+' : '\u2212';
   const opties = DATA.speling_opties.map(s => parseInt(s, 10))
     .map(v => `<option value="${v}" ${eigen && +rij.correctie === v ? 'selected' : ''}>${teken}${v} mm</option>`).join('');
-  return `<td class="correctie-cel ${eigen ? 'afwijkend' : ''}">
+  return `<td class="correctie-cel ${eigen ? 'afwijkend' : ''}" id="corr-${rij.id}">
     <select onchange="setCorrectie(${rij.id}, this.value)">
       <option value="" ${eigen ? '' : 'selected'}>${teken}${alg} alg.</option>${opties}
     </select></td>`;
@@ -977,7 +977,20 @@ function berekenDikte(rij) {
 function herbereken() {
   rijen.forEach(r => { berekenGlasMaat(r); berekenDikte(r); });
   updateBerekendCellen();
+  updateCorrectieCellen();
   updateStatusBar();
+}
+
+// Rijen die de algemene waarde volgen tonen die waarde in hun keuzevakje.
+// Wijzigt de speling of bijtelling bovenaan, of de maatsoort van een rij,
+// dan moet dat vakje meebewegen. Rijen met een eigen waarde blijven staan.
+function updateCorrectieCellen() {
+  rijen.forEach(rij => {
+    const cel = document.getElementById('corr-' + rij.id);
+    if (!cel) return;
+    const nieuw = correctieCel(rij);
+    if (cel.outerHTML !== nieuw) cel.outerHTML = nieuw;
+  });
 }
 
 // ═══════════════ RENDER TABEL ═══════════════

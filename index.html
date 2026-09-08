@@ -369,7 +369,18 @@
     .card { box-shadow: none; border: none; padding: 0; }
     #panel-bestellijst { display: block !important; }
     .info-note { display: none; }
-    @page { size: A4 landscape; margin: 12mm; }
+
+    /* De browser tekent zijn eigen kop- en voettekst (URL, datum,
+       paginanummer) in de boven- en ondermarge van de pagina. Zetten we
+       die op nul, dan is er geen ruimte meer en blijft de afdruk schoon.
+       De zijmarges blijven staan; daar wordt niets in getekend.
+       De witruimte boven- en onderaan maken we zelf. */
+    @page { size: A4 landscape; margin: 0 12mm; }
+    #panel-bestellijst { padding: 10mm 0 8mm; }
+    /* Kolomkoppen herhalen op elke pagina; die hebben ook ruimte
+       nodig ten opzichte van de papierrand. */
+    #panel-bestellijst thead th { padding-top: 8mm; }
+    #panel-bestellijst tbody tr { page-break-inside: avoid; }
   }
 
   /* ─── TOOLTIP ─── */
@@ -872,7 +883,7 @@ function datumVandaag() {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v7';
+const APP_VERSIE = 'v9';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1448,5 +1459,6 @@ function exportCSV() {
 <script src="cloud.js"></script>
 <script src="import.js"></script>
 <script src="bulk.js"></script>
+<script src="undo.js"></script>
 </body>
 </html>

@@ -121,14 +121,14 @@
     if (acties) {
       var u = document.createElement('button');
       u.id = 'knopOngedaan';
-      u.className = 'btn btn-ghost btn-sm';
-      u.textContent = '↶ Ongedaan';
+      u.className = 'btn btn-sm btn-undo';
+      u.innerHTML = '<span class="pijl">↶</span> Ongedaan';
       u.onclick = window.ongedaan;
       u.disabled = true;
       var r = document.createElement('button');
       r.id = 'knopOpnieuw';
-      r.className = 'btn btn-ghost btn-sm';
-      r.textContent = '↷';
+      r.className = 'btn btn-sm btn-undo';
+      r.innerHTML = '<span class="pijl">↷</span> Opnieuw';
       r.onclick = window.opnieuw;
       r.style.display = 'none';
       acties.insertBefore(r, acties.firstChild);

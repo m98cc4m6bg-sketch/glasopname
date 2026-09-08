@@ -78,7 +78,7 @@
     padding: 5px 8px;
     font-size: 13px;
   }
-  .toolbar .info-icon {
+  .info-icon {
     cursor: help;
     color: var(--blauw-mid);
     font-size: 14px;
@@ -571,6 +571,15 @@
   }
   td.correctie-cel.nvt { color: var(--grijs-tekst); text-align: center; font-size: 11px; }
   @media print { .bulk-vul, .bulk-balk, .bulk-pop, .rijnr-wrap input { display: none !important; } }
+
+  .info-tip {
+    position: absolute; z-index: 8500; max-width: 300px;
+    background: var(--blauw); color: white; padding: 10px 12px;
+    border-radius: var(--radius); font-size: 12px; line-height: 1.5;
+    box-shadow: 0 6px 22px rgba(26,58,92,0.32); font-weight: 400;
+  }
+  .info-tip b { color: var(--geel); }
+  @media print { .info-icon, .info-tip { display: none !important; } }
 </style>
 </head>
 <body>
@@ -597,10 +606,10 @@
   <div class="speling-wrap">
     <label>Speling sponningmaat (rondom):</label>
     <select id="spelingGlobal" onchange="herbereken(); opslaan()"><option value="4" selected>4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11">11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
-    <i class="info-icon" title="Wordt 2× afgetrokken van de sponningmaat. Standaard 4 mm per zijde.">i</i>
+    <i class="info-icon" onclick="toonInfo(this)" data-info="De speling geldt <b>rondom</b>: hij gaat er aan beide zijden af, dus 2× van de breedte en 2× van de hoogte.<br><br>Bij 4 mm speling wordt een sponningmaat van 1000 × 2000 dus een glasmaat van <b>992 × 1992</b>.">i</i>
     <label style="margin-left:12px;">Bijtelling dagmaat (rondom):</label>
     <select id="bijtelling" onchange="herbereken(); opslaan()"><option value="4">4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11" selected>11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
-    <i class="info-icon" title="Wordt 2× opgeteld bij de dagmaat. Standaard 10 mm per zijde.">i</i>
+    <i class="info-icon" onclick="toonInfo(this)" data-info="De bijtelling geldt <b>rondom</b>: hij komt er aan beide zijden bij, dus 2× bij de breedte en 2× bij de hoogte.<br><br>Bij 11 mm bijtelling wordt een dagmaat van 1000 × 2000 dus een glasmaat van <b>1022 × 2022</b>.">i</i>
   </div>
 </div>
 
@@ -641,7 +650,7 @@
         <th class="groep-maat">Maat­soort</th>
         <th class="groep-maat">Breedte (mm)</th>
         <th class="groep-maat">Hoogte (mm)</th>
-        <th class="groep-maat">Correctie <i class="info-icon" title="Speling of bijtelling voor deze ene ruit. Leeg = de algemene waarde uit de balk bovenaan.">i</i></th>
+        <th class="groep-maat">Correctie <i class="info-icon" onclick="toonInfo(this)" data-info="Een <b>afwijkende</b> speling of bijtelling voor deze ene ruit.<br><br>Ook deze waarde geldt <b>rondom</b> en wordt dus 2× gerekend: bij −6 mm wordt 1000 × 2000 een glasmaat van <b>988 × 1988</b>.<br><br>Staat er ‹alg.›, dan volgt de ruit de algemene waarde uit de balk bovenaan. Kies je zelf iets, dan kleurt het vakje geel.">i</i></th>
         <th style="background:#145c3a;">Glasbreedte</th>
         <th style="background:#145c3a;">Glashoogte</th>
         <th class="groep-glas">Glas Type</th>
@@ -853,6 +862,42 @@ document.addEventListener('DOMContentLoaded', () => {
   herbereken();
   setInterval(opslaan, 10000);
 });
+
+// ═══════════════ INFO-BALLONNEN ═══════════════
+// Het title-attribuut van de browser werkt niet op een aanraakscherm,
+// dus tonen we de uitleg zelf bij aantikken.
+let infoTip = null;
+
+function verbergInfo() {
+  if (infoTip) { infoTip.remove(); infoTip = null; }
+  document.removeEventListener('mousedown', infoBuitenKlik, true);
+}
+
+function infoBuitenKlik(e) {
+  if (infoTip && !infoTip.contains(e.target) && !e.target.classList.contains('info-icon')) verbergInfo();
+}
+
+function toonInfo(icoon) {
+  const zelfde = infoTip && infoTip._bron === icoon;
+  verbergInfo();
+  if (zelfde) return;                       // nogmaals tikken sluit hem
+
+  const tip = document.createElement('div');
+  tip.className = 'info-tip';
+  tip.innerHTML = icoon.dataset.info;
+  tip._bron = icoon;
+  document.body.appendChild(tip);
+  infoTip = tip;
+
+  const r = icoon.getBoundingClientRect();
+  const marge = 8;
+  let links = r.left + window.scrollX;
+  const maxLinks = window.scrollX + document.documentElement.clientWidth - tip.offsetWidth - marge;
+  tip.style.left = Math.max(window.scrollX + marge, Math.min(links, maxLinks)) + 'px';
+  tip.style.top = (r.bottom + window.scrollY + 6) + 'px';
+
+  setTimeout(() => document.addEventListener('mousedown', infoBuitenKlik, true), 0);
+}
 
 // ═══════════════ TABS ═══════════════
 function toon(tabNaam) {

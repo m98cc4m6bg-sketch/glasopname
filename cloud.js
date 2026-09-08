@@ -112,7 +112,13 @@
     }).eq('id', projectId).then(function (res) {
       bezig = false;
       if (res.error) {
-        status('⚠ Niet opgeslagen — ' + res.error.message, 'rgba(192,57,43,0.85)');
+        if (res.error.code === '23505') {
+          status('⚠ Naam al in gebruik', 'rgba(192,57,43,0.85)');
+          toonNaamWaarschuwing('⚠ Deze projectnaam is al in gebruik. Kies een andere naam; ' +
+                               'je metingen blijven zolang lokaal bewaard.');
+        } else {
+          status('⚠ Niet opgeslagen — ' + res.error.message, 'rgba(192,57,43,0.85)');
+        }
         setTimeout(plan, 8000);
       } else {
         vuil = false;
@@ -188,6 +194,43 @@
     });
   }
 
+  /* ─── naamcontrole ─────────────────────────────────────────── */
+  // Twee projecten met dezelfde naam zijn in het veld niet uit elkaar te
+  // houden, dus we controleren zowel bij aanmaken als bij hernoemen.
+
+  function naamVergelijk(n) { return String(n || '').trim().toLowerCase(); }
+
+  function zoekNaam(naam, behalveId) {
+    if (!sb || !gebruiker) return Promise.resolve(null);
+    return sb.from('projecten').select('id,naam').then(function (res) {
+      if (res.error || !res.data) return null;
+      return res.data.find(function (p) {
+        return naamVergelijk(p.naam) === naamVergelijk(naam) && p.id !== behalveId;
+      }) || null;
+    });
+  }
+
+  function toonNaamWaarschuwing(tekst) {
+    var balk = document.getElementById('naamWaarschuwing');
+    var veld = el('projectNaam');
+    if (balk) {
+      balk.textContent = tekst || '';
+      balk.style.display = tekst ? 'block' : 'none';
+    }
+    if (veld) veld.classList.toggle('dubbel', !!tekst);
+  }
+
+  function controleerNaam() {
+    var naam = waarde('projectNaam');
+    if (!naam.trim() || !projectId) { toonNaamWaarschuwing(''); return; }
+    zoekNaam(naam, projectId).then(function (bestaand) {
+      toonNaamWaarschuwing(bestaand
+        ? '⚠ Er bestaat al een ander project met de naam ‹' + bestaand.naam +
+          '›. Geef dit project een andere naam om verwarring te voorkomen.'
+        : '');
+    });
+  }
+
   /* ─── projectenlijst ───────────────────────────────────────── */
 
   function toonProjecten() {
@@ -234,12 +277,26 @@
       vuil = false;
       el('cloudProjecten').style.display = 'none';
       statusOpgeslagen();
+      controleerNaam();
     });
   };
 
-  window.cloudNieuw = function () {
-    var naam = prompt('Naam van het nieuwe project (bijv. adres):', '');
+  window.cloudNieuw = function (voorstel) {
+    var naam = prompt('Naam van het nieuwe project (bijv. adres):', voorstel || '');
     if (naam === null) return;
+    if (!naam.trim()) { alert('Geef het project een naam.'); window.cloudNieuw(); return; }
+    zoekNaam(naam, null).then(function (bestaand) {
+      if (bestaand) {
+        alert('Er bestaat al een project met de naam ‹' + bestaand.naam + '›.\n\n' +
+              'Kies een andere naam, of open het bestaande project via de lijst.');
+        window.cloudNieuw(naam);
+        return;
+      }
+      maakProject(naam);
+    });
+  };
+
+  function maakProject(naam) {
     sb.from('projecten').insert({
       naam: naam || '(naamloos)',
       datum: '',
@@ -251,10 +308,11 @@
       localStorage.setItem(LS_PROJECT, projectId);
       rijen = []; volgendId = 1;
       zetStaat({ project: naam, datum: '', speling: '4', bijtelling: '11' });
+      toonNaamWaarschuwing('');
       el('cloudProjecten').style.display = 'none';
       window.opslaan();
     });
-  };
+  }
 
   window.cloudVerwijder = function (id) {
     if (!confirm('Dit project definitief verwijderen? Dit geldt voor iedereen.')) return;
@@ -313,6 +371,8 @@
         toonLogin('');
       }
     });
+
+    if (el('projectNaam')) el('projectNaam').addEventListener('blur', controleerNaam);
 
     el('cloudWachtwoord').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') login();

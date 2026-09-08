@@ -580,6 +580,12 @@
   }
   .info-tip b { color: var(--geel); }
   @media print { .info-icon, .info-tip { display: none !important; } }
+
+  #projectNaam.dubbel { border: 2px solid var(--rood); background: #fdecea; }
+  .naam-waarschuwing {
+    display: none; background: var(--rood); color: white;
+    font-size: 12px; font-weight: 600; padding: 6px 20px;
+  }
 </style>
 </head>
 <body>
@@ -587,7 +593,7 @@
 <header>
   <div>
     <h1>🪟 Glasopname Formulier</h1>
-    <div class="subtitle">Jelier Bouw B.V. — Glas inmeetformulier · <span id="appVersie">v5</span></div>
+    <div class="subtitle">Jelier Bouw B.V. — Glas inmeetformulier · <span class="app-versie"></span></div>
   </div>
   <div class="header-actions">
     <span id="cloudStatus">Verbinden…</span>
@@ -603,6 +609,7 @@
   <input type="text" id="projectNaam" placeholder="Projectnaam…" oninput="opslaan()">
   <label>Datum:</label>
   <input type="text" id="projectDatum" placeholder="dd-mm-jjjj" style="min-width:110px;" oninput="opslaan()">
+  <button class="btn btn-secondary btn-sm" onclick="datumVandaag()" title="Datum van vandaag invullen">Vandaag</button>
   <div class="speling-wrap">
     <label>Speling sponningmaat (rondom):</label>
     <select id="spelingGlobal" onchange="herbereken(); opslaan()"><option value="4" selected>4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11">11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
@@ -612,6 +619,8 @@
     <i class="info-icon" onclick="toonInfo(this)" data-info="De bijtelling geldt <b>rondom</b>: hij komt er aan beide zijden bij, dus 2× bij de breedte en 2× bij de hoogte.<br><br>Bij 11 mm bijtelling wordt een dagmaat van 1000 × 2000 dus een glasmaat van <b>1022 × 2022</b>.">i</i>
   </div>
 </div>
+
+<div class="naam-waarschuwing" id="naamWaarschuwing"></div>
 
 <div class="bulk-balk" id="bulkBalk">
   <span id="bulkAantal"></span>
@@ -807,7 +816,7 @@
   <div class="cloud-paneel">
     <header>
       <h2>🪟 Glasopname — inloggen</h2>
-      <div class="sub">Jelier Bouw B.V.</div>
+      <div class="sub">Jelier Bouw B.V. · <span class="app-versie"></span></div>
     </header>
     <div class="cloud-body">
       <label for="cloudEmail">E-mailadres</label>
@@ -825,7 +834,7 @@
   <div class="cloud-paneel breed">
     <header>
       <h2>📁 Projecten</h2>
-      <div class="sub">Gedeeld met iedereen bij Jelier Bouw</div>
+      <div class="sub">Gedeeld met iedereen bij Jelier Bouw · <span class="app-versie"></span></div>
     </header>
     <div class="cloud-lijst" id="cloudProjectLijst"></div>
     <div class="cloud-voet">
@@ -852,8 +861,22 @@ const MAX_RIJEN = 50;
 let rijen = [];
 let volgendId = 1;
 
+// ═══════════════ DATUM ═══════════════
+function datumVandaag() {
+  const d = new Date();
+  document.getElementById('projectDatum').value =
+    String(d.getDate()).padStart(2, '0') + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+  opslaan();
+}
+
+// ═══════════════ VERSIE ═══════════════
+// Bij elke publicatie ophogen, samen met VERSIE in sw.js.
+const APP_VERSIE = 'v7';
+
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.app-versie').forEach(e => { e.textContent = APP_VERSIE; });
   laadOpgeslagen();
   if (rijen.length === 0) {
     voegRijenToe(20);

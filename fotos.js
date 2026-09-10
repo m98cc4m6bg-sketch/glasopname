@@ -91,9 +91,20 @@
       var pad = window.glasProjectId + '/' + Date.now() + '-' +
                 Math.random().toString(36).slice(2, 8) + '.jpg';
       melding('Uploaden… (' + Math.round(res.blob.size / 1024) + ' kB)');
-      return sb.storage.from(BUCKET).upload(pad, res.blob, { contentType: 'image/jpeg' })
+      console.log('[foto] uploaden naar', pad, res.blob.size, 'bytes');
+      // Zonder tijdslimiet blijft een verzoek dat nooit antwoordt eeuwig
+      // hangen en zie je alleen 'Uploaden…' staan.
+      var klaar = sb.storage.from(BUCKET).upload(pad, res.blob, { contentType: 'image/jpeg' });
+      var klok = new Promise(function (_, fout) {
+        setTimeout(function () {
+          fout(new Error('geen antwoord van Supabase binnen 45 seconden — ' +
+                         'wordt de verbinding geblokkeerd (VPN, contentblocker, firewall)?'));
+        }, 45000);
+      });
+      return Promise.race([klaar, klok])
         .then(function (up) {
-          if (up.error) throw new Error(up.error.message);
+          console.log('[foto] antwoord', up);
+          if (up.error) throw new Error(up.error.message + (up.error.statusCode ? ' (code ' + up.error.statusCode + ')' : ''));
           fotos.push({
             id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
             pad: pad, titel: '', breedte: res.breedte, hoogte: res.hoogte, markeringen: []
@@ -102,7 +113,10 @@
           renderFotos();
           melding('');
         });
-    }).catch(function (e) { melding('Mislukt: ' + e.message, true); });
+    }).catch(function (e) {
+      console.error('[foto] uploaden mislukt', e);
+      melding('Mislukt: ' + e.message, true);
+    });
   };
 
   function melding(tekst, fout) {
@@ -117,13 +131,22 @@
     var sb = sbClient();
     if (!sb) return Promise.resolve(null);
     return sb.storage.from(BUCKET).createSignedUrl(pad, LINK_GELDIG).then(function (res) {
-      if (res.error || !res.data) return null;
+      if (res.error || !res.data) {
+        console.error('[foto] geen link voor', pad, res.error);
+        return null;
+      }
       linkCache[pad] = res.data.signedUrl;
       return res.data.signedUrl;
+    }).catch(function (e) {
+      console.error('[foto] link ophalen mislukt', pad, e);
+      return null;
     });
   }
 
   /* ─── tekenen ──────────────────────────────────────────────── */
+
+  // Tijdelijke links verlopen en horen bij één project.
+  window.fotoLinksVergeten = function () { linkCache = {}; };
 
   window.renderFotos = function () {
     var houder = el('fotoHouder');
@@ -156,11 +179,30 @@
         if (!doek) return;
         if (!url) { doek.innerHTML = '<div class="foto-leeg">Foto niet beschikbaar — ben je offline?</div>'; return; }
         doek.innerHTML = '<img src="' + url + '" alt="" id="img-' + f.id + '" ' +
-                         'onclick="fotoTik(event, \'' + f.id + '\')">';
+                         'onclick="fotoTik(event, \'' + f.id + '\')" ' +
+                         'onerror="fotoLaadFout(\'' + f.id + '\')">';
         tekenMarkeringen(f.id);
       });
       tekenTabel(f.id);
     });
+  };
+
+  window.fotoLaadFout = function (fotoId) {
+    var doek = el('doek-' + fotoId);
+    var foto = fotoVan(fotoId);
+    if (!doek || !foto) return;
+    console.error('[foto] afbeelding laadt niet', foto.pad);
+    doek.innerHTML = '<div class="foto-leeg">De foto kon niet geladen worden.<br>' +
+      'Het bestand staat er wel (' + esc(foto.pad) + '), maar dit apparaat krijgt hem niet binnen.<br>' +
+      'Meestal een VPN, contentblocker of firewall die Supabase tegenhoudt.<br>' +
+      '<button class="btn btn-secondary btn-sm" style="margin-top:10px" ' +
+      'onclick="fotoOpnieuw(\'' + fotoId + '\')">Opnieuw proberen</button></div>';
+  };
+
+  window.fotoOpnieuw = function (fotoId) {
+    var foto = fotoVan(fotoId);
+    if (foto) delete linkCache[foto.pad];
+    renderFotos();
   };
 
   function tekenMarkeringen(fotoId) {

@@ -284,6 +284,7 @@
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
+      if (window.fotoLinksVergeten) fotoLinksVergeten();
       zetStaat(res.data.data || {});
       opslaanLokaal();
       laatsteJson = JSON.stringify(huidigeStaat());

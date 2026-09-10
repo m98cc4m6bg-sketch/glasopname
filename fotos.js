@@ -1,46 +1,59 @@
 /* ═══════════════════════════════════════════════════════════════
-   Glasopname – foto's met merkmarkeringen
-   Een foto van de bestaande situatie, met daarop bolletjes die aan
-   een regel uit de invoerlijst vastzitten. Verandert het merk in de
-   tabel, dan verandert het bolletje mee; verdwijnt de regel, dan
-   verdwijnt het bolletje. De markeringen zijn dus gegevens, geen
-   tekening.
+   Glasopname – foto's met merkletters en eigen invoerregels
 
-   Foto's zelf gaan naar Supabase Storage. In het project staat
-   alleen het pad, de markeringen en de verhoudingen — nooit de
-   afbeelding, want het project wordt bij elke wijziging in zijn
-   geheel opnieuw weggeschreven.
+   Werkwijze: foto toevoegen, op de foto tikken waar een ruit zit.
+   Er wordt dan automatisch de volgende vrije merkletter uitgedeeld
+   (A…Z, daarna A1…Z1, A2…) en direct onder de foto verschijnt een
+   invoerregel voor die ruit — dezelfde regel als op het tabblad
+   Invoer, met alle kolommen en functies.
+
+   De regels staan in dezelfde lijst `rijen` als de losse invoer,
+   met een verwijzing naar hun foto. Zo blijven bestellijst,
+   samenvatting en export met één bron werken.
+
+   De afbeeldingen zelf gaan naar Supabase Storage; in het project
+   staat alleen het pad, de markeringen en de verhoudingen.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
   var BUCKET = 'projectfotos';
-  var MAX_ZIJDE = 1600;      // langste zijde na verkleinen
+  var MAX_ZIJDE = 1600;
   var KWALITEIT = 0.82;
   var LINK_GELDIG = 8 * 3600;
 
-  var actieveFoto = null;    // id van de foto die opengeslagen is
-  var wachtOpRij = null;     // {x, y} van de tik die op een regel wacht
-  var linkCache = {};        // pad -> tijdelijke link
+  var linkCache = {};
 
   function el(id) { return document.getElementById(id); }
   function sbClient() { return window.glasSupabase || null; }
+  function fotoVan(id) { return fotos.find(function (f) { return f.id === id; }); }
+  function rijenVan(fotoId) { return rijen.filter(function (r) { return r.fotoId === fotoId; }); }
 
-  /* ─── merkletter van een regel ─────────────────────────────── */
+  /* ─── merkletters ──────────────────────────────────────────── */
+  // A t/m Z, daarna A1 t/m Z1, A2 … Al gebruikte letters worden
+  // overgeslagen, ook die van losse regels.
+
+  window.volgendMerk = function () {
+    var gebruikt = {};
+    rijen.forEach(function (r) {
+      var m = (r.merk || '').trim().toUpperCase();
+      if (m) gebruikt[m] = true;
+    });
+    for (var ronde = 0; ronde < 200; ronde++) {
+      for (var i = 0; i < 26; i++) {
+        var letter = String.fromCharCode(65 + i) + (ronde ? ronde : '');
+        if (!gebruikt[letter]) return letter;
+      }
+    }
+    return '?';
+  };
 
   function labelVan(rij) {
     if (!rij) return '?';
-    if (rij.merk && rij.merk.trim()) return rij.merk.trim();
-    var n = rijen.indexOf(rij);
-    return n >= 0 ? String(n + 1) : '?';
+    return (rij.merk && rij.merk.trim()) ? rij.merk.trim() : '·';
   }
 
-  function omschrijving(rij) {
-    var maten = (rij.breedte && rij.hoogte) ? rij.breedte + ' × ' + rij.hoogte : 'geen maat';
-    return maten + (rij.glasType ? ' · ' + rij.glasType : '');
-  }
-
-  /* ─── foto verkleinen vóór het uploaden ────────────────────── */
+  /* ─── verkleinen en uploaden ───────────────────────────────── */
 
   function verklein(file) {
     return new Promise(function (ok, fout) {
@@ -64,8 +77,6 @@
     });
   }
 
-  /* ─── uploaden ─────────────────────────────────────────────── */
-
   window.fotoGekozen = function (input) {
     var file = input.files && input.files[0];
     input.value = '';
@@ -77,28 +88,21 @@
     }
     melding('Foto verkleinen…');
     verklein(file).then(function (res) {
-      var naam = Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
-      var pad = window.glasProjectId + '/' + naam;
+      var pad = window.glasProjectId + '/' + Date.now() + '-' +
+                Math.random().toString(36).slice(2, 8) + '.jpg';
       melding('Uploaden… (' + Math.round(res.blob.size / 1024) + ' kB)');
       return sb.storage.from(BUCKET).upload(pad, res.blob, { contentType: 'image/jpeg' })
         .then(function (up) {
           if (up.error) throw new Error(up.error.message);
           fotos.push({
             id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-            pad: pad,
-            titel: '',
-            breedte: res.breedte,
-            hoogte: res.hoogte,
-            markeringen: []
+            pad: pad, titel: '', breedte: res.breedte, hoogte: res.hoogte, markeringen: []
           });
-          actieveFoto = fotos[fotos.length - 1].id;
           opslaan();
           renderFotos();
           melding('');
         });
-    }).catch(function (e) {
-      melding('Mislukt: ' + e.message, true);
-    });
+    }).catch(function (e) { melding('Mislukt: ' + e.message, true); });
   };
 
   function melding(tekst, fout) {
@@ -107,8 +111,6 @@
     m.textContent = tekst || '';
     m.style.color = fout ? 'var(--rood)' : 'var(--grijs-tekst)';
   }
-
-  /* ─── tijdelijke links ophalen ─────────────────────────────── */
 
   function link(pad) {
     if (linkCache[pad]) return Promise.resolve(linkCache[pad]);
@@ -124,49 +126,48 @@
   /* ─── tekenen ──────────────────────────────────────────────── */
 
   window.renderFotos = function () {
-    var lijst = el('fotoLijst');
-    var werkblad = el('fotoWerkblad');
-    if (!lijst || !werkblad) return;
+    var houder = el('fotoHouder');
+    if (!houder) return;
 
     if (!fotos.length) {
-      lijst.innerHTML = '';
-      werkblad.innerHTML = '<div class="foto-leeg">Nog geen foto\'s. Voeg een foto van de bestaande situatie toe ' +
-        'en tik erop om een ruit aan te wijzen.</div>';
+      houder.innerHTML = '<div class="foto-leeg">Nog geen foto\'s.<br>' +
+        'Voeg een foto van de bestaande situatie toe en tik daarna op elke ruit: ' +
+        'die krijgt een merkletter en een invoerregel onder de foto.</div>';
       return;
     }
 
-    if (!fotos.some(function (f) { return f.id === actieveFoto; })) actieveFoto = fotos[0].id;
-
-    lijst.innerHTML = fotos.map(function (f) {
-      return '<button class="foto-tab' + (f.id === actieveFoto ? ' actief' : '') + '" onclick="fotoKies(\'' + f.id + '\')">' +
-        (f.titel || 'Foto ' + (fotos.indexOf(f) + 1)) +
-        ' <span class="foto-telling">' + f.markeringen.length + '</span></button>';
+    houder.innerHTML = fotos.map(function (f, i) {
+      return '<section class="foto-blok" id="blok-' + f.id + '">' +
+        '<div class="foto-balk">' +
+          '<span class="foto-nr">' + (i + 1) + '</span>' +
+          '<input type="text" placeholder="Omschrijving, bijv. Voorgevel" value="' + esc(f.titel) + '" ' +
+            'oninput="fotoTitelWijzig(\'' + f.id + '\', this.value)">' +
+          '<button class="btn btn-ghost btn-sm" onclick="fotoVerwijder(\'' + f.id + '\')">🗑 Foto</button>' +
+        '</div>' +
+        '<div class="foto-doek" id="doek-' + f.id + '"><div class="foto-laden">Foto laden…</div></div>' +
+        '<div class="foto-hint">Tik op de foto waar een ruit zit — hij krijgt de volgende merkletter en een regel hieronder.</div>' +
+        '<div class="foto-tabelwrap" id="tabel-' + f.id + '"></div>' +
+      '</section>';
     }).join('');
 
-    var foto = fotos.find(function (f) { return f.id === actieveFoto; });
-    werkblad.innerHTML =
-      '<div class="foto-balk">' +
-        '<input type="text" id="fotoTitel" placeholder="Omschrijving, bijv. Voorgevel" value="' +
-          esc(foto.titel) + '" oninput="fotoTitelWijzig(this.value)">' +
-        '<button class="btn btn-ghost btn-sm" onclick="fotoVerwijder()">🗑 Foto verwijderen</button>' +
-      '</div>' +
-      '<div class="foto-doek" id="fotoDoek"><div class="foto-laden">Foto laden…</div></div>' +
-      '<div class="foto-hint">Tik op de foto om een ruit aan te wijzen. Tik op een bolletje om de regel te zien.</div>';
-
-    link(foto.pad).then(function (url) {
-      var doek = el('fotoDoek');
-      if (!doek) return;
-      if (!url) { doek.innerHTML = '<div class="foto-leeg">Foto niet beschikbaar — ben je offline?</div>'; return; }
-      doek.innerHTML = '<img src="' + url + '" alt="" id="fotoAfbeelding" onclick="fotoTik(event)">';
-      tekenMarkeringen();
+    fotos.forEach(function (f) {
+      link(f.pad).then(function (url) {
+        var doek = el('doek-' + f.id);
+        if (!doek) return;
+        if (!url) { doek.innerHTML = '<div class="foto-leeg">Foto niet beschikbaar — ben je offline?</div>'; return; }
+        doek.innerHTML = '<img src="' + url + '" alt="" id="img-' + f.id + '" ' +
+                         'onclick="fotoTik(event, \'' + f.id + '\')">';
+        tekenMarkeringen(f.id);
+      });
+      tekenTabel(f.id);
     });
   };
 
-  function tekenMarkeringen() {
-    var doek = el('fotoDoek');
-    var foto = fotos.find(function (f) { return f.id === actieveFoto; });
+  function tekenMarkeringen(fotoId) {
+    var doek = el('doek-' + fotoId);
+    var foto = fotoVan(fotoId);
     if (!doek || !foto) return;
-    doek.querySelectorAll('.foto-mark').forEach(function (m) { m.remove(); });
+    Array.prototype.forEach.call(doek.querySelectorAll('.foto-mark'), function (m) { m.remove(); });
     foto.markeringen.forEach(function (m, i) {
       var rij = getRij(m.rijId);
       var b = document.createElement('button');
@@ -174,116 +175,151 @@
       b.style.left = (m.x * 100) + '%';
       b.style.top = (m.y * 100) + '%';
       b.textContent = rij ? labelVan(rij) : '?';
-      b.title = rij ? omschrijving(rij) : 'De regel bij deze markering bestaat niet meer';
-      b.onclick = function (e) { e.stopPropagation(); markTik(i); };
+      b.title = rij ? 'Naar de regel van ' + labelVan(rij) : 'De regel bij deze markering bestaat niet meer';
+      b.onclick = function (e) { e.stopPropagation(); markTik(fotoId, i); };
       doek.appendChild(b);
     });
   }
 
-  window.fotoKies = function (id) { actieveFoto = id; renderFotos(); };
+  // Dezelfde tabel als op het tabblad Invoer: de kop wordt daar
+  // letterlijk van overgenomen, zodat een extra kolom nooit op twee
+  // plekken bijgehouden hoeft te worden.
+  function tekenTabel(fotoId) {
+    var wrap = el('tabel-' + fotoId);
+    if (!wrap) return;
+    var eigen = rijenVan(fotoId);
+    var body = document.getElementById('invoerBody');
+    var kop = body ? body.closest('table').querySelector('thead') : null;
 
-  window.fotoTitelWijzig = function (v) {
-    var foto = fotos.find(function (f) { return f.id === actieveFoto; });
-    if (!foto) return;
-    foto.titel = v;
-    opslaan();
-  };
-
-  window.fotoVerwijder = function () {
-    var foto = fotos.find(function (f) { return f.id === actieveFoto; });
-    if (!foto) return;
-    if (!confirm('Deze foto en zijn markeringen verwijderen?')) return;
-    var sb = sbClient();
-    if (sb) sb.storage.from(BUCKET).remove([foto.pad]);
-    fotos = fotos.filter(function (f) { return f.id !== foto.id; });
-    actieveFoto = fotos.length ? fotos[0].id : null;
-    opslaan();
-    renderFotos();
-  };
-
-  /* ─── markering plaatsen ───────────────────────────────────── */
-
-  window.fotoTik = function (e) {
-    var img = el('fotoAfbeelding');
-    if (!img) return;
-    var r = img.getBoundingClientRect();
-    // Verhoudingen, geen pixels: dan klopt het bolletje op elk scherm
-    // en op de afdruk, ongeacht hoe groot de foto getoond wordt.
-    wachtOpRij = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
-    toonRijKiezer();
-  };
-
-  function toonRijKiezer() {
-    var venster = el('fotoRijKiezer');
-    var lijst = el('fotoRijLijst');
-    var bruikbaar = rijen.filter(function (r) { return r.merk || r.breedte || r.hoogte || r.glasType; });
-    if (!bruikbaar.length) {
-      melding('Vul eerst een paar ruiten in op het tabblad Invoer.', true);
-      wachtOpRij = null;
+    if (!eigen.length) {
+      wrap.innerHTML = '<div class="foto-geenrijen">Nog geen ruiten aangewezen op deze foto.</div>' + voetHTML(fotoId);
       return;
     }
-    lijst.innerHTML = bruikbaar.map(function (r) {
-      return '<button class="foto-rijknop" onclick="fotoKiesRij(' + r.id + ')">' +
-        '<span class="foto-rijletter">' + esc(labelVan(r)) + '</span>' +
-        '<span class="foto-rijtekst">' + esc(omschrijving(r)) + '</span></button>';
-    }).join('');
-    venster.style.display = 'flex';
+
+    wrap.innerHTML =
+      '<div class="invoer-wrap"><table class="invoer">' +
+        (kop ? kop.outerHTML : '') +
+        '<tbody id="fotoBody-' + fotoId + '"></tbody>' +
+      '</table></div>' + voetHTML(fotoId);
+
+    vulTabelBody(el('fotoBody-' + fotoId), eigen);
+
+    var tabel = el('fotoBody-' + fotoId).closest('table');
+    // De gekopieerde kop bevat de vulknopjes van het tabblad Invoer, maar
+    // zonder hun klikafhandeling. Eerst weg, dan opnieuw plaatsen met het
+    // bereik van déze foto.
+    Array.prototype.forEach.call(tabel.querySelectorAll('.bulk-vul'), function (k) { k.remove(); });
+    if (window.bulkPlaatsKnoppen) {
+      bulkPlaatsKnoppen(tabel, function () { return rijenVan(fotoId); });
+    }
   }
 
-  window.fotoSluitKiezer = function () {
-    el('fotoRijKiezer').style.display = 'none';
-    wachtOpRij = null;
+  function voetHTML(fotoId) {
+    return '<div class="foto-voet">' +
+      '<button class="btn btn-secondary btn-sm" onclick="fotoRegelToevoegen(\'' + fotoId + '\')">' +
+      '+ Regel zonder markering</button>' +
+      '<span class="foto-voet-info">Voor een ruit die je niet op de foto kunt aanwijzen</span></div>';
+  }
+
+  window.fotoTitelWijzig = function (id, v) {
+    var f = fotoVan(id);
+    if (!f) return;
+    f.titel = v;
+    opslaan();
   };
 
-  window.fotoKiesRij = function (rijId) {
-    var foto = fotos.find(function (f) { return f.id === actieveFoto; });
-    if (!foto || !wachtOpRij) return;
-    foto.markeringen.push({ rijId: rijId, x: wachtOpRij.x, y: wachtOpRij.y });
-    wachtOpRij = null;
-    el('fotoRijKiezer').style.display = 'none';
+  window.fotoVerwijder = function (id) {
+    var f = fotoVan(id);
+    if (!f) return;
+    var aantal = rijenVan(id).length;
+    if (!confirm('Deze foto verwijderen?' + (aantal
+      ? '\n\nDe ' + aantal + ' ruiten die eronder staan blijven bestaan en verhuizen naar het tabblad Invoer.'
+      : ''))) return;
+    if (window.bewaarStap) bewaarStap('Foto verwijderd');
+    var sb = sbClient();
+    if (sb) sb.storage.from(BUCKET).remove([f.pad]);
+    rijen.forEach(function (r) { if (r.fotoId === id) delete r.fotoId; });
+    fotos = fotos.filter(function (x) { return x.id !== id; });
     opslaan();
+    renderTabel();
     renderFotos();
   };
 
-  function markTik(index) {
-    var foto = fotos.find(function (f) { return f.id === actieveFoto; });
+  /* ─── ruit aanwijzen ───────────────────────────────────────── */
+
+  window.fotoTik = function (e, fotoId) {
+    var img = el('img-' + fotoId);
+    var foto = fotoVan(fotoId);
+    if (!img || !foto) return;
+    var r = img.getBoundingClientRect();
+    // Verhoudingen in plaats van pixels: dan staat het bolletje op
+    // elk scherm en op de afdruk op dezelfde plek.
+    var x = (e.clientX - r.left) / r.width;
+    var y = (e.clientY - r.top) / r.height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+
+    if (window.bewaarStap) bewaarStap('Ruit aangewezen op foto');
+    var rij = nieuweRij();
+    rij.fotoId = fotoId;
+    rij.merk = volgendMerk();
+    rijen.push(rij);
+    foto.markeringen.push({ rijId: rij.id, x: x, y: y });
+
+    herbereken();
+    renderTabel();
+    renderFotos();
+    opslaan();
+    setTimeout(function () { focusRij(rij.id); }, 80);
+  };
+
+  window.fotoRegelToevoegen = function (fotoId) {
+    if (window.bewaarStap) bewaarStap('Regel toegevoegd');
+    var rij = nieuweRij();
+    rij.fotoId = fotoId;
+    rij.merk = volgendMerk();
+    rijen.push(rij);
+    herbereken();
+    renderTabel();
+    renderFotos();
+    opslaan();
+    setTimeout(function () { focusRij(rij.id); }, 80);
+  };
+
+  function focusRij(id) {
+    var tr = el('rij-' + id);
+    if (!tr) return;
+    var invoer = tr.querySelector('input[type="number"], input[type="text"]');
+    if (invoer) invoer.focus();
+    tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  function markTik(fotoId, index) {
+    var foto = fotoVan(fotoId);
     var m = foto.markeringen[index];
     var rij = getRij(m.rijId);
     if (!rij) {
       if (confirm('De regel bij deze markering bestaat niet meer. Markering verwijderen?')) {
         foto.markeringen.splice(index, 1);
-        opslaan(); renderFotos();
+        opslaan();
+        renderFotos();
       }
       return;
     }
-    var keuze = confirm(labelVan(rij) + ' — ' + omschrijving(rij) +
-      '\n\nOK = naar deze regel in de invoerlijst\nAnnuleren = markering laten staan');
-    if (keuze) gaNaarRij(m.rijId);
+    var tr = el('rij-' + rij.id);
+    if (!tr) return;
+    tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    tr.classList.add('gemarkeerd');
+    setTimeout(function () { tr.classList.remove('gemarkeerd'); }, 2200);
   }
 
-  function gaNaarRij(id) {
-    var knop = document.querySelector('.tab-btn');
-    if (knop) knop.click();
-    setTimeout(function () {
-      var tr = el('rij-' + id);
-      if (!tr) return;
-      tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      tr.classList.add('gemarkeerd');
-      setTimeout(function () { tr.classList.remove('gemarkeerd'); }, 2500);
-    }, 60);
-  }
+  /* ─── markeringen opruimen bij een verwijderde regel ───────── */
 
-  /* ─── opruimen als een regel verdwijnt ─────────────────────── */
-
-  window.fotoOpschonen = function () {
-    var bestaand = {};
-    rijen.forEach(function (r) { bestaand[r.id] = true; });
-    var weg = 0;
+  var origVerwijder = window.verwijderRij;
+  window.verwijderRij = function (id) {
     fotos.forEach(function (f) {
-      var voor = f.markeringen.length;
-      f.markeringen = f.markeringen.filter(function (m) { return bestaand[m.rijId]; });
-      weg += voor - f.markeringen.length;
+      f.markeringen = f.markeringen.filter(function (m) { return m.rijId !== id; });
     });
-    return weg;
+    origVerwijder(id);
+    renderFotos();
   };
 })();

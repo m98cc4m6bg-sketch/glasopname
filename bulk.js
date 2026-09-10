@@ -33,7 +33,7 @@
 
   window.bulkAlles = function (aan) {
     selectie.clear();
-    if (aan) rijen.forEach(function (r) { selectie.add(r.id); });
+    if (aan) losseRijen().forEach(function (r) { selectie.add(r.id); });
     renderTabel();
     tekenBalk();
   };
@@ -43,9 +43,15 @@
   window.bulkVerwijderSelectie = function () {
     if (!selectie.size) return;
     if (!confirm(selectie.size + ' ruit' + (selectie.size === 1 ? '' : 'en') + ' verwijderen?')) return;
+    // markeringen van verwijderde ruiten gaan mee
+    if (typeof fotos !== 'undefined') {
+      fotos.forEach(function (f) {
+        f.markeringen = f.markeringen.filter(function (m) { return !selectie.has(m.rijId); });
+      });
+    }
     rijen = rijen.filter(function (r) { return !selectie.has(r.id); });
     selectie.clear();
-    if (rijen.length === 0) voegRijenToe(5);
+    if (losseRijen().length === 0) voegRijenToe(5);
     renderTabel(); herbereken(); opslaan(); tekenBalk();
   };
 
@@ -57,7 +63,7 @@
     document.getElementById('bulkAantal').textContent =
       selectie.size + ' ruit' + (selectie.size === 1 ? '' : 'en') + ' geselecteerd';
     var alles = document.getElementById('bulkAllesVink');
-    if (alles) alles.checked = selectie.size === rijen.length;
+    if (alles) alles.checked = selectie.size === losseRijen().length;
   }
 
   /* ─── kolommen die doorgevoerd kunnen worden ───────────────── */
@@ -140,12 +146,20 @@
     if (popover && !popover.contains(e.target)) sluitPopover();
   }
 
-  function doelen(bereik) {
-    if (bereik === 'selectie') return rijen.filter(function (r) { return selectie.has(r.id); });
-    return rijen.slice();
+  // Elke tabel heeft zijn eigen bereik: het tabblad Invoer werkt op de
+  // losse regels, een fototabel alleen op de ruiten van díe foto.
+  function bereikVan() {
+    var fn = popover && popover._bereik;
+    return typeof fn === 'function' ? fn() : rijen.slice();
   }
 
-  function openPopover(veld, th) {
+  function doelen(bereik) {
+    var basis = bereikVan();
+    if (bereik === 'selectie') return basis.filter(function (r) { return selectie.has(r.id); });
+    return basis.slice();
+  }
+
+  function openPopover(veld, th, bereikFn) {
     sluitPopover();
     var p = document.createElement('div');
     p.className = 'bulk-pop';
@@ -163,12 +177,16 @@
       body = '<label>' + esc2(veld.titel) + '</label>' + veld.html('');
     }
 
-    var aantalSel = selectie.size;
+    var basis = typeof bereikFn === 'function' ? bereikFn() : rijen;
+    var idsInBereik = {};
+    basis.forEach(function (r) { idsInBereik[r.id] = true; });
+    var aantalSel = 0;
+    selectie.forEach(function (id) { if (idsInBereik[id]) aantalSel++; });
     p.innerHTML =
       '<div class="bulk-pop-kop">⤓ ' + esc2(veld.titel) + ' doorvoeren</div>' +
       '<div class="bulk-pop-body">' + body +
       '<div class="bulk-bereik">' +
-      '<label><input type="radio" name="bulkBereik" value="alle" checked> Alle ruiten (' + rijen.length + ')</label>' +
+      '<label><input type="radio" name="bulkBereik" value="alle" checked> Alle ruiten hier (' + basis.length + ')</label>' +
       '<label><input type="radio" name="bulkBereik" value="leeg"> Alleen nog lege</label>' +
       '<label' + (aantalSel ? '' : ' class="uit"') + '><input type="radio" name="bulkBereik" value="selectie"' +
       (aantalSel ? '' : ' disabled') + '> Geselecteerde (' + aantalSel + ')</label>' +
@@ -181,6 +199,7 @@
     document.body.appendChild(p);
     popover = p;
     p._veld = veld;
+    p._bereik = bereikFn;
 
     var r = th.getBoundingClientRect();
     var breedte = p.offsetWidth;
@@ -244,10 +263,9 @@
 
   /* ─── knoppen in de kolomkoppen zetten ─────────────────────── */
 
-  function plaatsKnoppen() {
-    var body = document.getElementById('invoerBody');
-    if (!body) return;
-    var koppen = body.closest('table').querySelectorAll('thead tr:last-child th');
+  window.bulkPlaatsKnoppen = function (tabel, bereikFn) {
+    if (!tabel) return;
+    var koppen = tabel.querySelectorAll('thead tr:last-child th');
     var lijst = velden();
     Array.prototype.forEach.call(koppen, function (th) {
       if (th.querySelector('.bulk-vul')) return;
@@ -265,9 +283,15 @@
       knop.className = 'bulk-vul';
       knop.textContent = '⤓';
       knop.title = veld.titel + ' doorvoeren naar meerdere ruiten';
-      knop.onclick = function (e) { e.stopPropagation(); openPopover(veld, th); };
+      knop.onclick = function (e) { e.stopPropagation(); openPopover(veld, th, bereikFn); };
       th.appendChild(knop);
     });
+  };
+
+  function plaatsKnoppen() {
+    var body = document.getElementById('invoerBody');
+    if (!body) return;
+    bulkPlaatsKnoppen(body.closest('table'), function () { return losseRijen(); });
   }
 
   /* ─── renderTabel uitbreiden ───────────────────────────────── */

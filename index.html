@@ -620,23 +620,23 @@
   }
 
   /* ─── FOTO'S ─── */
-  .foto-kop { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+  .foto-kop { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
   .foto-kop h2 { font-size: 16px; color: var(--blauw); }
-  .foto-sub { font-size: 12px; color: var(--grijs-tekst); margin-top: 3px; max-width: 520px; }
+  .foto-sub { font-size: 12px; color: var(--grijs-tekst); margin-top: 3px; max-width: 620px; line-height: 1.5; }
   .foto-knop { cursor: pointer; white-space: nowrap; }
-  .foto-melding { font-size: 12px; color: var(--grijs-tekst); min-height: 18px; margin-bottom: 8px; }
-  .foto-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-  .foto-tab {
-    background: var(--grijs-licht); border: 1px solid var(--grijs-rand); color: var(--blauw);
-    padding: 6px 12px; border-radius: var(--radius); font-size: 12px; font-family: inherit;
-    font-weight: 600; cursor: pointer;
-  }
-  .foto-tab.actief { background: var(--blauw); color: white; border-color: var(--blauw); }
-  .foto-telling {
-    display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px;
-    background: var(--geel); color: #3a2a00; border-radius: 9px; font-size: 11px;
+  .foto-melding { font-size: 12px; color: var(--grijs-tekst); min-height: 0; margin-top: 8px; }
+  .foto-melding:empty { margin-top: 0; }
+
+  .foto-blok {
+    background: white; border-radius: var(--radius); box-shadow: var(--schaduw);
+    padding: 16px; margin-top: 16px;
   }
   .foto-balk { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .foto-nr {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; background: var(--blauw); color: white;
+    border-radius: 13px; font-size: 13px; font-weight: 700; flex: 0 0 26px;
+  }
   .foto-balk input {
     flex: 1; padding: 7px 10px; font-size: 13px; font-family: inherit;
     border: 1px solid var(--grijs-rand); border-radius: var(--radius);
@@ -645,32 +645,27 @@
   .foto-doek img { max-width: 100%; height: auto; border-radius: var(--radius); cursor: crosshair; }
   .foto-laden, .foto-leeg {
     padding: 40px 20px; text-align: center; color: var(--grijs-tekst);
-    font-size: 13px; line-height: 1.6; background: var(--grijs-licht); border-radius: var(--radius);
+    font-size: 13px; line-height: 1.7; background: var(--grijs-licht); border-radius: var(--radius);
   }
-  .foto-hint { font-size: 11px; color: var(--grijs-tekst); margin-top: 8px; }
+  .foto-leeg { margin-top: 16px; }
+  .foto-hint { font-size: 11px; color: var(--grijs-tekst); margin: 8px 0 12px; }
   .foto-mark {
     position: absolute; transform: translate(-50%, -50%);
     min-width: 30px; height: 30px; padding: 0 6px;
     background: var(--geel); color: #3a2a00; border: 2px solid white;
     border-radius: 16px; font-size: 13px; font-weight: 800; font-family: inherit;
-    cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.4); line-height: 1;
+    cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.45); line-height: 1;
   }
   .foto-mark.verweesd { background: var(--rood); color: white; }
-  .foto-rijknop {
-    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-    background: none; border: none; border-bottom: 1px solid var(--grijs-rand);
-    padding: 10px 14px; font-family: inherit; cursor: pointer;
+  .foto-geenrijen {
+    font-size: 12px; color: var(--grijs-tekst); padding: 14px;
+    background: var(--grijs-licht); border-radius: var(--radius);
   }
-  .foto-rijknop:hover { background: var(--blauw-licht); }
-  .foto-rijletter {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 30px; height: 30px; padding: 0 6px;
-    background: var(--geel); color: #3a2a00; border-radius: 15px; font-weight: 800; font-size: 13px;
-  }
-  .foto-rijtekst { font-size: 13px; color: var(--blauw); }
+  .foto-voet { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  .foto-voet-info { font-size: 11px; color: var(--grijs-tekst); }
   tr.gemarkeerd > td { background: #fff3d0 !important; transition: background .4s; }
   @media (max-width: 1200px) {
-    .foto-mark { min-width: 36px; height: 36px; font-size: 15px; border-radius: 19px; }
+    .foto-mark { min-width: 38px; height: 38px; font-size: 15px; border-radius: 20px; }
   }
 </style>
 </head>
@@ -728,8 +723,9 @@
   <div class="card">
     <div class="foto-kop">
       <div>
-        <h2>📷 Bestaande situatie</h2>
-        <div class="foto-sub">Wijs op de foto aan welke ruit waar zit. De bolletjes volgen het merk uit de invoerlijst.</div>
+        <h2>📷 Inmeten met foto</h2>
+        <div class="foto-sub">Tik op de foto waar een ruit zit. Die krijgt automatisch de volgende
+          merkletter en een invoerregel eronder — dezelfde regel als op het tabblad Invoer.</div>
       </div>
       <label class="btn btn-primary btn-sm foto-knop">
         + Foto toevoegen
@@ -737,9 +733,8 @@
       </label>
     </div>
     <div class="foto-melding" id="fotoMelding"></div>
-    <div class="foto-tabs" id="fotoLijst"></div>
-    <div id="fotoWerkblad"></div>
   </div>
+  <div id="fotoHouder"></div>
 </div>
 
 <!-- ═══════════════════════ INVOER ═══════════════════════ -->
@@ -917,21 +912,6 @@
   </div>
 </div>
 
-<!-- ═══════════════ FOTO: WELKE RUIT? ═══════════════ -->
-<div class="cloud-overlay" id="fotoRijKiezer">
-  <div class="cloud-paneel breed">
-    <header>
-      <h2>Welke ruit staat hier?</h2>
-      <div class="sub">Kies de regel uit de invoerlijst</div>
-    </header>
-    <div class="cloud-lijst" id="fotoRijLijst"></div>
-    <div class="cloud-voet">
-      <span style="font-size:11px;color:var(--grijs-tekst);">Zonder merk wordt het rijnummer getoond</span>
-      <button class="btn btn-secondary btn-sm" onclick="fotoSluitKiezer()">Annuleren</button>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════════════ CLOUD: INLOGGEN ═══════════════ -->
 <div class="cloud-overlay" id="cloudLogin">
   <div class="cloud-paneel">
@@ -994,7 +974,7 @@ function datumVandaag() {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v13';
+const APP_VERSIE = 'v14';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1193,16 +1173,28 @@ function updateCorrectieCellen() {
 }
 
 // ═══════════════ RENDER TABEL ═══════════════
-function renderTabel() {
-  const tbody = document.getElementById('invoerBody');
+// Regels zonder foto horen op het tabblad Invoer; regels die bij een
+// foto horen staan onder die foto. Eén lijst `rijen`, twee plekken om
+// hem in te vullen — de bestellijst telt ze allebei mee.
+function losseRijen() {
+  return rijen.filter(r => !r.fotoId);
+}
+
+function vulTabelBody(tbody, lijst) {
+  if (!tbody) return;
   tbody.innerHTML = '';
-  rijen.forEach((rij, idx) => {
+  lijst.forEach((rij, idx) => {
     const tr = document.createElement('tr');
     tr.className = idx % 2 === 0 ? '' : 'even';
     tr.id = 'rij-' + rij.id;
     tr.innerHTML = rijHTML(rij, idx + 1);
     tbody.appendChild(tr);
   });
+}
+
+function renderTabel() {
+  vulTabelBody(document.getElementById('invoerBody'), losseRijen());
+  if (window.renderFotos && document.getElementById('panel-fotos')) renderFotos();
 }
 
 function rijHTML(rij, nr) {

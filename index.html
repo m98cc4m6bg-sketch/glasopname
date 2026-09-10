@@ -667,6 +667,73 @@
   @media (max-width: 1200px) {
     .foto-mark { min-width: 38px; height: 38px; font-size: 15px; border-radius: 20px; }
   }
+
+  /* ─── MERKLETTERS ─── */
+  .merk-waarschuwing {
+    display: none; align-items: center; gap: 14px;
+    background: var(--rood); color: white;
+    font-size: 12px; font-weight: 600; padding: 8px 20px;
+  }
+  .merk-waarschuwing button {
+    background: white; color: var(--rood); border: none; cursor: pointer;
+    padding: 4px 12px; border-radius: var(--radius);
+    font-family: inherit; font-size: 12px; font-weight: 700;
+  }
+  .merk-groep { display: flex; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--grijs-rand); }
+  .merk-letter {
+    flex: 0 0 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    background: var(--rood); color: white; border-radius: 20px; font-weight: 800; font-size: 15px;
+  }
+  .merk-regel { font-size: 13px; color: var(--grijs-tekst); padding: 3px 0; }
+  .merk-regel.behoudt { color: var(--blauw); font-weight: 600; }
+  .merk-regel em { font-style: normal; font-size: 11px; opacity: .75; }
+  .merk-uitleg { padding: 14px 16px; font-size: 12px; color: var(--grijs-tekst); line-height: 1.6; }
+
+  .foto-blok.zonder-foto { border-left: 4px solid var(--geel); }
+  .foto-geenfoto {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--grijs-licht); border-radius: var(--radius);
+    padding: 16px; font-size: 13px; color: var(--grijs-tekst); margin-bottom: 12px;
+  }
+  .foto-aanwijsbalk {
+    display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--geel); color: #3a2a00; border-radius: var(--radius);
+    padding: 8px 12px; margin: 10px 0; font-size: 12px; font-weight: 600;
+  }
+  .aanwijs-letter {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 30px; padding: 0 8px; background: #3a2a00; color: var(--geel);
+    border-radius: 15px; font-weight: 800; font-size: 14px;
+  }
+  .aanwijs-tekst { flex: 1; }
+
+  /* ─── FOTO: zoomen, slepen, menu ─── */
+  .foto-zoombalk { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .foto-zoomwaarde {
+    font-size: 12px; font-weight: 700; color: var(--blauw);
+    min-width: 46px; text-align: center;
+  }
+  .foto-scroll { overflow: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  .foto-doek { position: relative; line-height: 0; }
+  .foto-doek img { width: 100%; height: auto; display: block; border-radius: var(--radius); cursor: crosshair; }
+  .foto-mark { touch-action: none; }
+  .foto-mark.sleept { cursor: grabbing; transform: translate(-50%, -50%) scale(1.15); z-index: 5; }
+  .mark-menu {
+    position: absolute; z-index: 8600; background: white; min-width: 210px;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+    box-shadow: 0 8px 26px rgba(26,58,92,0.3); overflow: hidden;
+  }
+  .mark-menu-kop {
+    background: var(--geel); color: #3a2a00; padding: 7px 12px;
+    font-size: 13px; font-weight: 800;
+  }
+  .mark-menu button {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    border-top: 1px solid var(--grijs-rand); padding: 9px 12px;
+    font-family: inherit; font-size: 12px; color: var(--blauw); cursor: pointer;
+  }
+  .mark-menu button:hover { background: var(--blauw-licht); }
+  .mark-menu button.gevaar { color: var(--rood); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -702,6 +769,7 @@
 </div>
 
 <div class="naam-waarschuwing" id="naamWaarschuwing"></div>
+<div class="merk-waarschuwing" id="merkWaarschuwing"></div>
 
 <div class="bulk-balk" id="bulkBalk">
   <span id="bulkAantal"></span>
@@ -728,8 +796,8 @@
           merkletter en een invoerregel eronder — dezelfde regel als op het tabblad Invoer.</div>
       </div>
       <label class="btn btn-primary btn-sm foto-knop">
-        + Foto toevoegen
-        <input type="file" accept="image/*" onchange="fotoGekozen(this)" hidden>
+        + Nieuwe foto
+        <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
       </label>
     </div>
     <div class="foto-melding" id="fotoMelding"></div>
@@ -912,6 +980,28 @@
   </div>
 </div>
 
+<!-- ═══════════════ DUBBELE MERKLETTERS ═══════════════ -->
+<div class="cloud-overlay" id="merkVenster">
+  <div class="cloud-paneel breed">
+    <header>
+      <h2>⚠ Dezelfde merkletter komt meer dan één keer voor</h2>
+      <div class="sub">Binnen een project hoort een letter bij precies één ruit</div>
+    </header>
+    <div class="merk-uitleg">
+      Anders wijst het bolletje op de foto naar de verkeerde maat, en krijgt de
+      glasleverancier twee ruiten die allebei dezelfde letter dragen.
+    </div>
+    <div class="cloud-lijst" id="merkLijst"></div>
+    <div class="cloud-voet">
+      <button class="btn btn-ghost btn-sm" onclick="merkSluit()">Later oplossen</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary btn-sm" id="merkOngedaan" onclick="merkTerugdraaien()">Wijziging ongedaan maken</button>
+        <button class="btn btn-primary btn-sm" onclick="merkAutoOplossen()">Automatisch hernoemen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ CLOUD: INLOGGEN ═══════════════ -->
 <div class="cloud-overlay" id="cloudLogin">
   <div class="cloud-paneel">
@@ -974,7 +1064,7 @@ function datumVandaag() {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v15';
+const APP_VERSIE = 'v18';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1194,7 +1284,7 @@ function vulTabelBody(tbody, lijst) {
 
 function renderTabel() {
   vulTabelBody(document.getElementById('invoerBody'), losseRijen());
-  if (window.renderFotos && document.getElementById('panel-fotos')) renderFotos();
+  if (window.renderFotoTabellen && document.getElementById('panel-fotos')) renderFotoTabellen();
 }
 
 function rijHTML(rij, nr) {
@@ -1572,6 +1662,7 @@ function exportCSV() {
 <script src="import.js"></script>
 <script src="bulk.js"></script>
 <script src="fotos.js"></script>
+<script src="merken.js"></script>
 <script src="undo.js"></script>
 </body>
 </html>

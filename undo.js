@@ -18,6 +18,7 @@
     return JSON.stringify({
       rijen: rijen,
       volgendId: volgendId,
+      fotos: fotos,
       project: (document.getElementById('projectNaam') || {}).value || '',
       datum: (document.getElementById('projectDatum') || {}).value || '',
       speling: (document.getElementById('spelingGlobal') || {}).value || '4',
@@ -29,6 +30,7 @@
     var s = JSON.parse(json);
     rijen = s.rijen || [];
     volgendId = s.volgendId || rijen.length + 1;
+    fotos = s.fotos || [];
     var z = function (id, v) { var e = document.getElementById(id); if (e) e.value = v; };
     z('projectNaam', s.project);
     z('projectDatum', s.datum);
@@ -36,6 +38,7 @@
     z('bijtelling', s.bijtelling);
     renderTabel();
     herbereken();
+    if (window.renderFotos) renderFotos();
     opslaan();
   }
 

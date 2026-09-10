@@ -20,6 +20,7 @@
   var sb       = null;
   var gebruiker = null;
   var projectId = localStorage.getItem(LS_PROJECT) || null;
+  window.glasProjectId = projectId;
   var vuil      = false;   // er zijn wijzigingen die nog niet omhoog zijn
   var laatsteJson = null;  // stand zoals die het laatst is weggeschreven
   var bezig     = false;
@@ -35,6 +36,7 @@
     return {
       rijen: rijen,
       volgendId: volgendId,
+      fotos: fotos,
       project: waarde('projectNaam'),
       datum: waarde('projectDatum'),
       speling: waarde('spelingGlobal'),
@@ -45,6 +47,7 @@
   function zetStaat(state) {
     rijen = state.rijen || [];
     volgendId = state.volgendId || (rijen.length + 1);
+    fotos = state.fotos || [];
     if (el('projectNaam'))   el('projectNaam').value   = state.project || '';
     if (el('projectDatum'))  el('projectDatum').value  = state.datum || '';
     if (el('spelingGlobal') && state.speling)     el('spelingGlobal').value = state.speling;
@@ -52,6 +55,7 @@
     if (rijen.length === 0) voegRijenToe(20);
     renderTabel();
     herbereken();
+    if (window.renderFotos) renderFotos();
   }
 
   function ingevuldeRijen(state) {
@@ -278,6 +282,7 @@
     sb.from('projecten').select('id,data').eq('id', id).single().then(function (res) {
       if (res.error) { alert('Openen mislukt: ' + res.error.message); return; }
       projectId = res.data.id;
+      window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
       zetStaat(res.data.data || {});
       opslaanLokaal();
@@ -313,8 +318,9 @@
     }).select('id').single().then(function (res) {
       if (res.error) { alert('Aanmaken mislukt: ' + res.error.message); return; }
       projectId = res.data.id;
+      window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
-      rijen = []; volgendId = 1;
+      rijen = []; volgendId = 1; fotos = [];
       zetStaat({ project: naam, datum: '', speling: '4', bijtelling: '11' });
       toonNaamWaarschuwing('');
       el('cloudProjecten').style.display = 'none';
@@ -370,6 +376,7 @@
       return;
     }
     sb = window.supabase.createClient(cfg.url, cfg.anonKey);
+    window.glasSupabase = sb;
 
     sb.auth.getSession().then(function (res) {
       if (res.data && res.data.session) {

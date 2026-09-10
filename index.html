@@ -618,6 +618,60 @@
     display: none; background: var(--rood); color: white;
     font-size: 12px; font-weight: 600; padding: 6px 20px;
   }
+
+  /* ─── FOTO'S ─── */
+  .foto-kop { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+  .foto-kop h2 { font-size: 16px; color: var(--blauw); }
+  .foto-sub { font-size: 12px; color: var(--grijs-tekst); margin-top: 3px; max-width: 520px; }
+  .foto-knop { cursor: pointer; white-space: nowrap; }
+  .foto-melding { font-size: 12px; color: var(--grijs-tekst); min-height: 18px; margin-bottom: 8px; }
+  .foto-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .foto-tab {
+    background: var(--grijs-licht); border: 1px solid var(--grijs-rand); color: var(--blauw);
+    padding: 6px 12px; border-radius: var(--radius); font-size: 12px; font-family: inherit;
+    font-weight: 600; cursor: pointer;
+  }
+  .foto-tab.actief { background: var(--blauw); color: white; border-color: var(--blauw); }
+  .foto-telling {
+    display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px;
+    background: var(--geel); color: #3a2a00; border-radius: 9px; font-size: 11px;
+  }
+  .foto-balk { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .foto-balk input {
+    flex: 1; padding: 7px 10px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+  }
+  .foto-doek { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
+  .foto-doek img { max-width: 100%; height: auto; border-radius: var(--radius); cursor: crosshair; }
+  .foto-laden, .foto-leeg {
+    padding: 40px 20px; text-align: center; color: var(--grijs-tekst);
+    font-size: 13px; line-height: 1.6; background: var(--grijs-licht); border-radius: var(--radius);
+  }
+  .foto-hint { font-size: 11px; color: var(--grijs-tekst); margin-top: 8px; }
+  .foto-mark {
+    position: absolute; transform: translate(-50%, -50%);
+    min-width: 30px; height: 30px; padding: 0 6px;
+    background: var(--geel); color: #3a2a00; border: 2px solid white;
+    border-radius: 16px; font-size: 13px; font-weight: 800; font-family: inherit;
+    cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.4); line-height: 1;
+  }
+  .foto-mark.verweesd { background: var(--rood); color: white; }
+  .foto-rijknop {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    background: none; border: none; border-bottom: 1px solid var(--grijs-rand);
+    padding: 10px 14px; font-family: inherit; cursor: pointer;
+  }
+  .foto-rijknop:hover { background: var(--blauw-licht); }
+  .foto-rijletter {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 30px; padding: 0 6px;
+    background: var(--geel); color: #3a2a00; border-radius: 15px; font-weight: 800; font-size: 13px;
+  }
+  .foto-rijtekst { font-size: 13px; color: var(--blauw); }
+  tr.gemarkeerd > td { background: #fff3d0 !important; transition: background .4s; }
+  @media (max-width: 1200px) {
+    .foto-mark { min-width: 36px; height: 36px; font-size: 15px; border-radius: 19px; }
+  }
 </style>
 </head>
 <body>
@@ -663,9 +717,29 @@
 
 <div class="tabs">
   <button class="tab-btn active" onclick="toon('invoer')">📋 Invoer</button>
+  <button class="tab-btn" onclick="toon('fotos')">📷 Foto's</button>
   <button class="tab-btn" onclick="toon('samenvatting')">📊 Samenvatting</button>
   <button class="tab-btn" onclick="toon('bestellijst')">📦 Bestellijst</button>
   <button class="tab-btn" onclick="toon('legenda')">📖 Legenda</button>
+</div>
+
+<!-- ═══════════════════════ FOTO'S ═══════════════════════ -->
+<div id="panel-fotos" class="tab-panel">
+  <div class="card">
+    <div class="foto-kop">
+      <div>
+        <h2>📷 Bestaande situatie</h2>
+        <div class="foto-sub">Wijs op de foto aan welke ruit waar zit. De bolletjes volgen het merk uit de invoerlijst.</div>
+      </div>
+      <label class="btn btn-primary btn-sm foto-knop">
+        + Foto toevoegen
+        <input type="file" accept="image/*" onchange="fotoGekozen(this)" hidden>
+      </label>
+    </div>
+    <div class="foto-melding" id="fotoMelding"></div>
+    <div class="foto-tabs" id="fotoLijst"></div>
+    <div id="fotoWerkblad"></div>
+  </div>
 </div>
 
 <!-- ═══════════════════════ INVOER ═══════════════════════ -->
@@ -843,6 +917,21 @@
   </div>
 </div>
 
+<!-- ═══════════════ FOTO: WELKE RUIT? ═══════════════ -->
+<div class="cloud-overlay" id="fotoRijKiezer">
+  <div class="cloud-paneel breed">
+    <header>
+      <h2>Welke ruit staat hier?</h2>
+      <div class="sub">Kies de regel uit de invoerlijst</div>
+    </header>
+    <div class="cloud-lijst" id="fotoRijLijst"></div>
+    <div class="cloud-voet">
+      <span style="font-size:11px;color:var(--grijs-tekst);">Zonder merk wordt het rijnummer getoond</span>
+      <button class="btn btn-secondary btn-sm" onclick="fotoSluitKiezer()">Annuleren</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ CLOUD: INLOGGEN ═══════════════ -->
 <div class="cloud-overlay" id="cloudLogin">
   <div class="cloud-paneel">
@@ -892,6 +981,7 @@ const MAX_RIJEN = 50;
 // ═══════════════ STATE ═══════════════
 let rijen = [];
 let volgendId = 1;
+let fotos = [];   // foto's van de bestaande situatie, met markeringen per ruit
 
 // ═══════════════ DATUM ═══════════════
 function datumVandaag() {
@@ -904,7 +994,7 @@ function datumVandaag() {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v12';
+const APP_VERSIE = 'v13';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -960,6 +1050,7 @@ function toon(tabNaam) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + tabNaam).classList.add('active');
   event.currentTarget.classList.add('active');
+  if (tabNaam === 'fotos') renderFotos();
   if (tabNaam === 'samenvatting') renderSamenvatting();
   if (tabNaam === 'bestellijst') renderBestellijst();
 }
@@ -1488,6 +1579,7 @@ function exportCSV() {
 <script src="cloud.js"></script>
 <script src="import.js"></script>
 <script src="bulk.js"></script>
+<script src="fotos.js"></script>
 <script src="undo.js"></script>
 </body>
 </html>

@@ -716,7 +716,10 @@
   .foto-scroll { overflow: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
   .foto-doek { position: relative; line-height: 0; }
   .foto-doek img { width: 100%; height: auto; display: block; border-radius: var(--radius); cursor: crosshair; }
-  .foto-mark { touch-action: none; }
+  .foto-mark {
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
   .foto-mark.sleept { cursor: grabbing; transform: translate(-50%, -50%) scale(1.15); z-index: 5; }
   .mark-menu {
     position: absolute; z-index: 8600; background: white; min-width: 210px;
@@ -734,6 +737,9 @@
   }
   .mark-menu button:hover { background: var(--blauw-licht); }
   .mark-menu button.gevaar { color: var(--rood); font-weight: 600; }
+
+  .foto-kop-tekst { flex: 1; min-width: 240px; }
+  .foto-kop { flex-wrap: wrap; }
 </style>
 </head>
 <body>
@@ -748,6 +754,7 @@
     <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="cloudProjectenTonen()">📁 Projecten</button>
     <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV Export</button>
+    <button class="btn btn-secondary btn-sm" id="pdfBestelKnop" onclick="exportBestellijstPdf()">📦 Bestellijst als PDF</button>
     <button class="btn btn-primary btn-sm" onclick="printBestellijst()">🖨 Bestellijst afdrukken</button>
   </div>
 </header>
@@ -790,11 +797,12 @@
 <div id="panel-fotos" class="tab-panel">
   <div class="card">
     <div class="foto-kop">
-      <div>
+      <div class="foto-kop-tekst">
         <h2>📷 Inmeten met foto</h2>
         <div class="foto-sub">Tik op de foto waar een ruit zit. Die krijgt automatisch de volgende
           merkletter en een invoerregel eronder — dezelfde regel als op het tabblad Invoer.</div>
       </div>
+      <button class="btn btn-secondary btn-sm" id="pdfKnop" onclick="exportFotoPdf()">📄 PDF van foto's</button>
       <label class="btn btn-primary btn-sm foto-knop">
         + Nieuwe foto
         <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
@@ -1064,7 +1072,7 @@ function datumVandaag() {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v20';
+const APP_VERSIE = 'v23';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1663,6 +1671,7 @@ function exportCSV() {
 <script src="bulk.js"></script>
 <script src="fotos.js"></script>
 <script src="merken.js"></script>
+<script src="pdf.js"></script>
 <script src="undo.js"></script>
 </body>
 </html>

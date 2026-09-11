@@ -329,12 +329,39 @@
     });
   }
 
+  // Foto's moeten via de Storage-API weg; rechtstreeks uit de
+  // opslagtabellen verwijderen staat Supabase niet toe. Daarom eerst
+  // de map van dit project leegmaken, dan pas de projectrij.
+  function fotosOpruimen(id) {
+    if (!sb) return Promise.resolve();
+    return sb.storage.from('projectfotos').list(id, { limit: 500 })
+      .then(function (res) {
+        if (res.error || !res.data || !res.data.length) return null;
+        var paden = res.data.map(function (f) { return id + '/' + f.name; });
+        return sb.storage.from('projectfotos').remove(paden);
+      })
+      .catch(function (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); });
+  }
+
   window.cloudVerwijder = function (id) {
-    if (!confirm('Dit project definitief verwijderen? Dit geldt voor iedereen.')) return;
-    sb.from('projecten').delete().eq('id', id).then(function (res) {
-      if (res.error) { alert('Verwijderen mislukt: ' + res.error.message); return; }
-      if (id === projectId) { projectId = null; localStorage.removeItem(LS_PROJECT); }
+    if (!confirm('Dit project definitief verwijderen? Dit geldt voor iedereen.\n\n' +
+                 'De foto\'s van dit project worden ook verwijderd.')) return;
+    var lijst = document.getElementById('cloudProjectLijst');
+    if (lijst) lijst.style.opacity = '0.5';
+    fotosOpruimen(id).then(function () {
+      return sb.from('projecten').delete().eq('id', id);
+    }).then(function (res) {
+      if (lijst) lijst.style.opacity = '';
+      if (res && res.error) { alert('Verwijderen mislukt: ' + res.error.message); return; }
+      if (id === projectId) {
+        projectId = null;
+        window.glasProjectId = null;
+        localStorage.removeItem(LS_PROJECT);
+      }
       toonProjecten();
+    }).catch(function (e) {
+      if (lijst) lijst.style.opacity = '';
+      alert('Verwijderen mislukt: ' + e.message);
     });
   };
 

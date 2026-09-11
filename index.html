@@ -40,8 +40,8 @@
 
   /* ─── HEADER ─── */
   header {
-    background: var(--blauw);
-    color: white;
+    background: white;
+    color: var(--blauw);
     padding: 14px 24px;
     display: flex;
     align-items: center;
@@ -103,13 +103,14 @@
   .tabs {
     display: flex;
     gap: 0;
-    background: var(--blauw);
+    background: white;
     padding: 0 20px;
+    border-bottom: 1px solid var(--grijs-rand);
   }
   .tab-btn {
     background: none;
     border: none;
-    color: rgba(255,255,255,0.65);
+    color: var(--grijs-tekst);
     padding: 10px 18px;
     cursor: pointer;
     font-size: 13px;
@@ -117,8 +118,8 @@
     border-bottom: 3px solid transparent;
     transition: color .15s, border-color .15s;
   }
-  .tab-btn:hover { color: white; }
-  .tab-btn.active { color: var(--geel); border-bottom-color: var(--geel); }
+  .tab-btn:hover { color: var(--blauw); background: var(--grijs-licht); }
+  .tab-btn.active { color: var(--merk); border-bottom-color: var(--merk); font-weight: 700; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
@@ -158,21 +159,33 @@
     box-shadow: var(--shadow);
     overflow: hidden;
   }
+  /* Kolomkoppen: licht vlak, donkere tekst, rode onderlijn. De groepen
+     blijven van elkaar te onderscheiden door een zachte tint, niet door
+     een gekleurd blok. */
   table.invoer th {
-    background: var(--blauw);
-    color: white;
+    background: var(--grijs-licht);
+    color: var(--blauw);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
     padding: 8px 6px;
     text-align: center;
     white-space: nowrap;
-    border-right: 1px solid rgba(255,255,255,0.12);
+    border-right: 1px solid var(--grijs-rand);
+    border-bottom: 2px solid var(--merk);
     vertical-align: bottom;
   }
-  table.invoer th.groep-algemeen { background: #1a3a5c; }
-  table.invoer th.groep-maat { background: #1d4d74; }
-  table.invoer th.groep-glas { background: #1a5c4a; }
-  table.invoer th.groep-roeden { background: #4a3a1a; }
+  table.invoer thead tr:first-child th {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--merk); background: white; border-bottom: 1px solid var(--grijs-rand);
+  }
+  table.invoer th.groep-algemeen,
+  table.invoer th.groep-maat,
+  table.invoer th.groep-glas,
+  table.invoer th.groep-roeden { background: var(--grijs-licht); }
+  table.invoer thead tr:first-child th.groep-algemeen,
+  table.invoer thead tr:first-child th.groep-maat,
+  table.invoer thead tr:first-child th.groep-glas,
+  table.invoer thead tr:first-child th.groep-roeden { background: white; }
 
   table.invoer td {
     padding: 4px 4px;
@@ -180,9 +193,9 @@
     border-right: 1px solid #eef1f5;
     vertical-align: middle;
   }
-  table.invoer tr:hover td { background: #f0f6ff; }
-  table.invoer tr.even td { background: #fafbfd; }
-  table.invoer tr.even:hover td { background: #f0f6ff; }
+  table.invoer tr:hover td { background: var(--blauw-licht); }
+  table.invoer tr.even td { background: #faf9f8; }
+  table.invoer tr.even:hover td { background: var(--blauw-licht); }
 
   table.invoer .rijnr {
     text-align: center;
@@ -346,8 +359,9 @@
     font-size: 12px;
   }
   table.legenda th {
-    background: var(--blauw);
-    color: white;
+    background: var(--grijs-licht);
+    color: var(--blauw);
+    border-bottom: 2px solid var(--merk);
     padding: 7px 10px;
     text-align: left;
     font-size: 11px;
@@ -490,7 +504,8 @@
   }
   .cloud-paneel.breed { max-width: 620px; }
   .cloud-paneel header {
-    background: var(--blauw); color: white; padding: 14px 20px; display: block;
+    background: white; color: var(--blauw); padding: 14px 20px; display: block;
+    border-bottom: 3px solid var(--merk);
   }
   .cloud-paneel h2 { font-size: 16px; font-weight: 700; }
   .cloud-paneel .sub { font-size: 11px; opacity: 0.75; margin-top: 2px; }
@@ -516,7 +531,8 @@
      tekst van lengte verandert, en schuift de pagina op smalle schermen. */
   #cloudStatus {
     font-size: 11px; padding: 5px 10px; border-radius: 20px;
-    background: rgba(255,255,255,0.14); color: white; white-space: nowrap;
+    background: var(--grijs-licht); color: var(--grijs-tekst);
+    border: 1px solid var(--grijs-rand); white-space: nowrap;
     display: inline-block; box-sizing: border-box;
     width: 132px; text-align: center; flex: 0 0 132px;
     overflow: hidden; text-overflow: ellipsis;
@@ -552,20 +568,20 @@
   .bulk-vul {
     display: inline-flex; align-items: center; justify-content: center;
     width: 22px; height: 20px; margin-left: 6px; vertical-align: middle;
-    background: white; color: var(--blauw); border-radius: 4px;
+    background: var(--merk); color: white; border-radius: 4px;
     font-size: 14px; font-weight: 700; line-height: 1;
     cursor: pointer; user-select: none;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+    box-shadow: 0 1px 2px rgba(29,29,27,0.25);
   }
-  .bulk-vul:hover, .bulk-vul:active { background: var(--geel); color: #3a2a00; }
+  .bulk-vul:hover, .bulk-vul:active { background: var(--merk-donker); color: white; }
 
   /* Ongedaan / opnieuw: lichte knoppen, zichtbaar op de donkere kop */
   .btn-undo {
-    background: rgba(255,255,255,0.92); color: var(--blauw);
-    border: none; font-weight: 700;
+    background: white; color: var(--merk);
+    border: 1px solid var(--merk); font-weight: 700;
   }
-  .btn-undo:hover:not(:disabled) { background: var(--geel); color: #3a2a00; }
-  .btn-undo:disabled { background: rgba(255,255,255,0.28); color: rgba(255,255,255,0.65); cursor: default; }
+  .btn-undo:hover:not(:disabled) { background: var(--merk); color: white; }
+  .btn-undo:disabled { background: white; color: var(--grijs-rand); border-color: var(--grijs-rand); cursor: default; }
   .btn-undo .pijl { font-size: 16px; font-weight: 700; line-height: 1; }
   tr.geselecteerd > td { background: #fff8e6 !important; }
   .rijnr-wrap { display: flex; align-items: center; gap: 4px; justify-content: center; }
@@ -586,7 +602,10 @@
     border: 1px solid var(--grijs-rand); border-radius: var(--radius);
     box-shadow: 0 8px 28px rgba(26,58,92,0.28); overflow: hidden;
   }
-  .bulk-pop-kop { background: var(--blauw); color: white; padding: 8px 12px; font-size: 12px; font-weight: 700; }
+  .bulk-pop-kop {
+    background: white; color: var(--blauw); padding: 8px 12px;
+    font-size: 12px; font-weight: 700; border-bottom: 2px solid var(--merk);
+  }
   .bulk-pop-body { padding: 12px; }
   .bulk-pop-body label { display: block; font-size: 11px; font-weight: 600; color: var(--blauw); margin-bottom: 3px; }
   .bulk-pop-body > select, .bulk-pop-body > input {
@@ -614,11 +633,12 @@
 
   .info-tip {
     position: absolute; z-index: 8500; max-width: 300px;
-    background: var(--blauw); color: white; padding: 10px 12px;
+    background: white; color: var(--blauw); padding: 10px 12px;
+    border: 1px solid var(--grijs-rand); border-left: 4px solid var(--merk);
     border-radius: var(--radius); font-size: 12px; line-height: 1.5;
     box-shadow: 0 6px 22px rgba(26,58,92,0.32); font-weight: 400;
   }
-  .info-tip b { color: var(--geel); }
+  .info-tip b { color: var(--merk); }
   @media print { .info-icon, .info-tip { display: none !important; } }
 
   #projectNaam.dubbel { border: 2px solid var(--rood); background: #fdecea; }
@@ -642,7 +662,7 @@
   .foto-balk { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
   .foto-nr {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; background: var(--blauw); color: white;
+    width: 26px; height: 26px; background: var(--merk); color: white;
     border-radius: 13px; font-size: 13px; font-weight: 700; flex: 0 0 26px;
   }
   .foto-balk input {
@@ -710,7 +730,7 @@
   }
   .aanwijs-letter {
     display: inline-flex; align-items: center; justify-content: center;
-    min-width: 30px; height: 30px; padding: 0 8px; background: #3a2a00; color: var(--geel);
+    min-width: 30px; height: 30px; padding: 0 8px; background: var(--merk); color: white;
     border-radius: 15px; font-weight: 800; font-size: 14px;
   }
   .aanwijs-tekst { flex: 1; }
@@ -780,7 +800,9 @@
   .merk-kop { display: flex; align-items: center; gap: 14px; }
   .merk-logo { height: 30px; width: auto; display: block; }
   .login-logo { display: block; width: 190px; max-width: 70%; margin: 0 auto 18px; }
-  header { border-bottom: 3px solid var(--merk); }
+  header { border-bottom: 3px solid var(--merk); box-shadow: 0 1px 4px rgba(29,29,27,0.06); }
+  header h1 { color: var(--blauw); }
+  header .subtitle { color: var(--grijs-tekst); opacity: 1; }
   .tab-btn.actief, .tab-btn.active { box-shadow: inset 0 -3px 0 var(--merk); }
 
   /* ─── PROJECTGEGEVENS ─── */
@@ -851,7 +873,7 @@
 <header>
   <div>
     <div class="merk-kop">
-      <img src="logo-wit.png" alt="Jelier Bouw" class="merk-logo">
+      <img src="logo.png" alt="Jelier Bouw" class="merk-logo">
       <div>
         <h1>Glasopname</h1>
         <div class="subtitle">Glas inmeetformulier · <span class="app-versie"></span></div>
@@ -966,12 +988,12 @@
         <th rowspan="2" style="width:28px"></th>
         <th colspan="2" class="groep-algemeen">Algemeen</th>
         <th colspan="4" class="groep-maat">Maatvoering</th>
-        <th colspan="2" style="background:#145c3a;">Glasmaat (auto)</th>
+        <th colspan="2">Glasmaat (auto)</th>
         <th colspan="3" class="groep-glas">Glasspecificatie</th>
-        <th colspan="3" style="background:#2a4a1a;">Ventilatie</th>
+        <th colspan="3">Ventilatie</th>
         <th colspan="2" class="groep-glas">Afwerking</th>
         <th colspan="3" class="groep-roeden">Roeden</th>
-        <th rowspan="2" style="background:#333; width:28px"></th>
+        <th rowspan="2" style="width:28px"></th>
       </tr>
       <tr>
         <th class="groep-algemeen">Aantal</th>
@@ -980,14 +1002,14 @@
         <th class="groep-maat">Breedte (mm)</th>
         <th class="groep-maat">Hoogte (mm)</th>
         <th class="groep-maat">Correctie <i class="info-icon" onclick="toonInfo(this)" data-info="Een <b>afwijkende</b> speling of bijtelling voor deze ene ruit.<br><br>Ook deze waarde geldt <b>rondom</b> en wordt dus 2× gerekend: bij −6 mm wordt 1000 × 2000 een glasmaat van <b>988 × 1988</b>.<br><br>Staat er ‹alg.›, dan volgt de ruit de algemene waarde uit de balk bovenaan. Kies je zelf iets, dan kleurt het vakje geel.">i</i></th>
-        <th style="background:#145c3a;">Glasbreedte</th>
-        <th style="background:#145c3a;">Glashoogte</th>
+        <th>Glasbreedte</th>
+        <th>Glashoogte</th>
         <th class="groep-glas">Glas Type</th>
         <th class="groep-glas">Opbouw</th>
         <th class="groep-glas">Dikte / Gewicht</th>
-        <th style="background:#2a4a1a;">Rooster</th>
-        <th style="background:#2a4a1a;">Duco Type</th>
-        <th style="background:#2a4a1a;">RAL Kleur</th>
+        <th>Rooster</th>
+        <th>Duco Type</th>
+        <th>RAL Kleur</th>
         <th class="groep-glas">Glasbewerking</th>
         <th class="groep-glas">Opmerking</th>
         <th class="groep-roeden">Verdeling</th>
@@ -1226,7 +1248,7 @@ function datumVandaag() {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v27';
+const APP_VERSIE = 'v28';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

@@ -186,7 +186,7 @@
         return kols.map(function (k) { return schoon(k.haal(r)); });
       }),
       styles: { fontSize: fontMaat, cellPadding: 1, overflow: 'linebreak', lineColor: [205, 210, 218], lineWidth: 0.15 },
-      headStyles: { fillColor: [29, 29, 27], textColor: 255, fontStyle: 'bold', fontSize: fontMaat },
+      headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold', fontSize: fontMaat },
       alternateRowStyles: { fillColor: [244, 246, 249] },
       columnStyles: stijlen,
       didDrawPage: function (data) {
@@ -382,7 +382,7 @@
         }),
         styles: { fontSize: kols.length > 11 ? 7 : 8, cellPadding: 1.4, overflow: 'linebreak',
                   lineColor: [205, 210, 218], lineWidth: 0.15 },
-        headStyles: { fillColor: [29, 29, 27], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [244, 246, 249] },
         columnStyles: stijlen,
         didDrawPage: function (data) {

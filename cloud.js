@@ -37,6 +37,8 @@
       rijen: rijen,
       volgendId: volgendId,
       fotos: fotos,
+      info: projectInfo,
+      taken: projectTaken,
       project: waarde('projectNaam'),
       datum: waarde('projectDatum'),
       speling: waarde('spelingGlobal'),
@@ -48,6 +50,8 @@
     rijen = state.rijen || [];
     volgendId = state.volgendId || (rijen.length + 1);
     fotos = state.fotos || [];
+    projectInfo = state.info || {};
+    projectTaken = state.taken || [];
     if (el('projectNaam'))   el('projectNaam').value   = state.project || '';
     if (el('projectDatum'))  el('projectDatum').value  = state.datum || '';
     if (el('spelingGlobal') && state.speling)     el('spelingGlobal').value = state.speling;
@@ -56,6 +60,7 @@
     renderTabel();
     herbereken();
     if (window.renderFotos) renderFotos();
+    if (window.renderProject) renderProject();
   }
 
   function ingevuldeRijen(state) {
@@ -119,6 +124,8 @@
       naam: state.project || '(naamloos)',
       datum: state.datum || '',
       data: state,
+      aantal_ruiten: ingevuldeRijen(state),
+      status: (state.info && state.info.status) || 'open',
       gewijzigd_door: gebruiker.id
     }).eq('id', projectId).then(function (res) {
       bezig = false;
@@ -244,32 +251,82 @@
 
   /* ─── projectenlijst ───────────────────────────────────────── */
 
-  function toonProjecten() {
+  var zoekTimer = null;
+  var zoekTerm = '';
+
+  window.cloudZoek = function (term) {
+    zoekTerm = term || '';
+    clearTimeout(zoekTimer);
+    // Even wachten met zoeken: anders gaat er per toetsaanslag een
+    // verzoek naar de database.
+    zoekTimer = setTimeout(function () { toonProjecten(true); }, 250);
+  };
+
+  window.cloudZoekWissen = function () {
+    var veld = el('cloudZoekVeld');
+    if (veld) { veld.value = ''; veld.focus(); }
+    zoekTerm = '';
+    toonProjecten(true);
+  };
+
+  function markeer(tekst, term) {
+    var veilig = esc(tekst);
+    if (!term) return veilig;
+    var i = veilig.toLowerCase().indexOf(esc(term).toLowerCase());
+    if (i < 0) return veilig;
+    return veilig.slice(0, i) + '<mark>' + veilig.slice(i, i + term.length) + '</mark>' +
+           veilig.slice(i + term.length);
+  }
+
+  function toonProjecten(behoudVenster) {
     if (!sb || !gebruiker) return;
     var lijst = el('cloudProjectLijst');
+    if (!behoudVenster) {
+      zoekTerm = '';
+      var veld = el('cloudZoekVeld');
+      if (veld) veld.value = '';
+    }
     lijst.innerHTML = '<div style="padding:20px;color:var(--grijs-tekst)">Projecten ophalen…</div>';
     el('cloudProjecten').style.display = 'flex';
-    sb.from('projecten').select('id,naam,datum,status,data,updated_at')
-      .order('updated_at', { ascending: false }).limit(200)
+
+    // Alleen de velden die de lijst toont; de inhoud van een project
+    // wordt pas opgehaald als je hem opent.
+    var vraag = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,updated_at');
+    if (zoekTerm.trim()) {
+      var t = '%' + zoekTerm.trim().replace(/[%_]/g, '') + '%';
+      vraag = vraag.or('naam.ilike.' + t + ',datum.ilike.' + t);
+    }
+    vraag.order('updated_at', { ascending: false }).limit(200)
       .then(function (res) {
         if (res.error) {
           lijst.innerHTML = '<div style="padding:20px;color:var(--rood)">Ophalen mislukt: ' + res.error.message + '</div>';
           return;
         }
+        var telling = el('cloudTelling');
+        if (telling) {
+          telling.textContent = zoekTerm.trim()
+            ? res.data.length + ' van de projecten komt overeen'
+            : (res.data.length ? res.data.length + ' projecten' : '');
+        }
         if (!res.data.length) {
-          lijst.innerHTML = '<div style="padding:20px;color:var(--grijs-tekst)">Nog geen projecten. Maak er hieronder een aan.</div>';
+          lijst.innerHTML = zoekTerm.trim()
+            ? '<div style="padding:20px;color:var(--grijs-tekst)">Geen project gevonden voor ‹' + esc(zoekTerm) + '›.</div>'
+            : '<div style="padding:20px;color:var(--grijs-tekst)">Nog geen projecten. Maak er hieronder een aan.</div>';
           return;
         }
         lijst.innerHTML = res.data.map(function (p) {
-          var n = ingevuldeRijen(p.data || {});
+          var n = p.aantal_ruiten || 0;
           var d = new Date(p.updated_at);
           var stamp = String(d.getDate()).padStart(2, '0') + '-' +
                       String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear() + ' ' +
                       String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
           return '<div class="cloud-project' + (p.id === projectId ? ' actief' : '') + '">' +
                  '<div class="cloud-project-info" onclick="cloudOpen(\'' + p.id + '\')">' +
-                 '<strong>' + (p.naam || '(naamloos)') + '</strong>' +
-                 '<span>' + n + ' ruiten' + (p.datum ? ' · ' + p.datum : '') + ' · gewijzigd ' + stamp + '</span>' +
+                 '<strong>' + markeer(p.naam || '(naamloos)', zoekTerm) + '</strong>' +
+                 '<span>' + (p.status && p.status !== 'open'
+                     ? '<em class="pl-status">' + esc(p.status) + '</em> · ' : '') +
+                 n + ' ruiten' + (p.datum ? ' · ' + markeer(p.datum, zoekTerm) : '') +
+                 ' · gewijzigd ' + stamp + '</span>' +
                  '</div>' +
                  '<button class="btn btn-ghost btn-sm" onclick="cloudVerwijder(\'' + p.id + '\')" title="Project verwijderen">🗑</button>' +
                  '</div>';
@@ -314,14 +371,16 @@
     sb.from('projecten').insert({
       naam: naam || '(naamloos)',
       datum: '',
-      data: { rijen: [], volgendId: 1, project: naam || '', datum: '', speling: '4', bijtelling: '11' },
+      data: { rijen: [], volgendId: 1, fotos: [], info: {}, taken: [],
+              project: naam || '', datum: '', speling: '4', bijtelling: '11' },
+      aantal_ruiten: 0,
       gewijzigd_door: gebruiker.id
     }).select('id').single().then(function (res) {
       if (res.error) { alert('Aanmaken mislukt: ' + res.error.message); return; }
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
-      rijen = []; volgendId = 1; fotos = [];
+      rijen = []; volgendId = 1; fotos = []; projectInfo = {}; projectTaken = [];
       zetStaat({ project: naam, datum: '', speling: '4', bijtelling: '11' });
       toonNaamWaarschuwing('');
       el('cloudProjecten').style.display = 'none';
@@ -365,7 +424,13 @@
     });
   };
 
-  window.cloudProjectenTonen = toonProjecten;
+  window.cloudProjectenTonen = function () {
+    toonProjecten(false);
+    setTimeout(function () {
+      var veld = el('cloudZoekVeld');
+      if (veld && window.innerWidth > 900) veld.focus();
+    }, 60);
+  };
   window.cloudSluitProjecten = function () { el('cloudProjecten').style.display = 'none'; };
   window.cloudUitloggen = uitloggen;
   window.cloudLogin = login;

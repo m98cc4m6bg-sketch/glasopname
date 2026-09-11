@@ -116,13 +116,26 @@
 
   /* ─── opbouw van de pdf ────────────────────────────────────── */
 
+  // Logo eenmalig inlezen zodat het in de pdf gezet kan worden.
+  var logoData = null;
+  function haalLogo() {
+    if (logoData !== null) return Promise.resolve(logoData);
+    return haalAfbeelding('logo.png')
+      .then(function (d) { logoData = d; return d; })
+      .catch(function () { logoData = false; return false; });
+  }
+
   function kopregel(doc, titel) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.setTextColor(26, 58, 92);
+    doc.setTextColor(29, 29, 27);
     doc.text(schoon(titel), MARGE, MARGE + 1);
-    doc.setDrawColor(200, 205, 212);
-    doc.setLineWidth(0.3);
+    if (logoData) {
+      var lb = 34, lh = lb * 142 / 600;
+      doc.addImage(logoData, 'PNG', BREEDTE - MARGE - lb, MARGE - 4.5, lb, lh);
+    }
+    doc.setDrawColor(208, 2, 67);
+    doc.setLineWidth(0.6);
     doc.line(MARGE, MARGE + 3.5, BREEDTE - MARGE, MARGE + 3.5);
   }
 
@@ -173,7 +186,7 @@
         return kols.map(function (k) { return schoon(k.haal(r)); });
       }),
       styles: { fontSize: fontMaat, cellPadding: 1, overflow: 'linebreak', lineColor: [205, 210, 218], lineWidth: 0.15 },
-      headStyles: { fillColor: [26, 58, 92], textColor: 255, fontStyle: 'bold', fontSize: fontMaat },
+      headStyles: { fillColor: [29, 29, 27], textColor: 255, fontStyle: 'bold', fontSize: fontMaat },
       alternateRowStyles: { fillColor: [244, 246, 249] },
       columnStyles: stijlen,
       didDrawPage: function (data) {
@@ -214,7 +227,7 @@
 
     Promise.all([laad(JSPDF_URL)]).then(function () {
       return laad(TABEL_URL);
-    }).then(function () {
+    }).then(haalLogo).then(function () {
       var jsPDF = window.jspdf.jsPDF;
       zetFormaat(false);
       var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -329,7 +342,8 @@
 
     if (knop) { knop.disabled = true; knop.textContent = 'Bezig…'; }
 
-    laad(JSPDF_URL).then(function () { return laad(TABEL_URL); }).then(function () {
+    laad(JSPDF_URL).then(function () { return laad(TABEL_URL); })
+      .then(haalLogo).then(function () {
       zetFormaat(true);
       var jsPDF = window.jspdf.jsPDF;
       var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -340,7 +354,10 @@
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(60, 70, 84);
-      doc.text(schoon('Project: ' + project + (datum ? '     Datum: ' + datum : '')), MARGE, MARGE + 9);
+      var adres = [projectInfo.straat, projectInfo.postcode, projectInfo.plaats].filter(Boolean).join('  ');
+      doc.text(schoon('Project: ' + project + (datum ? '     Datum: ' + datum : '') +
+               (adres ? '     ' + adres : '') +
+               (projectInfo.klant ? '     Opdrachtgever: ' + projectInfo.klant : '')), MARGE, MARGE + 9);
 
       var kols = bestelKolommen().filter(function (k) {
         if (k.altijd) return true;
@@ -365,7 +382,7 @@
         }),
         styles: { fontSize: kols.length > 11 ? 7 : 8, cellPadding: 1.4, overflow: 'linebreak',
                   lineColor: [205, 210, 218], lineWidth: 0.15 },
-        headStyles: { fillColor: [26, 58, 92], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [29, 29, 27], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [244, 246, 249] },
         columnStyles: stijlen,
         didDrawPage: function (data) {
@@ -382,7 +399,7 @@
       if (y > HOOGTE - MARGE - 12) { doc.addPage(); kopregel(doc, titel + ' (vervolg)'); y = MARGE + 13; }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.setTextColor(26, 58, 92);
+      doc.setTextColor(29, 29, 27);
       doc.text(schoon(lijst.length + ' posities   |   ' + stuks + ' ruiten   |   totaal ' +
                m2.toFixed(2).replace('.', ',') + ' m2 glas'), MARGE, y);
 
@@ -398,6 +415,44 @@
       if (knop) { knop.disabled = false; knop.textContent = '📦 Bestellijst als PDF'; }
     });
   };
+
+  /* ═══════════════ Cmd+P / Ctrl+P ═══════════════ */
+  // De sneltoets maakt voortaan onze eigen pdf in plaats van het
+  // afdrukvenster van de browser te openen. Welke pdf hangt af van
+  // waar je bent: op het fototabblad de fotopagina's, elders de
+  // bestellijst. De menuroute Archief → Druk af kan een pagina niet
+  // onderscheppen; daarvoor blijft de afdrukopmaak als terugval staan.
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'p' && e.key !== 'P') return;
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    e.preventDefault();
+    var opFoto = document.getElementById('panel-fotos');
+    if (opFoto && opFoto.classList.contains('active') && fotos.length) {
+      exportFotoPdf();
+    } else {
+      exportBestellijstPdf();
+    }
+  });
+
+  /* ═══════════════ SNELTOETS ═══════════════ */
+  // Cmd+P (Mac) en Ctrl+P (Windows) maken voortaan de pdf van de app
+  // in plaats van de afdruk van de browser. Welke pdf hangt af van waar
+  // je staat: op het tabblad Foto's die van de foto's, elders de
+  // bestellijst.
+  // Let op: dit vangt alleen de sneltoets. Archief → Druk af of het
+  // printmenu van de browser kan een pagina niet onderscheppen.
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'p' && e.key !== 'P') return;
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var fotosActief = document.getElementById('panel-fotos');
+    fotosActief = fotosActief && fotosActief.classList.contains('active');
+    if (fotosActief && fotos.length) exportFotoPdf();
+    else exportBestellijstPdf();
+  }, true);
 
   // Op de iPad werkt downloaden in een app vanaf het beginscherm niet
   // betrouwbaar; via het deelvenster wel — en dan kun je meteen

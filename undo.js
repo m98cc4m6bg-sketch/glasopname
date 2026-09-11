@@ -19,6 +19,8 @@
       rijen: rijen,
       volgendId: volgendId,
       fotos: fotos,
+      info: projectInfo,
+      taken: projectTaken,
       project: (document.getElementById('projectNaam') || {}).value || '',
       datum: (document.getElementById('projectDatum') || {}).value || '',
       speling: (document.getElementById('spelingGlobal') || {}).value || '4',
@@ -31,6 +33,8 @@
     rijen = s.rijen || [];
     volgendId = s.volgendId || rijen.length + 1;
     fotos = s.fotos || [];
+    projectInfo = s.info || {};
+    projectTaken = s.taken || [];
     var z = function (id, v) { var e = document.getElementById(id); if (e) e.value = v; };
     z('projectNaam', s.project);
     z('projectDatum', s.datum);
@@ -39,6 +43,7 @@
     renderTabel();
     herbereken();
     if (window.renderFotos) renderFotos();
+    if (window.renderProject) renderProject();
     opslaan();
   }
 

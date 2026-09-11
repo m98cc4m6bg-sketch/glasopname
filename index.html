@@ -10,19 +10,24 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Glasopname Formulier – Jelier Bouw</title>
 <style>
+  /* Huisstijl Jelier Bouw: antraciet #1D1D1B en rood #D00243 uit het
+     logo. De variabelenamen blijven zoals ze waren, zodat er niets
+     elders omgezet hoeft te worden. */
   :root {
-    --blauw: #1a3a5c;
-    --blauw-mid: #2c5f8a;
-    --blauw-licht: #e8f0f8;
-    --geel: #f0a500;
+    --blauw: #1d1d1b;          /* antraciet — koppen en tabelkoppen */
+    --blauw-mid: #43423f;      /* grijsbruin — tweede knop */
+    --blauw-licht: #fbeef2;    /* zeer licht rood — hover en actieve rij */
+    --merk: #d00243;           /* logo-rood — accent en hoofdknop */
+    --merk-donker: #a80236;
+    --geel: #f0a500;           /* blijft voor markeringen en selectie */
     --wit: #ffffff;
-    --grijs-licht: #f5f6f8;
-    --grijs-rand: #d0d8e4;
-    --grijs-tekst: #5a6a7a;
-    --rood: #c0392b;
+    --grijs-licht: #f6f5f4;
+    --grijs-rand: #dcd9d6;
+    --grijs-tekst: #6b6862;
+    --rood: #8e1b12;           /* fouten — donkerder dan het merkrood */
     --groen: #217a45;
     --radius: 6px;
-    --shadow: 0 2px 8px rgba(26,58,92,0.10);
+    --shadow: 0 2px 8px rgba(29,29,27,0.12);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -136,6 +141,8 @@
   .btn:hover { opacity: .88; }
   .btn-primary { background: var(--geel); color: var(--blauw); }
   .btn-secondary { background: var(--blauw-mid); color: white; }
+  .btn-primary { background: var(--merk); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--merk-donker); }
   .btn-danger { background: var(--rood); color: white; }
   .btn-ghost { background: transparent; border: 1px solid var(--grijs-rand); color: var(--grijs-tekst); }
   .btn-sm { padding: 4px 10px; font-size: 12px; }
@@ -363,6 +370,7 @@
   /* ─── PRINT ─── */
   @media print {
     header, .toolbar, .tabs, .tabel-footer, .btn-del, td.delete-cel,
+    .foto-zoombalk, .foto-voet, .foto-aanwijsbalk, #panel-fotos,
     #panel-invoer, #panel-samenvatting, #panel-legenda { display: none !important; }
     body { background: white; font-size: 11px; }
     .container { padding: 0; }
@@ -740,22 +748,122 @@
 
   .foto-kop-tekst { flex: 1; min-width: 240px; }
   .foto-kop { flex-wrap: wrap; }
+
+  /* ─── ZOEKEN IN PROJECTEN ─── */
+  .cloud-zoek {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-bottom: 1px solid var(--grijs-rand);
+    background: var(--grijs-licht);
+  }
+  .cloud-zoek-icoon { font-size: 13px; opacity: .6; }
+  .cloud-zoek input {
+    flex: 1; border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+    padding: 8px 10px; font-size: 13px; font-family: inherit;
+    -webkit-appearance: none; appearance: none;
+  }
+  .cloud-zoek input:focus { outline: 2px solid var(--blauw-mid); outline-offset: -1px; }
+  .cloud-zoek-wis {
+    background: none; border: none; cursor: pointer; font-size: 13px;
+    color: var(--grijs-tekst); padding: 4px 6px;
+  }
+  .cloud-zoek-wis:hover { color: var(--rood); }
+  .cloud-telling {
+    font-size: 11px; color: var(--grijs-tekst);
+    padding: 6px 16px 0;
+  }
+  .cloud-telling:empty { padding: 0; }
+  .cloud-project-info mark {
+    background: var(--geel); color: #3a2a00; border-radius: 2px; padding: 0 1px;
+  }
+
+  /* ─── LOGO EN MERK ─── */
+  .merk-kop { display: flex; align-items: center; gap: 14px; }
+  .merk-logo { height: 30px; width: auto; display: block; }
+  .login-logo { display: block; width: 190px; max-width: 70%; margin: 0 auto 18px; }
+  header { border-bottom: 3px solid var(--merk); }
+  .tab-btn.actief, .tab-btn.active { box-shadow: inset 0 -3px 0 var(--merk); }
+
+  /* ─── PROJECTGEGEVENS ─── */
+  .pi-kop { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 4px; flex-wrap: wrap; }
+  .pi-kop h2 { font-size: 16px; color: var(--blauw); }
+  .pi-sub { font-size: 12px; color: var(--grijs-tekst); margin-top: 3px; }
+  .pi-groep { margin-top: 18px; }
+  .pi-groep h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--merk); font-weight: 700; margin-bottom: 8px;
+    padding-bottom: 4px; border-bottom: 1px solid var(--grijs-rand);
+  }
+  .pi-raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 14px; }
+  .pi-veld { display: flex; flex-direction: column; gap: 3px; }
+  .pi-veld.breed { grid-column: span 2; }
+  .pi-veld span { font-size: 11px; font-weight: 600; color: var(--grijs-tekst); }
+  .pi-veld input, .pi-veld select {
+    padding: 7px 9px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); background: white;
+  }
+  .pi-veld input:focus, .pi-veld select:focus,
+  #projectNotitie:focus, #taakNieuw:focus {
+    outline: 2px solid var(--merk); outline-offset: -1px;
+  }
+
+  .pi-kolommen { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 16px; }
+  .pi-kolommen h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--merk); font-weight: 700; margin-bottom: 8px;
+  }
+  #projectNotitie {
+    width: 100%; min-height: 190px; padding: 10px; font-size: 13px;
+    font-family: inherit; line-height: 1.6; resize: vertical;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+  }
+  .taken-kop { display: flex; align-items: baseline; gap: 10px; }
+  .taken-teller { font-size: 11px; color: var(--grijs-tekst); }
+  .taak-nieuw { display: flex; gap: 8px; margin-bottom: 10px; }
+  .taak-nieuw input {
+    flex: 1; padding: 7px 9px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+  }
+  .taak { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--grijs-rand); }
+  .taak input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--merk); flex: 0 0 17px; }
+  .taak-tekst {
+    flex: 1; border: none; background: none; font-family: inherit; font-size: 13px;
+    padding: 5px 2px; color: #1d1d1b;
+  }
+  .taak-tekst:focus { outline: none; background: var(--blauw-licht); border-radius: 3px; }
+  .taak.klaar .taak-tekst { text-decoration: line-through; color: var(--grijs-tekst); }
+  .taak-weg { background: none; border: none; color: var(--grijs-tekst); cursor: pointer; font-size: 13px; padding: 4px 6px; }
+  .taak-weg:hover { color: var(--rood); }
+  .taken-leeg { font-size: 12px; color: var(--grijs-tekst); padding: 12px 0; line-height: 1.6; }
+  .taken-opruimen { margin-top: 12px; }
+  @media (max-width: 900px) {
+    .pi-kolommen { grid-template-columns: 1fr; }
+    .pi-veld.breed { grid-column: span 1; }
+    .merk-logo { height: 24px; }
+  }
+  .pl-status {
+    font-style: normal; font-weight: 700; color: var(--merk);
+    text-transform: uppercase; font-size: 10px; letter-spacing: .05em;
+  }
 </style>
 </head>
 <body>
 
 <header>
   <div>
-    <h1>🪟 Glasopname Formulier</h1>
-    <div class="subtitle">Jelier Bouw B.V. — Glas inmeetformulier · <span class="app-versie"></span></div>
+    <div class="merk-kop">
+      <img src="logo-wit.png" alt="Jelier Bouw" class="merk-logo">
+      <div>
+        <h1>Glasopname</h1>
+        <div class="subtitle">Glas inmeetformulier · <span class="app-versie"></span></div>
+      </div>
+    </div>
   </div>
   <div class="header-actions">
     <span id="cloudStatus">Verbinden…</span>
     <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="cloudProjectenTonen()">📁 Projecten</button>
     <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV Export</button>
-    <button class="btn btn-secondary btn-sm" id="pdfBestelKnop" onclick="exportBestellijstPdf()">📦 Bestellijst als PDF</button>
-    <button class="btn btn-primary btn-sm" onclick="printBestellijst()">🖨 Bestellijst afdrukken</button>
+    <button class="btn btn-primary btn-sm" id="pdfBestelKnop" onclick="exportBestellijstPdf()">📦 Bestellijst als PDF</button>
   </div>
 </header>
 
@@ -786,11 +894,46 @@
 </div>
 
 <div class="tabs">
+  <button class="tab-btn" onclick="toon('project')">📋 Project</button>
   <button class="tab-btn active" onclick="toon('invoer')">📋 Invoer</button>
   <button class="tab-btn" onclick="toon('fotos')">📷 Foto's</button>
   <button class="tab-btn" onclick="toon('samenvatting')">📊 Samenvatting</button>
   <button class="tab-btn" onclick="toon('bestellijst')">📦 Bestellijst</button>
   <button class="tab-btn" onclick="toon('legenda')">📖 Legenda</button>
+</div>
+
+<!-- ═══════════════════════ PROJECT ═══════════════════════ -->
+<div id="panel-project" class="tab-panel">
+  <div class="card">
+    <div class="pi-kop">
+      <div>
+        <h2>Projectgegevens</h2>
+        <div class="pi-sub">Alles wat bij dit project hoort, naast de maten.</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="pi-kaart" style="display:none">📍 Adres in kaarten</button>
+    </div>
+    <div id="projectVelden"></div>
+  </div>
+
+  <div class="card pi-kolommen">
+    <section>
+      <h3>Notities</h3>
+      <textarea id="projectNotitie" placeholder="Afspraken, bijzonderheden, wat de klant zei…"
+                oninput="projectNotitie(this.value)"></textarea>
+    </section>
+    <section>
+      <div class="taken-kop">
+        <h3>Taken</h3>
+        <span class="taken-teller" id="takenTeller"></span>
+      </div>
+      <div class="taak-nieuw">
+        <input type="text" id="taakNieuw" placeholder="Nieuwe taak…">
+        <button class="btn btn-primary btn-sm" onclick="taakToevoegen()">Toevoegen</button>
+      </div>
+      <div id="takenLijst"></div>
+      <button class="btn btn-ghost btn-sm taken-opruimen" onclick="takenOpruimen()">Afgeronde taken opruimen</button>
+    </section>
+  </div>
 </div>
 
 <!-- ═══════════════════════ FOTO'S ═══════════════════════ -->
@@ -1014,10 +1157,11 @@
 <div class="cloud-overlay" id="cloudLogin">
   <div class="cloud-paneel">
     <header>
-      <h2>🪟 Glasopname — inloggen</h2>
+      <h2>Glasopname — inloggen</h2>
       <div class="sub">Jelier Bouw B.V. · <span class="app-versie"></span></div>
     </header>
     <div class="cloud-body">
+      <img src="logo.png" alt="Jelier Bouw" class="login-logo">
       <label for="cloudEmail">E-mailadres</label>
       <input type="email" id="cloudEmail" autocomplete="username" inputmode="email">
       <label for="cloudWachtwoord">Wachtwoord</label>
@@ -1035,6 +1179,14 @@
       <h2>📁 Projecten</h2>
       <div class="sub">Gedeeld met iedereen bij Jelier Bouw · <span class="app-versie"></span></div>
     </header>
+    <div class="cloud-zoek">
+      <span class="cloud-zoek-icoon">🔎</span>
+      <input type="search" id="cloudZoekVeld" placeholder="Zoek op projectnaam of datum…"
+             autocomplete="off" oninput="cloudZoek(this.value)"
+             onkeydown="if(event.key==='Escape'){event.stopPropagation();cloudZoekWissen();}">
+      <button class="cloud-zoek-wis" onclick="cloudZoekWissen()" title="Zoekterm wissen">✕</button>
+    </div>
+    <div class="cloud-telling" id="cloudTelling"></div>
     <div class="cloud-lijst" id="cloudProjectLijst"></div>
     <div class="cloud-voet">
       <button class="btn btn-ghost btn-sm" onclick="cloudUitloggen()">Uitloggen</button>
@@ -1060,6 +1212,8 @@ const MAX_RIJEN = 50;
 let rijen = [];
 let volgendId = 1;
 let fotos = [];   // foto's van de bestaande situatie, met markeringen per ruit
+let projectInfo = {};   // klant-, adres- en uitvoeringsgegevens
+let projectTaken = [];  // eenvoudige takenlijst bij het project
 
 // ═══════════════ DATUM ═══════════════
 function datumVandaag() {
@@ -1072,7 +1226,7 @@ function datumVandaag() {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v23';
+const APP_VERSIE = 'v27';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1128,6 +1282,7 @@ function toon(tabNaam) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + tabNaam).classList.add('active');
   event.currentTarget.classList.add('active');
+  if (tabNaam === 'project') renderProject();
   if (tabNaam === 'fotos') renderFotos();
   if (tabNaam === 'samenvatting') renderSamenvatting();
   if (tabNaam === 'bestellijst') renderBestellijst();
@@ -1630,11 +1785,6 @@ function clearAlles() {
 }
 
 // ═══════════════ PRINT ═══════════════
-function printBestellijst() {
-  renderBestellijst();
-  window.print();
-}
-
 // ═══════════════ CSV EXPORT ═══════════════
 function exportCSV() {
   const ingevuld = rijen.filter(r => r.glasType || r.breedte || r.hoogte);
@@ -1669,6 +1819,7 @@ function exportCSV() {
 <script src="cloud.js"></script>
 <script src="import.js"></script>
 <script src="bulk.js"></script>
+<script src="project.js"></script>
 <script src="fotos.js"></script>
 <script src="merken.js"></script>
 <script src="pdf.js"></script>

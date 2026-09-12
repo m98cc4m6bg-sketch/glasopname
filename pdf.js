@@ -509,7 +509,14 @@
       var bestand = new File([blob], naam, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [bestand] })) {
         return navigator.share({ files: [bestand], title: naam })
-          .catch(function () { doc.save(naam); });
+          .catch(function (e) {
+            // Het deelvenster wegklikken is geen fout maar een keuze.
+            // Zonder dit onderscheid werd de pdf alsnog gedownload.
+            if (e && (e.name === 'AbortError' || e.name === 'CanceledError' ||
+                      /abort|cancel/i.test(e.message || ''))) return;
+            console.warn('[pdf] delen mislukt, dan maar downloaden', e);
+            doc.save(naam);
+          });
       }
     } catch (e) {}
     doc.save(naam);

@@ -866,6 +866,67 @@
     font-style: normal; font-weight: 700; color: var(--merk);
     text-transform: uppercase; font-size: 10px; letter-spacing: .05em;
   }
+
+  /* ═══════════════════════════════════════════
+     TELEFOON — kleine schermen bruikbaar houden
+     ═══════════════════════════════════════════ */
+
+  /* Safari zoomt automatisch in zodra je een veld aanraakt met tekst
+     kleiner dan 16px. Daarna staat de hele pagina scheef. Op aanraak-
+     schermen daarom altijd 16px in invoervelden. */
+  @media (max-width: 820px) {
+    table.invoer input, table.invoer select,
+    .pi-veld input, .pi-veld select, #projectNotitie, #taakNieuw,
+    .cloud-body input, .cloud-zoek input, #impPlak, .foto-balk input {
+      font-size: 16px;
+    }
+    table.invoer input, table.invoer select { padding: 8px 6px; min-height: 38px; }
+  }
+
+  /* Kolomkoppen en de merkkolom blijven staan tijdens het vegen,
+     zodat je weet in welke ruit en welke kolom je zit. */
+  .invoer-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.invoer thead th { position: sticky; top: 0; z-index: 3; }
+  table.invoer thead tr:first-child th { top: 0; z-index: 4; }
+  table.invoer thead tr:last-child th { top: 27px; }
+  table.invoer td.rijnr,
+  table.invoer thead th:first-child {
+    position: sticky; left: 0; z-index: 2;
+    background: white; border-right: 2px solid var(--merk);
+  }
+  table.invoer thead th:first-child { z-index: 5; }
+  table.invoer tr.even td.rijnr { background: #faf9f8; }
+  table.invoer tr.geselecteerd td.rijnr { background: #fff8e6; }
+
+  /* Veilige marges op een iPhone met notch of streep onderin */
+  header { padding-left: max(24px, env(safe-area-inset-left));
+           padding-right: max(24px, env(safe-area-inset-right)); }
+  .container { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+
+  /* Kopbalk: op een telefoon vallen zeven knoppen over drie regels.
+     Ze gaan onder één menuknop. */
+  .kop-menu-knop { display: none; }
+  @media (max-width: 820px) {
+    .merk-logo { height: 22px; }
+    header h1 { font-size: 15px; }
+    header .subtitle { display: none; }
+    header { padding: 10px 14px; gap: 10px; }
+    .kop-menu-knop { display: inline-flex; }
+    .header-actions {
+      position: absolute; right: 10px; top: 58px; z-index: 7000;
+      display: none; flex-direction: column; align-items: stretch; gap: 6px;
+      background: white; border: 1px solid var(--grijs-rand);
+      border-radius: var(--radius); box-shadow: 0 10px 30px rgba(29,29,27,0.2);
+      padding: 10px; min-width: 210px;
+    }
+    .header-actions.open { display: flex; }
+    .header-actions .btn { justify-content: flex-start; text-align: left; padding: 10px 12px; font-size: 13px; }
+    #cloudStatus { order: -1; text-align: center; }
+    .tabs { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn { flex: 0 0 auto; }
+    .toolbar { gap: 10px; }
+  }
 </style>
 </head>
 <body>
@@ -880,7 +941,8 @@
       </div>
     </div>
   </div>
-  <div class="header-actions">
+  <button class="btn btn-ghost btn-sm kop-menu-knop" onclick="kopMenu()" aria-label="Menu">☰</button>
+  <div class="header-actions" id="kopActies">
     <span id="cloudStatus">Verbinden…</span>
     <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="cloudProjectenTonen()">📁 Projecten</button>
     <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
@@ -1246,9 +1308,21 @@ function datumVandaag() {
   opslaan();
 }
 
+// ═══════════════ KOPMENU (telefoon) ═══════════════
+function kopMenu() {
+  const acties = document.getElementById('kopActies');
+  acties.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const acties = document.getElementById('kopActies');
+  if (!acties || !acties.classList.contains('open')) return;
+  if (acties.contains(e.target) || e.target.closest('.kop-menu-knop')) return;
+  acties.classList.remove('open');
+});
+
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v28';
+const APP_VERSIE = 'v29';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1515,14 +1589,14 @@ function rijHTML(rij, nr) {
   return `
     <td class="rijnr"><div class="rijnr-wrap"><input type="checkbox" ${bulkIsGeselecteerd(id) ? 'checked' : ''}
        onchange="bulkToggle(${id}, this.checked)" title="Selecteren"><span>${nr}</span></div></td>
-    <td><input type="number" class="aantal-input" value="${rij.aantal}" min="1" max="999"
+    <td><input type="number" inputmode="numeric" class="aantal-input" value="${rij.aantal}" min="1" max="999"
        onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>
     <td><input type="text" class="merk-input" value="${esc(rij.merk)}" placeholder="merk…"
        oninput="setVal(${id},'merk',this.value); opslaan()"></td>
     <td><select onchange="setVal(${id},'maatsoort',this.value); herbereken(); opslaan()">${maatsoortOpts}</select></td>
-    <td><input type="number" class="breedte-input" value="${rij.breedte}" placeholder="mm"
+    <td><input type="number" inputmode="numeric" enterkeyhint="next" class="breedte-input" value="${rij.breedte}" placeholder="mm"
        oninput="setVal(${id},'breedte',this.value); herbereken(); opslaan()"></td>
-    <td><input type="number" class="hoogte-input" value="${rij.hoogte}" placeholder="mm"
+    <td><input type="number" inputmode="numeric" enterkeyhint="next" class="hoogte-input" value="${rij.hoogte}" placeholder="mm"
        oninput="setVal(${id},'hoogte',this.value); herbereken(); opslaan()"></td>
     ${correctieCel(rij)}
     <td class="berekend ${rij.glasBreedte == null ? 'ongeldig' : ''}" id="br-${id}">${glasBr}</td>

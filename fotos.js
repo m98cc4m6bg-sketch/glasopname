@@ -198,7 +198,9 @@
             '<span class="foto-zoomwaarde" id="zoomwaarde-' + f.id + '">' + zoom + '%</span>' +
             '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 25)">+</button>' +
             '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 0)">Passend</button>' +
+            '<button class="btn btn-secondary btn-sm tk-schakel" onclick="tekenModus(\'' + f.id + '\')">✏️ Tekenen</button>' +
           '</div>' +
+          '<div class="teken-balk" id="tekenbalk-' + f.id + '"></div>' +
           '<div class="foto-scroll"><div class="foto-doek" id="doek-' + f.id + '" style="width:' + zoom + '%">' +
             '<div class="foto-laden">Foto laden…</div></div></div>' +
           '<div class="foto-aanwijsbalk" id="aanwijs-' + f.id + '"></div>' +
@@ -220,7 +222,11 @@
         doek.innerHTML = '<img src="' + url + '" alt="" id="img-' + f.id + '" ' +
                          'onclick="fotoTik(event, \'' + f.id + '\')" ' +
                          'onerror="fotoLaadFout(\'' + f.id + '\')">';
+        doek.addEventListener('click', function (ev) {
+          if (Date.now() < negeerTikTot) { ev.preventDefault(); ev.stopPropagation(); }
+        }, true);
         tekenMarkeringen(f.id);
+        if (window.tekenInit) tekenInit(f.id);
       });
       tekenTabel(f.id);
     });
@@ -255,7 +261,10 @@
     if (!fotos.length || !houder.querySelector('.foto-blok')) { renderFotos(); return; }
     if (fotos.some(function (f) { return !el('blok-' + f.id); })) { renderFotos(); return; }
     fotos.forEach(function (f) {
-      if (f.pad) tekenMarkeringen(f.id);
+      if (f.pad) {
+        tekenMarkeringen(f.id);
+        if (window.tekenInit) tekenInit(f.id);
+      }
       tekenTabel(f.id);
     });
     tekenAanwijsbalk();
@@ -290,6 +299,9 @@
       b.textContent = rij ? labelVan(rij) : '?';
       b.title = rij ? 'Naar de regel van ' + labelVan(rij) : 'De regel bij deze markering bestaat niet meer';
       maakSleepbaar(b, fotoId, i);
+      // Een klik die op het bolletje zelf landt mag nooit doorlekken
+      // naar de foto eronder.
+      b.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
       doek.appendChild(b);
     });
   }
@@ -434,6 +446,12 @@
 
   var aanwijzen = null;   // { fotoId, wachtrij: [rijId] }
 
+  // Na het aanraken van een bolletje stuurt iOS alsnog een klik naar de
+  // foto eronder. Zonder deze pauze komt er bij elk sleepje een extra
+  // ruit bij. Wordt bij elke aanraking opnieuw opgeschoven.
+  var negeerTikTot = 0;
+  function pauzeerFototik(ms) { negeerTikTot = Date.now() + (ms || 700); }
+
   window.fotoAanwijzen = function (fotoId) {
     var open = zonderMarkering(fotoId);
     if (!open.length) { aanwijzenStop(); return; }
@@ -475,6 +493,7 @@
   }
 
   window.fotoTik = function (e, fotoId) {
+    if (Date.now() < negeerTikTot) return;   // naklik na het slepen
     var img = el('img-' + fotoId);
     var foto = fotoVan(fotoId);
     if (!img || !foto) return;
@@ -542,22 +561,26 @@
   // Slepen verplaatst het bolletje, tikken opent het menu. Het verschil
   // zit in de afgelegde afstand: onder de vier pixels is het een tik.
   function maakSleepbaar(bol, fotoId, index) {
-    var start = null, gesleept = false, positie = null;
+    var start = null, gesleept = false, positie = null, drempel = 4;
 
     bol.addEventListener('pointerdown', function (e) {
       e.preventDefault();
       e.stopPropagation();
       start = { x: e.clientX, y: e.clientY };
+      // Met een vinger sta je nooit helemaal stil; met een muis wel.
+      drempel = e.pointerType === 'mouse' ? 4 : 10;
       gesleept = false;
       positie = null;
+      pauzeerFototik();
       try { bol.setPointerCapture(e.pointerId); } catch (err) {}
       bol.classList.add('sleept');
     });
 
     bol.addEventListener('pointermove', function (e) {
       if (!start) return;
+      pauzeerFototik();
       if (!gesleept &&
-          Math.abs(e.clientX - start.x) < 4 && Math.abs(e.clientY - start.y) < 4) return;
+          Math.abs(e.clientX - start.x) < drempel && Math.abs(e.clientY - start.y) < drempel) return;
       gesleept = true;
       var img = el('img-' + fotoId);
       if (!img) return;
@@ -571,6 +594,9 @@
 
     function klaar(e) {
       if (!start) return;
+      if (e && e.preventDefault) e.preventDefault();
+      if (e && e.stopPropagation) e.stopPropagation();
+      pauzeerFototik();
       start = null;
       bol.classList.remove('sleept');
       try { bol.releasePointerCapture(e.pointerId); } catch (err) {}

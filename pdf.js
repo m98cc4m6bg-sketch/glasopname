@@ -150,6 +150,10 @@
     doc.setDrawColor(180, 186, 196);
     doc.rect(x, y, b, h);
 
+    // Tekeningen onder de bolletjes, als echte lijnen zodat ze scherp
+    // blijven bij inzoomen en afdrukken.
+    tekenInkt(doc, foto, x, y, b, h);
+
     // bolletjes
     foto.markeringen.forEach(function (m) {
       var rij = getRij(m.rijId);
@@ -167,6 +171,48 @@
     });
 
     return y + h + 5;
+  }
+
+  function kleurNaarRgb(hex) {
+    var h = String(hex || '#000').replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+
+  function tekenInkt(doc, foto, x, y, b, h) {
+    var streken = foto.inkt;
+    if (!Array.isArray(streken) || !streken.length) return;
+    var vbH = Math.round(1000 * (foto.hoogte || 3) / (foto.breedte || 4)) || 750;
+    var sx = b / 1000, sy = h / vbH;
+    var mmPerEenheid = b / 1000;
+
+    doc.setLineCap('round');
+    doc.setLineJoin('round');
+    streken.forEach(function (s) {
+      if (!s || !s.p || !s.p.length) return;
+      var rgb = kleurNaarRgb(s.k);
+      doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+      doc.setLineWidth(Math.max(0.2, (s.d || 6) * mmPerEenheid));
+      var pt = s.p.map(function (q) { return [x + q[0] * sx, y + q[1] * sy]; });
+
+      if (s.t === 'rect' && pt.length > 1) {
+        doc.rect(Math.min(pt[0][0], pt[1][0]), Math.min(pt[0][1], pt[1][1]),
+                 Math.abs(pt[1][0] - pt[0][0]), Math.abs(pt[1][1] - pt[0][1]), 'S');
+        return;
+      }
+      for (var i = 1; i < pt.length; i++) {
+        doc.line(pt[i - 1][0], pt[i - 1][1], pt[i][0], pt[i][1]);
+      }
+      if (s.t === 'pijl' && pt.length > 1) {
+        var hoek = Math.atan2(pt[1][1] - pt[0][1], pt[1][0] - pt[0][0]);
+        var lengte = Math.max(2.5, (s.d || 6) * mmPerEenheid * 3.2);
+        [hoek + Math.PI * 0.82, hoek - Math.PI * 0.82].forEach(function (a) {
+          doc.line(pt[1][0], pt[1][1],
+                   pt[1][0] + Math.cos(a) * lengte, pt[1][1] + Math.sin(a) * lengte);
+        });
+      }
+    });
+    doc.setLineWidth(0.2);
   }
 
   function tekenTabel(doc, lijst, startY, titel) {

@@ -151,7 +151,12 @@
   /* ─── INVOERTABEL ─── */
   .invoer-wrap { overflow-x: auto; }
   table.invoer {
-    border-collapse: collapse;
+    /* border-collapse: collapse en position: sticky gaan in Safari niet
+       samen; de vastgezette kop en kolom blijven dan gewoon meeschuiven.
+       Met separate randen werkt het wel, mits elke cel zijn eigen rand
+       tekent. */
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
     min-width: 1200px;
     background: white;
@@ -192,6 +197,7 @@
     border-bottom: 1px solid var(--grijs-rand);
     border-right: 1px solid #eef1f5;
     vertical-align: middle;
+    background: white;
   }
   table.invoer tr:hover td { background: var(--blauw-licht); }
   table.invoer tr.even td { background: #faf9f8; }
@@ -899,8 +905,13 @@
   table.invoer tr.geselecteerd td.rijnr { background: #fff8e6; }
 
   /* Veilige marges op een iPhone met notch of streep onderin */
-  header { padding-left: max(24px, env(safe-area-inset-left));
-           padding-right: max(24px, env(safe-area-inset-right)); }
+  /* In een app vanaf het beginscherm loopt de pagina tot achter de klok
+     en de batterij. De kopbalk moet daar onderdoor blijven. */
+  header {
+    padding-top: calc(14px + env(safe-area-inset-top));
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+  }
   .container { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
 
   /* Kopbalk: op een telefoon vallen zeven knoppen over drie regels.
@@ -910,7 +921,12 @@
     .merk-logo { height: 22px; }
     header h1 { font-size: 15px; }
     header .subtitle { display: none; }
-    header { padding: 10px 14px; gap: 10px; }
+    header {
+      padding: 10px 14px;
+      padding-top: calc(10px + env(safe-area-inset-top));
+      gap: 10px;
+    }
+    .header-actions { top: calc(58px + env(safe-area-inset-top)); }
     .kop-menu-knop { display: inline-flex; }
     .header-actions {
       position: absolute; right: 10px; top: 58px; z-index: 7000;
@@ -925,7 +941,17 @@
     .tabs { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
     .tabs::-webkit-scrollbar { display: none; }
     .tab-btn { flex: 0 0 auto; }
-    .toolbar { gap: 10px; }
+    /* De balk bovenaan nam bijna een half scherm in beslag. */
+    .toolbar {
+      gap: 8px 12px;
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+    }
+    .toolbar label { font-size: 11px; }
+    .toolbar input, .toolbar select { width: 100%; min-width: 0; }
+    .toolbar .info-icon { display: none; }
   }
 </style>
 </head>
@@ -1322,7 +1348,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v29';
+const APP_VERSIE = 'v30';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

@@ -67,6 +67,7 @@
   var vet = true;
   var schuin = false;
   var gekozen = -1;       // welke streek geselecteerd is, -1 = geen
+  var metPen = false;     // laatste aanraking kwam van een pen of muis
   var bezig = null;       // lopende streek
   var lopendeIndex = -1;
 
@@ -238,14 +239,39 @@
     ];
   }
 
+  // Wanneer telt een aanraking als tekenen?
+  //   pen of muis  → altijd, zolang de tekenmodus aanstaat
+  //   één vinger   → alleen met 'Met vinger tekenen' aan
+  //   twee vingers → nooit; dat is schuiven en zoomen
+  // De Apple Pencil stuurt op een iPad óók gewone aanraakberichten, dus
+  // die moeten net zo goed tegengehouden worden — anders maakt Safari er
+  // halverwege alsnog een schuifbeweging van en breekt de streek af.
+  function magTekenen(e) {
+    if (actief === null) return false;
+    if (e.pointerType === 'pen' || e.pointerType === 'mouse') return true;
+    return vingerTekent;
+  }
+
   function koppelPointer(svg, fotoId) {
-    // iOS geeft een veeg standaard aan de schuifbalk, niet aan de tekening.
-    // touch-action alleen is daar niet genoeg: de aanraking moet ook
-    // actief tegengehouden worden, anders scrolt de pagina mee en breekt
-    // de streek af.
     function houdTegen(e) {
       if (actief !== fotoId) return;
-      if (!vingerTekent && e.touches && e.touches.length) return;
+      // Twee of meer vingers: altijd laten schuiven en zoomen, ook tijdens
+      // het tekenen. Zo kun je op een uitvergrote foto naar de juiste hoek
+      // zonder het vinkje om te zetten.
+      if (e.touches && e.touches.length > 1) return;
+      // Een lopende streek moet niet onderbroken worden door een tweede
+      // aanraking — een hand die op het scherm rust bijvoorbeeld.
+      if (bezig) { e.preventDefault(); return; }
+      // Safari op iPadOS vertelt bij een aanraking of het de Pencil was.
+      // Dat is een tweede herkenning naast pointerType, voor het geval de
+      // berichten in een andere volgorde binnenkomen dan verwacht.
+      var pen = metPen;
+      if (e.touches) {
+        for (var i = 0; i < e.touches.length; i++) {
+          if (e.touches[i].touchType === 'stylus') pen = true;
+        }
+      }
+      if (!vingerTekent && !pen) return;
       e.preventDefault();
     }
     svg.addEventListener('touchstart', houdTegen, { passive: false });
@@ -253,9 +279,8 @@
 
     svg.addEventListener('pointerdown', function (e) {
       if (actief !== fotoId) return;
-      // Met de vinger schuif en zoom je; tekenen doe je met de pen of
-      // de muis, tenzij vingertekenen aanstaat.
-      if (e.pointerType === 'touch' && !vingerTekent) return;
+      metPen = (e.pointerType === 'pen' || e.pointerType === 'mouse');
+      if (!magTekenen(e)) { metPen = false; return; }
       e.preventDefault();
       e.stopPropagation();
       try { svg.setPointerCapture(e.pointerId); } catch (err) {}
@@ -323,6 +348,7 @@
       }
       bezig = null;
       lopendeIndex = -1;
+      metPen = false;
       // Opnieuw opbouwen hoeft alleen als er iets is verdwenen; anders
       // staat het pad er al goed bij.
       if (weggegooid) tekenStreken(fotoId);

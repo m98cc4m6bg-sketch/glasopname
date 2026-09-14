@@ -749,7 +749,7 @@
     font-size: 12px; font-weight: 700; color: var(--blauw);
     min-width: 46px; text-align: center;
   }
-  .foto-scroll { overflow: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  .foto-scroll { overflow: auto; max-width: 100%; overscroll-behavior-x: contain; }
   .foto-doek { position: relative; line-height: 0; }
   .foto-doek img { width: 100%; height: auto; display: block; border-radius: var(--radius); cursor: crosshair; }
   .foto-mark {
@@ -970,11 +970,12 @@
     position: absolute; inset: 0; width: 100%; height: 100%;
     pointer-events: none; touch-action: none;
   }
-  .foto-blok.tekent .inkt-laag { pointer-events: auto; cursor: crosshair; touch-action: none; }
-  /* Met vingertekenen aan mag de schuifbalk de veeg niet opeisen. */
-  .foto-blok.tekent.vinger .foto-scroll,
-  .foto-blok.tekent.vinger .foto-doek {
-    touch-action: none; overscroll-behavior: contain;
+  /* Alleen de tekenlaag zelf vangt gebaren op. Het schuifvenster eromheen
+     blijft gewoon schuiven, zodat je naast de foto en verder op de pagina
+     niets merkt van de tekenmodus. */
+  .foto-blok.tekent .inkt-laag {
+    pointer-events: auto; cursor: crosshair;
+    touch-action: pinch-zoom;
   }
   /* Tijdens het tekenen moeten de bolletjes en de foto niet meereageren,
      anders pak je er een op of maak je een nieuwe ruit aan. */
@@ -1718,7 +1719,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v57';
+const APP_VERSIE = 'v58';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

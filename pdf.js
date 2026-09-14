@@ -173,6 +173,13 @@
     return y + h + 5;
   }
 
+  // De exportknoppen zitten sinds v44 in een uitklaplijst en zijn dus niet
+  // in beeld tijdens het maken. De voortgang gaat daarom naar de statusregel.
+  function bezig(tekst) {
+    var s = document.getElementById('statusBar');
+    if (s) s.textContent = tekst || '';
+  }
+
   function kleurNaarRgb(hex) {
     var h = String(hex || '#000').replace('#', '');
     if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
@@ -269,7 +276,8 @@
       return;
     }
 
-    if (knop) { knop.disabled = true; knop.textContent = 'Bezig…'; }
+    if (knop) knop.disabled = true;
+    bezig('Pdf met foto\'s maken…');
 
     Promise.all([laad(JSPDF_URL)]).then(function () {
       return laad(TABEL_URL);
@@ -342,9 +350,11 @@
       });
     }).catch(function (e) {
       console.error('[pdf]', e);
+      bezig('');
       alert('Pdf maken mislukt: ' + e.message);
     }).then(function () {
-      if (knop) { knop.disabled = false; knop.textContent = '📄 PDF van foto\'s'; }
+      if (knop) knop.disabled = false;
+      bezig('');
     });
   };
 
@@ -386,7 +396,8 @@
       return;
     }
 
-    if (knop) { knop.disabled = true; knop.textContent = 'Bezig…'; }
+    if (knop) knop.disabled = true;
+    bezig('Bestellijst als pdf maken…');
 
     laad(JSPDF_URL).then(function () { return laad(TABEL_URL); })
       .then(haalLogo).then(function () {
@@ -456,9 +467,11 @@
       return afleveren(doc, naam);
     }).catch(function (e) {
       console.error('[pdf]', e);
+      bezig('');
       alert('Pdf maken mislukt: ' + e.message);
     }).then(function () {
-      if (knop) { knop.disabled = false; knop.textContent = '📦 Bestellijst als PDF'; }
+      if (knop) knop.disabled = false;
+      bezig('');
     });
   };
 

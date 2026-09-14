@@ -948,16 +948,6 @@
        staan. In de opbouw van de pagina komt de balk met projectnaam en
        speling daarvóór; met een flex-volgorde wisselen we dat om zonder
        de opbouw zelf te veranderen. */
-    body { display: flex; flex-direction: column; }
-    header { order: 0; }
-    .tabs { order: 1; }
-    .toolbar { order: 2; }
-    .sync-melding { order: 2.5; }
-    .naam-waarschuwing { order: 3; }
-    .merk-waarschuwing { order: 4; }
-    .bulk-balk { order: 5; }
-    .tab-panel { order: 6; }
-    .cloud-overlay { order: 9; }
 
     /* De balk bovenaan nam bijna een half scherm in beslag. */
     .toolbar {
@@ -1048,6 +1038,51 @@
   .blok-pijl { color: var(--merk); font-size: 12px; width: 12px; }
   .blok-telling { font-size: 11px; color: var(--grijs-tekst); margin-left: auto; }
   .foto-blok .blok-balk { margin-bottom: 8px; }
+
+  /* ─── UITKLAPLIJSTJES BIJ EEN VELD OF KNOP ─── */
+  .veld-menu {
+    position: absolute; z-index: 8700; background: white; min-width: 190px;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(29,29,27,0.22); overflow: hidden;
+  }
+  .veld-menu.breed { min-width: 280px; }
+  .veld-menu button {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    border-bottom: 1px solid var(--grijs-rand); padding: 11px 14px;
+    font-family: inherit; font-size: 13px; color: var(--blauw); cursor: pointer;
+  }
+  .veld-menu button:last-child { border-bottom: none; }
+  .veld-menu button:hover, .veld-menu button:active { background: var(--blauw-licht); }
+  .veld-menu button b { display: block; font-weight: 700; }
+  .veld-menu button span { display: block; font-size: 11px; color: var(--grijs-tekst); margin-top: 2px; }
+  @media (max-width: 820px) {
+    .veld-menu button { padding: 14px 16px; font-size: 14px; }
+    .veld-menu.breed { min-width: min(320px, calc(100vw - 24px)); }
+  }
+
+  /* ─── TABSTROOK ─── */
+  .tabs {
+    background: var(--grijs-licht);
+    padding: 7px 20px 0;
+    gap: 4px;
+    border-bottom: 1px solid var(--grijs-rand);
+  }
+  .tab-btn {
+    padding: 11px 20px;
+    font-size: 14px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-bottom: 3px solid transparent;
+  }
+  .tab-btn:hover { background: rgba(255,255,255,0.7); }
+  .tab-btn.active {
+    background: white;
+    border-bottom-color: var(--merk);
+    box-shadow: 0 -1px 0 var(--grijs-rand) inset, 1px 0 0 var(--grijs-rand) inset, -1px 0 0 var(--grijs-rand) inset;
+  }
+  @media (max-width: 820px) {
+    .tabs { padding: 6px 10px 0; }
+    .tab-btn { padding: 10px 14px; font-size: 13px; }
+  }
 </style>
 </head>
 <body>
@@ -1068,29 +1103,13 @@
     <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="cloudProjectenTonen()">📁 Projecten</button>
     <button class="btn btn-ghost btn-sm" onclick="appBijwerken()" title="Controleren op een nieuwe versie">↻ Bijwerken</button>
     <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
-    <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV Export</button>
-    <button class="btn btn-primary btn-sm" id="pdfBestelKnop" onclick="exportBestellijstPdf()">📦 Bestellijst als PDF</button>
+    <button class="btn btn-primary btn-sm" onclick="exportMenu(event)">⬇ Exporteren</button>
   </div>
 </header>
 
-<div class="toolbar">
-  <label>Project:</label>
-  <input type="text" id="projectNaam" placeholder="Projectnaam…" oninput="opslaan()">
-  <label>Datum:</label>
-  <input type="text" id="projectDatum" placeholder="dd-mm-jjjj" style="min-width:110px;" oninput="opslaan()">
-  <button class="btn btn-secondary btn-sm" onclick="datumVandaag()" title="Datum van vandaag invullen">Vandaag</button>
-  <div class="speling-wrap">
-    <span class="toolbar-maatinstelling">
-    <label>Speling sponningmaat (rondom):</label>
-    <select id="spelingGlobal" onchange="herbereken(); opslaan()"><option value="4" selected>4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11">11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
-    <i class="info-icon" onclick="toonInfo(this)" data-info="De speling geldt <b>rondom</b>: hij gaat er aan beide zijden af, dus 2× van de breedte en 2× van de hoogte.<br><br>Bij 4 mm speling wordt een sponningmaat van 1000 × 2000 dus een glasmaat van <b>992 × 1992</b>.">i</i>
-    <label style="margin-left:12px;">Bijtelling dagmaat (rondom):</label>
-    <select id="bijtelling" onchange="herbereken(); opslaan()"><option value="4">4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11" selected>11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
-    <i class="info-icon" onclick="toonInfo(this)" data-info="De bijtelling geldt <b>rondom</b>: hij komt er aan beide zijden bij, dus 2× bij de breedte en 2× bij de hoogte.<br><br>Bij 11 mm bijtelling wordt een dagmaat van 1000 × 2000 dus een glasmaat van <b>1022 × 2022</b>.">i</i>
-      </span>
-</div>
-</div>
 
+<button id="pdfKnop" hidden></button>
+<button id="pdfBestelKnop" hidden></button>
 <div class="sync-melding" id="syncMelding"></div>
 <div class="naam-waarschuwing" id="naamWaarschuwing"></div>
 <div class="merk-waarschuwing" id="merkWaarschuwing"></div>
@@ -1109,6 +1128,25 @@
   <button class="tab-btn" onclick="toon('bestellijst')">📦 Bestellijst</button>
   <button class="tab-btn" onclick="toon('legenda')">📖 Legenda</button>
 </div>
+
+<div class="toolbar">
+  <label>Project:</label>
+  <input type="text" id="projectNaam" placeholder="Projectnaam…" oninput="opslaan()">
+  <label>Datum:</label>
+  <input type="text" id="projectDatum" placeholder="dd-mm-jjjj" style="min-width:110px;"
+    inputmode="numeric" autocomplete="off" oninput="opslaan()" onfocus="datumKeuze(this)" onclick="datumKeuze(this)">
+  <div class="speling-wrap">
+    <span class="toolbar-maatinstelling">
+    <label>Speling sponningmaat (rondom):</label>
+    <select id="spelingGlobal" onchange="herbereken(); opslaan()"><option value="4" selected>4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11">11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
+    <i class="info-icon" onclick="toonInfo(this)" data-info="De speling geldt <b>rondom</b>: hij gaat er aan beide zijden af, dus 2× van de breedte en 2× van de hoogte.<br><br>Bij 4 mm speling wordt een sponningmaat van 1000 × 2000 dus een glasmaat van <b>992 × 1992</b>.">i</i>
+    <label style="margin-left:12px;">Bijtelling dagmaat (rondom):</label>
+    <select id="bijtelling" onchange="herbereken(); opslaan()"><option value="4">4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11" selected>11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
+    <i class="info-icon" onclick="toonInfo(this)" data-info="De bijtelling geldt <b>rondom</b>: hij komt er aan beide zijden bij, dus 2× bij de breedte en 2× bij de hoogte.<br><br>Bij 11 mm bijtelling wordt een dagmaat van 1000 × 2000 dus een glasmaat van <b>1022 × 2022</b>.">i</i>
+      </span>
+</div>
+</div>
+
 
 <!-- ═══════════════════════ PROJECT ═══════════════════════ -->
 <div id="panel-project" class="tab-panel">
@@ -1156,7 +1194,6 @@
         <div class="foto-sub">Voeg een foto of tekening toe en tik erop waar een ruit zit — die krijgt
           een merkletter en een regel eronder. Losse maten zonder afbeelding vul je onderaan in.</div>
       </div>
-      <button class="btn btn-secondary btn-sm" id="pdfKnop" onclick="exportFotoPdf()">📄 PDF</button>
       <label class="btn btn-primary btn-sm foto-knop">
         + Foto
         <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
@@ -1442,7 +1479,92 @@ let fotos = [];   // foto's van de bestaande situatie, met markeringen per ruit
 let projectInfo = {};   // klant-, adres- en uitvoeringsgegevens
 let projectTaken = [];  // eenvoudige takenlijst bij het project
 
+// ═══════════════ EXPORTEREN ═══════════════
+// Drie losse knoppen door de app heen werden er één met een uitklaplijst.
+let exportBalk = null;
+
+function exportMenu(e) {
+  if (exportBalk) { exportSluit(); return; }
+  const knop = e.currentTarget;
+  const menu = document.createElement('div');
+  menu.className = 'veld-menu breed';
+  menu.innerHTML =
+    '<button onclick="exportKies(\'bestellijst\')"><b>📦 Bestellijst als PDF</b>' +
+      '<span>Voor de glasleverancier</span></button>' +
+    '<button onclick="exportKies(\'fotos\')"><b>📄 Volledige PDF</b>' +
+      '<span>Foto\'s en tekeningen met de maten eronder</span></button>' +
+    '<button onclick="exportKies(\'csv\')"><b>📥 CSV-bestand</b>' +
+      '<span>Om in Excel te openen</span></button>';
+  document.body.appendChild(menu);
+  exportBalk = menu;
+
+  const r = knop.getBoundingClientRect();
+  const max = window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 10;
+  menu.style.left = Math.max(window.scrollX + 8, Math.min(r.right + window.scrollX - menu.offsetWidth, max)) + 'px';
+  menu.style.top = (r.bottom + window.scrollY + 6) + 'px';
+  setTimeout(() => document.addEventListener('pointerdown', exportBuiten, true), 0);
+}
+
+function exportBuiten(ev) {
+  if (exportBalk && exportBalk.contains(ev.target)) return;
+  exportSluit();
+}
+
+function exportSluit() {
+  if (exportBalk) { exportBalk.remove(); exportBalk = null; }
+  document.removeEventListener('pointerdown', exportBuiten, true);
+}
+
+function exportKies(wat) {
+  exportSluit();
+  const acties = document.getElementById('kopActies');
+  if (acties) acties.classList.remove('open');
+  if (wat === 'csv') exportCSV();
+  else if (wat === 'bestellijst') exportBestellijstPdf();
+  else exportFotoPdf();
+}
+
 // ═══════════════ DATUM ═══════════════
+// Bij het aanraken van het datumveld verschijnt een keuze; typen blijft
+// gewoon mogelijk. Scheelt een knop in de balk.
+let datumBalk = null;
+
+function datumKeuze(veld) {
+  if (datumBalk) return;
+  const d = new Date();
+  const vandaag = String(d.getDate()).padStart(2, '0') + '-' +
+                  String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+  const menu = document.createElement('div');
+  menu.className = 'veld-menu';
+  menu.innerHTML = '<button onclick="datumZet(\'' + vandaag + '\')">Vandaag — ' + vandaag + '</button>';
+  document.body.appendChild(menu);
+  datumBalk = menu;
+
+  const r = veld.getBoundingClientRect();
+  const max = window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 10;
+  menu.style.left = Math.max(window.scrollX + 8, Math.min(r.left + window.scrollX, max)) + 'px';
+  menu.style.top = (r.bottom + window.scrollY + 4) + 'px';
+
+  setTimeout(() => document.addEventListener('pointerdown', datumBuiten, true), 0);
+}
+
+function datumBuiten(e) {
+  if (datumBalk && (datumBalk.contains(e.target) || e.target.id === 'projectDatum')) return;
+  datumSluit();
+}
+
+function datumSluit() {
+  if (datumBalk) { datumBalk.remove(); datumBalk = null; }
+  document.removeEventListener('pointerdown', datumBuiten, true);
+}
+
+function datumZet(waarde) {
+  document.getElementById('projectDatum').value = waarde;
+  opslaan();
+  datumSluit();
+  document.getElementById('projectDatum').blur();
+}
+
 function datumVandaag() {
   const d = new Date();
   document.getElementById('projectDatum').value =
@@ -1453,10 +1575,11 @@ function datumVandaag() {
 
 // Speling en bijtelling gelden alleen voor de tabbladen waar maten
 // ingevoerd worden. Elders nemen ze onnodig ruimte in.
+// De balk met projectnaam, datum en speling hoort bij het invullen van
+// maten. Op de andere tabbladen neemt hij alleen ruimte in.
 function toonMaatinstelling(tabNaam) {
-  const blok = document.querySelector('.toolbar-maatinstelling');
-  if (!blok) return;
-  blok.style.display = (tabNaam === 'invoer') ? '' : 'none';
+  const balk = document.querySelector('.toolbar');
+  if (balk) balk.style.display = (tabNaam === 'invoer') ? '' : 'none';
 }
 
 // ═══════════════ BLOKKEN IN- EN UITKLAPPEN ═══════════════
@@ -1497,7 +1620,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v43';
+const APP_VERSIE = 'v44';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

@@ -61,6 +61,10 @@
     herbereken();
     if (window.renderFotos) renderFotos();
     if (window.renderProject) renderProject();
+    // Meldingen die bij de vórige inhoud hoorden opruimen.
+    if (window.merkOpnieuwBeoordelen) merkOpnieuwBeoordelen();
+    toonNaamWaarschuwing('');
+    toonMelding('');
   }
 
   function ingevuldeRijen(state) {
@@ -603,8 +607,28 @@
       if (e.key === 'Enter') login();
     });
 
+    var herlaadt = false;
+    var stilleOvername = false;
+    var registratie = null;
+
+    // Handmatige uitweg: controleren en zo nodig meteen overschakelen.
+    // Handig als een melding weggeklikt is, of als er iets blijft hangen.
+    window.appBijwerken = function () {
+      if (!registratie) { location.reload(); return; }
+      status('… Versie controleren');
+      registratie.update().catch(function () {}).then(function () {
+        if (registratie.waiting) {
+          if (vuil) synchroniseer();
+          setTimeout(function () { registratie.waiting.postMessage('skipWaiting'); }, vuil ? 900 : 0);
+        } else {
+          location.reload();
+        }
+      });
+    };
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').then(function (reg) {
+        registratie = reg;
         // Bij het openen en bij elke terugkeer naar de app kijken of er
         // een nieuwe versie op de server staat.
         reg.update().catch(function () {});
@@ -616,20 +640,46 @@
           if (!nieuwe) return;
           nieuwe.addEventListener('statechange', function () {
             if (nieuwe.state === 'installed' && navigator.serviceWorker.controller) {
-              meldNieuweVersie(nieuwe);
+              beoordeel(nieuwe);
             }
           });
         }
-        if (reg.waiting && navigator.serviceWorker.controller) meldNieuweVersie(reg.waiting);
+        if (reg.waiting && navigator.serviceWorker.controller) beoordeel(reg.waiting);
         reg.addEventListener('updatefound', function () { let_op(reg.installing); });
       }).catch(function () {});
 
-      var herlaadt = false;
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (herlaadt) return;
+        // Bij een stille overname draait er al dezelfde versie; herladen
+        // zou de gebruiker alleen maar uit zijn werk halen.
+        if (stilleOvername) { stilleOvername = false; return; }
         herlaadt = true;
         location.reload();
       });
+    }
+
+    // Een wachtende service worker betekent niet altijd dat de pagina
+    // verouderd is: de bestanden worden namelijk eerst van het net
+    // gehaald en pas daarna uit de cache. Blijkt zijn versienummer
+    // gelijk aan wat er draait, dan laten we hem stilletjes overnemen
+    // in plaats van te melden dat er iets nieuws is.
+    function beoordeel(worker) {
+      var kanaal = new MessageChannel();
+      var beantwoord = false;
+      kanaal.port1.onmessage = function (e) {
+        beantwoord = true;
+        var versie = e.data && e.data.versie;
+        if (versie && typeof APP_VERSIE !== 'undefined' && versie === APP_VERSIE) {
+          stilleOvername = true;
+          worker.postMessage('skipWaiting');
+        } else {
+          meldNieuweVersie(worker);
+        }
+      };
+      try { worker.postMessage({ vraag: 'versie' }, [kanaal.port2]); } catch (e) {}
+      // Antwoordt hij niet (oudere versie zonder die mogelijkheid), dan
+      // is het hoe dan ook een andere versie.
+      setTimeout(function () { if (!beantwoord) meldNieuweVersie(worker); }, 1200);
     }
 
     function meldNieuweVersie(worker) {

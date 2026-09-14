@@ -1066,6 +1066,7 @@
   <div class="header-actions" id="kopActies">
     <span id="cloudStatus">Verbinden…</span>
     <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="cloudProjectenTonen()">📁 Projecten</button>
+    <button class="btn btn-ghost btn-sm" onclick="appBijwerken()" title="Controleren op een nieuwe versie">↻ Bijwerken</button>
     <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV Export</button>
     <button class="btn btn-primary btn-sm" id="pdfBestelKnop" onclick="exportBestellijstPdf()">📦 Bestellijst als PDF</button>
@@ -1496,7 +1497,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v40';
+const APP_VERSIE = 'v42';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1723,6 +1724,11 @@ function vulTabelBody(tbody, lijst) {
 function renderTabel() {
   vulTabelBody(document.getElementById('invoerBody'), losseRijen());
   telLosseRijen();
+  // De waarschuwing over dubbele merkletters hangt hieraan vast in plaats
+  // van aan losse gebeurtenissen. Elke weg waarlangs de inhoud verandert
+  // komt hier langs, dus de balk kan niet blijven staan met een melding
+  // die bij een ander project hoorde.
+  if (window.merkBalkBijwerken) merkBalkBijwerken();
   if (window.renderFotoTabellen && document.getElementById('fotoHouder')) renderFotoTabellen();
 }
 

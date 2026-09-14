@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v40';
+const VERSIE = 'v42';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -45,7 +45,12 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('message', e => {
-  if (e.data === 'skipWaiting') self.skipWaiting();
+  if (e.data === 'skipWaiting') { self.skipWaiting(); return; }
+  // De pagina vraagt welke versie hier klaarstaat, zodat hij alleen meldt
+  // dat er iets nieuws is als dat ook werkelijk zo is.
+  if (e.data && e.data.vraag === 'versie' && e.ports && e.ports[0]) {
+    e.ports[0].postMessage({ versie: VERSIE });
+  }
 });
 
 self.addEventListener('fetch', e => {
@@ -63,9 +68,15 @@ self.addEventListener('fetch', e => {
   }
 
   // Eigen bestanden: eerst het net, cache alleen als terugval.
-  // Zo zie je een gepubliceerde wijziging meteen, en werkt offline nog steeds.
+  // Let op: een gewone fetch gaat door de browsercache, en die houdt
+  // bestanden van GitHub Pages tien minuten vast. Dan krijg je 'vers van
+  // het net' terwijl het de oude versie is. Daarom expliciet langs de
+  // browsercache heen vragen.
+  let verzoek = e.request;
+  try { verzoek = new Request(e.request, { cache: 'no-cache' }); } catch (err) {}
+
   e.respondWith(
-    fetch(e.request)
+    fetch(verzoek)
       .then(res => {
         if (res && res.ok) {
           const kopie = res.clone();

@@ -952,6 +952,7 @@
     header { order: 0; }
     .tabs { order: 1; }
     .toolbar { order: 2; }
+    .sync-melding { order: 2.5; }
     .naam-waarschuwing { order: 3; }
     .merk-waarschuwing { order: 4; }
     .bulk-balk { order: 5; }
@@ -1010,6 +1011,21 @@
     .tk-kleur { width: 32px; height: 32px; }
     .tk-info { display: none; }
   }
+
+  .sync-melding {
+    display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--blauw-licht); color: var(--blauw);
+    border-bottom: 1px solid var(--merk);
+    font-size: 12px; font-weight: 600; padding: 8px 20px;
+  }
+  .sync-melding button {
+    background: var(--merk); color: white; border: none; cursor: pointer;
+    padding: 5px 12px; border-radius: var(--radius);
+    font-family: inherit; font-size: 12px; font-weight: 700;
+  }
+  .sync-melding button.sluit {
+    background: none; color: var(--grijs-tekst); margin-left: auto; padding: 4px 6px;
+  }
 </style>
 </head>
 <body>
@@ -1052,6 +1068,7 @@
 </div>
 </div>
 
+<div class="sync-melding" id="syncMelding"></div>
 <div class="naam-waarschuwing" id="naamWaarschuwing"></div>
 <div class="merk-waarschuwing" id="merkWaarschuwing"></div>
 
@@ -1415,7 +1432,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v35';
+const APP_VERSIE = 'v36';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

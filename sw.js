@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v35';
+const VERSIE = 'v36';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -30,8 +30,10 @@ self.addEventListener('install', e => {
       // cache:'reload' omzeilt de browsercache, anders belandt een
       // net vervangen bestand alsnog als oude versie in de cache
       .then(c => Promise.all(SHELL.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {}))))
-      .then(() => self.skipWaiting())
   );
+  // Bewust géén skipWaiting: de nieuwe versie blijft klaarstaan tot de
+  // pagina zegt dat het mag. Anders zou de app kunnen omschakelen terwijl
+  // er nog werk openstaat.
 });
 
 self.addEventListener('activate', e => {

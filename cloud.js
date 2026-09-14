@@ -71,17 +71,29 @@
 
   /* ─── statusbalkje rechtsboven ─────────────────────────────── */
 
+  // Met een gekleurde achtergrond moet de tekst mee veranderen, anders
+  // blijft het lichtgrijs op groen staan en is het onleesbaar.
   function status(tekst, kleur) {
     var s = el('cloudStatus');
     if (!s) return;
     s.textContent = tekst;
-    s.style.background = kleur || 'rgba(255,255,255,0.14)';
+    if (kleur) {
+      s.style.background = kleur;
+      s.style.color = '#ffffff';
+      s.style.borderColor = kleur;
+      s.style.fontWeight = '600';
+    } else {
+      s.style.background = '';
+      s.style.color = '';
+      s.style.borderColor = '';
+      s.style.fontWeight = '';
+    }
   }
 
   function statusOpgeslagen() {
     var t = new Date();
     status('✓ Opgeslagen ' + String(t.getHours()).padStart(2, '0') + ':' +
-           String(t.getMinutes()).padStart(2, '0'), 'rgba(33,122,69,0.85)');
+           String(t.getMinutes()).padStart(2, '0'), '#1a6b3c');
   }
 
   /* ─── opslaan: lokaal altijd, cloud zodra het kan ──────────── */
@@ -116,7 +128,7 @@
 
   function synchroniseer() {
     if (!sb || !gebruiker || !projectId || !vuil || bezig) return;
-    if (!navigator.onLine) { status('⚠ Offline — lokaal', 'rgba(192,57,43,0.85)'); return; }
+    if (!navigator.onLine) { status('⚠ Offline — lokaal', '#a3231a'); return; }
     bezig = true;
     status('… Opslaan');
     var state = huidigeStaat();
@@ -131,11 +143,11 @@
       bezig = false;
       if (res.error) {
         if (res.error.code === '23505') {
-          status('⚠ Naam al in gebruik', 'rgba(192,57,43,0.85)');
+          status('⚠ Naam al in gebruik', '#a3231a');
           toonNaamWaarschuwing('⚠ Deze projectnaam is al in gebruik. Kies een andere naam; ' +
                                'je metingen blijven zolang lokaal bewaard.');
         } else {
-          status('⚠ Niet opgeslagen — ' + res.error.message, 'rgba(192,57,43,0.85)');
+          status('⚠ Niet opgeslagen — ' + res.error.message, '#a3231a');
         }
         setTimeout(plan, 8000);
       } else {
@@ -148,9 +160,110 @@
 
   window.addEventListener('online', function () { if (vuil) synchroniseer(); });
   window.addEventListener('offline', function () {
-    status('⚠ Offline — lokaal', 'rgba(192,57,43,0.85)');
+    status('⚠ Offline — lokaal', '#a3231a');
   });
   setInterval(function () { if (vuil) synchroniseer(); }, 20000);
+
+  /* ─── live bijwerken ───────────────────────────────────────── */
+  // Postgres bewaart JSON met zijn eigen volgorde van sleutels, dus twee
+  // gelijke toestanden kunnen als tekst verschillen. Voor het vergelijken
+  // zetten we alles eerst in een vaste volgorde.
+  function diepCanon(x) {
+    if (Array.isArray(x)) return '[' + x.map(diepCanon).join(',') + ']';
+    if (x && typeof x === 'object') {
+      return '{' + Object.keys(x).sort().map(function (k) {
+        return JSON.stringify(k) + ':' + diepCanon(x[k]);
+      }).join(',') + '}';
+    }
+    return JSON.stringify(x === undefined ? null : x);
+  }
+
+  var kanaal = null;
+
+  function luisterOpProject() {
+    // Een oudere bibliotheek uit de cache kent geen kanalen. Dan werkt de
+    // app gewoon door, alleen zonder live bijwerken.
+    if (!sb || !projectId || typeof sb.channel !== 'function') return;
+    if (kanaal) { try { sb.removeChannel(kanaal); } catch (e) {} kanaal = null; }
+    try {
+      kanaal = sb.channel('project-' + projectId)
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'projecten', filter: 'id=eq.' + projectId
+        }, function (bericht) { vanElders(bericht.new); })
+        .subscribe();
+    } catch (e) {
+      console.warn('[cloud] live bijwerken niet beschikbaar', e);
+      kanaal = null;
+    }
+  }
+
+  function vanElders(rij) {
+    if (!rij || !rij.data) return;
+    // Onze eigen opslag komt ook binnen; die kunnen we overslaan.
+    if (diepCanon(rij.data) === diepCanon(huidigeStaat())) return;
+
+    var veldActief = document.activeElement &&
+      document.activeElement.matches && document.activeElement.matches('input, select, textarea');
+
+    if (!vuil && !veldActief) {
+      zetStaat(rij.data);
+      laatsteJson = JSON.stringify(huidigeStaat());
+      opslaanLokaal();
+      toonMelding('');
+      status('↻ Bijgewerkt door collega', '#1a6b3c');
+      setTimeout(statusOpgeslagen, 4000);
+      return;
+    }
+
+    // Er staat lokaal werk open of je bent aan het typen: dan niets
+    // overschrijven, maar wel zeggen dat het er is.
+    toonMelding('Een collega heeft dit project gewijzigd.' +
+      (vuil ? ' Jouw wijzigingen staan nog open en overschrijven die van hem zodra ze omhoog gaan.' : ''),
+      'Hun versie laden', function () {
+        if (vuil && !confirm('Jouw nog niet opgeslagen wijzigingen gaan hiermee verloren. Doorgaan?')) return;
+        zetStaat(rij.data);
+        laatsteJson = JSON.stringify(huidigeStaat());
+        vuil = false;
+        localStorage.removeItem(LS_PENDING);
+        opslaanLokaal();
+        toonMelding('');
+        statusOpgeslagen();
+      });
+  }
+
+  function toonMelding(tekst, knopTekst, actie) {
+    var balk = el('syncMelding');
+    if (!balk) return;
+    if (!tekst) { balk.style.display = 'none'; balk.innerHTML = ''; return; }
+    balk.style.display = 'flex';
+    balk.innerHTML = '<span>↻ ' + tekst + '</span>';
+    if (knopTekst) {
+      var knop = document.createElement('button');
+      knop.textContent = knopTekst;
+      knop.onclick = function () { balk.style.display = 'none'; actie(); };
+      balk.appendChild(knop);
+    }
+    var weg = document.createElement('button');
+    weg.className = 'sluit';
+    weg.textContent = '✕';
+    weg.onclick = function () { balk.style.display = 'none'; };
+    balk.appendChild(weg);
+  }
+
+  // Terugkeren naar de app: openstaand werk wegschrijven en kijken of er
+  // intussen iets veranderd is. Dit vangt ook wat een gemiste live-melding
+  // laat liggen, bijvoorbeeld na een tijd zonder bereik.
+  function bijTerugkeer() {
+    if (document.visibilityState !== 'visible' || !sb || !gebruiker || !projectId) return;
+    if (vuil) synchroniseer();
+    sb.from('projecten').select('data').eq('id', projectId).maybeSingle().then(function (res) {
+      if (res.error || !res.data) return;
+      vanElders({ data: res.data.data });
+    });
+    luisterOpProject();
+  }
+  document.addEventListener('visibilitychange', bijTerugkeer);
+  window.addEventListener('focus', bijTerugkeer);
 
   /* ─── keuzelijsten uit de database ─────────────────────────── */
 
@@ -346,6 +459,7 @@
       opslaanLokaal();
       laatsteJson = JSON.stringify(huidigeStaat());
       vuil = false;
+      luisterOpProject();
       el('cloudProjecten').style.display = 'none';
       statusOpgeslagen();
       controleerNaam();
@@ -380,6 +494,7 @@
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
+      luisterOpProject();
       rijen = []; volgendId = 1; fotos = []; projectInfo = {}; projectTaken = [];
       zetStaat({ project: naam, datum: '', speling: '4', bijtelling: '11' });
       toonNaamWaarschuwing('');
@@ -446,13 +561,14 @@
           // Lokale, nog niet gesynchroniseerde wijzigingen winnen.
           if (localStorage.getItem(LS_PENDING) === '1') {
             vuil = true;
-            status('⚠ Nog niet opgeslagen', 'rgba(240,165,0,0.9)');
+            status('⚠ Nog niet opgeslagen', '#8a5a00');
             synchroniseer();
           } else {
             zetStaat(res.data.data || {});
             opslaanLokaal();
             laatsteJson = JSON.stringify(huidigeStaat());
             statusOpgeslagen();
+            luisterOpProject();
           }
         });
     } else {
@@ -464,7 +580,7 @@
     laadGecachteData();
 
     if (!window.supabase || !cfg.url || cfg.url.indexOf('VUL_IN') === 0) {
-      status('⚠ Niet verbonden — alleen lokaal', 'rgba(192,57,43,0.85)');
+      status('⚠ Niet verbonden — alleen lokaal', '#a3231a');
       var k = el('cloudProjectKnop'); if (k) k.style.display = 'none';
       return;
     }
@@ -488,7 +604,41 @@
     });
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        // Bij het openen en bij elke terugkeer naar de app kijken of er
+        // een nieuwe versie op de server staat.
+        reg.update().catch(function () {});
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') reg.update().catch(function () {});
+        });
+
+        function let_op(nieuwe) {
+          if (!nieuwe) return;
+          nieuwe.addEventListener('statechange', function () {
+            if (nieuwe.state === 'installed' && navigator.serviceWorker.controller) {
+              meldNieuweVersie(nieuwe);
+            }
+          });
+        }
+        if (reg.waiting && navigator.serviceWorker.controller) meldNieuweVersie(reg.waiting);
+        reg.addEventListener('updatefound', function () { let_op(reg.installing); });
+      }).catch(function () {});
+
+      var herlaadt = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (herlaadt) return;
+        herlaadt = true;
+        location.reload();
+      });
+    }
+
+    function meldNieuweVersie(worker) {
+      toonMelding('Er is een nieuwe versie van de app beschikbaar.',
+        'Nu bijwerken', function () {
+          if (vuil) synchroniseer();
+          // Even wachten zodat openstaand werk nog omhoog kan.
+          setTimeout(function () { worker.postMessage('skipWaiting'); }, vuil ? 900 : 0);
+        });
     }
   }
 

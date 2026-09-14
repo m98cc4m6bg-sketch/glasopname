@@ -157,7 +157,7 @@
       } else {
         vuil = false;
         localStorage.removeItem(LS_PENDING);
-        eigenSchrijfsels.push(diepCanon(state));
+        eigenSchrijfsels.push(vingerafdruk(state));
         if (eigenSchrijfsels.length > 8) eigenSchrijfsels.shift();
         statusOpgeslagen();
       }
@@ -184,6 +184,28 @@
     return JSON.stringify(x === undefined ? null : x);
   }
 
+  // Een project dat eerder is opgeslagen kan velden missen die de app nu
+  // wél altijd meestuurt — 'taken' en 'info' bijvoorbeeld, of een getal
+  // waar nu tekst staat. Zonder gelijktrekken van die vorm lijkt elke
+  // vergelijking een verschil, en dat leest als 'een collega heeft iets
+  // gewijzigd' terwijl er niets aan de hand is.
+  function normaliseer(d) {
+    d = d || {};
+    return {
+      rijen: Array.isArray(d.rijen) ? d.rijen : [],
+      volgendId: d.volgendId || 1,
+      fotos: Array.isArray(d.fotos) ? d.fotos : [],
+      info: (d.info && typeof d.info === 'object') ? d.info : {},
+      taken: Array.isArray(d.taken) ? d.taken : [],
+      project: String(d.project === undefined ? '' : d.project),
+      datum: String(d.datum === undefined ? '' : d.datum),
+      speling: String(d.speling === undefined ? '4' : d.speling),
+      bijtelling: String(d.bijtelling === undefined ? '11' : d.bijtelling)
+    };
+  }
+
+  function vingerafdruk(d) { return diepCanon(normaliseer(d)); }
+
   var kanaal = null;
   // Wat we zelf hebben weggeschreven. De database stuurt elke wijziging
   // terug, ook de onze; die komt aan als jij alweer verder hebt getypt en
@@ -209,9 +231,9 @@
 
   function vanElders(rij) {
     if (!rij || !rij.data) return;
-    var binnen = diepCanon(rij.data);
+    var binnen = vingerafdruk(rij.data);
     // Gelijk aan wat er nu staat: niets aan de hand.
-    if (binnen === diepCanon(huidigeStaat())) return;
+    if (binnen === vingerafdruk(huidigeStaat())) return;
     // Of het is een van onze eigen opslagbeurten die terugkaatst.
     if (eigenSchrijfsels.indexOf(binnen) >= 0) return;
 
@@ -268,12 +290,19 @@
   // laat liggen, bijvoorbeeld na een tijd zonder bereik.
   function bijTerugkeer() {
     if (document.visibilityState !== 'visible' || !sb || !gebruiker || !projectId) return;
-    if (vuil) synchroniseer();
+    luisterOpProject();
+
+    // Staat er eigen werk open, dan wijkt de database per definitie af van
+    // je scherm. Dat is geen wijziging van een collega maar je eigen
+    // invoer die nog omhoog moet. Eerst wegschrijven; wat er daarna echt
+    // van een ander komt, meldt de live verbinding vanzelf.
+    if (vuil) { synchroniseer(); return; }
+
     sb.from('projecten').select('data').eq('id', projectId).maybeSingle().then(function (res) {
       if (res.error || !res.data) return;
+      if (vuil) return;              // intussen toch weer iets getypt
       vanElders({ data: res.data.data });
     });
-    luisterOpProject();
   }
   document.addEventListener('visibilitychange', bijTerugkeer);
   window.addEventListener('focus', bijTerugkeer);

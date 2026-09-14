@@ -286,10 +286,16 @@
 
   /* ─── uitvoeren ────────────────────────────────────────────── */
 
+  function maakNaam(voorvoegsel, project, datum) {
+    return voorvoegsel + '_' + schoon(project).replace(/[^A-Za-z0-9]+/g, '_') +
+           (datum ? '_' + datum.replace(/[^0-9]/g, '-') : '') + '.pdf';
+  }
+
   window.exportFotoPdf = function () {
     var knop = document.getElementById('pdfKnop');
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
+    var naam = maakNaam('Inmeting', project, datum);
 
     if (!fotos.length && !losseRijen().some(function (r) { return r.breedte || r.hoogte; })) {
       alert('Er is nog niets om te exporteren.');
@@ -298,6 +304,9 @@
 
     if (knop) knop.disabled = true;
     bezig('Pdf met foto\'s maken…');
+    // Het kiesvenster moet meteen open: browsers staan dat alleen toe
+    // vlak na een klik, en het maken van de pdf duurt te lang.
+    var bestand = bestandVragen(naam);
 
     Promise.all([laad(JSPDF_URL)]).then(function () {
       return laad(TABEL_URL);
@@ -364,9 +373,7 @@
 
         voetteksten(doc, project, datum);
 
-        var naam = 'Inmeting_' + schoon(project).replace(/[^A-Za-z0-9]+/g, '_')
-                 + (datum ? '_' + datum.replace(/[^0-9]/g, '-') : '') + '.pdf';
-        return afleveren(doc, naam);
+        return afleveren(doc, naam, bestand);
       });
     }).catch(function (e) {
       console.error('[pdf]', e);
@@ -407,6 +414,7 @@
     var knop = document.getElementById('pdfBestelKnop');
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
+    var naam = maakNaam('Bestellijst', project, datum);
 
     var lijst = rijen.filter(function (r) {
       return r.glasType && r.opbouw && r.glasBreedte && r.glasHoogte;
@@ -418,6 +426,7 @@
 
     if (knop) knop.disabled = true;
     bezig('Bestellijst als pdf maken…');
+    var bestand = bestandVragen(naam);
 
     laad(JSPDF_URL).then(function () { return laad(TABEL_URL); })
       .then(haalLogo).then(function () {
@@ -482,9 +491,7 @@
 
       voetteksten(doc, project, datum);
 
-      var naam = 'Bestellijst_' + schoon(project).replace(/[^A-Za-z0-9]+/g, '_')
-               + (datum ? '_' + datum.replace(/[^0-9]/g, '-') : '') + '.pdf';
-      return afleveren(doc, naam);
+      return afleveren(doc, naam, bestand);
     }).catch(function (e) {
       console.error('[pdf]', e);
       bezig('');
@@ -535,26 +542,75 @@
     else exportBestellijstPdf();
   }, true);
 
-  // Op de iPad werkt downloaden in een app vanaf het beginscherm niet
-  // betrouwbaar; via het deelvenster wel — en dan kun je meteen
-  // bewaren in Bestanden, mailen of afdrukken.
-  function afleveren(doc, naam) {
+  /* ═══════════════ AFLEVEREN ═══════════════
+     Drie wegen, in deze volgorde:
+
+     1. Op een computer met Chrome of Edge: een echt opslagvenster waarin
+        je zelf de map kiest — Downloads, OneDrive, de projectmap.
+     2. Op een tablet of telefoon: het deelvenster, want downloaden werkt
+        daar onbetrouwbaar in een app vanaf het beginscherm.
+     3. Anders (zoals Safari op de Mac): een gewone download.
+
+     Het opslagvenster moet meteen na de klik geopend worden; daarna heeft
+     de browser de toestemming alweer ingetrokken. Vandaar dat er om het
+     bestand gevraagd wordt vóórdat de pdf gemaakt is.
+  */
+
+  function isAanraakapparaat() {
+    return (navigator.maxTouchPoints || 0) > 1;
+  }
+
+  function bestandVragen(naam) {
+    if (!window.showSaveFilePicker || isAanraakapparaat()) return Promise.resolve(null);
+    return window.showSaveFilePicker({
+      suggestedName: naam,
+      types: [{ description: 'PDF-bestand', accept: { 'application/pdf': ['.pdf'] } }]
+    }).then(function (handvat) {
+      return { handvat: handvat };
+    }).catch(function (e) {
+      // Wegklikken van het venster is een keuze, geen storing.
+      if (e && (e.name === 'AbortError' || /abort|cancel/i.test(e.message || ''))) {
+        return { afgebroken: true };
+      }
+      console.warn('[pdf] opslagvenster niet beschikbaar', e);
+      return null;
+    });
+  }
+
+  function afleveren(doc, naam, bestandBelofte) {
     var blob = doc.output('blob');
-    try {
-      var bestand = new File([blob], naam, { type: 'application/pdf' });
-      if (navigator.canShare && navigator.canShare({ files: [bestand] })) {
-        return navigator.share({ files: [bestand], title: naam })
+
+    return Promise.resolve(bestandBelofte).then(function (keuze) {
+      if (keuze && keuze.afgebroken) { bezig(''); return; }
+
+      if (keuze && keuze.handvat) {
+        return keuze.handvat.createWritable()
+          .then(function (schrijver) {
+            return schrijver.write(blob).then(function () { return schrijver.close(); });
+          })
           .catch(function (e) {
-            // Het deelvenster wegklikken is geen fout maar een keuze.
-            // Zonder dit onderscheid werd de pdf alsnog gedownload.
-            if (e && (e.name === 'AbortError' || e.name === 'CanceledError' ||
-                      /abort|cancel/i.test(e.message || ''))) return;
-            console.warn('[pdf] delen mislukt, dan maar downloaden', e);
+            console.warn('[pdf] opslaan in de gekozen map mislukt, dan maar downloaden', e);
             doc.save(naam);
           });
       }
-    } catch (e) {}
-    doc.save(naam);
-    return Promise.resolve();
+
+      if (isAanraakapparaat()) {
+        try {
+          var bestand = new File([blob], naam, { type: 'application/pdf' });
+          if (navigator.canShare && navigator.canShare({ files: [bestand] })) {
+            return navigator.share({ files: [bestand], title: naam })
+              .catch(function (e) {
+                if (e && (e.name === 'AbortError' || e.name === 'CanceledError' ||
+                          /abort|cancel/i.test(e.message || ''))) return;
+                console.warn('[pdf] delen mislukt, dan maar downloaden', e);
+                doc.save(naam);
+              });
+          }
+        } catch (e) {}
+      }
+
+      doc.save(naam);
+    });
   }
+
 })();

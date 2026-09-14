@@ -758,7 +758,9 @@
     herbereken();
     renderTabel();
     opslaan();
-    setTimeout(function () { focusRij(rij.id); }, 80);
+    // Bewust niet naar de regel springen: je bent bezig met aanwijzen op
+    // de foto, en op een tablet schiet het beeld dan bij elke ruit weg.
+    // Naar de tabel scrollen doe je zelf als je klaar bent.
   };
 
   window.fotoRegelToevoegen = function (fotoId) {

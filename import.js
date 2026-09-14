@@ -497,11 +497,7 @@
   /* ─── knop en venster in de pagina zetten ──────────────────── */
 
   document.addEventListener('DOMContentLoaded', function () {
-    var knop = document.createElement('button');
-    knop.className = 'btn btn-secondary btn-sm';
-    knop.textContent = '📄 Importeren';
-    knop.onclick = window.impOpen;
-    var acties = document.querySelector('.header-actions');
-    if (acties) acties.insertBefore(knop, acties.firstChild.nextSibling);
+    // De knop zit sinds v45 in het importmenu onder de tabbladen, dus hier
+    // hoeft er geen meer bij.
   });
 })();

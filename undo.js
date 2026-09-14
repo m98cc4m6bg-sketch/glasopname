@@ -44,6 +44,7 @@
     herbereken();
     if (window.renderFotos) renderFotos();
     if (window.renderProject) renderProject();
+    if (window.merkOpnieuwBeoordelen) merkOpnieuwBeoordelen();
     opslaan();
   }
 
@@ -125,7 +126,10 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     // knoppen in de kop
-    var acties = document.querySelector('.header-actions');
+    // Ongedaan maken hoort bij het invullen, dus staat het in dezelfde
+    // balk als projectnaam en datum — en alleen op dat tabblad.
+    var acties = document.getElementById('toolbarActies') ||
+                 document.querySelector('.header-actions');
     if (acties) {
       var u = document.createElement('button');
       u.id = 'knopOngedaan';

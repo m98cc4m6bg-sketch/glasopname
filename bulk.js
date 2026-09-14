@@ -77,10 +77,9 @@
         zet: function (r, v) { r.aantal = +v || 1; },
         leeg: function (r) { return !r.aantal || r.aantal === 1; } },
 
-      { kop: 'Merk', titel: 'Merk / kozijn', html: function (v) {
-          return '<input type="text" id="bulkVeld" value="' + esc2(v) + '" placeholder="merk…">'; },
-        zet: function (r, v) { r.merk = v; },
-        leeg: function (r) { return !r.merk; } },
+      // Merk staat hier bewust niet tussen: een merkletter hoort bij
+      // precies één ruit, dus dezelfde waarde over meerdere regels
+      // zetten levert altijd een botsing op.
 
       { kop: 'Maatsoort', titel: 'Maatsoort', html: function () {
           return '<select id="bulkVeld">' + opts(MAATSOORTEN) + '</select>'; },

@@ -52,7 +52,13 @@
     var balk = document.getElementById('merkWaarschuwing');
     if (!balk) return;
     var c = merkConflicten();
-    if (!c.length) { balk.style.display = 'none'; return; }
+    if (!c.length) {
+      balk.style.display = 'none';
+      balk.innerHTML = '';
+      var venster = document.getElementById('merkVenster');
+      if (venster && venster.style.display === 'flex') venster.style.display = 'none';
+      return;
+    }
     balk.style.display = 'flex';
     balk.innerHTML =
       '<span>⚠ ' + (c.length === 1 ? 'De merkletter ' : 'Dubbele merkletters: ') +
@@ -120,6 +126,16 @@
   window.controleerMerken = function (meteenTonen) {
     merkBalkBijwerken();
     if (meteenTonen && merkConflicten().length) merkDialoog();
+  };
+
+  // Wordt de hele inhoud vervangen — ander project geopend, versie
+  // teruggezet, wijziging van een collega binnengekomen — dan slaat een
+  // openstaande melding op niets meer. Balk en venster moeten dan mee.
+  window.merkOpnieuwBeoordelen = function () {
+    var venster = document.getElementById('merkVenster');
+    if (venster) venster.style.display = 'none';
+    laatsteWaarde = null;
+    merkBalkBijwerken();
   };
 
   document.addEventListener('DOMContentLoaded', function () {

@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon.png" type="image/png" sizes="96x96">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1a3a5c">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Glasopname Formulier – Jelier Bouw</title>
 <style>
   /* Huisstijl Jelier Bouw: antraciet #1D1D1B en rood #D00243 uit het
@@ -968,7 +970,12 @@
     position: absolute; inset: 0; width: 100%; height: 100%;
     pointer-events: none; touch-action: none;
   }
-  .foto-blok.tekent .inkt-laag { pointer-events: auto; cursor: crosshair; }
+  .foto-blok.tekent .inkt-laag { pointer-events: auto; cursor: crosshair; touch-action: none; }
+  /* Met vingertekenen aan mag de schuifbalk de veeg niet opeisen. */
+  .foto-blok.tekent.vinger .foto-scroll,
+  .foto-blok.tekent.vinger .foto-doek {
+    touch-action: none; overscroll-behavior: contain;
+  }
   /* Tijdens het tekenen moeten de bolletjes en de foto niet meereageren,
      anders pak je er een op of maak je een nieuwe ruit aan. */
   .foto-blok.tekent .foto-mark { pointer-events: none; }
@@ -1083,6 +1090,36 @@
     .tabs { padding: 6px 10px 0; }
     .tab-btn { padding: 10px 14px; font-size: 13px; }
   }
+
+  .actiebalk {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: white; padding: 10px 20px;
+    border-bottom: 1px solid var(--grijs-rand);
+  }
+  .actiebalk .foto-melding { margin: 0; }
+  .toolbar-acties { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  @media (max-width: 820px) {
+    .actiebalk { padding: 8px 14px; }
+    .actiebalk .btn { flex: 1; justify-content: center; }
+    .toolbar-acties { margin-left: 0; grid-column: span 2; }
+  }
+
+  td.delete-cel { white-space: nowrap; }
+  .btn-kopie {
+    background: none; border: none; cursor: pointer; font-size: 15px;
+    color: var(--grijs-tekst); padding: 4px 5px; border-radius: 4px;
+  }
+  .btn-kopie:hover { color: var(--merk); background: var(--blauw-licht); }
+  .toolbar-keuze {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--grijs-tekst); cursor: pointer; white-space: nowrap;
+  }
+  .toolbar-keuze input { accent-color: var(--merk); }
+  @media (max-width: 820px) {
+    .btn-kopie { font-size: 19px; padding: 6px 8px; }
+    .toolbar-keuze { grid-column: span 2; }
+  }
+  @media print { .btn-kopie { display: none !important; } }
 </style>
 </head>
 <body>
@@ -1102,8 +1139,7 @@
     <span id="cloudStatus">Verbinden…</span>
     <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="cloudProjectenTonen()">📁 Projecten</button>
     <button class="btn btn-ghost btn-sm" onclick="appBijwerken()" title="Controleren op een nieuwe versie">↻ Bijwerken</button>
-    <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
-    <button class="btn btn-primary btn-sm" onclick="exportMenu(event)">⬇ Exporteren</button>
+
   </div>
 </header>
 
@@ -1117,6 +1153,8 @@
 <div class="bulk-balk" id="bulkBalk">
   <span id="bulkAantal"></span>
   <button onclick="bulkSelectieWissen()">Selectie wissen</button>
+  <button onclick="kopieerSelectie(null, 'de losse maten')">⧉ Kopiëren</button>
+  <button onclick="kopieerNaarMenu(event)">⧉ Kopieer naar…</button>
   <button onclick="bulkVerwijderSelectie()">Geselecteerde verwijderen</button>
   <span style="margin-left:auto;opacity:.75;font-weight:400;">Gebruik ⇣ in een kolomkop om een waarde door te voeren</span>
 </div>
@@ -1129,6 +1167,15 @@
   <button class="tab-btn" onclick="toon('legenda')">📖 Legenda</button>
 </div>
 
+<div class="actiebalk" id="actieBalk">
+  <button class="btn btn-secondary btn-sm" onclick="importMenu(event)">⬆ Importeren</button>
+  <button class="btn btn-primary btn-sm" onclick="exportMenu(event)">⬇ Exporteren</button>
+  <span class="foto-melding" id="fotoMelding"></span>
+  <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
+  <input type="file" id="tekeningBestand" accept="application/pdf,image/*"
+         onchange="tekeningGekozen(this)" hidden>
+</div>
+
 <div class="toolbar">
   <label>Project:</label>
   <input type="text" id="projectNaam" placeholder="Projectnaam…" oninput="opslaan()">
@@ -1136,7 +1183,16 @@
   <input type="text" id="projectDatum" placeholder="dd-mm-jjjj" style="min-width:110px;"
     inputmode="numeric" autocomplete="off" oninput="opslaan()" onfocus="datumKeuze(this)" onclick="datumKeuze(this)">
   <div class="speling-wrap">
-    <span class="toolbar-maatinstelling">
+    <label class="toolbar-keuze" title="Handig binnen één kozijn; zet het uit als de diktes verschillen">
+    <input type="checkbox" id="glasOvernemen" onchange="glasOvernemenWijzig(this.checked)">
+    Glas overnemen van vorige ruit
+  </label>
+
+  <span class="toolbar-acties" id="toolbarActies">
+    <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
+  </span>
+
+  <span class="toolbar-maatinstelling">
     <label>Speling sponningmaat (rondom):</label>
     <select id="spelingGlobal" onchange="herbereken(); opslaan()"><option value="4" selected>4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11">11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
     <i class="info-icon" onclick="toonInfo(this)" data-info="De speling geldt <b>rondom</b>: hij gaat er aan beide zijden af, dus 2× van de breedte en 2× van de hoogte.<br><br>Bij 4 mm speling wordt een sponningmaat van 1000 × 2000 dus een glasmaat van <b>992 × 1992</b>.">i</i>
@@ -1187,26 +1243,6 @@
 <div id="panel-invoer" class="tab-panel active">
 <div class="container">
 
-  <div class="card blok-kop-card">
-    <div class="foto-kop">
-      <div class="foto-kop-tekst">
-        <h2>Inmeten</h2>
-        <div class="foto-sub">Voeg een foto of tekening toe en tik erop waar een ruit zit — die krijgt
-          een merkletter en een regel eronder. Losse maten zonder afbeelding vul je onderaan in.</div>
-      </div>
-      <label class="btn btn-primary btn-sm foto-knop">
-        + Foto
-        <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
-      </label>
-      <label class="btn btn-primary btn-sm foto-knop">
-        + Tekening
-        <input type="file" id="tekeningBestand" accept="application/pdf,image/*"
-               onchange="tekeningGekozen(this)" hidden>
-      </label>
-    </div>
-    <div class="foto-melding" id="fotoMelding"></div>
-  </div>
-
   <div id="fotoHouder"></div>
 
   <section class="foto-blok los-blok" id="blok-los">
@@ -1228,7 +1264,7 @@
         <th colspan="3">Ventilatie</th>
         <th colspan="2" class="groep-glas">Afwerking</th>
         <th colspan="3" class="groep-roeden">Roeden</th>
-        <th rowspan="2" style="width:28px"></th>
+        <th rowspan="2" style="width:56px"></th>
       </tr>
       <tr>
         <th class="groep-algemeen">Aantal</th>
@@ -1479,30 +1515,72 @@ let fotos = [];   // foto's van de bestaande situatie, met markeringen per ruit
 let projectInfo = {};   // klant-, adres- en uitvoeringsgegevens
 let projectTaken = [];  // eenvoudige takenlijst bij het project
 
+// Bij het aanwijzen van een nieuwe ruit het glastype en de opbouw van de
+// vorige ruit in dezelfde groep overnemen. Staat standaard uit: binnen één
+// kozijn verschillen de diktes vaak genoeg om dat niet te willen.
+function glasOvernemenWijzig(aan) {
+  if (!projectInfo || typeof projectInfo !== 'object') projectInfo = {};
+  projectInfo.glasOvernemen = !!aan;
+  opslaan();
+}
+
+function glasOvernemenActief() {
+  return !!(projectInfo && projectInfo.glasOvernemen);
+}
+
+// ═══════════════ IMPORTEREN ═══════════════
+function importMenu(e) {
+  if (exportBalk) { exportSluit(); return; }
+  toonVeldMenu(e.currentTarget,
+    '<button onclick="importKies(\'maten\')"><b>📄 Sponningmaten</b>' +
+      '<span>PDF, Excel, CSV of geplakte tekst</span></button>' +
+    '<button onclick="importKies(\'foto\')"><b>📷 Foto</b>' +
+      '<span>Van de bestaande situatie</span></button>' +
+    '<button onclick="importKies(\'tekening\')"><b>📐 Tekening</b>' +
+      '<span>Kozijntekening uit een PDF</span></button>');
+}
+
+function importKies(wat) {
+  exportSluit();
+  const acties = document.getElementById('kopActies');
+  if (acties) acties.classList.remove('open');
+  gaNaarTab('invoer');
+  // Even wachten tot het tabblad staat, anders zit het bestandsveld nog
+  // in een verborgen deel van de pagina.
+  setTimeout(() => {
+    if (wat === 'maten') impOpen();
+    else if (wat === 'foto') document.getElementById('fotoBestand').click();
+    else document.getElementById('tekeningBestand').click();
+  }, 60);
+}
+
 // ═══════════════ EXPORTEREN ═══════════════
 // Drie losse knoppen door de app heen werden er één met een uitklaplijst.
 let exportBalk = null;
 
-function exportMenu(e) {
-  if (exportBalk) { exportSluit(); return; }
-  const knop = e.currentTarget;
+function toonVeldMenu(knop, inhoud) {
   const menu = document.createElement('div');
   menu.className = 'veld-menu breed';
-  menu.innerHTML =
+  menu.innerHTML = inhoud;
+  document.body.appendChild(menu);
+  exportBalk = menu;
+  const r = knop.getBoundingClientRect();
+  const max = window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 10;
+  menu.style.left = Math.max(window.scrollX + 8,
+    Math.min(r.left + window.scrollX, max)) + 'px';
+  menu.style.top = (r.bottom + window.scrollY + 6) + 'px';
+  setTimeout(() => document.addEventListener('pointerdown', exportBuiten, true), 0);
+}
+
+function exportMenu(e) {
+  if (exportBalk) { exportSluit(); return; }
+  toonVeldMenu(e.currentTarget,
     '<button onclick="exportKies(\'bestellijst\')"><b>📦 Bestellijst als PDF</b>' +
       '<span>Voor de glasleverancier</span></button>' +
     '<button onclick="exportKies(\'fotos\')"><b>📄 Volledige PDF</b>' +
       '<span>Foto\'s en tekeningen met de maten eronder</span></button>' +
     '<button onclick="exportKies(\'csv\')"><b>📥 CSV-bestand</b>' +
-      '<span>Om in Excel te openen</span></button>';
-  document.body.appendChild(menu);
-  exportBalk = menu;
-
-  const r = knop.getBoundingClientRect();
-  const max = window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 10;
-  menu.style.left = Math.max(window.scrollX + 8, Math.min(r.right + window.scrollX - menu.offsetWidth, max)) + 'px';
-  menu.style.top = (r.bottom + window.scrollY + 6) + 'px';
-  setTimeout(() => document.addEventListener('pointerdown', exportBuiten, true), 0);
+      '<span>Om in Excel te openen</span></button>');
 }
 
 function exportBuiten(ev) {
@@ -1577,9 +1655,24 @@ function datumVandaag() {
 // ingevoerd worden. Elders nemen ze onnodig ruimte in.
 // De balk met projectnaam, datum en speling hoort bij het invullen van
 // maten. Op de andere tabbladen neemt hij alleen ruimte in.
+// Projectnaam, datum, speling en de knoppen ongedaan/leegmaken horen bij
+// het invullen van maten. Importeren en exporteren zijn ook zinvol vanaf
+// de samenvatting en de bestellijst.
 function toonMaatinstelling(tabNaam) {
   const balk = document.querySelector('.toolbar');
   if (balk) balk.style.display = (tabNaam === 'invoer') ? '' : 'none';
+  const acties = document.getElementById('actieBalk');
+  if (acties) {
+    acties.style.display =
+      ['invoer', 'samenvatting', 'bestellijst'].indexOf(tabNaam) >= 0 ? '' : 'none';
+  }
+}
+
+// Naar een tabblad springen zonder dat er op de knop geklikt is.
+function gaNaarTab(naam) {
+  const knop = [...document.querySelectorAll('.tab-btn')]
+    .find(b => (b.getAttribute('onclick') || '').indexOf("'" + naam + "'") >= 0);
+  if (knop) knop.click();
 }
 
 // ═══════════════ BLOKKEN IN- EN UITKLAPPEN ═══════════════
@@ -1620,16 +1713,18 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v44';
+const APP_VERSIE = 'v50';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.app-versie').forEach(e => { e.textContent = APP_VERSIE; });
+  const vinkje = document.getElementById('glasOvernemen');
+  if (vinkje) vinkje.checked = glasOvernemenActief();
   const actief = document.querySelector('.tab-panel.active');
   toonMaatinstelling(actief ? actief.id.replace('panel-', '') : 'invoer');
   laadOpgeslagen();
   if (rijen.length === 0) {
-    voegRijenToe(20);
+    voegRijenToe(START_REGELS);
   }
   renderTabel();
   herbereken();
@@ -1712,6 +1807,29 @@ function nieuweRij() {
     totaalDikte: null,
     kgM2: null,
   };
+}
+
+// Vijf lege regels om mee te beginnen; daarna groeit de lijst vanzelf
+// mee, zodat er altijd ruimte onder je laatste invoer staat.
+const START_REGELS = 5;
+const MIN_LEEG = 2;
+
+function isLeegLos(r) {
+  return !r.fotoId && !r.merk && !r.breedte && !r.hoogte && !r.glasType && !r.opmerking;
+}
+
+// Wordt na elke herberekening aangeroepen. Zijn er nog maar één of geen
+// lege regels over, dan komt er eentje bij — je hoeft dus nooit zelf op
+// '+ Regel' te drukken tijdens het invullen.
+let groeitAl = false;
+function groeiIndienNodig() {
+  if (groeitAl) return;
+  var leeg = losseRijen().filter(isLeegLos).length;
+  if (leeg >= MIN_LEEG) return;
+  groeitAl = true;
+  for (var i = leeg; i < MIN_LEEG; i++) rijen.push(nieuweRij());
+  renderTabel();
+  groeitAl = false;
 }
 
 function voegRijToe() { voegRijenToe(1); }
@@ -1802,6 +1920,7 @@ function herbereken() {
   updateBerekendCellen();
   updateCorrectieCellen();
   updateStatusBar();
+  groeiIndienNodig();
 }
 
 // Rijen die de algemene waarde volgen tonen die waarde in hun keuzevakje.
@@ -1930,7 +2049,10 @@ function rijHTML(rij, nr) {
     <td><select onchange="setVal(${id},'roedenbreedte',this.value); opslaan()">${breedteOpts}</select></td>
     <td><input type="text" value="${esc(rij.roedenopmerking)}" placeholder="opmerking…" style="width:90px"
        oninput="setVal(${id},'roedenopmerking',this.value); opslaan()"></td>
-    <td class="delete-cel"><button class="btn-del" onclick="verwijderRij(${id})" title="Regel verwijderen">✕</button></td>
+    <td class="delete-cel">
+      <button class="btn-kopie" onclick="kopieerRegel(${id})" title="Deze regel dupliceren">⧉</button>
+      <button class="btn-del" onclick="verwijderRij(${id})" title="Regel verwijderen">✕</button>
+    </td>
   `;
 }
 
@@ -2186,7 +2308,7 @@ function clearAlles() {
   document.getElementById('projectNaam').value = '';
   document.getElementById('projectDatum').value = '';
   localStorage.removeItem('glasopname_v2');
-  voegRijenToe(20);
+  voegRijenToe(START_REGELS);
 }
 
 // ═══════════════ PRINT ═══════════════
@@ -2226,6 +2348,7 @@ function exportCSV() {
 <script src="bulk.js"></script>
 <script src="project.js"></script>
 <script src="fotos.js"></script>
+<script src="kopie.js"></script>
 <script src="teken.js"></script>
 <script src="merken.js"></script>
 <script src="pdf.js"></script>

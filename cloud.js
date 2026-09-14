@@ -56,7 +56,7 @@
     if (el('projectDatum'))  el('projectDatum').value  = state.datum || '';
     if (el('spelingGlobal') && state.speling)     el('spelingGlobal').value = state.speling;
     if (el('bijtelling')    && state.bijtelling)  el('bijtelling').value    = state.bijtelling;
-    if (rijen.length === 0) voegRijenToe(20);
+    if (rijen.length === 0) voegRijenToe(typeof START_REGELS !== 'undefined' ? START_REGELS : 5);
     renderTabel();
     herbereken();
     if (window.renderFotos) renderFotos();

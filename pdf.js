@@ -198,6 +198,25 @@
     streken.forEach(function (s) {
       if (!s || !s.p || !s.p.length) return;
       var rgb = kleurNaarRgb(s.k);
+
+      // Tekst op de foto: alleen de letters, met een dunne rand eromheen
+      // zodat hij ook op een drukke gevel leesbaar blijft.
+      if (s.t === 'tekst') {
+        var mm = (s.d || 6) * 6 * mmPerEenheid;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(Math.max(4, mm * 2.8346));
+        var tx = x + s.p[0][0] * sx, ty = y + s.p[0][1] * sy + mm * 0.35;
+        var rand = kleurNaarRgb((0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) > 150 ? '#1d1d1b' : '#ffffff');
+        doc.setTextColor(rand[0], rand[1], rand[2]);
+        var d = Math.max(0.12, mm * 0.05);
+        [[-d, 0], [d, 0], [0, -d], [0, d]].forEach(function (v) {
+          doc.text(schoon(s.tx), tx + v[0], ty + v[1]);
+        });
+        doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+        doc.text(schoon(s.tx), tx, ty);
+        return;
+      }
+
       doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
       doc.setLineWidth(Math.max(0.2, (s.d || 6) * mmPerEenheid));
       var pt = s.p.map(function (q) { return [x + q[0] * sx, y + q[1] * sy]; });

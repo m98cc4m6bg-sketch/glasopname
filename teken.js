@@ -17,9 +17,9 @@
     { naam: 'Rood',   k: '#d00243' },
     { naam: 'Zwart',  k: '#1d1d1b' },
     { naam: 'Wit',    k: '#ffffff' },
-    { naam: 'Geel',   k: '#f0a500' },
-    { naam: 'Blauw',  k: '#1668c4' },
-    { naam: 'Groen',  k: '#1a6b3c' }
+    { naam: 'Lichtgeel',  k: '#ffe45c' },
+    { naam: 'Lichtgroen', k: '#7ed957' },
+    { naam: 'Blauw',      k: '#1668c4' }
   ];
   var DIKTES = [
     { naam: 'Dun',    d: 3 },
@@ -31,6 +31,7 @@
     { id: 'lijn', teken: '╱',  naam: 'Rechte lijn' },
     { id: 'pijl', teken: '➔',  naam: 'Pijl' },
     { id: 'rect', teken: '▭',  naam: 'Rechthoek' },
+    { id: 'tekst', teken: 'T', naam: 'Tekst' },
     { id: 'gum',  teken: '🧽', naam: 'Gum' }
   ];
 
@@ -41,6 +42,7 @@
   var dikte = 6;
   var vingerTekent = false;
   var bezig = null;       // lopende streek
+  var lopendeIndex = -1;
 
   function el(id) { return document.getElementById(id); }
   function fotoVan(id) { return fotos.find(function (f) { return f.id === id; }); }
@@ -101,6 +103,34 @@
     return d;
   }
 
+  // Tekst staat als losse letters op de foto, zonder vlak eronder. Om hem
+  // op een drukke gevel toch leesbaar te houden krijgt hij een dunne rand
+  // in een contrasterende kleur — dat is nog steeds alleen de letter zelf.
+  function lichtOfDonker(hex) {
+    var h = String(hex || '#000').replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#1d1d1b' : '#ffffff';
+  }
+
+  function maakTekst(streek, index) {
+    var el = document.createElementNS(NS, 'text');
+    el.setAttribute('x', streek.p[0][0]);
+    el.setAttribute('y', streek.p[0][1]);
+    el.setAttribute('dy', '0.35em');
+    el.setAttribute('fill', streek.k);
+    el.setAttribute('stroke', lichtOfDonker(streek.k));
+    el.setAttribute('stroke-width', Math.max(1, streek.d * 0.28));
+    el.setAttribute('paint-order', 'stroke fill');
+    el.setAttribute('stroke-linejoin', 'round');
+    el.setAttribute('font-size', streek.d * 6);
+    el.setAttribute('font-family', "'Segoe UI', Arial, sans-serif");
+    el.setAttribute('font-weight', '700');
+    el.setAttribute('data-streek', index);
+    el.textContent = streek.tx || '';
+    return el;
+  }
+
   function maakPad(streek, index) {
     var el = document.createElementNS(NS, 'path');
     el.setAttribute('d', padVan(streek));
@@ -114,17 +144,21 @@
     return el;
   }
 
-  function pijlpunt(streek, index) {
+  function pijlpuntPad(streek) {
     var p = streek.p;
     var hoek = Math.atan2(p[1][1] - p[0][1], p[1][0] - p[0][0]);
     var lengte = Math.max(14, streek.d * 3.2);
-    var g = document.createElementNS(NS, 'path');
     var x = p[1][0], y = p[1][1];
     var a1 = hoek + Math.PI * 0.82, a2 = hoek - Math.PI * 0.82;
-    g.setAttribute('d', 'M' + x + ' ' + y +
+    return 'M' + x + ' ' + y +
       'L' + (x + Math.cos(a1) * lengte) + ' ' + (y + Math.sin(a1) * lengte) +
       'M' + x + ' ' + y +
-      'L' + (x + Math.cos(a2) * lengte) + ' ' + (y + Math.sin(a2) * lengte));
+      'L' + (x + Math.cos(a2) * lengte) + ' ' + (y + Math.sin(a2) * lengte);
+  }
+
+  function pijlpunt(streek, index) {
+    var g = document.createElementNS(NS, 'path');
+    g.setAttribute('d', pijlpuntPad(streek));
     g.setAttribute('fill', 'none');
     g.setAttribute('stroke', streek.k);
     g.setAttribute('stroke-width', streek.d);
@@ -133,12 +167,31 @@
     return g;
   }
 
+  // Tijdens het tekenen alleen het pad van de lopende streek aanpassen.
+  // De hele laag opnieuw opbouwen kost bij elke beweging tijd, en dat is
+  // precies waarom het op een telefoon stroef aanvoelt zodra er een paar
+  // streken staan.
+  function werkLopendeBij(fotoId, index) {
+    var svg = el('inkt-' + fotoId);
+    var foto = fotoVan(fotoId);
+    if (!svg || !foto) return;
+    var s = foto.inkt[index];
+    var paden = svg.querySelectorAll('[data-streek="' + index + '"]');
+    if (!s || !paden.length) { tekenStreken(fotoId); return; }
+    paden[0].setAttribute('d', padVan(s));
+    if (s.t === 'pijl') {
+      if (paden[1]) paden[1].setAttribute('d', pijlpuntPad(s));
+      else tekenStreken(fotoId);
+    }
+  }
+
   function tekenStreken(fotoId) {
     var svg = el('inkt-' + fotoId);
     var foto = fotoVan(fotoId);
     if (!svg || !foto) return;
     svg.innerHTML = '';
     inkt(foto).forEach(function (s, i) {
+      if (s.t === 'tekst') { svg.appendChild(maakTekst(s, i)); return; }
       svg.appendChild(maakPad(s, i));
       if (s.t === 'pijl' && s.p.length > 1) svg.appendChild(pijlpunt(s, i));
     });
@@ -157,6 +210,18 @@
   }
 
   function koppelPointer(svg, fotoId) {
+    // iOS geeft een veeg standaard aan de schuifbalk, niet aan de tekening.
+    // touch-action alleen is daar niet genoeg: de aanraking moet ook
+    // actief tegengehouden worden, anders scrolt de pagina mee en breekt
+    // de streek af.
+    function houdTegen(e) {
+      if (actief !== fotoId) return;
+      if (!vingerTekent && e.touches && e.touches.length) return;
+      e.preventDefault();
+    }
+    svg.addEventListener('touchstart', houdTegen, { passive: false });
+    svg.addEventListener('touchmove', houdTegen, { passive: false });
+
     svg.addEventListener('pointerdown', function (e) {
       if (actief !== fotoId) return;
       // Met de vinger schuif en zoom je; tekenen doe je met de pen of
@@ -168,48 +233,89 @@
 
       var punt = plek(e, svg);
       if (stuk === 'gum') { gum(e, fotoId); bezig = { gum: true }; return; }
+      if (stuk === 'tekst') { zetTekst(fotoId, punt); return; }
       var foto = fotoVan(fotoId);
       bezig = { t: stuk, k: kleur, d: dikte, p: [punt] };
       if (stuk !== 'pen') bezig.p.push(punt.slice());
       inkt(foto).push(bezig);
-      tekenStreken(fotoId);
+      lopendeIndex = foto.inkt.length - 1;
+      // Alleen het nieuwe pad erbij zetten. De hele laag opnieuw opbouwen
+      // bij elke streek wordt traag zodra er veel op de foto staat.
+      var svgEl = el('inkt-' + fotoId);
+      if (svgEl) {
+        svgEl.appendChild(maakPad(bezig, lopendeIndex));
+        if (bezig.t === 'pijl') svgEl.appendChild(pijlpunt(bezig, lopendeIndex));
+      } else {
+        tekenStreken(fotoId);
+      }
     });
 
     svg.addEventListener('pointermove', function (e) {
       if (!bezig || actief !== fotoId) return;
       e.preventDefault();
       if (bezig.gum) { gum(e, fotoId); return; }
-      var punt = plek(e, svg);
+
       if (bezig.t === 'pen') {
-        var vorig = bezig.p[bezig.p.length - 1];
-        // Punten die vlak bij elkaar liggen voegen niets toe en maken
-        // het bestand alleen groter.
-        if (Math.abs(punt[0] - vorig[0]) + Math.abs(punt[1] - vorig[1]) < 3) return;
-        bezig.p.push(punt);
+        // Een snelle veeg levert meerdere metingen per beeldopbouw op.
+        // Zonder die tussenpunten wordt een boog een reeks rechte stukken.
+        // Let op: een lege lijst tussenpunten is wél een lijst. Zonder deze
+        // controle zou er dan geen enkel punt bijkomen en blijft de streek
+        // een stip.
+        var stapjes = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
+        if (!stapjes.length) stapjes = [e];
+        var toegevoegd = false;
+        for (var i = 0; i < stapjes.length; i++) {
+          var punt = plek(stapjes[i], svg);
+          var vorig = bezig.p[bezig.p.length - 1];
+          if (Math.abs(punt[0] - vorig[0]) + Math.abs(punt[1] - vorig[1]) < 2) continue;
+          bezig.p.push(punt);
+          toegevoegd = true;
+        }
+        if (!toegevoegd) return;
       } else {
-        bezig.p[1] = punt;
+        bezig.p[1] = plek(e, svg);
       }
-      tekenStreken(fotoId);
+      werkLopendeBij(fotoId, lopendeIndex);
     });
 
     function klaar(e) {
       if (!bezig) return;
       try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
       var foto = fotoVan(fotoId);
+      var weggegooid = false;
       if (!bezig.gum) {
         var s = bezig;
         // Een tik zonder beweging levert geen bruikbare vorm op.
         if (s.t !== 'pen' && Math.abs(s.p[0][0] - s.p[1][0]) + Math.abs(s.p[0][1] - s.p[1][1]) < 8) {
           inkt(foto).pop();
-          tekenStreken(fotoId);
+          weggegooid = true;
         }
       }
       bezig = null;
+      lopendeIndex = -1;
+      // Opnieuw opbouwen hoeft alleen als er iets is verdwenen; anders
+      // staat het pad er al goed bij.
+      if (weggegooid) tekenStreken(fotoId);
       opslaan();
       tekenBalk(fotoId);
     }
     svg.addEventListener('pointerup', klaar);
     svg.addEventListener('pointercancel', klaar);
+  }
+
+  function zetTekst(fotoId, punt) {
+    var foto = fotoVan(fotoId);
+    var tekst = prompt('Welke tekst wil je op de foto zetten?', '');
+    if (tekst === null) return;
+    tekst = tekst.trim();
+    if (!tekst) return;
+    if (window.bewaarStap) bewaarStap('Tekst toegevoegd');
+    inkt(foto).push({ t: 'tekst', k: kleur, d: dikte, p: [punt], tx: tekst });
+    var svgEl = el('inkt-' + fotoId);
+    if (svgEl) svgEl.appendChild(maakTekst(foto.inkt[foto.inkt.length - 1], foto.inkt.length - 1));
+    else tekenStreken(fotoId);
+    opslaan();
+    tekenBalk(fotoId);
   }
 
   function gum(e, fotoId) {
@@ -231,14 +337,18 @@
 
   function zetModus(fotoId) {
     var blok = el('blok-' + fotoId);
-    if (blok) blok.classList.toggle('tekent', actief === fotoId);
+    if (!blok) return;
+    blok.classList.toggle('tekent', actief === fotoId);
+    // Met vingertekenen aan mag het schuifvenster de veeg niet meer
+    // afpakken; staat het uit, dan wil je juist wél kunnen schuiven.
+    blok.classList.toggle('vinger', actief === fotoId && vingerTekent);
   }
 
   window.tekenKies = function (fotoId, wat, waarde) {
     if (wat === 'stuk') stuk = waarde;
     if (wat === 'kleur') kleur = waarde;
     if (wat === 'dikte') dikte = parseFloat(waarde);
-    if (wat === 'vinger') vingerTekent = !vingerTekent;
+    if (wat === 'vinger') { vingerTekent = !vingerTekent; zetModus(fotoId); }
     tekenBalk(fotoId);
   };
 

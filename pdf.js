@@ -202,8 +202,9 @@
       // Tekst op de foto: alleen de letters, met een dunne rand eromheen
       // zodat hij ook op een drukke gevel leesbaar blijft.
       if (s.t === 'tekst') {
-        var mm = (s.d || 6) * 6 * mmPerEenheid;
-        doc.setFont('helvetica', 'bold');
+        var mm = (s.g || (s.d || 6) * 6) * mmPerEenheid;
+        doc.setFont('helvetica', s.vet === false ? (s.schuin ? 'italic' : 'normal')
+                                                 : (s.schuin ? 'bolditalic' : 'bold'));
         doc.setFontSize(Math.max(4, mm * 2.8346));
         var tx = x + s.p[0][0] * sx, ty = y + s.p[0][1] * sy + mm * 0.35;
         var rand = kleurNaarRgb((0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) > 150 ? '#1d1d1b' : '#ffffff');

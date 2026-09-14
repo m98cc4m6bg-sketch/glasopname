@@ -55,15 +55,42 @@
     renderTabel(); herbereken(); opslaan(); tekenBalk();
   };
 
+  // Waar staan de geselecteerde ruiten? Zonder die vermelding is bij een
+  // zwevende balk niet te zien op welke tabel hij slaat.
+  function herkomst() {
+    var groepen = {};
+    rijen.forEach(function (r) {
+      if (!selectie.has(r.id)) return;
+      groepen[r.fotoId || ''] = true;
+    });
+    var sleutels = Object.keys(groepen);
+    if (sleutels.length !== 1) return sleutels.length + ' groepen';
+    if (!sleutels[0]) return 'de losse maten';
+    var f = (typeof fotos !== 'undefined') ? fotos.find(function (x) { return x.id === sleutels[0]; }) : null;
+    if (!f) return '';
+    var n = fotos.indexOf(f) + 1;
+    return f.titel || (f.pad ? 'foto ' + n : 'groep ' + n);
+  }
+
   function tekenBalk() {
     var balk = document.getElementById('bulkBalk');
     if (!balk) return;
-    if (!selectie.size) { balk.style.display = 'none'; return; }
+    if (!selectie.size) {
+      balk.style.display = 'none';
+      document.body.classList.remove('bulk-open');
+      return;
+    }
     balk.style.display = 'flex';
+    var waar = herkomst();
     document.getElementById('bulkAantal').textContent =
-      selectie.size + ' ruit' + (selectie.size === 1 ? '' : 'en') + ' geselecteerd';
+      selectie.size + ' ruit' + (selectie.size === 1 ? '' : 'en') + ' geselecteerd' +
+      (waar ? ' in ' + waar : '');
     var alles = document.getElementById('bulkAllesVink');
     if (alles) alles.checked = selectie.size === losseRijen().length;
+
+    // De tabbalk moet onder de zwevende balk blijven staan, niet erachter.
+    document.body.classList.add('bulk-open');
+    document.documentElement.style.setProperty('--bulkhoogte', balk.offsetHeight + 'px');
   }
 
   /* ─── kolommen die doorgevoerd kunnen worden ───────────────── */

@@ -1120,6 +1120,25 @@
     .toolbar-keuze { grid-column: span 2; }
   }
   @media print { .btn-kopie { display: none !important; } }
+
+  .tk-tekst { border-left: 1px solid var(--grijs-rand); padding-left: 10px; }
+  .tk-selectie {
+    display: flex; align-items: center; gap: 6px;
+    background: white; border: 1px dashed var(--merk); border-radius: var(--radius);
+    padding: 4px 8px;
+  }
+  .tk-label { font-size: 11px; font-weight: 700; color: var(--merk); white-space: nowrap; }
+  .tk-knop.tk-weg { color: var(--rood); }
+  .tk-knop.tk-weg:hover { background: #fdecea; }
+  .tk-knop b, .tk-knop i { font-size: 14px; }
+
+  /* De selectiebalk blijft bij het scrollen bovenaan in beeld, zodat je
+     ziet hoeveel er geselecteerd is terwijl je door een lange lijst gaat. */
+  .bulk-balk {
+    position: sticky; top: 0; z-index: 30;
+    box-shadow: 0 2px 8px rgba(29,29,27,0.18);
+  }
+  body.bulk-open .tabs { top: var(--bulkhoogte, 0px); }
 </style>
 </head>
 <body>
@@ -1713,7 +1732,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v50';
+const APP_VERSIE = 'v52';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

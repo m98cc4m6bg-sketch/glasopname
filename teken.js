@@ -26,7 +26,14 @@
     { naam: 'Normaal', d: 6 },
     { naam: 'Dik',    d: 11 }
   ];
+  var GROOTTES = [
+    { naam: 'Klein',  g: 24 },
+    { naam: 'Normaal', g: 40 },
+    { naam: 'Groot',  g: 64 },
+    { naam: 'Extra groot', g: 96 }
+  ];
   var GEREEDSCHAP = [
+    { id: 'kies', teken: '➚', naam: 'Selecteren' },
     { id: 'pen',  teken: '✏️', naam: 'Pen' },
     { id: 'lijn', teken: '╱',  naam: 'Rechte lijn' },
     { id: 'pijl', teken: '➔',  naam: 'Pijl' },
@@ -41,6 +48,10 @@
   var kleur = '#d00243';
   var dikte = 6;
   var vingerTekent = false;
+  var grootte = 40;       // lettergrootte voor nieuwe tekst
+  var vet = true;
+  var schuin = false;
+  var gekozen = -1;       // welke streek geselecteerd is, -1 = geen
   var bezig = null;       // lopende streek
   var lopendeIndex = -1;
 
@@ -123,9 +134,10 @@
     el.setAttribute('stroke-width', Math.max(1, streek.d * 0.28));
     el.setAttribute('paint-order', 'stroke fill');
     el.setAttribute('stroke-linejoin', 'round');
-    el.setAttribute('font-size', streek.d * 6);
+    el.setAttribute('font-size', streek.g || streek.d * 6);
     el.setAttribute('font-family', "'Segoe UI', Arial, sans-serif");
-    el.setAttribute('font-weight', '700');
+    el.setAttribute('font-weight', streek.vet === false ? '400' : '700');
+    if (streek.schuin) el.setAttribute('font-style', 'italic');
     el.setAttribute('data-streek', index);
     el.textContent = streek.tx || '';
     return el;
@@ -195,6 +207,8 @@
       svg.appendChild(maakPad(s, i));
       if (s.t === 'pijl' && s.p.length > 1) svg.appendChild(pijlpunt(s, i));
     });
+    if (gekozen >= inkt(foto).length) gekozen = -1;
+    tekenKader(fotoId);
   }
 
   /* ─── invoer ───────────────────────────────────────────────── */
@@ -232,6 +246,7 @@
       try { svg.setPointerCapture(e.pointerId); } catch (err) {}
 
       var punt = plek(e, svg);
+      if (stuk === 'kies') { kiesStreek(fotoId, zoekStreek(fotoId, e)); return; }
       if (stuk === 'gum') { gum(e, fotoId); bezig = { gum: true }; return; }
       if (stuk === 'tekst') { zetTekst(fotoId, punt); return; }
       var foto = fotoVan(fotoId);
@@ -303,6 +318,108 @@
     svg.addEventListener('pointercancel', klaar);
   }
 
+  /* ─── selecteren ───────────────────────────────────────────── */
+
+  function elementVan(fotoId, index) {
+    var svg = el('inkt-' + fotoId);
+    return svg ? svg.querySelector('[data-streek="' + index + '"]') : null;
+  }
+
+  // Eerst kijken wat er precies onder je vinger zit. Een dunne lijn is
+  // lastig te raken, dus als dat niets oplevert zoeken we de streek
+  // waarvan het omhullende kader het punt bevat — bovenste eerst.
+  function zoekStreek(fotoId, e) {
+    var doel = document.elementFromPoint(e.clientX, e.clientY);
+    if (doel && doel.hasAttribute && doel.hasAttribute('data-streek')) {
+      return parseInt(doel.getAttribute('data-streek'), 10);
+    }
+    var svg = el('inkt-' + fotoId);
+    var foto = fotoVan(fotoId);
+    if (!svg || !foto) return -1;
+    var marge = 12;
+    for (var i = inkt(foto).length - 1; i >= 0; i--) {
+      var node = elementVan(fotoId, i);
+      if (!node || !node.getBoundingClientRect) continue;
+      var r = node.getBoundingClientRect();
+      if (!r.width && !r.height) continue;
+      if (e.clientX >= r.left - marge && e.clientX <= r.right + marge &&
+          e.clientY >= r.top - marge && e.clientY <= r.bottom + marge) return i;
+    }
+    return -1;
+  }
+
+  function tekenKader(fotoId) {
+    var svg = el('inkt-' + fotoId);
+    if (!svg) return;
+    var oud = svg.querySelector('[data-kader]');
+    if (oud) oud.remove();
+    if (gekozen < 0) return;
+    var node = elementVan(fotoId, gekozen);
+    if (!node || !node.getBBox) return;
+    var b;
+    try { b = node.getBBox(); } catch (err) { return; }
+    var m = 10;
+    var kader = document.createElementNS(NS, 'rect');
+    kader.setAttribute('x', b.x - m);
+    kader.setAttribute('y', b.y - m);
+    kader.setAttribute('width', b.width + m * 2);
+    kader.setAttribute('height', b.height + m * 2);
+    kader.setAttribute('fill', 'none');
+    kader.setAttribute('stroke', '#d00243');
+    kader.setAttribute('stroke-width', '3');
+    kader.setAttribute('stroke-dasharray', '12 8');
+    kader.setAttribute('vector-effect', 'non-scaling-stroke');
+    kader.setAttribute('pointer-events', 'none');
+    kader.setAttribute('data-kader', '1');
+    svg.appendChild(kader);
+  }
+
+  function kiesStreek(fotoId, index) {
+    gekozen = index;
+    // De instellingen in de balk volgen wat je hebt aangeklikt, zodat je
+    // ziet welke kleur en grootte het onderdeel nu heeft.
+    var s = index >= 0 ? fotoVan(fotoId).inkt[index] : null;
+    if (s) {
+      kleur = s.k;
+      dikte = s.d;
+      if (s.t === 'tekst') {
+        grootte = s.g || s.d * 6;
+        vet = s.vet !== false;
+        schuin = !!s.schuin;
+      }
+    }
+    tekenKader(fotoId);
+    tekenBalk(fotoId);
+  }
+
+  window.selectieOpheffen = function (fotoId) { kiesStreek(fotoId, -1); };
+
+  window.selectieWeg = function (fotoId) {
+    if (gekozen < 0) return;
+    var foto = fotoVan(fotoId);
+    if (window.bewaarStap) bewaarStap('Onderdeel verwijderd');
+    foto.inkt.splice(gekozen, 1);
+    gekozen = -1;
+    tekenStreken(fotoId);
+    tekenBalk(fotoId);
+    opslaan();
+  };
+
+  window.selectieTekst = function (fotoId) {
+    var foto = fotoVan(fotoId);
+    var s = gekozen >= 0 ? foto.inkt[gekozen] : null;
+    if (!s || s.t !== 'tekst') return;
+    var nieuw = prompt('Tekst wijzigen:', s.tx || '');
+    if (nieuw === null) return;
+    nieuw = nieuw.trim();
+    if (!nieuw) return;
+    if (window.bewaarStap) bewaarStap('Tekst gewijzigd');
+    s.tx = nieuw;
+    tekenStreken(fotoId);
+    tekenKader(fotoId);
+    opslaan();
+  };
+
   function zetTekst(fotoId, punt) {
     var foto = fotoVan(fotoId);
     var tekst = prompt('Welke tekst wil je op de foto zetten?', '');
@@ -310,7 +427,8 @@
     tekst = tekst.trim();
     if (!tekst) return;
     if (window.bewaarStap) bewaarStap('Tekst toegevoegd');
-    inkt(foto).push({ t: 'tekst', k: kleur, d: dikte, p: [punt], tx: tekst });
+    inkt(foto).push({ t: 'tekst', k: kleur, d: dikte, g: grootte,
+                      vet: vet, schuin: schuin, p: [punt], tx: tekst });
     var svgEl = el('inkt-' + fotoId);
     if (svgEl) svgEl.appendChild(maakTekst(foto.inkt[foto.inkt.length - 1], foto.inkt.length - 1));
     else tekenStreken(fotoId);
@@ -344,11 +462,36 @@
     blok.classList.toggle('vinger', actief === fotoId && vingerTekent);
   }
 
+  // Is er iets geselecteerd, dan verandert die keuze dát onderdeel.
+  // Zonder selectie geldt de keuze voor alles wat je daarna maakt.
   window.tekenKies = function (fotoId, wat, waarde) {
-    if (wat === 'stuk') stuk = waarde;
-    if (wat === 'kleur') kleur = waarde;
-    if (wat === 'dikte') dikte = parseFloat(waarde);
-    if (wat === 'vinger') { vingerTekent = !vingerTekent; zetModus(fotoId); }
+    var foto = fotoVan(fotoId);
+    var s = (gekozen >= 0 && foto) ? foto.inkt[gekozen] : null;
+
+    if (wat === 'stuk') {
+      stuk = waarde;
+      // Een selectie hoort bij het keuzegereedschap; stap je over op
+      // tekenen, dan is die selectie niet meer aan de orde.
+      if (waarde !== 'kies' && gekozen >= 0) { gekozen = -1; tekenKader(fotoId); }
+      tekenBalk(fotoId);
+      return;
+    }
+
+    if (wat === 'vinger') { vingerTekent = !vingerTekent; zetModus(fotoId); tekenBalk(fotoId); return; }
+
+    if (wat === 'kleur') { kleur = waarde; if (s) s.k = waarde; }
+    if (wat === 'dikte') { dikte = parseFloat(waarde); if (s) s.d = parseFloat(waarde); }
+    if (wat === 'grootte') { grootte = parseFloat(waarde); if (s && s.t === 'tekst') s.g = parseFloat(waarde); }
+    if (wat === 'vet') { vet = !vet; if (s && s.t === 'tekst') s.vet = !(s.vet !== false); else vet = vet; }
+    if (wat === 'schuin') { schuin = !schuin; if (s && s.t === 'tekst') s.schuin = !s.schuin; }
+
+    if (s) {
+      if (wat === 'vet') vet = s.vet !== false;
+      if (wat === 'schuin') schuin = !!s.schuin;
+      if (window.bewaarStap) bewaarStap('Onderdeel gewijzigd');
+      tekenStreken(fotoId);
+      opslaan();
+    }
     tekenBalk(fotoId);
   };
 
@@ -378,33 +521,70 @@
     if (!balk || !foto) return;
     if (actief !== fotoId) { balk.style.display = 'none'; balk.innerHTML = ''; return; }
 
-    balk.style.display = 'flex';
-    balk.innerHTML =
-      '<div class="tk-groep">' +
-        GEREEDSCHAP.map(function (g) {
-          return '<button class="tk-knop' + (stuk === g.id ? ' aan' : '') + '" title="' + g.naam +
-                 '" onclick="tekenKies(\'' + fotoId + '\',\'stuk\',\'' + g.id + '\')">' + g.teken + '</button>';
+    var gekozenStreek = gekozen >= 0 ? foto.inkt[gekozen] : null;
+    var tekstActief = stuk === 'tekst' || (gekozenStreek && gekozenStreek.t === 'tekst');
+
+    var stukken = '<div class="tk-groep">' +
+      GEREEDSCHAP.map(function (g) {
+        return '<button class="tk-knop' + (stuk === g.id ? ' aan' : '') + '" title="' + g.naam +
+               '" onclick="tekenKies(\'' + fotoId + '\',\'stuk\',\'' + g.id + '\')">' + g.teken + '</button>';
+      }).join('') + '</div>';
+
+    var kleuren = '<div class="tk-groep">' +
+      KLEUREN.map(function (c) {
+        return '<button class="tk-kleur' + (kleur === c.k ? ' aan' : '') + '" title="' + c.naam +
+               '" style="background:' + c.k + '" onclick="tekenKies(\'' + fotoId + '\',\'kleur\',\'' + c.k + '\')"></button>';
+      }).join('') + '</div>';
+
+    var diktes = '<div class="tk-groep" title="Lijndikte">' +
+      DIKTES.map(function (d) {
+        return '<button class="tk-knop' + (dikte === d.d ? ' aan' : '') + '" title="' + d.naam +
+               '" onclick="tekenKies(\'' + fotoId + '\',\'dikte\',\'' + d.d + '\')">' +
+               '<span class="tk-stip" style="width:' + (d.d / 2 + 3) + 'px;height:' + (d.d / 2 + 3) + 'px"></span></button>';
+      }).join('') + '</div>';
+
+    // Lettergrootte en stijl alleen tonen als het over tekst gaat.
+    var tekstOpties = !tekstActief ? '' :
+      '<div class="tk-groep tk-tekst" title="Lettergrootte">' +
+        GROOTTES.map(function (g) {
+          return '<button class="tk-knop' + (grootte === g.g ? ' aan' : '') + '" title="' + g.naam +
+                 '" onclick="tekenKies(\'' + fotoId + '\',\'grootte\',\'' + g.g + '\')">' +
+                 '<span style="font-size:' + Math.round(9 + g.g / 9) + 'px;line-height:1">A</span></button>';
         }).join('') +
-      '</div>' +
-      '<div class="tk-groep">' +
-        KLEUREN.map(function (c) {
-          return '<button class="tk-kleur' + (kleur === c.k ? ' aan' : '') + '" title="' + c.naam +
-                 '" style="background:' + c.k + '" onclick="tekenKies(\'' + fotoId + '\',\'kleur\',\'' + c.k + '\')"></button>';
-        }).join('') +
-      '</div>' +
-      '<div class="tk-groep">' +
-        DIKTES.map(function (d) {
-          return '<button class="tk-knop' + (dikte === d.d ? ' aan' : '') + '" title="' + d.naam +
-                 '" onclick="tekenKies(\'' + fotoId + '\',\'dikte\',\'' + d.d + '\')">' +
-                 '<span class="tk-stip" style="width:' + (d.d / 2 + 3) + 'px;height:' + (d.d / 2 + 3) + 'px"></span></button>';
-        }).join('') +
-      '</div>' +
-      '<div class="tk-groep">' +
+        '<button class="tk-knop' + (vet ? ' aan' : '') + '" title="Vet" ' +
+          'onclick="tekenKies(\'' + fotoId + '\',\'vet\')"><b>B</b></button>' +
+        '<button class="tk-knop' + (schuin ? ' aan' : '') + '" title="Schuin" ' +
+          'onclick="tekenKies(\'' + fotoId + '\',\'schuin\')"><i>I</i></button>' +
+      '</div>';
+
+    var algemeen = '<div class="tk-groep">' +
         '<button class="tk-knop" title="Laatste streek terug" onclick="tekenTerug(\'' + fotoId + '\')">↶</button>' +
         '<button class="tk-knop" title="Alles wissen" onclick="tekenWis(\'' + fotoId + '\')">🗑</button>' +
-      '</div>' +
+      '</div>';
+
+    var selectie = !gekozenStreek ? '' :
+      '<div class="tk-selectie">' +
+        '<span class="tk-label">' + esc(omschrijf(gekozenStreek)) + ' geselecteerd</span>' +
+        (gekozenStreek.t === 'tekst'
+          ? '<button class="tk-knop" title="Tekst wijzigen" onclick="selectieTekst(\'' + fotoId + '\')">✎</button>' : '') +
+        '<button class="tk-knop tk-weg" title="Verwijderen" onclick="selectieWeg(\'' + fotoId + '\')">🗑</button>' +
+        '<button class="tk-knop" title="Selectie opheffen" onclick="selectieOpheffen(\'' + fotoId + '\')">✕</button>' +
+      '</div>';
+
+    var hint = gekozenStreek
+      ? 'Wijzig kleur, dikte of grootte — dat geldt voor dit onderdeel'
+      : (stuk === 'kies' ? 'Tik op een lijn of tekst om hem te selecteren'
+                         : 'Pen tekent, vinger schuift');
+
+    balk.style.display = 'flex';
+    balk.innerHTML = stukken + kleuren + diktes + tekstOpties + algemeen + selectie +
       '<label class="tk-vinger"><input type="checkbox"' + (vingerTekent ? ' checked' : '') +
         ' onchange="tekenKies(\'' + fotoId + '\',\'vinger\')"> Met vinger tekenen</label>' +
-      '<span class="tk-info">' + inkt(foto).length + ' streken · pen tekent, vinger schuift</span>';
+      '<span class="tk-info">' + inkt(foto).length + ' onderdelen · ' + hint + '</span>';
+  }
+
+  function omschrijf(s) {
+    var namen = { pen: 'Streek', lijn: 'Lijn', pijl: 'Pijl', rect: 'Rechthoek', tekst: 'Tekst' };
+    return (namen[s.t] || 'Onderdeel') + (s.t === 'tekst' && s.tx ? ' “' + s.tx + '”' : '');
   }
 })();

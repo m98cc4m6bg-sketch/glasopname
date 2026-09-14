@@ -390,7 +390,7 @@
   /* ─── PRINT ─── */
   @media print {
     header, .toolbar, .tabs, .tabel-footer, .btn-del, td.delete-cel,
-    .foto-zoombalk, .foto-voet, .foto-aanwijsbalk, #panel-fotos,
+    .foto-zoombalk, .foto-voet, .foto-aanwijsbalk, .blok-balk, .foto-balk,
     #panel-invoer, #panel-samenvatting, #panel-legenda { display: none !important; }
     body { background: white; font-size: 11px; }
     .container { padding: 0; }
@@ -666,7 +666,7 @@
     padding: 16px; margin-top: 16px;
   }
   .foto-balk { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
-  .foto-nr {
+  .foto-nr { display: none;
     display: inline-flex; align-items: center; justify-content: center;
     width: 26px; height: 26px; background: var(--merk); color: white;
     border-radius: 13px; font-size: 13px; font-weight: 700; flex: 0 0 26px;
@@ -1026,6 +1026,28 @@
   .sync-melding button.sluit {
     background: none; color: var(--grijs-tekst); margin-left: auto; padding: 4px 6px;
   }
+
+  .imp-merkinfo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .imp-merkinfo:empty { margin-bottom: 0; }
+  .imp-merkinfo span {
+    font-size: 12px; line-height: 1.5; padding: 8px 10px;
+    border-radius: var(--radius); border-left: 3px solid;
+  }
+  .imp-goed { background: #eef7f1; border-color: var(--groen); color: #14532b; }
+  .imp-let-op { background: #fdf1ee; border-color: var(--rood); color: #7a1a12; }
+  .imp-splits { font-size: 12px; color: var(--grijs-tekst); display: flex; align-items: center; gap: 6px; }
+  .imp-splits input { accent-color: var(--merk); }
+
+  .blok-kop-card { margin-bottom: 16px; }
+  .los-blok { margin-top: 16px; }
+  .blok-balk {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    padding: 4px 0 10px; border-bottom: 1px solid var(--grijs-rand); margin-bottom: 10px;
+  }
+  .blok-balk h3 { font-size: 13px; color: var(--blauw); font-weight: 700; }
+  .blok-pijl { color: var(--merk); font-size: 12px; width: 12px; }
+  .blok-telling { font-size: 11px; color: var(--grijs-tekst); margin-left: auto; }
+  .foto-blok .blok-balk { margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -1082,7 +1104,6 @@
 <div class="tabs">
   <button class="tab-btn" onclick="toon('project')">📋 Project</button>
   <button class="tab-btn active" onclick="toon('invoer')">📋 Invoer</button>
-  <button class="tab-btn" onclick="toon('fotos')">📷 Foto's</button>
   <button class="tab-btn" onclick="toon('samenvatting')">📊 Samenvatting</button>
   <button class="tab-btn" onclick="toon('bestellijst')">📦 Bestellijst</button>
   <button class="tab-btn" onclick="toon('legenda')">📖 Legenda</button>
@@ -1123,28 +1144,40 @@
 </div>
 
 <!-- ═══════════════════════ FOTO'S ═══════════════════════ -->
-<div id="panel-fotos" class="tab-panel">
-  <div class="card">
+<!-- ═══════════════════════ INVOER ═══════════════════════ -->
+<div id="panel-invoer" class="tab-panel active">
+<div class="container">
+
+  <div class="card blok-kop-card">
     <div class="foto-kop">
       <div class="foto-kop-tekst">
-        <h2>📷 Inmeten met foto</h2>
-        <div class="foto-sub">Tik op de foto waar een ruit zit. Die krijgt automatisch de volgende
-          merkletter en een invoerregel eronder — dezelfde regel als op het tabblad Invoer.</div>
+        <h2>Inmeten</h2>
+        <div class="foto-sub">Voeg een foto of tekening toe en tik erop waar een ruit zit — die krijgt
+          een merkletter en een regel eronder. Losse maten zonder afbeelding vul je onderaan in.</div>
       </div>
-      <button class="btn btn-secondary btn-sm" id="pdfKnop" onclick="exportFotoPdf()">📄 PDF van foto's</button>
+      <button class="btn btn-secondary btn-sm" id="pdfKnop" onclick="exportFotoPdf()">📄 PDF</button>
       <label class="btn btn-primary btn-sm foto-knop">
-        + Nieuwe foto
+        + Foto
         <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
+      </label>
+      <label class="btn btn-primary btn-sm foto-knop">
+        + Tekening
+        <input type="file" id="tekeningBestand" accept="application/pdf,image/*"
+               onchange="tekeningGekozen(this)" hidden>
       </label>
     </div>
     <div class="foto-melding" id="fotoMelding"></div>
   </div>
-  <div id="fotoHouder"></div>
-</div>
 
-<!-- ═══════════════════════ INVOER ═══════════════════════ -->
-<div id="panel-invoer" class="tab-panel active">
-<div class="container">
+  <div id="fotoHouder"></div>
+
+  <section class="foto-blok los-blok" id="blok-los">
+    <div class="blok-balk" onclick="blokKlap('los')">
+      <span class="blok-pijl" id="pijl-los">▾</span>
+      <h3>Zonder foto of tekening</h3>
+      <span class="blok-telling" id="telling-los"></span>
+    </div>
+    <div class="blok-inhoud" id="inhoud-los">
   <div class="invoer-wrap">
   <table class="invoer" id="invoerTabel">
     <thead>
@@ -1194,6 +1227,10 @@
     </div>
     <div id="statusBar" style="font-size:12px;color:var(--grijs-tekst);"></div>
   </div>
+
+  </div>
+  </section>
+
 </div>
 </div>
 
@@ -1298,6 +1335,7 @@
         Kies onder elke kolom waar hij naartoe moet. Gekleurde kolommen worden overgenomen,
         grijze niet. Breedte en hoogte zijn verplicht.
       </div>
+      <div class="imp-merkinfo" id="impMerkInfo"></div>
       <div class="imp-maatsoort">
         <label for="impMaatsoort">Deze maten zijn:</label>
         <select id="impMaatsoort">
@@ -1305,6 +1343,8 @@
           <option value="Glasmaat (direct)">Glasmaat (direct)</option>
           <option value="Dagmaat">Dagmaat</option>
         </select>
+        <label class="imp-splits"><input type="checkbox" id="impSplits">
+          Regels met een aantal groter dan 1 opsplitsen in losse ruiten</label>
       </div>
       <div class="imp-scroll" id="impVoorbeeld"></div>
       <div class="imp-telling" id="impTelling"></div>
@@ -1415,7 +1455,31 @@ function datumVandaag() {
 function toonMaatinstelling(tabNaam) {
   const blok = document.querySelector('.toolbar-maatinstelling');
   if (!blok) return;
-  blok.style.display = (tabNaam === 'invoer' || tabNaam === 'fotos') ? '' : 'none';
+  blok.style.display = (tabNaam === 'invoer') ? '' : 'none';
+}
+
+// ═══════════════ BLOKKEN IN- EN UITKLAPPEN ═══════════════
+// Bij tien kozijnen wordt één lange pagina onwerkbaar.
+const blokDicht = {};
+
+function blokKlap(id) {
+  blokDicht[id] = !blokDicht[id];
+  zetBlok(id);
+}
+
+function zetBlok(id) {
+  const inhoud = document.getElementById('inhoud-' + id);
+  const pijl = document.getElementById('pijl-' + id);
+  if (!inhoud) return;
+  inhoud.style.display = blokDicht[id] ? 'none' : '';
+  if (pijl) pijl.textContent = blokDicht[id] ? '▸' : '▾';
+}
+
+function telLosseRijen() {
+  const t = document.getElementById('telling-los');
+  if (!t) return;
+  const n = losseRijen().filter(r => r.merk || r.breedte || r.hoogte || r.glasType).length;
+  t.textContent = n ? n + ' ruiten ingevuld' : 'leeg';
 }
 
 // ═══════════════ KOPMENU (telefoon) ═══════════════
@@ -1432,7 +1496,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v36';
+const APP_VERSIE = 'v40';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1658,7 +1722,8 @@ function vulTabelBody(tbody, lijst) {
 
 function renderTabel() {
   vulTabelBody(document.getElementById('invoerBody'), losseRijen());
-  if (window.renderFotoTabellen && document.getElementById('panel-fotos')) renderFotoTabellen();
+  telLosseRijen();
+  if (window.renderFotoTabellen && document.getElementById('fotoHouder')) renderFotoTabellen();
 }
 
 function rijHTML(rij, nr) {

@@ -33,17 +33,23 @@
   // A t/m Z, daarna A1 t/m Z1, A2 … Al gebruikte letters worden
   // overgeslagen, ook die van losse regels.
 
+  // A t/m Z, daarna AA, AB, AC — zoals kolommen in een spreadsheet.
+  // Bewust geen A1, B1: een merk met een cijfer betekent in deze app
+  // altijd 'ruit zoveel van kozijn zoveel' en dat mag niet dubbelzinnig
+  // worden zodra er ook geïmporteerde maten in het project staan.
   window.volgendMerk = function () {
     var gebruikt = {};
     rijen.forEach(function (r) {
       var m = (r.merk || '').trim().toUpperCase();
       if (m) gebruikt[m] = true;
     });
-    for (var ronde = 0; ronde < 200; ronde++) {
-      for (var i = 0; i < 26; i++) {
-        var letter = String.fromCharCode(65 + i) + (ronde ? ronde : '');
-        if (!gebruikt[letter]) return letter;
-      }
+    for (var n = 0; n < 20000; n++) {
+      var letter = '', rest = n;
+      do {
+        letter = String.fromCharCode(65 + (rest % 26)) + letter;
+        rest = Math.floor(rest / 26) - 1;
+      } while (rest >= 0);
+      if (!gebruikt[letter]) return letter;
     }
     return '?';
   };
@@ -83,6 +89,106 @@
     doelGroep = fotoId;
     document.getElementById('fotoBestand').click();
   };
+
+  /* ─── kozijntekening uit een pdf ───────────────────────────── */
+  // Kozijntekeningen komen bijna altijd als pdf binnen. Die zetten we om
+  // naar een afbeelding, waarna het verder een blok is als elk ander:
+  // merkletters aanwijzen, erop tekenen, en mee in de pdf-uitvoer.
+
+  window.tekeningGekozen = function (input) {
+    var file = input.files && input.files[0];
+    var groep = doelGroep;
+    doelGroep = null;
+    input.value = '';
+    if (!file) return;
+    var sb = sbClient();
+    if (!sb || !window.glasProjectId) {
+      melding('Open eerst een project en zorg dat je online bent.', true);
+      return;
+    }
+    if (!/\.pdf$/i.test(file.name)) { verwerkAfbeelding(file, groep, file.name); return; }
+    if (!window.pdfBibliotheek) { melding('De pdf-lezer is niet beschikbaar.', true); return; }
+
+    melding('Tekening lezen…');
+    window.pdfBibliotheek().then(function (lib) {
+      return file.arrayBuffer().then(function (buf) {
+        return lib.getDocument({ data: buf }).promise;
+      });
+    }).then(function (pdf) {
+      var pagina = 1;
+      if (pdf.numPages > 1) {
+        var keuze = prompt('Deze tekening heeft ' + pdf.numPages + ' pagina\'s. Welke wil je gebruiken?', '1');
+        if (keuze === null) { melding(''); return null; }
+        pagina = Math.min(pdf.numPages, Math.max(1, parseInt(keuze, 10) || 1));
+      }
+      return pdf.getPage(pagina).then(function (p) {
+        // Ruim uitrekenen: een tekening moet je kunnen inzoomen om
+        // maatvoering te lezen.
+        var basis = p.getViewport({ scale: 1 });
+        var schaal = Math.min(3, MAX_ZIJDE / Math.max(basis.width, basis.height));
+        var viewport = p.getViewport({ scale: schaal });
+        var c = document.createElement('canvas');
+        c.width = Math.round(viewport.width);
+        c.height = Math.round(viewport.height);
+        var ctx = c.getContext('2d');
+        // Witte ondergrond: een pdf is doorzichtig en zou anders zwart worden.
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        return p.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+          return new Promise(function (ok, fout) {
+            c.toBlob(function (blob) {
+              if (!blob) { fout(new Error('omzetten mislukt')); return; }
+              ok({ blob: blob, breedte: c.width, hoogte: c.height,
+                   titel: file.name.replace(/\.pdf$/i, '') + (pdf.numPages > 1 ? ' — pagina ' + pagina : '') });
+            }, 'image/jpeg', 0.9);
+          });
+        });
+      });
+    }).then(function (res) {
+      if (!res) return;
+      return zetWeg(res, groep, res.titel);
+    }).catch(function (e) {
+      console.error('[tekening]', e);
+      melding('Tekening inlezen mislukt: ' + e.message, true);
+    });
+  };
+
+  function verwerkAfbeelding(file, groep, titel) {
+    melding('Afbeelding verkleinen…');
+    verklein(file).then(function (res) { return zetWeg(res, groep, titel); })
+      .catch(function (e) { melding('Mislukt: ' + e.message, true); });
+  }
+
+  // Uploaden en als blok toevoegen — gedeeld door foto's en tekeningen.
+  function zetWeg(res, groep, titel) {
+    var sb = sbClient();
+    var pad = window.glasProjectId + '/' + Date.now() + '-' +
+              Math.random().toString(36).slice(2, 8) + '.jpg';
+    melding('Opslaan… (' + Math.round(res.blob.size / 1024) + ' kB)');
+    return sb.storage.from(BUCKET).upload(pad, res.blob, { contentType: 'image/jpeg' })
+      .then(function (up) {
+        if (up.error) throw new Error(up.error.message);
+        var bestaand = groep ? fotoVan(groep) : null;
+        if (bestaand) {
+          bestaand.pad = pad;
+          bestaand.breedte = res.breedte;
+          bestaand.hoogte = res.hoogte;
+          bestaand.markeringen = [];
+          if (titel && !bestaand.titel) bestaand.titel = titel;
+        } else {
+          fotos.push({
+            id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            pad: pad, titel: titel || '', breedte: res.breedte, hoogte: res.hoogte, markeringen: []
+          });
+        }
+        opslaan();
+        renderFotos();
+        melding('');
+        if (bestaand && rijenVan(bestaand.id).length) {
+          setTimeout(function () { fotoAanwijzen(bestaand.id); }, 300);
+        }
+      });
+  }
 
   window.fotoGekozen = function (input) {
     var file = input.files && input.files[0];
@@ -194,10 +300,12 @@
       var zoom = f.zoom || 100;
       var midden = f.pad
         ? '<div class="foto-zoombalk">' +
-            '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', -25)">−</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', -20)">−</button>' +
             '<span class="foto-zoomwaarde" id="zoomwaarde-' + f.id + '">' + zoom + '%</span>' +
-            '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 25)">+</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 20)">+</button>' +
             '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 0)">Passend</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="fotoDraaien(\'' + f.id + '\')" ' +
+              'title="Foto een kwartslag draaien">↻</button>' +
             '<button class="btn btn-secondary btn-sm tk-schakel" onclick="tekenModus(\'' + f.id + '\')">✏️ Tekenen</button>' +
           '</div>' +
           '<div class="teken-balk" id="tekenbalk-' + f.id + '"></div>' +
@@ -209,11 +317,21 @@
         : '<div class="foto-geenfoto">Deze groep heeft geen foto (meer). De ruiten hieronder blijven gewoon bestaan.' +
           '<button class="btn btn-primary btn-sm" onclick="fotoAanGroep(\'' + f.id + '\')">+ Foto toevoegen</button></div>';
 
+      var aantal = rijenVan(f.id).length;
+      var balk =
+        '<div class="blok-balk" onclick="blokKlap(\'' + f.id + '\')">' +
+          '<span class="blok-pijl" id="pijl-' + f.id + '">▾</span>' +
+          '<h3>' + esc(f.titel || (f.pad ? 'Foto ' + (i + 1) : 'Groep ' + (i + 1))) + '</h3>' +
+          '<span class="blok-telling">' + (aantal ? aantal + ' ruiten' : 'nog geen ruiten') + '</span>' +
+        '</div>';
+
       return '<section class="foto-blok' + (f.pad ? '' : ' zonder-foto') + '" id="blok-' + f.id + '">' +
-        kop + midden + '<div class="foto-tabelwrap" id="tabel-' + f.id + '"></div></section>';
+        balk + '<div class="blok-inhoud" id="inhoud-' + f.id + '">' +
+        kop + midden + '<div class="foto-tabelwrap" id="tabel-' + f.id + '"></div></div></section>';
     }).join('');
 
     fotos.forEach(function (f) {
+      if (window.zetBlok) zetBlok(f.id);
       if (!f.pad) { tekenTabel(f.id); return; }
       link(f.pad).then(function (url) {
         var doek = el('doek-' + f.id);
@@ -266,6 +384,7 @@
         if (window.tekenInit) tekenInit(f.id);
       }
       tekenTabel(f.id);
+      telBlok(f.id);
     });
     tekenAanwijsbalk();
   };
@@ -284,6 +403,18 @@
       });
     });
   };
+
+  // De telling in de balk van een blok bijwerken zonder alles opnieuw
+  // op te bouwen — anders blijft er 'nog geen ruiten' staan nadat je er
+  // net een hebt aangewezen.
+  function telBlok(fotoId) {
+    var blok = el('blok-' + fotoId);
+    if (!blok) return;
+    var teller = blok.querySelector('.blok-telling');
+    if (!teller) return;
+    var n = rijenVan(fotoId).length;
+    teller.textContent = n ? n + (n === 1 ? ' ruit' : ' ruiten') : 'nog geen ruiten';
+  }
 
   function tekenMarkeringen(fotoId) {
     var doek = el('doek-' + fotoId);
@@ -372,13 +503,103 @@
     var foto = fotoVan(id);
     if (!foto) return;
     var nu = foto.zoom || 100;
-    foto.zoom = stap === 0 ? 100 : Math.min(400, Math.max(50, nu + stap));
+    foto.zoom = stap === 0 ? 100 : Math.min(400, Math.max(20, nu + stap));
     var doek = el('doek-' + id);
     var waarde = el('zoomwaarde-' + id);
     if (doek) doek.style.width = foto.zoom + '%';
     if (waarde) waarde.textContent = foto.zoom + '%';
     opslaan();
   };
+
+  /* ─── foto een kwartslag draaien ───────────────────────────── */
+  // De beeldpunten zelf worden gedraaid en opnieuw opgeslagen, in plaats
+  // van de foto op het scherm te kantelen. Daarmee hoeven het aanwijzen,
+  // het slepen van bolletjes, het tekenen en de pdf nergens rekening te
+  // houden met een draaistand — alles blijft gewoon rechtop rekenen.
+
+  window.fotoDraaien = function (fotoId) {
+    var foto = fotoVan(fotoId);
+    var sb = sbClient();
+    if (!foto || !foto.pad) return;
+    if (!sb) { melding('Draaien kan alleen met internet.', true); return; }
+
+    melding('Foto draaien…');
+    link(foto.pad).then(function (url) {
+      if (!url) throw new Error('foto niet beschikbaar');
+      return fetch(url);
+    }).then(function (res) {
+      if (!res.ok) throw new Error('ophalen mislukt (' + res.status + ')');
+      return res.blob();
+    }).then(function (blob) {
+      return new Promise(function (ok, fout) {
+        var img = new Image();
+        var tijdelijk = URL.createObjectURL(blob);
+        img.onload = function () {
+          URL.revokeObjectURL(tijdelijk);
+          // Een kwartslag met de klok mee: breedte en hoogte wisselen om.
+          var c = document.createElement('canvas');
+          c.width = img.height;
+          c.height = img.width;
+          var ctx = c.getContext('2d');
+          ctx.translate(c.width / 2, c.height / 2);
+          ctx.rotate(Math.PI / 2);
+          ctx.drawImage(img, -img.width / 2, -img.height / 2);
+          c.toBlob(function (nieuw) {
+            if (!nieuw) { fout(new Error('draaien mislukt')); return; }
+            ok({ blob: nieuw, breedte: c.width, hoogte: c.height });
+          }, 'image/jpeg', KWALITEIT);
+        };
+        img.onerror = function () { URL.revokeObjectURL(tijdelijk); fout(new Error('afbeelding onleesbaar')); };
+        img.src = tijdelijk;
+      });
+    }).then(function (res) {
+      var oudPad = foto.pad;
+      var nieuwPad = window.glasProjectId + '/' + Date.now() + '-' +
+                     Math.random().toString(36).slice(2, 8) + '.jpg';
+      melding('Opslaan…');
+      return sb.storage.from(BUCKET).upload(nieuwPad, res.blob, { contentType: 'image/jpeg' })
+        .then(function (up) {
+          if (up.error) throw new Error(up.error.message);
+          if (window.bewaarStap) bewaarStap('Foto gedraaid');
+          draaiCoordinaten(foto);
+          foto.pad = nieuwPad;
+          foto.breedte = res.breedte;
+          foto.hoogte = res.hoogte;
+          delete linkCache[oudPad];
+          // De ongedraaide foto blijft staan: ongedaan maken zet de
+          // verwijzing ernaartoe terug, en dan moet het bestand er nog
+          // zijn. Bij het verwijderen van het project gaat de hele map
+          // toch in één keer weg.
+          opslaan();
+          renderFotos();
+          melding('');
+        });
+    }).catch(function (e) {
+      console.error('[foto] draaien mislukt', e);
+      melding('Draaien mislukt: ' + e.message, true);
+    });
+  };
+
+  // Een punt (x, y) op de oude foto komt na een kwartslag met de klok mee
+  // terecht op (1 − y, x). Dat geldt voor de bolletjes én voor elk punt
+  // van elke streek.
+  function draaiCoordinaten(foto) {
+    foto.markeringen.forEach(function (m) {
+      var x = m.x, y = m.y;
+      m.x = 1 - y;
+      m.y = x;
+    });
+    if (!Array.isArray(foto.inkt) || !foto.inkt.length) return;
+    var vbOud = Math.round(1000 * (foto.hoogte || 3) / (foto.breedte || 4)) || 750;
+    var vbNieuw = Math.round(1000 * (foto.breedte || 4) / (foto.hoogte || 3)) || 750;
+    foto.inkt.forEach(function (s) {
+      s.p = s.p.map(function (p) {
+        var nx = p[0] / 1000, ny = p[1] / vbOud;
+        return [Math.round((1 - ny) * 1000 * 10) / 10,
+                Math.round(nx * vbNieuw * 10) / 10];
+      });
+    });
+  }
 
   window.fotoTitelWijzig = function (id, v) {
     var f = fotoVan(id);

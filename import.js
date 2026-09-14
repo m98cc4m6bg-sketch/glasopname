@@ -117,6 +117,16 @@
   // Woorden krijgen van pdf.js een x/y-positie mee. Alles op ongeveer
   // dezelfde hoogte is één regel; grote gaten in x zijn kolomgrenzen.
 
+  // Ook de fotomodule gebruikt de pdf-lezer, om een kozijntekening om te
+  // zetten naar een afbeelding.
+  window.pdfBibliotheek = function () {
+    return laadScript(PDF_URL).then(function () {
+      var lib = window.pdfjsLib;
+      lib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
+      return lib;
+    });
+  };
+
   function uitPdf(file) {
     return laadScript(PDF_URL).then(function () {
       var lib = window.pdfjsLib;
@@ -296,6 +306,7 @@
       '<table class="imp-tabel"><thead><tr>' + kopHtml + '</tr></thead><tbody>' + voorbeeld + '</tbody></table>';
 
     var n = gemapteRijen().length;
+    toonMerkInfo();
     var mistBreedte = mapping.indexOf('breedte') < 0;
     var mistHoogte = mapping.indexOf('hoogte') < 0;
     var waarschuwing = '';
@@ -308,6 +319,37 @@
        (tabel.rijen.length > n ? ' (' + (tabel.rijen.length - n) + ' overgeslagen: geen maat)' : ''));
     document.getElementById('impToevoegen').disabled = !!waarschuwing || n === 0;
     document.getElementById('impVervangen').disabled = !!waarschuwing || n === 0;
+  }
+
+  function toonMerkInfo() {
+    var info = document.getElementById('impMerkInfo');
+    if (!info) return;
+    var merken = {};
+    gemapteRijen().forEach(function (o) {
+      var k = merkBasis(o.merk);
+      if (k) merken[k] = (merken[k] || 0) + 1;
+    });
+    var dubbel = Object.keys(merken).filter(function (k) { return merken[k] > 1; });
+    var bestaat = Object.keys(merken).filter(function (k) {
+      return rijen.some(function (r) {
+        var m = merkBasis(r.merk);
+        return m === k || (m.indexOf(k) === 0 && /^\d+$/.test(m.slice(k.length)));
+      });
+    });
+
+    var regels = [];
+    if (dubbel.length) {
+      regels.push('<span class="imp-goed">✓ ' + dubbel.length +
+        ' kozijn' + (dubbel.length === 1 ? '' : 'en') + ' met meerdere maten (' +
+        dubbel.slice(0, 6).join(', ') + (dubbel.length > 6 ? '…' : '') +
+        ') krijgen een nummer achter de letter.</span>');
+    }
+    if (bestaat.length) {
+      regels.push('<span class="imp-let-op">⚠ De merken ' + bestaat.slice(0, 6).join(', ') +
+        (bestaat.length > 6 ? '…' : '') + ' komen al voor in dit project. ' +
+        'Bij toevoegen wordt doorgeteld; wil je ze vervangen, gebruik dan \u2039Alles vervangen\u203a.</span>');
+    }
+    info.innerHTML = regels.join('');
   }
 
   /* ─── overnemen in de opname ───────────────────────────────── */
@@ -350,8 +392,70 @@
     });
   }
 
+  /* ─── merken per kozijn nummeren ───────────────────────────── */
+  // In aangeleverde lijsten dragen alle ruiten van één kozijn dezelfde
+  // letter. Heeft kozijn A twee verschillende maten, dan staan er twee
+  // regels met merk A en is voor de buitenman niet te zien welke ruit
+  // waar hoort. Die krijgen daarom A1 en A2. Komt een merk maar één keer
+  // voor, dan blijft het zoals het op de tekening staat.
+
+  function merkBasis(m) { return String(m || '').trim().toUpperCase(); }
+
+  // Bestaat A3 al in het project, dan begint een nieuwe import bij A4.
+  function hoogsteNummer(letter) {
+    var hoogste = 0;
+    rijen.forEach(function (r) {
+      var m = merkBasis(r.merk);
+      if (m.indexOf(letter) !== 0) return;
+      var rest = m.slice(letter.length);
+      if (!/^\d+$/.test(rest)) return;
+      hoogste = Math.max(hoogste, parseInt(rest, 10));
+    });
+    return hoogste;
+  }
+
+  function nummerMerken(nieuw) {
+    var perMerk = {};
+    nieuw.forEach(function (r) {
+      var k = merkBasis(r.merk);
+      if (!k) return;
+      (perMerk[k] = perMerk[k] || []).push(r);
+    });
+    var aangepast = [];
+    Object.keys(perMerk).forEach(function (k) {
+      var groep = perMerk[k];
+      // Nummeren is nodig bij meerdere maten in één kozijn, en ook als de
+      // letter al in het project voorkomt — anders levert een import
+      // alsnog twee ruiten met dezelfde letter op.
+      var bestaatAl = rijen.some(function (r) {
+        return merkBasis(r.merk) === k && groep.indexOf(r) < 0;
+      });
+      if (groep.length < 2 && !bestaatAl) return;
+      var start = hoogsteNummer(k);
+      groep.forEach(function (r, i) { r.merk = k + (start + i + 1); });
+      aangepast.push(groep.length > 1
+        ? k + ' → ' + groep[0].merk + ' t/m ' + groep[groep.length - 1].merk
+        : k + ' → ' + groep[0].merk);
+    });
+    return aangepast;
+  }
+
+  // Eén regel van vijf gelijke ruiten wordt vijf regels van één.
+  function splitsAantallen(nieuw) {
+    var uit = [];
+    nieuw.forEach(function (r) {
+      var n = parseInt(r.aantal, 10) || 1;
+      if (n < 2) { uit.push(r); return; }
+      for (var i = 0; i < n; i++) {
+        var kopie = Object.assign(nieuweRij(), r, { id: nieuweRij().id, aantal: 1 });
+        uit.push(kopie);
+      }
+    });
+    return uit;
+  }
+
   window.impToevoegen = function () {
-    var nieuw = bouwRijen();
+    var nieuw = verwerkMerken(bouwRijen());
     // lege rijen aan het eind opruimen, anders staan er gaten in de lijst
     while (rijen.length && !rijen[rijen.length - 1].breedte && !rijen[rijen.length - 1].hoogte &&
            !rijen[rijen.length - 1].glasType && !rijen[rijen.length - 1].merk) {
@@ -363,10 +467,22 @@
 
   window.impVervangen = function () {
     if (!confirm('Alle huidige rijen vervangen door de geïmporteerde rijen?')) return;
-    var nieuw = bouwRijen();
+    var nieuw = verwerkMerken(bouwRijen());
     rijen = nieuw;
     afronden(nieuw.length + ' rijen ingelezen');
   };
+
+  function verwerkMerken(nieuw) {
+    var splitsen = document.getElementById('impSplits');
+    if (splitsen && splitsen.checked) nieuw = splitsAantallen(nieuw);
+    var gewijzigd = nummerMerken(nieuw);
+    if (gewijzigd.length) {
+      window.__impMelding = 'Merken genummerd: ' + gewijzigd.join(', ');
+    } else {
+      window.__impMelding = '';
+    }
+    return nieuw;
+  }
 
   function afronden(tekst) {
     renderTabel();
@@ -374,7 +490,8 @@
     opslaan();
     window.impSluit();
     var s = document.getElementById('statusBar');
-    if (s) s.textContent = tekst;
+    if (s) s.textContent = tekst + (window.__impMelding ? ' — ' + window.__impMelding : '');
+    window.__impMelding = '';
   }
 
   /* ─── knop en venster in de pagina zetten ──────────────────── */

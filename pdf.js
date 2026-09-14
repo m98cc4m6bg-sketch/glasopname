@@ -473,7 +473,7 @@
     if (e.key !== 'p' && e.key !== 'P') return;
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     e.preventDefault();
-    var opFoto = document.getElementById('panel-fotos');
+    var opFoto = document.getElementById('panel-invoer');
     if (opFoto && opFoto.classList.contains('active') && fotos.length) {
       exportFotoPdf();
     } else {
@@ -494,9 +494,11 @@
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     e.preventDefault();
     e.stopPropagation();
-    var fotosActief = document.getElementById('panel-fotos');
-    fotosActief = fotosActief && fotosActief.classList.contains('active');
-    if (fotosActief && fotos.length) exportFotoPdf();
+    // Invoer en foto's zitten in één tabblad; daar levert Cmd+P de pdf
+    // met de foto's op zodra er een foto of tekening is.
+    var opInvoer = document.getElementById('panel-invoer');
+    opInvoer = opInvoer && opInvoer.classList.contains('active');
+    if (opInvoer && fotos.length) exportFotoPdf();
     else exportBestellijstPdf();
   }, true);
 

@@ -32,14 +32,29 @@
     { naam: 'Groot',  g: 64 },
     { naam: 'Extra groot', g: 96 }
   ];
+  // Getekende pictogrammen in plaats van tekens uit het lettertype: die
+  // zien er op elk apparaat hetzelfde uit en zijn beter te herkennen.
+  var PIJL_ICOON =
+    '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">' +
+    '<path d="M5 2.5 L19 12.5 L12.4 13.2 L16 20.5 L13.1 21.8 L9.6 14.6 L5 18.6 Z" ' +
+    'fill="currentColor" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/></svg>';
+
+  var GUM_ICOON =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+    '<g transform="rotate(-38 12 12)">' +
+    '<rect x="5.5" y="7" width="13" height="10" rx="2" fill="#f08a24" stroke="#8a4a06" stroke-width="1.2"/>' +
+    '<path d="M12 7 v10" stroke="#8a4a06" stroke-width="1.2"/>' +
+    '<path d="M12 7 h6.5 a2 2 0 0 1 2 2 v6 a2 2 0 0 1 -2 2 H12 Z" fill="#ffd9b0" stroke="#8a4a06" stroke-width="1.2"/>' +
+    '</g></svg>';
+
   var GEREEDSCHAP = [
-    { id: 'kies', teken: '➚', naam: 'Selecteren' },
+    { id: 'kies', teken: PIJL_ICOON, naam: 'Selecteren' },
     { id: 'pen',  teken: '✏️', naam: 'Pen' },
     { id: 'lijn', teken: '╱',  naam: 'Rechte lijn' },
     { id: 'pijl', teken: '➔',  naam: 'Pijl' },
     { id: 'rect', teken: '▭',  naam: 'Rechthoek' },
     { id: 'tekst', teken: 'T', naam: 'Tekst' },
-    { id: 'gum',  teken: '🧽', naam: 'Gum' }
+    { id: 'gum',  teken: GUM_ICOON, naam: 'Gum' }
   ];
 
   var NS = 'http://www.w3.org/2000/svg';
@@ -351,27 +366,32 @@
   function tekenKader(fotoId) {
     var svg = el('inkt-' + fotoId);
     if (!svg) return;
-    var oud = svg.querySelector('[data-kader]');
-    if (oud) oud.remove();
+    Array.prototype.forEach.call(svg.querySelectorAll('[data-kader]'), function (k) { k.remove(); });
     if (gekozen < 0) return;
     var node = elementVan(fotoId, gekozen);
     if (!node || !node.getBBox) return;
     var b;
     try { b = node.getBBox(); } catch (err) { return; }
+    // Twee kaders over elkaar: een doorlopende witte lijn met daarover een
+    // zwarte stippellijn. Zo blijft de omlijning zichtbaar op een donkere
+    // én op een lichte foto, en heeft de gekozen tekenkleur er geen
+    // invloed op.
     var m = 10;
-    var kader = document.createElementNS(NS, 'rect');
-    kader.setAttribute('x', b.x - m);
-    kader.setAttribute('y', b.y - m);
-    kader.setAttribute('width', b.width + m * 2);
-    kader.setAttribute('height', b.height + m * 2);
-    kader.setAttribute('fill', 'none');
-    kader.setAttribute('stroke', '#d00243');
-    kader.setAttribute('stroke-width', '3');
-    kader.setAttribute('stroke-dasharray', '12 8');
-    kader.setAttribute('vector-effect', 'non-scaling-stroke');
-    kader.setAttribute('pointer-events', 'none');
-    kader.setAttribute('data-kader', '1');
-    svg.appendChild(kader);
+    [{ k: '#ffffff', streep: null }, { k: '#1d1d1b', streep: '10 8' }].forEach(function (laag) {
+      var kader = document.createElementNS(NS, 'rect');
+      kader.setAttribute('x', b.x - m);
+      kader.setAttribute('y', b.y - m);
+      kader.setAttribute('width', b.width + m * 2);
+      kader.setAttribute('height', b.height + m * 2);
+      kader.setAttribute('fill', 'none');
+      kader.setAttribute('stroke', laag.k);
+      kader.setAttribute('stroke-width', laag.streep ? '2' : '3.5');
+      if (laag.streep) kader.setAttribute('stroke-dasharray', laag.streep);
+      kader.setAttribute('vector-effect', 'non-scaling-stroke');
+      kader.setAttribute('pointer-events', 'none');
+      kader.setAttribute('data-kader', '1');
+      svg.appendChild(kader);
+    });
   }
 
   function kiesStreek(fotoId, index) {

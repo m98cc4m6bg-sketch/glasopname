@@ -752,7 +752,6 @@
     var rij = nieuweRij();
     rij.fotoId = fotoId;
     rij.merk = volgendMerk();
-    neemGlasOver(rij, fotoId);
     rijen.push(rij);
     foto.markeringen.push({ rijId: rij.id, x: x, y: y });
 
@@ -762,27 +761,11 @@
     setTimeout(function () { focusRij(rij.id); }, 80);
   };
 
-  // Alleen als de gebruiker daarvoor kiest: het glastype en de opbouw van
-  // de vorige ruit in deze groep overnemen. Maten nooit — die verschillen
-  // juist per ruit.
-  function neemGlasOver(rij, fotoId) {
-    if (!window.glasOvernemenActief || !glasOvernemenActief()) return;
-    var eerder = rijenVan(fotoId);
-    for (var i = eerder.length - 1; i >= 0; i--) {
-      if (eerder[i].glasType) {
-        rij.glasType = eerder[i].glasType;
-        rij.opbouw = eerder[i].opbouw;
-        return;
-      }
-    }
-  }
-
   window.fotoRegelToevoegen = function (fotoId) {
     if (window.bewaarStap) bewaarStap('Regel toegevoegd');
     var rij = nieuweRij();
     rij.fotoId = fotoId;
     rij.merk = volgendMerk();
-    neemGlasOver(rij, fotoId);
     rijen.push(rij);
     herbereken();
     renderTabel();

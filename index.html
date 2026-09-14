@@ -1139,6 +1139,9 @@
     box-shadow: 0 2px 8px rgba(29,29,27,0.18);
   }
   body.bulk-open .tabs { top: var(--bulkhoogte, 0px); }
+
+  .tk-knop svg { display: block; pointer-events: none; }
+  .tk-knop.aan svg path[fill="currentColor"] { color: white; }
 </style>
 </head>
 <body>
@@ -1172,6 +1175,7 @@
 <div class="bulk-balk" id="bulkBalk">
   <span id="bulkAantal"></span>
   <button onclick="bulkSelectieWissen()">Selectie wissen</button>
+  <button onclick="gelijktrekken()">⇄ Gelijktrekken</button>
   <button onclick="kopieerSelectie(null, 'de losse maten')">⧉ Kopiëren</button>
   <button onclick="kopieerNaarMenu(event)">⧉ Kopieer naar…</button>
   <button onclick="bulkVerwijderSelectie()">Geselecteerde verwijderen</button>
@@ -1202,12 +1206,7 @@
   <input type="text" id="projectDatum" placeholder="dd-mm-jjjj" style="min-width:110px;"
     inputmode="numeric" autocomplete="off" oninput="opslaan()" onfocus="datumKeuze(this)" onclick="datumKeuze(this)">
   <div class="speling-wrap">
-    <label class="toolbar-keuze" title="Handig binnen één kozijn; zet het uit als de diktes verschillen">
-    <input type="checkbox" id="glasOvernemen" onchange="glasOvernemenWijzig(this.checked)">
-    Glas overnemen van vorige ruit
-  </label>
-
-  <span class="toolbar-acties" id="toolbarActies">
+    <span class="toolbar-acties" id="toolbarActies">
     <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
   </span>
 
@@ -1534,19 +1533,6 @@ let fotos = [];   // foto's van de bestaande situatie, met markeringen per ruit
 let projectInfo = {};   // klant-, adres- en uitvoeringsgegevens
 let projectTaken = [];  // eenvoudige takenlijst bij het project
 
-// Bij het aanwijzen van een nieuwe ruit het glastype en de opbouw van de
-// vorige ruit in dezelfde groep overnemen. Staat standaard uit: binnen één
-// kozijn verschillen de diktes vaak genoeg om dat niet te willen.
-function glasOvernemenWijzig(aan) {
-  if (!projectInfo || typeof projectInfo !== 'object') projectInfo = {};
-  projectInfo.glasOvernemen = !!aan;
-  opslaan();
-}
-
-function glasOvernemenActief() {
-  return !!(projectInfo && projectInfo.glasOvernemen);
-}
-
 // ═══════════════ IMPORTEREN ═══════════════
 function importMenu(e) {
   if (exportBalk) { exportSluit(); return; }
@@ -1732,13 +1718,11 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v52';
+const APP_VERSIE = 'v55';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.app-versie').forEach(e => { e.textContent = APP_VERSIE; });
-  const vinkje = document.getElementById('glasOvernemen');
-  if (vinkje) vinkje.checked = glasOvernemenActief();
   const actief = document.querySelector('.tab-panel.active');
   toonMaatinstelling(actief ? actief.id.replace('panel-', '') : 'invoer');
   laadOpgeslagen();

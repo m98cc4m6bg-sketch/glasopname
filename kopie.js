@@ -101,6 +101,58 @@
       (doelNaam || 'dezelfde plek') + ' (' + nieuw.map(function (r) { return r.merk; }).join(', ') + ')');
   };
 
+  /* ─── geselecteerde ruiten gelijktrekken ───────────────────── */
+  // Eén ruit ingevuld, de rest moet hetzelfde worden. Alles gaat mee
+  // behalve de merkletter en de plek op de foto — die horen bij de ruit
+  // zelf en mogen nooit gelijk worden.
+
+  var NIET_OVERNEMEN = { id: 1, merk: 1, fotoId: 1 };
+
+  // Een verse regel heeft al waarden in zich — 'Sponningmaat', 'Nee',
+  // 'Geen roedenverdeling'. Vergelijken met een nieuwe regel is daarom
+  // betrouwbaarder dan een opsomming van velden, en het blijft kloppen
+  // als er ooit een kolom bij komt.
+  var BEREKEND = { glasBreedte: 1, glasHoogte: 1, totaalDikte: 1, kgM2: 1 };
+
+  function heeftInhoud(r) {
+    var leeg = nieuweRij();
+    return Object.keys(leeg).some(function (veld) {
+      if (NIET_OVERNEMEN[veld] || BEREKEND[veld]) return false;
+      return String(r[veld] === undefined ? '' : r[veld]) !==
+             String(leeg[veld] === undefined ? '' : leeg[veld]);
+    });
+  }
+
+  window.gelijktrekken = function () {
+    var gekozen = geselecteerd();
+    if (gekozen.length < 2) {
+      alert('Selecteer eerst de ruit die al ingevuld is, plus de ruiten die hetzelfde moeten worden.');
+      return;
+    }
+    // De eerste geselecteerde ruit mét inhoud is het voorbeeld; staat er
+    // nergens iets in, dan de bovenste.
+    var bron = gekozen.find(heeftInhoud) || gekozen[0];
+    var doelen = gekozen.filter(function (r) { return r !== bron; });
+    var overschrijft = doelen.filter(heeftInhoud);
+
+    if (overschrijft.length && !confirm(
+        overschrijft.length + ' van de geselecteerde ruiten ' +
+        (overschrijft.length === 1 ? 'is' : 'zijn') + ' al ingevuld (' +
+        overschrijft.map(function (r) { return r.merk || '?'; }).join(', ') + ').\n\n' +
+        'Die worden overschreven met de gegevens van ' + (bron.merk || 'de eerste ruit') + '. Doorgaan?')) return;
+
+    if (window.bewaarStap) bewaarStap('Ruiten gelijkgetrokken');
+    doelen.forEach(function (r) {
+      Object.keys(bron).forEach(function (veld) {
+        if (NIET_OVERNEMEN[veld]) return;
+        r[veld] = bron[veld];
+      });
+    });
+    if (window.bulkSelectieWissen) bulkSelectieWissen();
+    afronden(doelen.length + ' ruiten gelijkgetrokken met ' + (bron.merk || 'de eerste ruit') +
+      ' (' + doelen.map(function (r) { return r.merk; }).join(', ') + ')');
+  };
+
   /* ─── kopiëren naar een andere groep ───────────────────────── */
 
   window.kopieerNaarMenu = function (e) {

@@ -342,7 +342,8 @@
       regels.push('<span class="imp-goed">✓ ' + dubbel.length +
         ' kozijn' + (dubbel.length === 1 ? '' : 'en') + ' met meerdere maten (' +
         dubbel.slice(0, 6).join(', ') + (dubbel.length > 6 ? '…' : '') +
-        ') krijgen een nummer achter de letter.</span>');
+        ') ' + (dubbel.length === 1 ? 'krijgt' : 'krijgen') +
+        ' een nummer achter de letter.</span>');
     }
     if (bestaat.length) {
       regels.push('<span class="imp-let-op">⚠ De merken ' + bestaat.slice(0, 6).join(', ') +

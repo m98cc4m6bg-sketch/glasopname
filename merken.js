@@ -92,17 +92,37 @@
     merkBalkBijwerken();
   };
 
-  // De eerste ruit met die letter houdt hem; de rest krijgt de
-  // eerstvolgende vrije letter. Zo blijft wat al bij de leverancier
-  // ligt kloppen.
+  function hoogsteNummerVoor(basis, negeer) {
+    var hoogste = 0;
+    rijen.forEach(function (r) {
+      if (negeer.indexOf(r) >= 0) return;
+      var d = String(r.merk || '').trim().toUpperCase().match(/^([A-Z]+)(\d+)$/);
+      if (d && d[1] === basis) hoogste = Math.max(hoogste, parseInt(d[2], 10));
+    });
+    return hoogste;
+  }
+
+  // Dezelfde regel als bij het importeren: dragen alle botsende ruiten een
+  // kale kozijnletter, dan worden het A1, A2, A3 — dat zegt de buitenman
+  // meteen bij welk kozijn een ruit hoort. Alleen wanneer de letter al een
+  // nummer heeft houdt de eerste hem en tellen de andere door.
   window.merkAutoOplossen = function () {
     if (window.bewaarStap) bewaarStap('Dubbele merken hernoemd');
     var c = merkConflicten();
     var gewijzigd = [];
     c.forEach(function (x) {
+      var kaal = sleutel(x.letter).match(/^[A-Z]+$/);
+      if (kaal) {
+        var basis = sleutel(x.letter);
+        var start = hoogsteNummerVoor(basis, x.rijen);
+        x.rijen.forEach(function (r, i) { r.merk = basis + (start + i + 1); });
+        gewijzigd.push(x.letter + ' → ' + x.rijen[0].merk + ' t/m ' + x.rijen[x.rijen.length - 1].merk);
+        return;
+      }
       x.rijen.slice(1).forEach(function (r) {
         var oud = r.merk;
-        r.merk = volgendMerk();
+        var d = sleutel(oud).match(/^([A-Z]+)(\d+)$/);
+        r.merk = d ? d[1] + (hoogsteNummerVoor(d[1], []) + 1) : volgendMerk();
         gewijzigd.push(oud + ' → ' + r.merk);
       });
     });

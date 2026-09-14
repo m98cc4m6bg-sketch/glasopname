@@ -157,6 +157,8 @@
       } else {
         vuil = false;
         localStorage.removeItem(LS_PENDING);
+        eigenSchrijfsels.push(diepCanon(state));
+        if (eigenSchrijfsels.length > 8) eigenSchrijfsels.shift();
         statusOpgeslagen();
       }
     });
@@ -183,6 +185,10 @@
   }
 
   var kanaal = null;
+  // Wat we zelf hebben weggeschreven. De database stuurt elke wijziging
+  // terug, ook de onze; die komt aan als jij alweer verder hebt getypt en
+  // is dan niet meer te herkennen aan wat er op het scherm staat.
+  var eigenSchrijfsels = [];
 
   function luisterOpProject() {
     // Een oudere bibliotheek uit de cache kent geen kanalen. Dan werkt de
@@ -203,8 +209,11 @@
 
   function vanElders(rij) {
     if (!rij || !rij.data) return;
-    // Onze eigen opslag komt ook binnen; die kunnen we overslaan.
-    if (diepCanon(rij.data) === diepCanon(huidigeStaat())) return;
+    var binnen = diepCanon(rij.data);
+    // Gelijk aan wat er nu staat: niets aan de hand.
+    if (binnen === diepCanon(huidigeStaat())) return;
+    // Of het is een van onze eigen opslagbeurten die terugkaatst.
+    if (eigenSchrijfsels.indexOf(binnen) >= 0) return;
 
     var veldActief = document.activeElement &&
       document.activeElement.matches && document.activeElement.matches('input, select, textarea');

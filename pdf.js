@@ -435,15 +435,11 @@
     return 'Eerste levermogelijkheid';
   }
 
-  // Deze pagina komt er altijd, ook als er niets is ingevuld. Eerder werd
-  // hij overgeslagen bij een lege instructie en geen foto, en dan kreeg de
-  // leverancier een bestellijst zonder afleveradres — zonder dat iemand dat
-  // merkte. Wat ontbreekt staat er nu met zoveel woorden op; controleren
-  // vóór de export gebeurt in leverControle().
   function leverPagina(doc, project, datum) {
     var foto = (typeof fotos !== 'undefined')
       ? fotos.find(function (f) { return f.soort === 'lever'; }) : null;
     var instructie = (projectInfo && projectInfo.leverInstructie) || '';
+    if (!foto && !instructie.trim()) return Promise.resolve();
 
     var plaatje = (foto && foto.pad && window.glasSupabase)
       ? window.glasSupabase.storage.from('projectfotos').createSignedUrl(foto.pad, 3600)
@@ -494,12 +490,6 @@
         var regels = doc.splitTextToSize(schoon(instructie), INHOUD);
         doc.text(regels, MARGE, y);
         y += regels.length * 4.6 + 4;
-      } else {
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(9.5);
-        doc.setTextColor(120, 128, 140);
-        doc.text(schoon('Geen instructie voor de chauffeur ingevuld.'), MARGE, y);
-        y += 8;
       }
 
       if (data) {
@@ -512,23 +502,6 @@
         doc.setDrawColor(180, 186, 196);
         doc.rect(x, y, b, h);
         tekenInkt(doc, foto, x, y, b, h);
-      } else {
-        // Geen foto, of er is wel een foto maar hij kwam niet binnen. Dat
-        // tweede gebeurt zonder bereik, en dan moet er niet staan dat er
-        // geen foto is — anders gaat iemand er een tweede maken.
-        var tekst = foto
-          ? 'Er hoort een foto van de leverlocatie bij, maar die kon niet worden'
-            + ' opgehaald. Controleer de verbinding en maak de pdf opnieuw.'
-          : 'Geen foto van de leverlocatie toegevoegd.';
-        var vakH = Math.min(46, Math.max(24, HOOGTE - MARGE - 12 - y));
-        doc.setDrawColor(200, 204, 212);
-        doc.setFillColor(246, 245, 244);
-        doc.rect(MARGE, y, INHOUD, vakH, 'FD');
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(9.5);
-        doc.setTextColor(120, 128, 140);
-        var rr = doc.splitTextToSize(schoon(tekst), INHOUD - 12);
-        doc.text(rr, MARGE + 6, y + vakH / 2 - (rr.length - 1) * 2.3 + 1);
       }
     });
   }
@@ -694,109 +667,25 @@
      er in één keer in kunnen.
   */
 
-  // Vóór elke export nagaan wat er op de leverpagina nog ontbreekt. Dit
-  // houdt niets tegen: de pagina gaat altijd mee. Het wijst alleen aan wat
-  // er mist, zodat je kunt kiezen tussen aanvullen en toch exporteren.
-  // Het werkadres telt alleen mee als er op het werk geleverd wordt; bij
-  // levering op de werkplaats staat het adres al vast.
-  function watMist() {
+  // Vóór elke export even nagaan of het werkadres en de leverfoto er zijn.
+  // Niet verplicht — je kunt gewoon doorgaan — maar het scheelt een
+  // bestellijst die bij de leverancier op de verkeerde plek belandt.
+  function ontbrekendControleren() {
     var i = projectInfo || {};
     var mist = [];
-    if (i.leverAdres === 'werk' && (!(i.straat || '').trim() || !(i.plaats || '').trim())) {
-      mist.push({ wat: 'het werkadres waar het glas heen moet', plek: 'adres' });
-    }
+    if (!(i.straat || '').trim() || !(i.plaats || '').trim()) mist.push('het werkadres van het project');
     var heeftFoto = (typeof fotos !== 'undefined') &&
       fotos.some(function (f) { return f.soort === 'lever' && f.pad; });
-    if (!heeftFoto) mist.push({ wat: 'een foto van de leverlocatie', plek: 'lever' });
-    if (!i.leverSoort || (i.leverSoort === 'datum' && !i.leverDatum) ||
-        (i.leverSoort === 'week' && !i.leverWeek)) {
-      mist.push({ wat: 'een leverdatum of -week', plek: 'lever' });
-    }
-    if (!((i.leverInstructie || '').trim())) {
-      mist.push({ wat: 'een instructie voor de chauffeur', plek: 'lever' });
-    }
-    return mist;
+    if (!heeftFoto) mist.push('een foto van de leverlocatie');
+    if (!mist.length) return true;
+    return confirm('Nog niet ingevuld: ' + mist.join(' en ') + '.\n\n' +
+                   'Je kunt gewoon doorgaan. Wil je exporteren?');
   }
 
-  var meldVenster = null;
-
-  function meldSluit() {
-    if (meldVenster) { meldVenster.remove(); meldVenster = null; }
-  }
-
-  // Waarom een eigen venster en niet confirm(): die heeft twee knoppen met
-  // vaste tekst, en 'Annuleren' leest daar als 'niet exporteren' terwijl het
-  // hier 'ik vul het eerst aan' moet betekenen. Drie keuzes dus, met tekst
-  // die zegt wat er gebeurt.
-  function leverMelding(mist, verder) {
-    meldSluit();
-    var vak = document.createElement('div');
-    vak.className = 'cloud-overlay';
-    vak.style.display = 'flex';
-    vak.innerHTML =
-      '<div class="cloud-paneel">' +
-        '<header><h2>Nog niet alles is ingevuld</h2>' +
-        '<div class="sub">De leverpagina gaat wel mee met de bestellijst</div></header>' +
-        '<div class="cloud-body">' +
-          '<p style="font-size:13px;line-height:1.6;margin-bottom:8px;">' +
-          'Op de leverpagina ontbreekt nog:</p>' +
-          '<ul style="font-size:13px;line-height:1.7;margin:0 0 12px 18px;">' +
-          mist.map(function (m) { return '<li>' + m.wat + '</li>'; }).join('') +
-          '</ul>' +
-          '<p style="font-size:12px;color:var(--grijs-tekst);line-height:1.6;">' +
-          'De pagina komt er hoe dan ook in. Wat ontbreekt staat er dan met ' +
-          'zoveel woorden op, zodat de leverancier ziet dat het niet vergeten is ' +
-          'maar onbekend.</p>' +
-        '</div>' +
-        '<div class="cloud-voet">' +
-          '<button class="btn btn-ghost btn-sm" data-actie="sluit">Annuleren</button>' +
-          '<div style="display:flex;gap:10px;">' +
-            '<button class="btn btn-secondary btn-sm" data-actie="aanvullen">Aanvullen</button>' +
-            '<button class="btn btn-primary btn-sm" data-actie="toch">Toch exporteren</button>' +
-          '</div>' +
-        '</div>' +
-      '</div>';
-    document.body.appendChild(vak);
-    meldVenster = vak;
-
-    vak.addEventListener('click', function (e) {
-      var knop = e.target && e.target.closest ? e.target.closest('[data-actie]') : null;
-      if (!knop) return;
-      var actie = knop.getAttribute('data-actie');
-      meldSluit();
-      if (actie === 'aanvullen') { naarLeverblok(mist[0] && mist[0].plek); return; }
-      if (actie !== 'toch') { bezig(''); return; }
-      // Het vervolg draait híer, binnen de klik. Het opslagvenster van de
-      // browser mag alleen direct na een klik open; liep dit via een promise,
-      // dan trekt de browser de toestemming in en valt de export terug op
-      // een gewone download.
-      verder();
-    });
-  }
-
-  function naarLeverblok(plek) {
-    if (window.gaNaarTab) gaNaarTab('project');
-    // Even wachten tot het tabblad staat; anders is het blok nog verborgen
-    // en doet scrollIntoView niets.
-    setTimeout(function () {
-      var doel = document.getElementById(plek === 'adres' ? 'projectVelden' : 'leverBlok');
-      if (doel && doel.scrollIntoView) doel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 80);
-  }
-
-  // Ook gebruikt door de CSV-export in index.html.
-  window.exportMetControle = function (vervolg) {
-    var mist = watMist();
-    if (!mist.length) { vervolg(); return; }
-    leverMelding(mist, vervolg);
-  };
+  window.exportControle = ontbrekendControleren;
 
   window.startExport = function (wat) {
-    window.exportMetControle(function () { exportVerder(wat); });
-    return Promise.resolve();
-  };
-
-  function exportVerder(wat) {
+    if (!ontbrekendControleren()) { bezig(''); return Promise.resolve(); }
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
 
@@ -821,7 +710,7 @@
       if (!res) { bezig(''); return; }
       return afleveren(res.doc, res.naam, bestand);
     }).catch(mislukt);
-  }
+  };
 
   function mislukt(e) {
     console.error('[pdf]', e);

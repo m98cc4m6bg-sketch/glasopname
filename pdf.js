@@ -292,6 +292,10 @@
   }
 
   window.exportFotoPdf = function () {
+    return startExport('fotos');
+  };
+
+  function bouwFotoPdf() {
     var knop = document.getElementById('pdfKnop');
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
@@ -304,11 +308,8 @@
 
     if (knop) knop.disabled = true;
     bezig('Pdf met foto\'s maken…');
-    // Het kiesvenster moet meteen open: browsers staan dat alleen toe
-    // vlak na een klik, en het maken van de pdf duurt te lang.
-    var bestand = bestandVragen(naam);
 
-    Promise.all([laad(JSPDF_URL)]).then(function () {
+    return Promise.all([laad(JSPDF_URL)]).then(function () {
       return laad(TABEL_URL);
     }).then(haalLogo).then(function () {
       var jsPDF = window.jspdf.jsPDF;
@@ -374,17 +375,13 @@
 
         voetteksten(doc, project, datum);
 
-        return afleveren(doc, naam, bestand);
+        return { doc: doc, naam: naam };
       });
-    }).catch(function (e) {
-      console.error('[pdf]', e);
-      bezig('');
-      alert('Pdf maken mislukt: ' + e.message);
-    }).then(function () {
+    }).then(function (res) {
       if (knop) knop.disabled = false;
-      bezig('');
+      return res;
     });
-  };
+  }
 
   /* ═══════════════ BESTELLIJST ═══════════════ */
   // Zelfde regels, volgorde en kolommen als het tabblad Bestellijst,
@@ -396,10 +393,13 @@
       { kop: 'Aantal',     w: 12, haal: function (r) { return parseInt(r.aantal) || 1; }, altijd: true },
       { kop: 'Merk',       w: 14, haal: function (r) { return r.merk; }, altijd: true },
       { kop: 'Glasbreedte', w: 20, haal: function (r) { return r.glasBreedte; }, altijd: true },
-      { kop: 'Glashoogte',  w: 20, haal: function (r) { return r.glasHoogte; }, altijd: true },
+      { kop: 'Glashoogte',  w: 22, haal: function (r) {
+          // Bij een rooster gaat de speling er bij de leverancier nog af.
+          return r.glasHoogte + (r.rooster === 'Ja' ? ' ^' : '');
+        }, altijd: true },
       { kop: 'Glas type',  w: 28, haal: function (r) { return r.glasType; }, altijd: true },
       { kop: 'Opbouw',     w: 24, haal: function (r) { return r.opbouw; }, altijd: true },
-      { kop: 'Rooster',    w: 13, haal: function (r) { return r.rooster === 'Ja' ? 'Ja' : ''; } },
+      { kop: 'Rooster',    w: 14, haal: function (r) { return r.rooster === 'Ja' ? 'Ja ^' : ''; } },
       { kop: 'Duco type',  w: 26, haal: function (r) { return r.ducoType; } },
       { kop: 'RAL kleur',  w: 30, haal: function (r) { return r.ralKleur; } },
       { kop: 'Glasbewerking', w: 26, haal: function (r) {
@@ -506,6 +506,10 @@
   }
 
   window.exportBestellijstPdf = function () {
+    return startExport('bestellijst');
+  };
+
+  function bouwBestellijst() {
     var knop = document.getElementById('pdfBestelKnop');
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
@@ -516,14 +520,13 @@
     });
     if (!lijst.length) {
       alert('Geen volledige regels gevonden. Een regel telt mee zodra glastype, opbouw en de glasmaten ingevuld zijn.');
-      return;
+      return Promise.resolve(null);
     }
 
     if (knop) knop.disabled = true;
     bezig('Bestellijst als pdf maken…');
-    var bestand = bestandVragen(naam);
 
-    laad(JSPDF_URL).then(function () { return laad(TABEL_URL); })
+    return laad(JSPDF_URL).then(function () { return laad(TABEL_URL); })
       .then(haalLogo).then(function () {
       zetFormaat(true);
       var jsPDF = window.jspdf.jsPDF;
@@ -571,6 +574,28 @@
         }
       });
 
+      // Waarschuwing bij roosters, pal onder de tabel zodat de leverancier
+      // hem niet over het hoofd ziet.
+      var metRooster = lijst.filter(function (r) { return r.rooster === 'Ja'; }).length;
+      if (metRooster) {
+        var yr = doc.lastAutoTable.finalY + 4;
+        if (yr > HOOGTE - MARGE - 20) { doc.addPage(); kopregel(doc, titel + ' (vervolg)'); yr = MARGE + 13; }
+        doc.setFillColor(255, 243, 208);
+        doc.setDrawColor(142, 27, 18);
+        doc.setLineWidth(0.8);
+        doc.rect(MARGE, yr, INHOUD, 11, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(142, 27, 18);
+        doc.text(schoon('^  LET OP - ' + metRooster + ' ' + (metRooster === 1 ? 'ruit' : 'ruiten') +
+                 ' met ventilatierooster'), MARGE + 3, yr + 4.6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 50, 20);
+        doc.text(schoon('Bij deze ruiten is de speling voor het rooster nog NIET van de glashoogte ' +
+                 'afgetrokken. Die aftrek doet de glasleverancier.'), MARGE + 3, yr + 8.8);
+        doc.lastAutoTable.finalY = yr + 11;
+      }
+
       // Totalen onder de tabel
       var stuks = lijst.reduce(function (n, r) { return n + (parseInt(r.aantal) || 1); }, 0);
       var m2 = lijst.reduce(function (n, r) {
@@ -586,17 +611,13 @@
 
       return leverPagina(doc, project, datum).then(function () {
         voetteksten(doc, project, datum);
-        return afleveren(doc, naam, bestand);
+        return { doc: doc, naam: naam };
       });
-    }).catch(function (e) {
-      console.error('[pdf]', e);
-      bezig('');
-      alert('Pdf maken mislukt: ' + e.message);
-    }).then(function () {
+    }).then(function (res) {
       if (knop) knop.disabled = false;
-      bezig('');
+      return res;
     });
-  };
+  }
 
   /* ═══════════════ Cmd+P / Ctrl+P ═══════════════ */
   // De sneltoets maakt voortaan onze eigen pdf in plaats van het
@@ -637,6 +658,97 @@
     if (opInvoer && fotos.length) exportFotoPdf();
     else exportBestellijstPdf();
   }, true);
+
+  /* ═══════════════ EXPORT STARTEN ═══════════════
+     Eén ingang voor alle drie de keuzes. Het opslagvenster wordt hier
+     geopend, meteen na de klik — daarna staat de browser het niet meer
+     toe. Bij 'alles' wordt om een map gevraagd, zodat beide bestanden
+     er in één keer in kunnen.
+  */
+
+  window.startExport = function (wat) {
+    var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
+    var datum = (document.getElementById('projectDatum') || {}).value || '';
+
+    if (wat === 'alles') {
+      var map = mapVragen();
+      return Promise.resolve(map).then(function (keuze) {
+        if (keuze && keuze.afgebroken) { bezig(''); return; }
+        return bouwBestellijst().then(function (a) {
+          return bouwFotoPdf().then(function (b) {
+            var stukken = [a, b].filter(Boolean);
+            if (!stukken.length) { bezig(''); return; }
+            return leverMeerdere(stukken, keuze && keuze.map);
+          });
+        });
+      }).catch(mislukt);
+    }
+
+    var naam = maakNaam(wat === 'fotos' ? 'Inmeting' : 'Bestellijst', project, datum);
+    var bestand = bestandVragen(naam);
+    var bouwer = wat === 'fotos' ? bouwFotoPdf : bouwBestellijst;
+    return bouwer().then(function (res) {
+      if (!res) { bezig(''); return; }
+      return afleveren(res.doc, res.naam, bestand);
+    }).catch(mislukt);
+  };
+
+  function mislukt(e) {
+    console.error('[pdf]', e);
+    bezig('');
+    alert('Pdf maken mislukt: ' + e.message);
+  }
+
+  function mapVragen() {
+    if (!window.showDirectoryPicker || isAanraakapparaat()) return Promise.resolve(null);
+    return window.showDirectoryPicker({ mode: 'readwrite' })
+      .then(function (map) { return { map: map }; })
+      .catch(function (e) {
+        if (e && (e.name === 'AbortError' || /abort|cancel/i.test(e.message || ''))) {
+          return { afgebroken: true };
+        }
+        console.warn('[pdf] mapkeuze niet beschikbaar', e);
+        return null;
+      });
+  }
+
+  // Twee losse bestanden, nooit samengevoegd.
+  function leverMeerdere(stukken, map) {
+    bezig('Bestanden opslaan…');
+
+    if (map) {
+      return stukken.reduce(function (rij, s) {
+        return rij.then(function () {
+          return map.getFileHandle(s.naam, { create: true })
+            .then(function (h) { return h.createWritable(); })
+            .then(function (w) {
+              return w.write(s.doc.output('blob')).then(function () { return w.close(); });
+            });
+        });
+      }, Promise.resolve()).then(function () { bezig(''); });
+    }
+
+    if (isAanraakapparaat()) {
+      try {
+        var bestanden = stukken.map(function (s) {
+          return new File([s.doc.output('blob')], s.naam, { type: 'application/pdf' });
+        });
+        if (navigator.canShare && navigator.canShare({ files: bestanden })) {
+          return navigator.share({ files: bestanden, title: 'Glasopname' })
+            .then(function () { bezig(''); })
+            .catch(function (e) {
+              bezig('');
+              if (e && (e.name === 'AbortError' || /abort|cancel/i.test(e.message || ''))) return;
+              stukken.forEach(function (s) { s.doc.save(s.naam); });
+            });
+        }
+      } catch (e) {}
+    }
+
+    stukken.forEach(function (s) { s.doc.save(s.naam); });
+    bezig('');
+    return Promise.resolve();
+  }
 
   /* ═══════════════ AFLEVEREN ═══════════════
      Drie wegen, in deze volgorde:

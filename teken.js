@@ -68,6 +68,8 @@
   var schuin = false;
   var gekozen = -1;       // welke streek geselecteerd is, -1 = geen
   var metPen = false;     // laatste aanraking kwam van een pen of muis
+  var sleep = null;       // bezig met verslepen van een geselecteerd onderdeel
+  var verplaatst = false;
   var bezig = null;       // lopende streek
   var lopendeIndex = -1;
 
@@ -261,7 +263,7 @@
       if (e.touches && e.touches.length > 1) return;
       // Een lopende streek moet niet onderbroken worden door een tweede
       // aanraking — een hand die op het scherm rust bijvoorbeeld.
-      if (bezig) { e.preventDefault(); return; }
+      if (bezig || sleep) { e.preventDefault(); return; }
       // Safari op iPadOS vertelt bij een aanraking of het de Pencil was.
       // Dat is een tweede herkenning naast pointerType, voor het geval de
       // berichten in een andere volgorde binnenkomen dan verwacht.
@@ -286,7 +288,21 @@
       try { svg.setPointerCapture(e.pointerId); } catch (err) {}
 
       var punt = plek(e, svg);
-      if (stuk === 'kies') { kiesStreek(fotoId, zoekStreek(fotoId, e)); return; }
+      if (stuk === 'kies') {
+        var gevonden = zoekStreek(fotoId, e);
+        kiesStreek(fotoId, gevonden);
+        // Meteen kunnen slepen: aanklikken en verplaatsen is één beweging.
+        if (gevonden >= 0) {
+          var s = fotoVan(fotoId).inkt[gevonden];
+          sleep = {
+            index: gevonden,
+            start: punt,
+            oorsprong: s.p.map(function (q) { return q.slice(); })
+          };
+          try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+        }
+        return;
+      }
       if (stuk === 'gum') { gum(e, fotoId); bezig = { gum: true }; return; }
       if (stuk === 'tekst') { zetTekst(fotoId, punt); return; }
       var foto = fotoVan(fotoId);
@@ -306,6 +322,23 @@
     });
 
     svg.addEventListener('pointermove', function (e) {
+      // Een geselecteerd onderdeel verslepen.
+      if (sleep && actief === fotoId) {
+        e.preventDefault();
+        var nu = plek(e, svg);
+        var dx = nu[0] - sleep.start[0], dy = nu[1] - sleep.start[1];
+        var s = fotoVan(fotoId).inkt[sleep.index];
+        if (!s) { sleep = null; return; }
+        // De momentopname moet vóór de eerste verplaatsing gemaakt worden,
+        // anders zet ongedaan maken het onderdeel terug op de nieuwe plek.
+        if (!verplaatst && window.bewaarStap) bewaarStap('Onderdeel verplaatst');
+        s.p = sleep.oorsprong.map(function (q) {
+          return [Math.round((q[0] + dx) * 10) / 10, Math.round((q[1] + dy) * 10) / 10];
+        });
+        verplaatst = true;
+        tekenStreken(fotoId);
+        return;
+      }
       if (!bezig || actief !== fotoId) return;
       e.preventDefault();
       if (bezig.gum) { gum(e, fotoId); return; }
@@ -334,6 +367,16 @@
     });
 
     function klaar(e) {
+      if (sleep) {
+        try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
+        if (verplaatst) {
+          opslaan();
+          tekenBalk(fotoId);
+        }
+        sleep = null;
+        verplaatst = false;
+        return;
+      }
       if (!bezig) return;
       try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
       var foto = fotoVan(fotoId);
@@ -618,7 +661,7 @@
       '</div>';
 
     var hint = gekozenStreek
-      ? 'Wijzig kleur, dikte of grootte — dat geldt voor dit onderdeel'
+      ? 'Sleep om te verplaatsen · wijzig kleur, dikte of grootte voor dit onderdeel'
       : (stuk === 'kies' ? 'Tik op een lijn of tekst om hem te selecteren'
                          : 'Pen tekent, vinger schuift');
 

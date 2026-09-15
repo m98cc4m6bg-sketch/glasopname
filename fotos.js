@@ -447,6 +447,7 @@
           if (Date.now() < negeerTikTot) { ev.preventDefault(); ev.stopPropagation(); }
         }, true);
         tekenMarkeringen(f.id);
+        bolGrootte(f.id);
         if (window.tekenInit) tekenInit(f.id);
       });
       tekenTabel(f.id);
@@ -532,6 +533,8 @@
       b.style.left = (m.x * 100) + '%';
       b.style.top = (m.y * 100) + '%';
       b.textContent = rij ? labelVan(rij) : '?';
+      // langere merken (A12) krijgen iets meer ruimte
+      if (b.textContent.length > 2) b.classList.add('lang');
       b.title = rij ? 'Naar de regel van ' + labelVan(rij) : 'De regel bij deze markering bestaat niet meer';
       maakSleepbaar(b, fotoId, i);
       // Een klik die op het bolletje zelf landt mag nooit doorlekken
@@ -603,6 +606,29 @@
 
   // De bolletjes staan op een percentage van de fotobreedte, dus ze
   // schuiven vanzelf mee als de foto groter of kleiner wordt.
+  // De bolletjes stonden op een vaste grootte in beeldpunten. Op een
+  // uitgezoomde foto — of gewoon op een telefoon — liepen ze daardoor
+  // over elkaar heen. Ze volgen nu de breedte waarop de foto werkelijk
+  // getoond wordt, met een onder- en bovengrens zodat ze leesbaar en
+  // aanraakbaar blijven.
+  window.bolGrootte = function (fotoId) {
+    var doek = el('doek-' + fotoId);
+    if (!doek) return;
+    var breed = doek.getBoundingClientRect().width;
+    if (!breed) return;
+    var maat = Math.max(13, Math.min(38, breed * 0.045));
+    doek.style.setProperty('--bol', maat.toFixed(1) + 'px');
+  };
+
+  window.bolGroottes = function () {
+    fotos.forEach(function (f) { bolGrootte(f.id); });
+  };
+
+  window.addEventListener('resize', function () {
+    clearTimeout(window.__bolTimer);
+    window.__bolTimer = setTimeout(bolGroottes, 150);
+  });
+
   window.fotoZoom = function (id, stap) {
     var foto = fotoVan(id);
     if (!foto) return;
@@ -612,6 +638,7 @@
     var waarde = el('zoomwaarde-' + id);
     if (doek) doek.style.width = foto.zoom + '%';
     if (waarde) waarde.textContent = foto.zoom + '%';
+    setTimeout(function () { bolGrootte(id); }, 0);
     opslaan();
   };
 

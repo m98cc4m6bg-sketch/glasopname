@@ -687,9 +687,12 @@
   .foto-hint { font-size: 11px; color: var(--grijs-tekst); margin: 8px 0 12px; }
   .foto-mark {
     position: absolute; transform: translate(-50%, -50%);
-    min-width: 30px; height: 30px; padding: 0 6px;
+    /* --bol wordt gezet op de werkelijke breedte waarop de foto getoond
+       wordt, zodat de bolletjes meeschalen met in- en uitzoomen. */
+    min-width: var(--bol, 30px); height: var(--bol, 30px); padding: 0 4px;
     background: var(--geel); color: #3a2a00; border: 2px solid white;
-    border-radius: 16px; font-size: 13px; font-weight: 800; font-family: inherit;
+    border-radius: 999px; font-size: calc(var(--bol, 30px) * 0.46);
+    font-weight: 800; font-family: inherit;
     cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.45); line-height: 1;
   }
   .foto-mark.verweesd { background: var(--rood); color: white; }
@@ -701,7 +704,7 @@
   .foto-voet-info { font-size: 11px; color: var(--grijs-tekst); }
   tr.gemarkeerd > td { background: #fff3d0 !important; transition: background .4s; }
   @media (max-width: 1200px) {
-    .foto-mark { min-width: 38px; height: 38px; font-size: 15px; border-radius: 20px; }
+    .foto-mark { border-width: 2px; }
   }
 
   /* ─── MERKLETTERS ─── */
@@ -756,7 +759,8 @@
     touch-action: none; user-select: none; -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
-  .foto-mark.sleept { cursor: grabbing; transform: translate(-50%, -50%) scale(1.15); z-index: 5; }
+  .foto-mark.sleept { cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); z-index: 5; }
+  .foto-mark.lang { padding: 0 calc(var(--bol, 30px) * 0.22); }
   .mark-menu {
     position: absolute; z-index: 8600; background: white; min-width: 210px;
     border: 1px solid var(--grijs-rand); border-radius: var(--radius);
@@ -1196,6 +1200,18 @@
   .kalender-dag.voorbij { color: var(--grijs-rand); cursor: default; background: none; }
   .kalender-dag.vandaag { outline: 2px solid var(--merk); outline-offset: -2px; font-weight: 700; }
   .kalender-dag em { display: block; font-style: normal; font-size: 9px; color: var(--merk); }
+
+  /* ─── ROOSTER: HOOGTE NOG ZONDER SPELING ─── */
+  td.rooster-hoogte { background: #fff3d0 !important; font-weight: 700; }
+  .rooster-teken { color: var(--rood); font-weight: 700; margin-left: 3px; }
+  .rooster-ja { color: var(--rood); white-space: nowrap; }
+  .rooster-noot {
+    display: flex; gap: 10px; align-items: flex-start;
+    margin-top: 12px; padding: 10px 14px;
+    background: #fff3d0; border-left: 4px solid var(--rood);
+    border-radius: var(--radius); font-size: 12px; line-height: 1.55; color: #5a3a00;
+  }
+  .rooster-noot .rooster-teken { font-size: 15px; margin: 0; }
 </style>
 </head>
 <body>
@@ -1645,10 +1661,12 @@ function exportMenu(e) {
   toonVeldMenu(e.currentTarget,
     '<button onclick="exportKies(\'bestellijst\')"><b>📦 Bestellijst als PDF</b>' +
       '<span>Voor de glasleverancier</span></button>' +
-    '<button onclick="exportKies(\'fotos\')"><b>📄 Volledige PDF</b>' +
+    '<button onclick="exportKies(\'fotos\')"><b>📄 PDF invoer</b>' +
       '<span>Foto\'s en tekeningen met de maten eronder</span></button>' +
     '<button onclick="exportKies(\'csv\')"><b>📥 CSV-bestand</b>' +
-      '<span>Om in Excel te openen</span></button>');
+      '<span>Om in Excel te openen</span></button>' +
+    '<button onclick="exportKies(\'alles\')"><b>📦📄 Alles exporteren</b>' +
+      '<span>Bestellijst én PDF invoer, als twee losse bestanden</span></button>');
 }
 
 function exportBuiten(ev) {
@@ -1666,6 +1684,7 @@ function exportKies(wat) {
   const acties = document.getElementById('kopActies');
   if (acties) acties.classList.remove('open');
   if (wat === 'csv') exportCSV();
+  else if (wat === 'alles') startExport('alles');
   else if (wat === 'bestellijst') exportBestellijstPdf();
   else exportFotoPdf();
 }
@@ -1781,7 +1800,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v59';
+const APP_VERSIE = 'v60';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -2304,16 +2323,19 @@ function renderBestellijst() {
   }
   const project = document.getElementById('projectNaam').value || '—';
   const datum = document.getElementById('projectDatum').value || '—';
+  // Ruiten met een rooster krijgen een merkteken: de speling voor het
+  // rooster gaat er bij de leverancier nog af, niet bij ons.
+  const metRooster = ingevuld.filter(r => r.rooster === 'Ja').length;
 
   let rows = ingevuld.map((r, i) => `<tr>
     <td class="rijnr">${i+1}</td>
     <td class="num highlight">${parseInt(r.aantal)||1}</td>
     <td>${esc(r.merk)}</td>
     <td class="num highlight">${r.glasBreedte}</td>
-    <td class="num highlight">${r.glasHoogte}</td>
+    <td class="num highlight${r.rooster === 'Ja' ? ' rooster-hoogte' : ''}">${r.glasHoogte}${r.rooster === 'Ja' ? '<span class="rooster-teken">▲</span>' : ''}</td>
     <td>${esc(r.glasType)}</td>
     <td>${esc(r.opbouw)}</td>
-    <td>${r.rooster === 'Ja' ? '✓' : ''}</td>
+    <td>${r.rooster === 'Ja' ? '<b class="rooster-ja">Ja ▲</b>' : ''}</td>
     <td>${esc(r.ducoType)}</td>
     <td>${esc(r.ralKleur)}</td>
     <td>${esc(r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '')}</td>
@@ -2337,7 +2359,13 @@ function renderBestellijst() {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    </div>`;
+    </div>
+    ${metRooster ? `<div class="rooster-noot">
+      <span class="rooster-teken">▲</span>
+      <div><strong>Let op — ${metRooster} ${metRooster === 1 ? 'ruit' : 'ruiten'} met ventilatierooster.</strong>
+      Bij deze ruiten is de speling voor het rooster <u>nog niet</u> van de glashoogte afgetrokken.
+      Die aftrek wordt door de glasleverancier gedaan.</div>
+    </div>` : ''}`;
 }
 
 // ═══════════════ OPSLAAN / LADEN ═══════════════

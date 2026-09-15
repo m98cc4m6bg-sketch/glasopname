@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v62';
+const VERSIE = 'v63';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -20,6 +20,7 @@ const SHELL = [
   './logo.png',
   './logo-wit.png',
   './merken.js',
+  './naslag.js',
   './pdf.js',
   './manifest.webmanifest',
   './favicon.ico',
@@ -29,12 +30,84 @@ const SHELL = [
   './icon-512.png'
 ];
 
+// De foto's van de glascatalogus. Ze staan apart omdat ze samen een paar
+// megabyte zijn: ze horen wél bij de app (het naslagwerk moet het zonder
+// bereik doen), maar een ontbrekende foto mag de installatie nooit laten
+// mislukken. Daarom worden ze los ingeladen, na de shell.
+const CATALOGUS_FOTOS = [
+  './catalogus/byzanthijn-fijn-blank.jpg',
+  './catalogus/byzanthijn-grof-blank.jpg',
+  './catalogus/canale-blank.jpg',
+  './catalogus/carre-blank-13x13.jpg',
+  './catalogus/cathedraal-groot-gehamerd.jpg',
+  './catalogus/cathedraal-klein-duits.jpg',
+  './catalogus/chinchilla-blank.jpg',
+  './catalogus/cotswold-blank.jpg',
+  './catalogus/crepi-blank.jpg',
+  './catalogus/deltha-blank.jpg',
+  './catalogus/gothic-blank.jpg',
+  './catalogus/guss-antiek-blank.jpg',
+  './catalogus/ijsbloemglas.jpg',
+  './catalogus/jan-hagel-blank.jpg',
+  './catalogus/master-carre.jpg',
+  './catalogus/master-ligne.jpg',
+  './catalogus/master-point.jpg',
+  './catalogus/moire-blank.jpg',
+  './catalogus/niagara-blank.jpg',
+  './catalogus/nylon-blank.jpg',
+  './catalogus/rochelino-alt-deutch-k.jpg',
+  './catalogus/silvit-blank.jpg',
+  './catalogus/draadglas-brute.jpg',
+  './catalogus/draadglas-engels-blank.jpg',
+  './catalogus/spiegeldraadglas.jpg',
+  './catalogus/satijnglas.jpg',
+  './catalogus/satijnglas-extra-helder.jpg',
+  './catalogus/float-brons.jpg',
+  './catalogus/float-dark-blue.jpg',
+  './catalogus/float-grijs.jpg',
+  './catalogus/float-groen.jpg',
+  './catalogus/kristal-extra-helder.jpg',
+  './catalogus/gelaagd-33-1-blank.jpg',
+  './catalogus/gelaagd-33-1-matte-folie.jpg',
+  './catalogus/gelaagd-33-1-silence.jpg',
+  './catalogus/gelaagd-33-1-brons.jpg',
+  './catalogus/gelaagd-33-1-grijs.jpg',
+  './catalogus/gelaagd-33-1-groen.jpg',
+  './catalogus/gelaagd-33-1-2z-brons.jpg',
+  './catalogus/gelaagd-33-1-2z-brons-mat.jpg',
+  './catalogus/gelaagd-33-1-2z-grijs.jpg',
+  './catalogus/gelaagd-33-1-2z-grijs-mat.jpg',
+  './catalogus/gelaagd-44-2-1z-brons.jpg',
+  './catalogus/gelaagd-44-2-1z-grijs.jpg',
+  './catalogus/gelaagd-44-2-1z-groen.jpg',
+  './catalogus/gelaagd-44-2-2z-brons.jpg',
+  './catalogus/gelaagd-44-2-2z-grijs.jpg',
+  './catalogus/gelaagd-44-2-2z-groen.jpg',
+  './catalogus/verzilverd-blank.jpg',
+  './catalogus/verzilverd-brons.jpg',
+  './catalogus/verzilverd-grijs.jpg',
+  './catalogus/verzilverd-milano.jpg',
+  './catalogus/pyroguard-ew30-impact.jpg',
+  './catalogus/pyroguard-ew30-maxi-impact.jpg',
+  './catalogus/pyroguard-ew60-c1060.jpg',
+  './catalogus/pyroguard-satijn-ew30-impact.jpg',
+  './catalogus/robax.jpg',
+  './catalogus/starglass-donkerblauw.jpg',
+  './catalogus/starglass-groen.jpg',
+  './catalogus/starglass-oranje.jpg',
+  './catalogus/starglass-rood.jpg',
+];
+
+function inCache(c, lijst) {
+  // cache:'reload' omzeilt de browsercache, anders belandt een
+  // net vervangen bestand alsnog als oude versie in de cache
+  return Promise.all(lijst.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {})));
+}
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      // cache:'reload' omzeilt de browsercache, anders belandt een
-      // net vervangen bestand alsnog als oude versie in de cache
-      .then(c => Promise.all(SHELL.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {}))))
+      .then(c => inCache(c, SHELL).then(() => inCache(c, CATALOGUS_FOTOS)))
   );
   // Bewust géén skipWaiting: de nieuwe versie blijft klaarstaan tot de
   // pagina zegt dat het mag. Anders zou de app kunnen omschakelen terwijl
@@ -68,6 +141,17 @@ self.addEventListener('fetch', e => {
     e.respondWith(
       caches.open(CACHE).then(c => c.match(e.request).then(hit => hit || fetch(e.request)
         .then(res => { c.put(e.request, res.clone()); return res; })))
+    );
+    return;
+  }
+
+  // De catalogusfoto's veranderen niet binnen een versie: eerst de cache.
+  // Scheelt op locatie een hoop wachten en verkeer.
+  if (url.pathname.indexOf('/catalogus/') >= 0) {
+    e.respondWith(
+      caches.open(CACHE).then(c => c.match(e.request).then(hit => hit || fetch(e.request)
+        .then(res => { if (res && res.ok) c.put(e.request, res.clone()); return res; })
+        .catch(() => hit)))
     );
     return;
   }

@@ -48,6 +48,11 @@
 
   function zetStaat(state) {
     rijen = state.rijen || [];
+    // Projecten van vóór v63 dragen nog waarden uit de oude keuzelijst
+    // Glasbewerking. Omzetten moet hier gebeuren en niet alleen bij het
+    // laden van de lokale kopie, anders blijft elk project dat uit de
+    // cloud komt op de oude waarden staan.
+    if (window.bewerkingBijwerken) bewerkingBijwerken(rijen);
     volgendId = state.volgendId || (rijen.length + 1);
     fotos = state.fotos || [];
     projectInfo = state.info || {};
@@ -326,7 +331,26 @@
 
   function pasDataToe(nieuw) {
     if (!nieuw || typeof nieuw !== 'object') return;
-    Object.keys(nieuw).forEach(function (k) { DATA[k] = nieuw[k]; });
+    Object.keys(nieuw).forEach(function (k) {
+      // De keuzelijst uit de database wint normaal van die in index.html.
+      // Eén uitzondering: is dat nog de lijst van vóór v63, dan zou het
+      // hele figuurglas-assortiment onzichtbaar blijven zodra deze app
+      // online komt. Draai 09_glasbewerking.sql en dit valt vanzelf weg.
+      if (k === 'glasbewerking' && oudeBewerkingslijst(nieuw[k])) {
+        console.warn('[cloud] glasbewerking in de database is nog de oude lijst; ' +
+                     'draai 09_glasbewerking.sql. Tot die tijd gebruikt de app zijn eigen lijst.');
+        return;
+      }
+      DATA[k] = nieuw[k];
+    });
+  }
+
+  function oudeBewerkingslijst(lijst) {
+    if (!Array.isArray(lijst)) return true;
+    // De nieuwe lijst gebruikt een kastlijntje: 'Figuurglas — Crepi blank (…)'.
+    // De oude gebruikte een streepje: 'Figuurglas - Crepi'. Op dat verschil
+    // is de oude lijst te herkennen zonder hem helemaal na te lopen.
+    return !lijst.some(function (b) { return b.indexOf('Figuurglas — ') === 0; });
   }
 
   function laadGecachteData() {

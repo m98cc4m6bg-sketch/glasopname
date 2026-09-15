@@ -1717,8 +1717,10 @@ function exportKies(wat) {
   const acties = document.getElementById('kopActies');
   if (acties) acties.classList.remove('open');
   if (wat === 'csv') {
-    if (window.exportControle && !exportControle()) return;
-    exportCSV();
+    // De controle op de levergegevens zit in pdf.js; die laat je kiezen
+    // tussen aanvullen en toch doorgaan en roept dan pas exportCSV aan.
+    if (window.exportMetControle) exportMetControle(exportCSV);
+    else exportCSV();
   }
   else if (wat === 'alles') startExport('alles');
   else if (wat === 'bestellijst') exportBestellijstPdf();
@@ -1848,7 +1850,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v63';
+const APP_VERSIE = 'v64';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

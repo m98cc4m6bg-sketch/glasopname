@@ -250,6 +250,9 @@
   // halverwege alsnog een schuifbeweging van en breekt de streek af.
   function magTekenen(e) {
     if (actief === null) return false;
+    // Selecteren en verslepen is geen tekenen: dat moet ook met een vinger
+    // kunnen zonder dat je eerst een vinkje omzet.
+    if (stuk === 'kies') return true;
     if (e.pointerType === 'pen' || e.pointerType === 'mouse') return true;
     return vingerTekent;
   }
@@ -273,7 +276,7 @@
           if (e.touches[i].touchType === 'stylus') pen = true;
         }
       }
-      if (!vingerTekent && !pen) return;
+      if (!vingerTekent && !pen && stuk !== 'kies') return;
       e.preventDefault();
     }
     svg.addEventListener('touchstart', houdTegen, { passive: false });
@@ -289,6 +292,14 @@
 
       var punt = plek(e, svg);
       if (stuk === 'kies') {
+        // Een greep vastpakken versleept wat er geselecteerd is.
+        var onder = document.elementFromPoint(e.clientX, e.clientY);
+        if (gekozen >= 0 && onder && onder.hasAttribute && onder.hasAttribute('data-greep')) {
+          var g = fotoVan(fotoId).inkt[gekozen];
+          sleep = { index: gekozen, start: punt, oorsprong: g.p.map(function (q) { return q.slice(); }) };
+          try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+          return;
+        }
         var gevonden = zoekStreek(fotoId, e);
         kiesStreek(fotoId, gevonden);
         // Meteen kunnen slepen: aanklikken en verplaatsen is één beweging.
@@ -336,7 +347,7 @@
           return [Math.round((q[0] + dx) * 10) / 10, Math.round((q[1] + dy) * 10) / 10];
         });
         verplaatst = true;
-        tekenStreken(fotoId);
+        tekenStreken(fotoId);   // tekent ook het kader en de grepen opnieuw
         return;
       }
       if (!bezig || actief !== fotoId) return;
@@ -414,6 +425,7 @@
   // waarvan het omhullende kader het punt bevat — bovenste eerst.
   function zoekStreek(fotoId, e) {
     var doel = document.elementFromPoint(e.clientX, e.clientY);
+    if (doel && doel.hasAttribute && doel.hasAttribute('data-greep')) return gekozen;
     if (doel && doel.hasAttribute && doel.hasAttribute('data-streek')) {
       return parseInt(doel.getAttribute('data-streek'), 10);
     }
@@ -441,6 +453,12 @@
     if (!node || !node.getBBox) return;
     var b;
     try { b = node.getBBox(); } catch (err) { return; }
+    // Hoe groot is één beeldpunt op het scherm in de maat van de tekening?
+    // Daarmee houden kader en grepen dezelfde grootte, hoe ver je ook
+    // in- of uitzoomt.
+    var breed = svg.getBoundingClientRect().width || 1000;
+    var perPunt = 1000 / breed;
+
     // Twee kaders over elkaar: een doorlopende witte lijn met daarover een
     // zwarte stippellijn. Zo blijft de omlijning zichtbaar op een donkere
     // én op een lichte foto, en heeft de gekozen tekenkleur er geen
@@ -460,6 +478,39 @@
       kader.setAttribute('pointer-events', 'none');
       kader.setAttribute('data-kader', '1');
       svg.appendChild(kader);
+    });
+
+    // Grepen op de vier hoeken. Ze laten zien dát je kunt slepen, en ze
+    // geven een ruim aanraakvlak — op een tablet is de lijn zelf te dun
+    // om betrouwbaar te pakken.
+    var greep = 11 * perPunt;          // wat je ziet
+    var raak = 26 * perPunt;           // wat je kunt raken
+    var x1 = b.x - m, y1 = b.y - m, x2 = b.x + b.width + m, y2 = b.y + b.height + m;
+    [[x1, y1], [x2, y1], [x1, y2], [x2, y2]].forEach(function (hoek) {
+      var vlak = document.createElementNS(NS, 'rect');
+      vlak.setAttribute('x', hoek[0] - raak / 2);
+      vlak.setAttribute('y', hoek[1] - raak / 2);
+      vlak.setAttribute('width', raak);
+      vlak.setAttribute('height', raak);
+      vlak.setAttribute('fill', 'transparent');
+      vlak.setAttribute('data-kader', '1');
+      vlak.setAttribute('data-greep', '1');
+      vlak.style.cursor = 'move';
+      svg.appendChild(vlak);
+
+      var blok = document.createElementNS(NS, 'rect');
+      blok.setAttribute('x', hoek[0] - greep / 2);
+      blok.setAttribute('y', hoek[1] - greep / 2);
+      blok.setAttribute('width', greep);
+      blok.setAttribute('height', greep);
+      blok.setAttribute('rx', 2 * perPunt);
+      blok.setAttribute('fill', '#ffffff');
+      blok.setAttribute('stroke', '#1d1d1b');
+      blok.setAttribute('stroke-width', '2.5');
+      blok.setAttribute('vector-effect', 'non-scaling-stroke');
+      blok.setAttribute('pointer-events', 'none');
+      blok.setAttribute('data-kader', '1');
+      svg.appendChild(blok);
     });
   }
 
@@ -661,7 +712,7 @@
       '</div>';
 
     var hint = gekozenStreek
-      ? 'Sleep om te verplaatsen · wijzig kleur, dikte of grootte voor dit onderdeel'
+      ? 'Sleep aan een hoekpunt om te verplaatsen · kleur, dikte en grootte gelden voor dit onderdeel'
       : (stuk === 'kies' ? 'Tik op een lijn of tekst om hem te selecteren'
                          : 'Pen tekent, vinger schuift');
 

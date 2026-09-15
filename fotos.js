@@ -239,7 +239,7 @@
           });
         }).then(function (res) {
           // Alleen de eerste pagina mag in een bestaande groep landen.
-          return zetWeg(res, i === 0 ? groep : null, res.titel);
+          return zetWeg(res, i === 0 ? groep : null, res.titel, 'tekening');
         });
       });
     }, Promise.resolve()).then(function () {
@@ -253,12 +253,20 @@
 
   function verwerkAfbeelding(file, groep, titel) {
     melding('Afbeelding verkleinen…');
-    verklein(file).then(function (res) { return zetWeg(res, groep, titel); })
+    verklein(file).then(function (res) { return zetWeg(res, groep, titel, 'tekening'); })
       .catch(function (e) { melding('Mislukt: ' + e.message, true); });
   }
 
   // Uploaden en als blok toevoegen — gedeeld door foto's en tekeningen.
-  function zetWeg(res, groep, titel) {
+  // Een blok kan een foto of een ingelezen tekening zijn. Dat onthouden
+  // we, zodat knoppen en meldingen het juiste woord gebruiken.
+  function soortNaam(f, hoofdletter) {
+    var w = f && f.bron === 'tekening' ? 'tekening' : 'foto';
+    return hoofdletter ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+  }
+  window.soortNaam = soortNaam;
+
+  function zetWeg(res, groep, titel, bron) {
     var sb = sbClient();
     var pad = window.glasProjectId + '/' + Date.now() + '-' +
               Math.random().toString(36).slice(2, 8) + '.jpg';
@@ -272,11 +280,13 @@
           bestaand.breedte = res.breedte;
           bestaand.hoogte = res.hoogte;
           bestaand.markeringen = [];
+          bestaand.bron = bron || bestaand.bron || 'foto';
           if (titel && !bestaand.titel) bestaand.titel = titel;
         } else {
           fotos.push({
             id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-            pad: pad, titel: titel || '', breedte: res.breedte, hoogte: res.hoogte, markeringen: []
+            pad: pad, titel: titel || '', bron: bron || 'foto',
+            breedte: res.breedte, hoogte: res.hoogte, markeringen: []
           });
         }
         opslaan();
@@ -488,7 +498,8 @@
           '<span class="foto-nr">' + (i + 1) + '</span>' +
           '<input type="text" placeholder="Omschrijving, bijv. Voorgevel" value="' + esc(f.titel) + '" ' +
             'oninput="fotoTitelWijzig(\'' + f.id + '\', this.value)">' +
-          (f.pad ? '<button class="btn btn-ghost btn-sm" onclick="fotoVerwijder(\'' + f.id + '\')">🗑 Foto</button>' : '') +
+          (f.pad ? '<button class="btn btn-ghost btn-sm" onclick="fotoVerwijder(\'' + f.id + '\')">' +
+            '🗑 ' + soortNaam(f, true) + '</button>' : '') +
           '<button class="btn btn-ghost btn-sm" onclick="groepVerwijder(\'' + f.id + '\')">🗑 Groep</button>' +
         '</div>';
 
@@ -509,14 +520,15 @@
           '<div class="foto-aanwijsbalk" id="aanwijs-' + f.id + '"></div>' +
           '<div class="foto-hint">Tik op de foto om een ruit toe te voegen. Sleep een bolletje om het te verplaatsen, ' +
           'of tik erop voor meer keuzes.</div>'
-        : '<div class="foto-geenfoto">Deze groep heeft geen foto (meer). De ruiten hieronder blijven gewoon bestaan.' +
+        : '<div class="foto-geenfoto">Deze groep heeft geen foto (meer). De ruiten hieronder blijven ' +
+          'gewoon bestaan, en zijn toegevoegd aan de sectie \u201czonder foto of tekening\u201d.' +
           '<button class="btn btn-primary btn-sm" onclick="fotoAanGroep(\'' + f.id + '\')">+ Foto toevoegen</button></div>';
 
       var aantal = rijenVan(f.id).length;
       var balk =
         '<div class="blok-balk" onclick="blokKlap(\'' + f.id + '\')">' +
           '<span class="blok-pijl" id="pijl-' + f.id + '">▾</span>' +
-          '<h3>' + esc(f.titel || (f.pad ? 'Foto ' + (i + 1) : 'Groep ' + (i + 1))) + '</h3>' +
+          '<h3>' + esc(f.titel || (f.pad ? soortNaam(f, true) + ' ' + (i + 1) : 'Groep ' + (i + 1))) + '</h3>' +
           '<span class="blok-telling">' + (aantal ? aantal + ' ruiten' : 'nog geen ruiten') + '</span>' +
         '</div>';
 
@@ -647,11 +659,13 @@
     var kop = body ? body.closest('table').querySelector('thead') : null;
 
     if (!eigen.length) {
-      wrap.innerHTML = '<div class="foto-geenrijen">Nog geen ruiten in deze groep.</div>' + voetHTML(fotoId);
+      wrap.innerHTML = (window.blokBalkHTML ? blokBalkHTML(fotoId) : '') +
+        '<div class="foto-geenrijen">Nog geen ruiten in deze groep.</div>' + voetHTML(fotoId);
       return;
     }
 
     wrap.innerHTML =
+      (window.blokBalkHTML ? blokBalkHTML(fotoId) : '') +
       '<div class="invoer-wrap"><table class="invoer">' +
         (kop ? kop.outerHTML : '') +
         '<tbody id="fotoBody-' + fotoId + '"></tbody>' +
@@ -838,9 +852,9 @@
     var f = fotoVan(id);
     if (!f || !f.pad) return;
     var aantal = rijenVan(id).length;
-    if (!confirm('De foto verwijderen?' + (aantal
-      ? '\n\nDe ' + aantal + ' ruiten eronder blijven staan. Je kunt er daarna een nieuwe foto in zetten ' +
-        'en dezelfde merkletters opnieuw aanwijzen.'
+    if (!confirm('De ' + soortNaam(f) + ' verwijderen?' + (aantal
+      ? '\n\nDe ' + aantal + ' ruiten eronder blijven staan. Je kunt er daarna een nieuwe ' +
+        soortNaam(f) + ' in zetten en dezelfde merkletters opnieuw aanwijzen.'
       : ''))) return;
     if (window.bewaarStap) bewaarStap('Foto verwijderd');
     var sb = sbClient();

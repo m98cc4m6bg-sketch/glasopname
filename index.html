@@ -1250,6 +1250,26 @@
   }
   .pdf-pagina canvas { max-width: 100%; height: auto; display: block; margin: 0 auto; }
   .pdf-telling { font-size: 12px; color: var(--grijs-tekst); }
+
+  /* ─── BEDIENING PER TABEL ─── */
+  .blok-bediening {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 10px; margin-bottom: 8px;
+    background: var(--grijs-licht); border: 1px solid var(--grijs-rand);
+    border-radius: var(--radius);
+  }
+  .blok-maat { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .blok-maat label { font-size: 11px; font-weight: 600; color: var(--grijs-tekst); }
+  .blok-maat select {
+    padding: 5px 7px; font-size: 12px; font-family: inherit;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); background: white;
+  }
+  .blok-maat .toolbar-maatinstelling { display: flex; align-items: center; gap: 6px; }
+  @media (max-width: 820px) {
+    .blok-maat { margin-left: 0; width: 100%; }
+    .blok-bediening .btn { flex: 1; justify-content: center; }
+  }
+  @media print { .blok-bediening { display: none !important; } }
 </style>
 </head>
 <body>
@@ -1314,9 +1334,7 @@
   <input type="text" id="projectDatum" placeholder="dd-mm-jjjj" style="min-width:110px;"
     inputmode="numeric" autocomplete="off" oninput="opslaan()" onfocus="datumKeuze(this)" onclick="datumKeuze(this)">
   <div class="speling-wrap">
-    <span class="toolbar-acties" id="toolbarActies">
-    <button class="btn btn-ghost btn-sm" onclick="clearAlles()">🗑 Leegmaken</button>
-  </span>
+  
 
   <span class="toolbar-maatinstelling">
     <label>Speling sponningmaat (rondom):</label>
@@ -1387,6 +1405,7 @@
       <span class="blok-telling" id="telling-los"></span>
     </div>
     <div class="blok-inhoud" id="inhoud-los">
+      <div id="losseBediening"></div>
   <div class="invoer-wrap">
   <table class="invoer" id="invoerTabel">
     <thead>
@@ -1822,6 +1841,18 @@ function gaNaarTab(naam) {
   if (knop) knop.click();
 }
 
+// De bedieningsbalk van de losse maten wordt één keer opgebouwd; de
+// bestaande keuzelijsten voor speling en bijtelling verhuizen erin, zodat
+// ze op dezelfde plek staan als bij de andere tabellen.
+function bouwLosseBediening() {
+  const plek = document.getElementById('losseBediening');
+  if (!plek || !window.blokBalkHTML) return;
+  if (!plek.querySelector('.blok-bediening')) plek.innerHTML = blokBalkHTML(null);
+  const doel = document.getElementById('losseMaatPlek');
+  const bron = document.querySelector('.toolbar-maatinstelling');
+  if (doel && bron && !doel.contains(bron)) doel.appendChild(bron);
+}
+
 // ═══════════════ BLOKKEN IN- EN UITKLAPPEN ═══════════════
 // Bij tien kozijnen wordt één lange pagina onwerkbaar.
 const blokDicht = {};
@@ -1860,13 +1891,14 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v61';
+const APP_VERSIE = 'v62';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.app-versie').forEach(e => { e.textContent = APP_VERSIE; });
   const actief = document.querySelector('.tab-panel.active');
   toonMaatinstelling(actief ? actief.id.replace('panel-', '') : 'invoer');
+  bouwLosseBediening();
   laadOpgeslagen();
   if (rijen.length === 0) {
     voegRijenToe(START_REGELS);
@@ -2000,16 +2032,36 @@ function algemeneBijtelling() {
 
 // Correctie voor deze ruit: eigen waarde als die is ingevuld,
 // anders de algemene waarde uit de balk bovenaan.
+// Speling en bijtelling horen bij een blok, niet bij het hele project:
+// per kozijn kan de sponning anders zijn. Een blok zonder eigen waarde
+// volgt de instelling bij de losse maten.
+function blokVan(rij) {
+  if (!rij.fotoId || typeof fotos === 'undefined') return null;
+  return fotos.find(f => f.id === rij.fotoId) || null;
+}
+
+function spelingVoor(rij) {
+  const b = blokVan(rij);
+  if (b && b.speling != null && b.speling !== '') return parseInt(b.speling, 10);
+  return algemeneSpeling();
+}
+
+function bijtellingVoor(rij) {
+  const b = blokVan(rij);
+  if (b && b.bijtelling != null && b.bijtelling !== '') return parseInt(b.bijtelling, 10);
+  return algemeneBijtelling();
+}
+
 function correctieVan(rij) {
   if (rij.correctie != null && rij.correctie !== '') return parseInt(rij.correctie, 10);
-  return rij.maatsoort === 'Dagmaat' ? algemeneBijtelling() : algemeneSpeling();
+  return rij.maatsoort === 'Dagmaat' ? bijtellingVoor(rij) : spelingVoor(rij);
 }
 
 function correctieCel(rij) {
   if (rij.maatsoort === 'Glasmaat (direct)') {
     return `<td class="correctie-cel nvt" id="corr-${rij.id}">n.v.t.</td>`;
   }
-  const alg = rij.maatsoort === 'Dagmaat' ? algemeneBijtelling() : algemeneSpeling();
+  const alg = rij.maatsoort === 'Dagmaat' ? bijtellingVoor(rij) : spelingVoor(rij);
   const eigen = (rij.correctie != null && rij.correctie !== '');
   const teken = rij.maatsoort === 'Dagmaat' ? '+' : '\u2212';
   const opties = DATA.speling_opties.map(s => parseInt(s, 10))
@@ -2501,6 +2553,7 @@ function exportCSV() {
 <script src="import.js"></script>
 <script src="bulk.js"></script>
 <script src="project.js"></script>
+<script src="blokbalk.js"></script>
 <script src="fotos.js"></script>
 <script src="kopie.js"></script>
 <script src="teken.js"></script>

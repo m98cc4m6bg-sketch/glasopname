@@ -56,6 +56,9 @@
     tekenKnoppen();
   }
   window.bewaarStap = bewaar;
+  // De bedieningsbalk per tabel leest hier de momentopnames uit, om er
+  // alleen de regels van één tabel uit terug te halen.
+  window.undoStapels = function () { return { terug: terug, vooruit: vooruit }; };
 
   window.ongedaan = function () {
     if (!terug.length) return;
@@ -125,11 +128,9 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    // knoppen in de kop
-    // Ongedaan maken hoort bij het invullen, dus staat het in dezelfde
-    // balk als projectnaam en datum — en alleen op dat tabblad.
-    var acties = document.getElementById('toolbarActies') ||
-                 document.querySelector('.header-actions');
+    // Geen knoppen meer in de kopbalk: elke tabel heeft zijn eigen
+    // ongedaan-knop. De sneltoets blijft wel het hele project terugdraaien.
+    var acties = null;
     if (acties) {
       var u = document.createElement('button');
       u.id = 'knopOngedaan';

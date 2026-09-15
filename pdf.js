@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
+* ═══════════════════════════════════════════════════════════════
    Glasopname – pdf van de foto's met maatvoering
    Voor eigen gebruik: per foto een pagina met de foto, de
    merkbolletjes erop, en daaronder de ingevoerde maten.

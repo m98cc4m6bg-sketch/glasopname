@@ -414,7 +414,10 @@
   }
 
   /* ─── TOOLTIP ─── */
-  [title] { cursor: help; }
+  /* Alleen bij de info-icoontjes een vraagteken; een knop met een
+     toelichting hoort gewoon een handje te houden. */
+  .info-icon[title] { cursor: help; }
+  button[title], label[title], .btn[title] { cursor: pointer; }
 
   /* ══════════════════════════════════════════
      iPad / touch optimalisaties
@@ -1212,6 +1215,41 @@
     border-radius: var(--radius); font-size: 12px; line-height: 1.55; color: #5a3a00;
   }
   .rooster-noot .rooster-teken { font-size: 15px; margin: 0; }
+
+  .kalender-uitleg { font-size: 11px; color: var(--grijs-tekst); padding-bottom: 6px; font-weight: 600; }
+  .kalender-kop, .kalender-week { grid-template-columns: 26px repeat(7, 1fr); }
+  .kalender-kop span.wk { color: var(--merk); }
+  .kalender-wk {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--merk); background: var(--blauw-licht);
+    border-radius: 4px;
+  }
+  .kalender-wk.voorbij { color: var(--grijs-rand); background: var(--grijs-licht); }
+  .kalender-week.kiesbaar { cursor: pointer; border-radius: 4px; }
+  .kalender-week.kiesbaar:hover { background: var(--blauw-licht); outline: 2px solid var(--merk); }
+  .kalender-week.kiesbaar .kalender-dag { pointer-events: none; }
+
+  .pl-taken { color: var(--rood); font-weight: 800; }
+
+  /* ─── PDF: PAGINA KIEZEN ─── */
+  .pdf-uitleg { padding: 12px 20px 0; font-size: 12px; color: var(--grijs-tekst); }
+  .pdf-paginas {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px; padding: 14px 20px; max-height: 58vh; overflow-y: auto;
+  }
+  .pdf-pagina {
+    position: relative; display: block; cursor: pointer;
+    border: 2px solid var(--grijs-rand); border-radius: var(--radius);
+    padding: 8px; background: white; text-align: center;
+  }
+  .pdf-pagina:has(input:checked) { border-color: var(--merk); background: var(--blauw-licht); }
+  .pdf-pagina input { position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; accent-color: var(--merk); }
+  .pdf-nr {
+    position: absolute; top: 8px; right: 10px;
+    font-size: 11px; font-weight: 700; color: var(--merk);
+  }
+  .pdf-pagina canvas { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+  .pdf-telling { font-size: 12px; color: var(--grijs-tekst); }
 </style>
 </head>
 <body>
@@ -1528,6 +1566,25 @@
   </div>
 </div>
 
+<!-- ═══════════════ PDF: WELKE PAGINA'S? ═══════════════ -->
+<div class="cloud-overlay" id="pdfKiezer">
+  <div class="cloud-paneel" style="max-width:900px;">
+    <header>
+      <h2>📐 Welke pagina's wil je gebruiken?</h2>
+      <div class="sub" id="pdfKiezerTitel"></div>
+    </header>
+    <div class="pdf-uitleg">Elke gekozen pagina wordt een eigen blok met een eigen invoertabel.</div>
+    <div class="pdf-paginas" id="pdfPaginas"></div>
+    <div class="cloud-voet">
+      <span class="pdf-telling" id="pdfKiezerTelling"></span>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary btn-sm" onclick="pdfKiezerSluit()">Annuleren</button>
+        <button class="btn btn-primary btn-sm" id="pdfKiezerKnop" onclick="pdfKiezerKlaar()" disabled>Toevoegen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ DUBBELE MERKLETTERS ═══════════════ -->
 <div class="cloud-overlay" id="merkVenster">
   <div class="cloud-paneel breed">
@@ -1683,7 +1740,10 @@ function exportKies(wat) {
   exportSluit();
   const acties = document.getElementById('kopActies');
   if (acties) acties.classList.remove('open');
-  if (wat === 'csv') exportCSV();
+  if (wat === 'csv') {
+    if (window.exportControle && !exportControle()) return;
+    exportCSV();
+  }
   else if (wat === 'alles') startExport('alles');
   else if (wat === 'bestellijst') exportBestellijstPdf();
   else exportFotoPdf();
@@ -1800,7 +1860,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v60';
+const APP_VERSIE = 'v61';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

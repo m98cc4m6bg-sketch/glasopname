@@ -7,6 +7,9 @@
 (function () {
   'use strict';
 
+  // Het eigen adres van de werkplaats. Via config.js te overschrijven.
+  var WERKPLAATS = 'Werkplaats — Vissersdijk Beneden 44, Dordrecht';
+
   var VELDEN = [
     { groep: 'Opdrachtgever', velden: [
       { id: 'klant',        label: 'Bedrijf of naam',   breed: 2 },
@@ -196,27 +199,47 @@
     var d = info();
     d.leverSoort = waarde;
     if (waarde !== 'datum') d.leverDatum = '';
+    if (waarde !== 'week') { d.leverWeek = null; d.leverWeekTekst = ''; }
     opslaan();
     renderLevering();
   };
 
   // Acht weken vooruit, met de weken onder elkaar. Voorbije dagen zijn
   // niet te kiezen; vandaag staat omlijnd.
-  window.leverKalender = function (knop) {
+  // ISO-weeknummer: donderdag van die week bepaalt het jaar en de telling.
+  function weekNummer(d) {
+    var t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7));
+    var eerste = new Date(t.getFullYear(), 0, 4);
+    return 1 + Math.round(((t - eerste) / 86400000 - 3 + ((eerste.getDay() + 6) % 7)) / 7);
+  }
+
+  window.leverKalender = function (knop, perWeek) {
     if (document.querySelector('.kalender')) { sluitKalender(); return; }
     var vandaag = new Date(); vandaag.setHours(0, 0, 0, 0);
     var start = new Date(vandaag);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));   // maandag van deze week
 
     var dagen = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
-    var html = '<div class="kalender-kop">' + dagen.map(function (d) {
-      return '<span>' + d + '</span>';
-    }).join('') + '</div>';
+    var html = '<div class="kalender-uitleg">' +
+      (perWeek ? 'Kies een hele week' : 'Kies een dag') + '</div>' +
+      '<div class="kalender-kop"><span class="wk">wk</span>' + dagen.map(function (d) {
+        return '<span>' + d + '</span>';
+      }).join('') + '</div>';
 
     var maanden = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
     var loop = new Date(start);
     for (var w = 0; w < 8; w++) {
-      html += '<div class="kalender-week">';
+      var wk = weekNummer(loop);
+      var weekEind = new Date(loop); weekEind.setDate(weekEind.getDate() + 6);
+      var weekTekst = 'week ' + wk + ' (' +
+        String(loop.getDate()).padStart(2, '0') + '-' + String(loop.getMonth() + 1).padStart(2, '0') + ' t/m ' +
+        String(weekEind.getDate()).padStart(2, '0') + '-' + String(weekEind.getMonth() + 1).padStart(2, '0') + ')';
+      var weekVoorbij = weekEind < vandaag;
+
+      html += '<div class="kalender-week' + (perWeek ? ' kiesbaar' : '') + '"' +
+        (perWeek && !weekVoorbij ? ' onclick="leverWeekZet(' + wk + ', \'' + weekTekst + '\')"' : '') + '>' +
+        '<span class="kalender-wk' + (weekVoorbij ? ' voorbij' : '') + '">' + wk + '</span>';
       for (var d = 0; d < 7; d++) {
         var verleden = loop < vandaag;
         var isVandaag = loop.getTime() === vandaag.getTime();
@@ -224,7 +247,7 @@
                     String(loop.getMonth() + 1).padStart(2, '0') + '-' + loop.getFullYear();
         html += '<button class="kalender-dag' + (verleden ? ' voorbij' : '') +
                 (isVandaag ? ' vandaag' : '') + (d > 4 ? ' weekend' : '') + '"' +
-                (verleden ? ' disabled' : ' onclick="leverDatumZet(\'' + tekst + '\')"') + '>' +
+                (verleden || perWeek ? ' disabled' : ' onclick="leverDatumZet(\'' + tekst + '\')"') + '>' +
                 loop.getDate() + (loop.getDate() === 1 ? '<em>' + maanden[loop.getMonth()] + '</em>' : '') +
                 '</button>';
         loop.setDate(loop.getDate() + 1);
@@ -255,6 +278,16 @@
     document.removeEventListener('pointerdown', kalenderBuiten, true);
   }
 
+  window.leverWeekZet = function (nummer, tekst) {
+    var d = info();
+    d.leverSoort = 'week';
+    d.leverWeek = nummer;
+    d.leverWeekTekst = tekst;
+    sluitKalender();
+    opslaan();
+    renderLevering();
+  };
+
   window.leverDatumZet = function (tekst) {
     var d = info();
     d.leverSoort = 'datum';
@@ -275,15 +308,15 @@
       var delen = [d.straat, [d.postcode, d.plaats].filter(Boolean).join('  ')].filter(Boolean);
       return delen.length ? delen.join(', ') : 'Werkadres — nog niet ingevuld';
     }
-    return (window.GLASOPNAME_CONFIG && GLASOPNAME_CONFIG.werkplaats) ||
-           'Werkplaats Jelier Bouw';
+    return (window.GLASOPNAME_CONFIG && GLASOPNAME_CONFIG.werkplaats) || WERKPLAATS;
   };
 
   window.leverDatumTekst = function () {
     var d = info();
     if (d.leverSoort === 'spoed') return 'SPOED!';
     if (d.leverSoort === 'datum' && d.leverDatum) return d.leverDatum;
-    return 'Zo spoedig mogelijk';
+    if (d.leverSoort === 'week' && d.leverWeek) return d.leverWeekTekst || ('week ' + d.leverWeek);
+    return 'Eerste levermogelijkheid';
   };
 
   window.renderLevering = function () {
@@ -310,7 +343,10 @@
           '<button class="' + (soort === 'spoed' ? 'aan spoed' : '') + '" ' +
             'onclick="leverDatumSoort(\'spoed\')">SPOED!</button>' +
           '<button class="' + (soort === 'zsm' ? 'aan' : '') + '" ' +
-            'onclick="leverDatumSoort(\'zsm\')">Z.s.m.</button>' +
+            'onclick="leverDatumSoort(\'zsm\')">Eerste levermogelijkheid</button>' +
+          '<button class="lever-datumknop ' + (soort === 'week' ? 'aan' : '') + '" ' +
+            'onclick="leverKalender(this, true)">' +
+            (soort === 'week' && d.leverWeek ? esc('Week ' + d.leverWeek) : 'Leverweek…') + '</button>' +
           '<button class="lever-datumknop ' + (soort === 'datum' ? 'aan' : '') + '" ' +
             'onclick="leverKalender(this)">' +
             (soort === 'datum' && d.leverDatum ? esc(d.leverDatum) : 'Datum kiezen…') + '</button>' +

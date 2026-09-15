@@ -67,6 +67,19 @@
     toonMelding('');
   }
 
+  // Wat de projectlijst moet tonen bewaren we apart, zodat die lijst niet
+  // de volledige inhoud van elk project hoeft op te halen.
+  function adresVan(state) {
+    var i = (state && state.info) || {};
+    var plaats = [i.postcode, i.plaats].filter(Boolean).join(' ').trim();
+    return [i.straat, plaats].filter(Boolean).join(', ');
+  }
+
+  function openTaken(state) {
+    var t = (state && state.taken) || [];
+    return t.filter(function (x) { return !x.klaar; }).length;
+  }
+
   function ingevuldeRijen(state) {
     return (state.rijen || []).filter(function (r) {
       return r.glasType || r.breedte || r.hoogte;
@@ -141,6 +154,8 @@
       datum: state.datum || '',
       data: state,
       aantal_ruiten: ingevuldeRijen(state),
+      adres: adresVan(state),
+      open_taken: openTaken(state),
       status: (state.info && state.info.status) || 'open',
       gewijzigd_door: gebruiker.id
     }).eq('id', projectId).then(function (res) {
@@ -446,10 +461,10 @@
 
     // Alleen de velden die de lijst toont; de inhoud van een project
     // wordt pas opgehaald als je hem opent.
-    var vraag = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,updated_at');
+    var vraag = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at');
     if (zoekTerm.trim()) {
       var t = '%' + zoekTerm.trim().replace(/[%_]/g, '') + '%';
-      vraag = vraag.or('naam.ilike.' + t + ',datum.ilike.' + t);
+      vraag = vraag.or('naam.ilike.' + t + ',datum.ilike.' + t + ',adres.ilike.' + t);
     }
     vraag.order('updated_at', { ascending: false }).limit(200)
       .then(function (res) {
@@ -480,7 +495,11 @@
                  '<strong>' + markeer(p.naam || '(naamloos)', zoekTerm) + '</strong>' +
                  '<span>' + (p.status && p.status !== 'open'
                      ? '<em class="pl-status">' + esc(p.status) + '</em> · ' : '') +
-                 n + ' ruiten' + (p.datum ? ' · ' + markeer(p.datum, zoekTerm) : '') +
+                 (p.adres ? markeer(p.adres, zoekTerm) + ' · ' : '') +
+                 n + ' ruiten' +
+                 (p.open_taken ? ' · <b class="pl-taken">' + p.open_taken + ' open ' +
+                    (p.open_taken === 1 ? 'taak' : 'taken') + '</b>' : '') +
+                 (p.datum ? ' · ' + markeer(p.datum, zoekTerm) : '') +
                  ' · gewijzigd ' + stamp + '</span>' +
                  '</div>' +
                  '<button class="btn btn-ghost btn-sm" onclick="cloudVerwijder(\'' + p.id + '\')" title="Project verwijderen">🗑</button>' +
@@ -529,7 +548,7 @@
       datum: '',
       data: { rijen: [], volgendId: 1, fotos: [], info: {}, taken: [],
               project: naam || '', datum: '', speling: '4', bijtelling: '11' },
-      aantal_ruiten: 0,
+      aantal_ruiten: 0, adres: '', open_taken: 0,
       gewijzigd_door: gebruiker.id
     }).select('id').single().then(function (res) {
       if (res.error) { alert('Aanmaken mislukt: ' + res.error.message); return; }

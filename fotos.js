@@ -101,6 +101,10 @@
   // naar een afbeelding, waarna het verder een blok is als elk ander:
   // merkletters aanwijzen, erop tekenen, en mee in de pdf-uitvoer.
 
+  var tekeningPdf = null;      // ingelezen pdf waaruit gekozen wordt
+  var tekeningNaam = '';
+  var tekeningGroep = null;
+
   window.tekeningGekozen = function (input) {
     var file = input.files && input.files[0];
     var groep = doelGroep;
@@ -116,48 +120,136 @@
     if (!window.pdfBibliotheek) { melding('De pdf-lezer is niet beschikbaar.', true); return; }
 
     melding('Tekening lezen…');
+    tekeningGroep = groep;
+    tekeningNaam = file.name.replace(/\.pdf$/i, '');
+
     window.pdfBibliotheek().then(function (lib) {
       return file.arrayBuffer().then(function (buf) {
         return lib.getDocument({ data: buf }).promise;
       });
     }).then(function (pdf) {
-      var pagina = 1;
-      if (pdf.numPages > 1) {
-        var keuze = prompt('Deze tekening heeft ' + pdf.numPages + ' pagina\'s. Welke wil je gebruiken?', '1');
-        if (keuze === null) { melding(''); return null; }
-        pagina = Math.min(pdf.numPages, Math.max(1, parseInt(keuze, 10) || 1));
-      }
-      return pdf.getPage(pagina).then(function (p) {
-        // Ruim uitrekenen: een tekening moet je kunnen inzoomen om
-        // maatvoering te lezen.
-        var basis = p.getViewport({ scale: 1 });
-        var schaal = Math.min(3, MAX_ZIJDE / Math.max(basis.width, basis.height));
-        var viewport = p.getViewport({ scale: schaal });
-        var c = document.createElement('canvas');
-        c.width = Math.round(viewport.width);
-        c.height = Math.round(viewport.height);
-        var ctx = c.getContext('2d');
-        // Witte ondergrond: een pdf is doorzichtig en zou anders zwart worden.
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, c.width, c.height);
-        return p.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
-          return new Promise(function (ok, fout) {
-            c.toBlob(function (blob) {
-              if (!blob) { fout(new Error('omzetten mislukt')); return; }
-              ok({ blob: blob, breedte: c.width, hoogte: c.height,
-                   titel: file.name.replace(/\.pdf$/i, '') + (pdf.numPages > 1 ? ' — pagina ' + pagina : '') });
-            }, 'image/jpeg', 0.9);
-          });
-        });
-      });
-    }).then(function (res) {
-      if (!res) return;
-      return zetWeg(res, groep, res.titel);
+      tekeningPdf = pdf;
+      melding('');
+      if (pdf.numPages === 1) return maakPaginas([1]);
+      return toonPaginaKiezer(pdf);
     }).catch(function (e) {
       console.error('[tekening]', e);
       melding('Tekening inlezen mislukt: ' + e.message, true);
     });
   };
+
+  /* ─── kiezen welke pagina's ─────────────────────────────────── */
+  // Een kozijntekening van tien pagina's is aan de bestandsnaam niet te
+  // herkennen. Je ziet daarom eerst kleine afbeeldingen van elke pagina
+  // en vinkt aan wat je nodig hebt; elke gekozen pagina wordt een eigen
+  // blok met een eigen invoertabel.
+
+  function toonPaginaKiezer(pdf) {
+    var venster = el('pdfKiezer');
+    var raster = el('pdfPaginas');
+    if (!venster || !raster) return maakPaginas([1]);
+    raster.innerHTML = '';
+    venster.style.display = 'flex';
+    el('pdfKiezerTitel').textContent = tekeningNaam + ' — ' + pdf.numPages + ' pagina\'s';
+    paginaTellingBij();
+
+    for (var n = 1; n <= pdf.numPages; n++) {
+      (function (nr) {
+        var vak = document.createElement('label');
+        vak.className = 'pdf-pagina';
+        vak.innerHTML = '<input type="checkbox" value="' + nr + '" onchange="paginaTellingBij()">' +
+          '<span class="pdf-nr">' + nr + '</span>' +
+          '<canvas data-pagina="' + nr + '"></canvas>';
+        raster.appendChild(vak);
+
+        pdf.getPage(nr).then(function (p) {
+          var basis = p.getViewport({ scale: 1 });
+          var schaal = 220 / Math.max(basis.width, basis.height);
+          var viewport = p.getViewport({ scale: schaal });
+          var c = vak.querySelector('canvas');
+          c.width = Math.round(viewport.width);
+          c.height = Math.round(viewport.height);
+          var ctx = c.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, c.width, c.height);
+          return p.render({ canvasContext: ctx, viewport: viewport }).promise;
+        }).catch(function () {});
+      })(n);
+    }
+    return null;
+  }
+
+  window.paginaTellingBij = function () {
+    var gekozen = [].slice.call(document.querySelectorAll('#pdfPaginas input:checked'));
+    var knop = el('pdfKiezerKnop');
+    var telling = el('pdfKiezerTelling');
+    if (telling) {
+      telling.textContent = gekozen.length
+        ? gekozen.length + ' pagina' + (gekozen.length === 1 ? '' : "'s") + ' gekozen'
+        : 'Nog niets gekozen';
+    }
+    if (knop) knop.disabled = !gekozen.length;
+  };
+
+  window.pdfKiezerSluit = function () {
+    var venster = el('pdfKiezer');
+    if (venster) venster.style.display = 'none';
+    tekeningPdf = null;
+  };
+
+  window.pdfKiezerKlaar = function () {
+    var nummers = [].slice.call(document.querySelectorAll('#pdfPaginas input:checked'))
+      .map(function (v) { return parseInt(v.value, 10); });
+    var venster = el('pdfKiezer');
+    if (venster) venster.style.display = 'none';
+    if (nummers.length) maakPaginas(nummers);
+  };
+
+  // Elke gekozen pagina wordt een eigen blok, één voor één opgeslagen
+  // zodat de volgorde klopt.
+  function maakPaginas(nummers) {
+    var pdf = tekeningPdf;
+    if (!pdf) return;
+    var groep = tekeningGroep;
+    tekeningGroep = null;
+    var meer = pdf.numPages > 1;
+
+    return nummers.reduce(function (rij, nr, i) {
+      return rij.then(function () {
+        melding('Pagina ' + nr + ' omzetten… (' + (i + 1) + ' van ' + nummers.length + ')');
+        return pdf.getPage(nr).then(function (p) {
+          var basis = p.getViewport({ scale: 1 });
+          var schaal = Math.min(3, MAX_ZIJDE / Math.max(basis.width, basis.height));
+          var viewport = p.getViewport({ scale: schaal });
+          var c = document.createElement('canvas');
+          c.width = Math.round(viewport.width);
+          c.height = Math.round(viewport.height);
+          var ctx = c.getContext('2d');
+          // Een pdf is doorzichtig; zonder witte ondergrond wordt hij zwart.
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, c.width, c.height);
+          return p.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+            return new Promise(function (ok, fout) {
+              c.toBlob(function (blob) {
+                if (!blob) { fout(new Error('omzetten mislukt')); return; }
+                ok({ blob: blob, breedte: c.width, hoogte: c.height,
+                     titel: tekeningNaam + (meer ? ' — pagina ' + nr : '') });
+              }, 'image/jpeg', 0.9);
+            });
+          });
+        }).then(function (res) {
+          // Alleen de eerste pagina mag in een bestaande groep landen.
+          return zetWeg(res, i === 0 ? groep : null, res.titel);
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      melding('');
+      tekeningPdf = null;
+    }).catch(function (e) {
+      console.error('[tekening]', e);
+      melding('Omzetten mislukt: ' + e.message, true);
+    });
+  }
 
   function verwerkAfbeelding(file, groep, titel) {
     melding('Afbeelding verkleinen…');

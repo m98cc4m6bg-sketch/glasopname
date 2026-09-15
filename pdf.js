@@ -424,14 +424,15 @@
       return delen.length ? delen.join(', ') : 'Werkadres — niet ingevuld';
     }
     return (window.GLASOPNAME_CONFIG && window.GLASOPNAME_CONFIG.werkplaats) ||
-           'Werkplaats Jelier Bouw';
+           'Werkplaats — Vissersdijk Beneden 44, Dordrecht';
   }
 
   function leverWanneer() {
     var d = projectInfo || {};
     if (d.leverSoort === 'spoed') return 'SPOED!';
     if (d.leverSoort === 'datum' && d.leverDatum) return d.leverDatum;
-    return 'Zo spoedig mogelijk';
+    if (d.leverSoort === 'week' && d.leverWeek) return d.leverWeekTekst || ('week ' + d.leverWeek);
+    return 'Eerste levermogelijkheid';
   }
 
   function leverPagina(doc, project, datum) {
@@ -666,7 +667,25 @@
      er in één keer in kunnen.
   */
 
+  // Vóór elke export even nagaan of het werkadres en de leverfoto er zijn.
+  // Niet verplicht — je kunt gewoon doorgaan — maar het scheelt een
+  // bestellijst die bij de leverancier op de verkeerde plek belandt.
+  function ontbrekendControleren() {
+    var i = projectInfo || {};
+    var mist = [];
+    if (!(i.straat || '').trim() || !(i.plaats || '').trim()) mist.push('het werkadres van het project');
+    var heeftFoto = (typeof fotos !== 'undefined') &&
+      fotos.some(function (f) { return f.soort === 'lever' && f.pad; });
+    if (!heeftFoto) mist.push('een foto van de leverlocatie');
+    if (!mist.length) return true;
+    return confirm('Nog niet ingevuld: ' + mist.join(' en ') + '.\n\n' +
+                   'Je kunt gewoon doorgaan. Wil je exporteren?');
+  }
+
+  window.exportControle = ontbrekendControleren;
+
   window.startExport = function (wat) {
+    if (!ontbrekendControleren()) { bezig(''); return Promise.resolve(); }
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
 

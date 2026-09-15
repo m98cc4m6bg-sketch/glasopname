@@ -11,6 +11,10 @@
 (function () {
   'use strict';
 
+  // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
+  // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
+  // dat scheelt zoeken als een update ergens blijft hangen.
+  var PDF_VERSIE = 'v65';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -708,9 +712,12 @@
     var heeftFoto = (typeof fotos !== 'undefined') &&
       fotos.some(function (f) { return f.soort === 'lever' && f.pad; });
     if (!heeftFoto) mist.push({ wat: 'een foto van de leverlocatie', plek: 'lever' });
-    if (!i.leverSoort || (i.leverSoort === 'datum' && !i.leverDatum) ||
+    // Niets gekozen betekent 'eerste levermogelijkheid', en dat is een
+    // geldige opdracht — geen ontbrekend gegeven. Alleen klagen als er wél
+    // een datum of week gekozen is maar de waarde zelf leeg bleef.
+    if ((i.leverSoort === 'datum' && !i.leverDatum) ||
         (i.leverSoort === 'week' && !i.leverWeek)) {
-      mist.push({ wat: 'een leverdatum of -week', plek: 'lever' });
+      mist.push({ wat: 'de gekozen leverdatum of -week zelf', plek: 'lever' });
     }
     if (!((i.leverInstructie || '').trim())) {
       mist.push({ wat: 'een instructie voor de chauffeur', plek: 'lever' });
@@ -950,5 +957,7 @@
       doc.save(naam);
     });
   }
+
+  console.log('[pdf] ' + PDF_VERSIE);
 
 })();

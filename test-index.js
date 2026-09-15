@@ -124,9 +124,9 @@ check('zoeken werkt vanuit het echte paneel',
 w.naslagZoeken('');
 
 console.log('\n9. Versie');
-check('APP_VERSIE is v64', g('APP_VERSIE') === 'v64', g('APP_VERSIE'));
+check('APP_VERSIE is v65', g('APP_VERSIE') === 'v65', g('APP_VERSIE'));
 const sw = fs.readFileSync('sw.js', 'utf8');
-check('sw.js staat op dezelfde versie', /const VERSIE = 'v64';/.test(sw));
+check('sw.js staat op dezelfde versie', /const VERSIE = 'v65';/.test(sw));
 check('sw.js cachet naslag.js', sw.indexOf("'./naslag.js'") >= 0);
 check('sw.js cachet 61 catalogusfoto\'s',
   (sw.match(/\.\/catalogus\/[a-z0-9-]+\.jpg/g) || []).length === 61,

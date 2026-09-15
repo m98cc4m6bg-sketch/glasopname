@@ -103,7 +103,9 @@ function pdfViaExport(w, bestandsnaam) {
   const venster = w.document.querySelector('.cloud-overlay');
   check('melding verschijnt', !!venster);
   const punten = venster ? [...venster.querySelectorAll('li')].map(l => l.textContent) : [];
-  check('vier punten in de lijst', punten.length === 4, punten.join(' · '));
+  check('drie punten in de lijst', punten.length === 3, punten.join(' · '));
+  check('geen klacht over de leverdatum', punten.every(p => p.indexOf('leverdatum') < 0),
+    punten.join(' · '));
   const knoppen = venster ? [...venster.querySelectorAll('[data-actie]')].map(b => b.textContent) : [];
   check('drie knoppen: ' + knoppen.join(', '), knoppen.length === 3 &&
     knoppen.indexOf('Aanvullen') >= 0 && knoppen.indexOf('Toch exporteren') >= 0);

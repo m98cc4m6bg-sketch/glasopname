@@ -316,7 +316,7 @@
       var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
       // Foto's ophalen vóór het tekenen: addImage werkt niet met beloftes.
-      var taken = fotos.map(function (f) {
+      var taken = fotos.filter(function (f) { return f.soort !== 'lever'; }).map(function (f) {
         if (!f.pad || !window.glasSupabase) return Promise.resolve(null);
         return window.glasSupabase.storage.from('projectfotos')
           .createSignedUrl(f.pad, 3600)
@@ -330,7 +330,8 @@
       return Promise.all(taken).then(function (plaatjes) {
         var eerste = true;
 
-        fotos.forEach(function (f, i) {
+        var kozijnFotos = fotos.filter(function (f) { return f.soort !== 'lever'; });
+        kozijnFotos.forEach(function (f, i) {
           var eigen = rijen.filter(function (r) { return r.fotoId === f.id; });
           if (!eigen.length && !plaatjes[i]) return;
 
@@ -408,6 +409,100 @@
       { kop: 'Roede br',   w: 16, haal: function (r) { return r.roedenbreedte; } },
       { kop: 'Opmerking',  w: 34, haal: function (r) { return r.roedenopmerking || r.opmerking; } }
     ];
+  }
+
+  // Een losse pagina achter de bestellijst met de foto van de plek waar
+  // het glas heen moet, de instructies, het adres en de gewenste datum.
+  // Alleen als er ook werkelijk een foto of instructie is ingevuld.
+  // Adres en datum zelf bepalen uit de projectgegevens, niet via een
+  // functie elders in de app: deze pagina moet ook kloppen als er ooit
+  // iets aan die kant verandert.
+  function leverAdres() {
+    var d = projectInfo || {};
+    if (d.leverAdres === 'werk') {
+      var delen = [d.straat, [d.postcode, d.plaats].filter(Boolean).join('  ')].filter(Boolean);
+      return delen.length ? delen.join(', ') : 'Werkadres — niet ingevuld';
+    }
+    return (window.GLASOPNAME_CONFIG && window.GLASOPNAME_CONFIG.werkplaats) ||
+           'Werkplaats Jelier Bouw';
+  }
+
+  function leverWanneer() {
+    var d = projectInfo || {};
+    if (d.leverSoort === 'spoed') return 'SPOED!';
+    if (d.leverSoort === 'datum' && d.leverDatum) return d.leverDatum;
+    return 'Zo spoedig mogelijk';
+  }
+
+  function leverPagina(doc, project, datum) {
+    var foto = (typeof fotos !== 'undefined')
+      ? fotos.find(function (f) { return f.soort === 'lever'; }) : null;
+    var instructie = (projectInfo && projectInfo.leverInstructie) || '';
+    if (!foto && !instructie.trim()) return Promise.resolve();
+
+    var plaatje = (foto && foto.pad && window.glasSupabase)
+      ? window.glasSupabase.storage.from('projectfotos').createSignedUrl(foto.pad, 3600)
+          .then(function (res) {
+            if (res.error || !res.data) return null;
+            return haalAfbeelding(res.data.signedUrl);
+          }).catch(function () { return null; })
+      : Promise.resolve(null);
+
+    return plaatje.then(function (data) {
+      zetFormaat(false);                     // staand: past beter bij een foto
+      doc.addPage('a4', 'portrait');
+      kopregel(doc, 'Leverlocatie');
+
+      var y = MARGE + 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(208, 2, 67);
+      doc.text('AFLEVEREN OP', MARGE, y);
+      y += 6;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(29, 29, 27);
+      doc.text(schoon(leverAdres()), MARGE, y);
+      y += 7;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(60, 70, 84);
+      doc.text(schoon('Project: ' + project + (datum ? '     Datum: ' + datum : '')), MARGE, y);
+      y += 6;
+
+      var wanneer = leverWanneer();
+      if (wanneer) {
+        var spoed = /spoed/i.test(wanneer);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(spoed ? 13 : 11);
+        if (spoed) doc.setTextColor(142, 27, 18); else doc.setTextColor(29, 29, 27);
+        doc.text(schoon('Gewenste levering: ' + wanneer), MARGE, y);
+        y += 8;
+      }
+
+      if (instructie.trim()) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(29, 29, 27);
+        var regels = doc.splitTextToSize(schoon(instructie), INHOUD);
+        doc.text(regels, MARGE, y);
+        y += regels.length * 4.6 + 4;
+      }
+
+      if (data) {
+        var verh = (foto.hoogte || 3) / (foto.breedte || 4);
+        var b = INHOUD, h = b * verh;
+        var ruimte = HOOGTE - MARGE - 10 - y;
+        if (h > ruimte) { h = ruimte; b = h / verh; }
+        var x = MARGE + (INHOUD - b) / 2;
+        doc.addImage(data, 'JPEG', x, y, b, h);
+        doc.setDrawColor(180, 186, 196);
+        doc.rect(x, y, b, h);
+        tekenInkt(doc, foto, x, y, b, h);
+      }
+    });
   }
 
   window.exportBestellijstPdf = function () {
@@ -489,9 +584,10 @@
       doc.text(schoon(lijst.length + ' posities   |   ' + stuks + ' ruiten   |   totaal ' +
                m2.toFixed(2).replace('.', ',') + ' m2 glas'), MARGE, y);
 
-      voetteksten(doc, project, datum);
-
-      return afleveren(doc, naam, bestand);
+      return leverPagina(doc, project, datum).then(function () {
+        voetteksten(doc, project, datum);
+        return afleveren(doc, naam, bestand);
+      });
     }).catch(function (e) {
       console.error('[pdf]', e);
       bezig('');

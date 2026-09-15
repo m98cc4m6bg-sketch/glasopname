@@ -19,16 +19,14 @@
     { groep: 'Werkadres', velden: [
       { id: 'straat',    label: 'Straat en huisnummer', breed: 2 },
       { id: 'postcode',  label: 'Postcode' },
-      { id: 'plaats',    label: 'Plaats' },
-      { id: 'bouwjaar',  label: 'Bouwjaar / type woning' }
+      { id: 'plaats',    label: 'Plaats' }
+
     ]},
     { groep: 'Uitvoering', velden: [
       { id: 'referentie', label: 'Referentie of opdrachtnummer' },
       { id: 'status',     label: 'Status', keuze:
         ['open', 'ingemeten', 'besteld', 'geleverd', 'gemonteerd', 'afgerond'] },
       { id: 'opnemer',    label: 'Opgenomen door' },
-      { id: 'uitvoerder', label: 'Uitvoerder / ploeg' },
-      { id: 'streefdatum', label: 'Gewenste leverdatum' },
       { id: 'bereikbaar', label: 'Bereikbaarheid / sleutel', breed: 2 }
     ]}
   ];
@@ -41,6 +39,89 @@
     return projectInfo;
   }
 
+  /* ─── adres zoeken ─────────────────────────────────────────── */
+  // Zoekt bij de landelijke adressenkaart van PDOK: gratis, zonder sleutel,
+  // en het werkt met postcode plus huisnummer én met een straatnaam. Je
+  // krijgt een lijstje waaruit je het juiste adres aanklikt; straat,
+  // postcode en plaats worden dan alle drie ingevuld.
+  var PDOK = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/';
+  var zoekTimer = null;
+  var zoekMenu = null;
+
+  window.adresZoek = function (waarde) {
+    clearTimeout(zoekTimer);
+    if (!waarde || waarde.trim().length < 4) { sluitAdresMenu(); return; }
+    zoekTimer = setTimeout(function () { vraagAdressen(waarde.trim()); }, 350);
+  };
+
+  function vraagAdressen(term) {
+    var veld = document.getElementById('adresZoek');
+    toonAdresMenu(veld, '<div class="adres-bezig">Zoeken…</div>');
+    fetch(PDOK + 'suggest?q=' + encodeURIComponent(term) + '&fq=type:adres&rows=8')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var lijst = (d && d.response && d.response.docs) || [];
+        if (!lijst.length) {
+          toonAdresMenu(veld, '<div class="adres-bezig">Geen adres gevonden. ' +
+            'Je kunt de velden hieronder ook met de hand invullen.</div>');
+          return;
+        }
+        toonAdresMenu(veld, lijst.map(function (a) {
+          return '<button onclick="adresKies(\'' + esc(a.id) + '\')">' +
+                 esc(a.weergavenaam) + '</button>';
+        }).join(''));
+      })
+      .catch(function (e) {
+        console.warn('[adres] zoeken mislukt', e);
+        toonAdresMenu(veld, '<div class="adres-bezig">Zoeken lukt nu niet — ' +
+          'geen verbinding? Vul de velden hieronder met de hand in.</div>');
+      });
+  }
+
+  window.adresKies = function (id) {
+    sluitAdresMenu();
+    fetch(PDOK + 'lookup?id=' + encodeURIComponent(id) + '&fl=straatnaam,huis_nlt,postcode,woonplaatsnaam')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var a = d && d.response && d.response.docs && d.response.docs[0];
+        if (!a) return;
+        var d2 = info();
+        d2.straat = (a.straatnaam || '') + (a.huis_nlt ? ' ' + a.huis_nlt : '');
+        d2.postcode = a.postcode ? String(a.postcode).replace(/^(\d{4})([A-Z]{2})$/, '$1 $2') : '';
+        d2.plaats = a.woonplaatsnaam || '';
+        opslaan();
+        renderProject();
+        var zoek = document.getElementById('adresZoek');
+        if (zoek) zoek.value = '';
+      })
+      .catch(function (e) { console.warn('[adres] ophalen mislukt', e); });
+  };
+
+  function toonAdresMenu(veld, inhoud) {
+    sluitAdresMenu();
+    if (!veld) return;
+    var menu = document.createElement('div');
+    menu.className = 'veld-menu adres-menu';
+    menu.innerHTML = inhoud;
+    document.body.appendChild(menu);
+    zoekMenu = menu;
+    var r = veld.getBoundingClientRect();
+    menu.style.left = (r.left + window.scrollX) + 'px';
+    menu.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    menu.style.minWidth = Math.max(260, r.width) + 'px';
+    setTimeout(function () { document.addEventListener('pointerdown', adresBuiten, true); }, 0);
+  }
+
+  function adresBuiten(e) {
+    if (zoekMenu && (zoekMenu.contains(e.target) || e.target.id === 'adresZoek')) return;
+    sluitAdresMenu();
+  }
+
+  function sluitAdresMenu() {
+    if (zoekMenu) { zoekMenu.remove(); zoekMenu = null; }
+    document.removeEventListener('pointerdown', adresBuiten, true);
+  }
+
   /* ─── tekenen ──────────────────────────────────────────────── */
 
   window.renderProject = function () {
@@ -49,7 +130,12 @@
     var d = info();
 
     houder.innerHTML = VELDEN.map(function (g) {
-      return '<section class="pi-groep"><h3>' + g.groep + '</h3><div class="pi-raster">' +
+      var zoek = g.groep !== 'Werkadres' ? '' :
+        '<div class="adres-zoek">' +
+          '<input type="text" id="adresZoek" placeholder="Zoek op postcode + huisnummer, of op straat…" ' +
+            'autocomplete="off" oninput="adresZoek(this.value)">' +
+        '</div>';
+      return '<section class="pi-groep"><h3>' + g.groep + '</h3>' + zoek + '<div class="pi-raster">' +
         g.velden.map(function (v) {
           var waarde = d[v.id] || '';
           var invoer = v.keuze
@@ -67,6 +153,10 @@
 
     var notitie = document.getElementById('projectNotitie');
     if (notitie && notitie.value !== (d.notities || '')) notitie.value = d.notities || '';
+    var instr = document.getElementById('leverInstructie');
+    if (instr && instr.value !== (d.leverInstructie || '')) instr.value = d.leverInstructie || '';
+    renderLevering();
+    if (window.renderLeverFoto) renderLeverFoto();
     renderTaken();
     toonKaartknop();
   };
@@ -93,6 +183,140 @@
       window.open('https://maps.apple.com/?q=' + encodeURIComponent(adres), '_blank');
     };
   }
+
+  /* ─── levering ─────────────────────────────────────────────── */
+
+  window.leverAdresWijzig = function (waarde) {
+    info().leverAdres = waarde;
+    opslaan();
+    renderLevering();
+  };
+
+  window.leverDatumSoort = function (waarde) {
+    var d = info();
+    d.leverSoort = waarde;
+    if (waarde !== 'datum') d.leverDatum = '';
+    opslaan();
+    renderLevering();
+  };
+
+  // Acht weken vooruit, met de weken onder elkaar. Voorbije dagen zijn
+  // niet te kiezen; vandaag staat omlijnd.
+  window.leverKalender = function (knop) {
+    if (document.querySelector('.kalender')) { sluitKalender(); return; }
+    var vandaag = new Date(); vandaag.setHours(0, 0, 0, 0);
+    var start = new Date(vandaag);
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));   // maandag van deze week
+
+    var dagen = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+    var html = '<div class="kalender-kop">' + dagen.map(function (d) {
+      return '<span>' + d + '</span>';
+    }).join('') + '</div>';
+
+    var maanden = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    var loop = new Date(start);
+    for (var w = 0; w < 8; w++) {
+      html += '<div class="kalender-week">';
+      for (var d = 0; d < 7; d++) {
+        var verleden = loop < vandaag;
+        var isVandaag = loop.getTime() === vandaag.getTime();
+        var tekst = String(loop.getDate()).padStart(2, '0') + '-' +
+                    String(loop.getMonth() + 1).padStart(2, '0') + '-' + loop.getFullYear();
+        html += '<button class="kalender-dag' + (verleden ? ' voorbij' : '') +
+                (isVandaag ? ' vandaag' : '') + (d > 4 ? ' weekend' : '') + '"' +
+                (verleden ? ' disabled' : ' onclick="leverDatumZet(\'' + tekst + '\')"') + '>' +
+                loop.getDate() + (loop.getDate() === 1 ? '<em>' + maanden[loop.getMonth()] + '</em>' : '') +
+                '</button>';
+        loop.setDate(loop.getDate() + 1);
+      }
+      html += '</div>';
+    }
+
+    var menu = document.createElement('div');
+    menu.className = 'veld-menu kalender';
+    menu.innerHTML = html;
+    document.body.appendChild(menu);
+    var r = knop.getBoundingClientRect();
+    var max = window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 10;
+    menu.style.left = Math.max(window.scrollX + 8, Math.min(r.left + window.scrollX, max)) + 'px';
+    menu.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    setTimeout(function () { document.addEventListener('pointerdown', kalenderBuiten, true); }, 0);
+  };
+
+  function kalenderBuiten(e) {
+    var menu = document.querySelector('.kalender');
+    if (menu && (menu.contains(e.target) || (e.target.closest && e.target.closest('.lever-datumknop')))) return;
+    sluitKalender();
+  }
+
+  function sluitKalender() {
+    var menu = document.querySelector('.kalender');
+    if (menu) menu.remove();
+    document.removeEventListener('pointerdown', kalenderBuiten, true);
+  }
+
+  window.leverDatumZet = function (tekst) {
+    var d = info();
+    d.leverSoort = 'datum';
+    d.leverDatum = tekst;
+    sluitKalender();
+    opslaan();
+    renderLevering();
+  };
+
+  window.leverInstructie = function (waarde) {
+    info().leverInstructie = waarde;
+    opslaan();
+  };
+
+  window.leverAdresTekst = function () {
+    var d = info();
+    if (d.leverAdres === 'werk') {
+      var delen = [d.straat, [d.postcode, d.plaats].filter(Boolean).join('  ')].filter(Boolean);
+      return delen.length ? delen.join(', ') : 'Werkadres — nog niet ingevuld';
+    }
+    return (window.GLASOPNAME_CONFIG && GLASOPNAME_CONFIG.werkplaats) ||
+           'Werkplaats Jelier Bouw';
+  };
+
+  window.leverDatumTekst = function () {
+    var d = info();
+    if (d.leverSoort === 'spoed') return 'SPOED!';
+    if (d.leverSoort === 'datum' && d.leverDatum) return d.leverDatum;
+    return 'Zo spoedig mogelijk';
+  };
+
+  window.renderLevering = function () {
+    var houder = document.getElementById('leverBlok');
+    if (!houder) return;
+    var d = info();
+    var adres = d.leverAdres === 'werk' ? 'werk' : 'werkplaats';
+    var soort = d.leverSoort || 'zsm';
+
+    houder.innerHTML =
+      '<div class="lever-rij">' +
+        '<span class="lever-label">Afleveren op</span>' +
+        '<div class="lever-keuze">' +
+          '<button class="' + (adres === 'werkplaats' ? 'aan' : '') + '" ' +
+            'onclick="leverAdresWijzig(\'werkplaats\')">Werkplaats</button>' +
+          '<button class="' + (adres === 'werk' ? 'aan' : '') + '" ' +
+            'onclick="leverAdresWijzig(\'werk\')">Werkadres</button>' +
+        '</div>' +
+        '<span class="lever-adres">' + esc(leverAdresTekst()) + '</span>' +
+      '</div>' +
+      '<div class="lever-rij">' +
+        '<span class="lever-label">Gewenste levering</span>' +
+        '<div class="lever-keuze">' +
+          '<button class="' + (soort === 'spoed' ? 'aan spoed' : '') + '" ' +
+            'onclick="leverDatumSoort(\'spoed\')">SPOED!</button>' +
+          '<button class="' + (soort === 'zsm' ? 'aan' : '') + '" ' +
+            'onclick="leverDatumSoort(\'zsm\')">Z.s.m.</button>' +
+          '<button class="lever-datumknop ' + (soort === 'datum' ? 'aan' : '') + '" ' +
+            'onclick="leverKalender(this)">' +
+            (soort === 'datum' && d.leverDatum ? esc(d.leverDatum) : 'Datum kiezen…') + '</button>' +
+        '</div>' +
+      '</div>';
+  };
 
   /* ─── takenlijst ───────────────────────────────────────────── */
 

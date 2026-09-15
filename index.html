@@ -1143,6 +1143,59 @@
 
   .tk-knop svg { display: block; pointer-events: none; }
   .tk-knop.aan svg path[fill="currentColor"] { color: white; }
+
+  /* ─── ADRES ZOEKEN ─── */
+  .adres-zoek { margin-bottom: 10px; }
+  .adres-zoek input {
+    width: 100%; padding: 8px 10px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--merk); border-radius: var(--radius);
+  }
+  .adres-menu button { font-size: 13px; }
+  .adres-bezig { padding: 10px 14px; font-size: 12px; color: var(--grijs-tekst); line-height: 1.5; }
+
+  /* ─── LEVERING ─── */
+  .lever-kop { margin-top: 22px; }
+  .lever-rij { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .lever-label { font-size: 11px; font-weight: 600; color: var(--grijs-tekst); min-width: 110px; }
+  .lever-keuze { display: flex; gap: 4px; }
+  .lever-keuze button {
+    background: white; border: 1px solid var(--grijs-rand); color: var(--blauw);
+    padding: 6px 12px; border-radius: var(--radius);
+    font-family: inherit; font-size: 12px; cursor: pointer;
+  }
+  .lever-keuze button.aan { background: var(--merk); border-color: var(--merk); color: white; font-weight: 700; }
+  .lever-keuze button.aan.spoed { background: var(--rood); border-color: var(--rood); }
+  .lever-adres { font-size: 12px; color: var(--blauw); font-weight: 600; }
+  .lever-hint, .lever-uitleg { font-size: 11px; color: var(--grijs-tekst); line-height: 1.5; }
+  .lever-hint { display: block; margin-top: 6px; }
+  .lever-uitleg { margin-top: 6px; }
+  .lever-melding { font-size: 12px; color: var(--grijs-tekst); }
+  .lever-melding:empty { display: none; }
+  .lever-instructie {
+    width: 100%; min-height: 80px; margin-top: 10px; padding: 10px;
+    font-size: 13px; font-family: inherit; line-height: 1.6; resize: vertical;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+  }
+  #leverFotoBlok { margin-top: 10px; }
+  #leverFotoBlok .foto-blok { padding: 0; box-shadow: none; margin-top: 0; }
+
+  /* ─── KALENDER ─── */
+  .kalender { padding: 10px; min-width: 300px; }
+  .kalender-kop, .kalender-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .kalender-kop span {
+    font-size: 10px; text-transform: uppercase; color: var(--grijs-tekst);
+    text-align: center; padding-bottom: 4px; font-weight: 700;
+  }
+  .kalender-dag {
+    position: relative; border: none; background: white; cursor: pointer;
+    padding: 7px 0; font-family: inherit; font-size: 12px; color: var(--blauw);
+    border-radius: 4px;
+  }
+  .kalender-dag:hover:not(:disabled) { background: var(--merk); color: white; }
+  .kalender-dag.weekend { color: var(--grijs-tekst); background: var(--grijs-licht); }
+  .kalender-dag.voorbij { color: var(--grijs-rand); cursor: default; background: none; }
+  .kalender-dag.vandaag { outline: 2px solid var(--merk); outline-offset: -2px; font-weight: 700; }
+  .kalender-dag em { display: block; font-style: normal; font-size: 9px; color: var(--merk); }
 </style>
 </head>
 <body>
@@ -1241,6 +1294,15 @@
       <h3>Notities</h3>
       <textarea id="projectNotitie" placeholder="Afspraken, bijzonderheden, wat de klant zei…"
                 oninput="projectNotitie(this.value)"></textarea>
+
+      <h3 class="lever-kop">Levering</h3>
+      <div id="leverBlok"></div>
+      <div class="lever-melding" id="leverMelding"></div>
+      <div id="leverFotoBlok"></div>
+      <textarea id="leverInstructie" class="lever-instructie"
+                placeholder="Instructies voor de chauffeur — waar mag het glas staan, wie is aanwezig, hoe kom je erbij…"
+                oninput="leverInstructie(this.value)"></textarea>
+      <div class="lever-uitleg">Een foto met instructies gaat als losse pagina mee met de bestellijst.</div>
     </section>
     <section>
       <div class="taken-kop">
@@ -1719,7 +1781,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v58';
+const APP_VERSIE = 'v59';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

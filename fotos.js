@@ -27,6 +27,12 @@
   function el(id) { return document.getElementById(id); }
   function sbClient() { return window.glasSupabase || null; }
   function fotoVan(id) { return fotos.find(function (f) { return f.id === id; }); }
+  // De foto van de leverlocatie staat in dezelfde lijst — zo werken het
+  // tekenen, draaien en zoomen er onveranderd op — maar hij hoort niet
+  // thuis in de rij kozijnen op het invoertabblad.
+  function werkFotos() { return fotos.filter(function (f) { return f.soort !== 'lever'; }); }
+  window.werkFotos = werkFotos;
+  window.leverFoto = function () { return fotos.find(function (f) { return f.soort === 'lever'; }); };
   function rijenVan(fotoId) { return rijen.filter(function (r) { return r.fotoId === fotoId; }); }
 
   /* ─── merkletters ──────────────────────────────────────────── */
@@ -190,6 +196,100 @@
       });
   }
 
+  /* ─── foto van de leverlocatie ─────────────────────────────── */
+
+  window.leverFotoGekozen = function (input) {
+    var file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    var sb = sbClient();
+    if (!sb || !window.glasProjectId) {
+      leverMelding('Open eerst een project en zorg dat je online bent.', true);
+      return;
+    }
+    leverMelding('Foto verkleinen…');
+    verklein(file).then(function (res) {
+      var pad = window.glasProjectId + '/lever-' + Date.now() + '.jpg';
+      leverMelding('Uploaden…');
+      return sb.storage.from(BUCKET).upload(pad, res.blob, { contentType: 'image/jpeg' })
+        .then(function (up) {
+          if (up.error) throw new Error(up.error.message);
+          var bestaand = window.leverFoto();
+          if (bestaand) {
+            bestaand.pad = pad; bestaand.breedte = res.breedte; bestaand.hoogte = res.hoogte;
+            bestaand.markeringen = []; bestaand.inkt = [];
+          } else {
+            fotos.push({
+              id: 'lever' + Date.now().toString(36),
+              soort: 'lever', pad: pad, titel: 'Leverlocatie',
+              breedte: res.breedte, hoogte: res.hoogte, markeringen: [], inkt: []
+            });
+          }
+          opslaan();
+          renderLeverFoto();
+          leverMelding('');
+        });
+    }).catch(function (e) {
+      console.error('[leverfoto]', e);
+      leverMelding('Mislukt: ' + e.message, true);
+    });
+  };
+
+  function leverMelding(tekst, fout) {
+    var m = el('leverMelding');
+    if (!m) return;
+    m.textContent = tekst || '';
+    m.style.color = fout ? 'var(--rood)' : 'var(--grijs-tekst)';
+  }
+
+  window.leverFotoWeg = function () {
+    var f = window.leverFoto();
+    if (!f) return;
+    if (!confirm('De foto van de leverlocatie verwijderen?')) return;
+    var sb = sbClient();
+    if (sb && f.pad) sb.storage.from(BUCKET).remove([f.pad]);
+    fotos = fotos.filter(function (x) { return x.soort !== 'lever'; });
+    opslaan();
+    renderLeverFoto();
+  };
+
+  window.renderLeverFoto = function () {
+    var houder = el('leverFotoBlok');
+    if (!houder) return;
+    var f = window.leverFoto();
+    if (!f || !f.pad) {
+      houder.innerHTML = '<label class="btn btn-secondary btn-sm foto-knop">📷 Foto van de leverlocatie' +
+        '<input type="file" accept="image/*" onchange="leverFotoGekozen(this)" hidden></label>' +
+        '<span class="lever-hint">Bijvoorbeeld de inrit, de plek waar het glas mag staan, ' +
+        'of een bordje met huisnummer.</span>';
+      return;
+    }
+    var zoom = f.zoom || 100;
+    houder.innerHTML =
+      '<section class="foto-blok" id="blok-' + f.id + '">' +
+        '<div class="foto-zoombalk">' +
+          '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', -20)">−</button>' +
+          '<span class="foto-zoomwaarde" id="zoomwaarde-' + f.id + '">' + zoom + '%</span>' +
+          '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 20)">+</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 0)">Passend</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="fotoDraaien(\'' + f.id + '\')" title="Kwartslag draaien">↻</button>' +
+          '<button class="btn btn-secondary btn-sm tk-schakel" onclick="tekenModus(\'' + f.id + '\')">✏️ Tekenen</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="leverFotoWeg()">🗑 Foto</button>' +
+        '</div>' +
+        '<div class="teken-balk" id="tekenbalk-' + f.id + '"></div>' +
+        '<div class="foto-scroll"><div class="foto-doek" id="doek-' + f.id + '" style="width:' + zoom + '%">' +
+          '<div class="foto-laden">Foto laden…</div></div></div>' +
+      '</section>';
+
+    link(f.pad).then(function (url) {
+      var doek = el('doek-' + f.id);
+      if (!doek) return;
+      if (!url) { doek.innerHTML = '<div class="foto-leeg">Foto niet beschikbaar — ben je offline?</div>'; return; }
+      doek.innerHTML = '<img src="' + url + '" alt="" id="img-' + f.id + '">';
+      if (window.tekenInit) tekenInit(f.id);
+    });
+  };
+
   window.fotoGekozen = function (input) {
     var file = input.files && input.files[0];
     var groep = doelGroep;
@@ -280,7 +380,8 @@
     var houder = el('fotoHouder');
     if (!houder) return;
 
-    if (!fotos.length) {
+    var lijst = werkFotos();
+    if (!lijst.length) {
       houder.innerHTML = '<div class="foto-leeg">Nog geen foto of tekening.<br>' +
         'Gebruik <b>⬆ Importeren</b> hierboven om een foto van de bestaande situatie ' +
         'of een kozijntekening toe te voegen.<br>' +
@@ -289,7 +390,7 @@
       return;
     }
 
-    houder.innerHTML = fotos.map(function (f, i) {
+    houder.innerHTML = lijst.map(function (f, i) {
       var kop =
         '<div class="foto-balk">' +
           '<span class="foto-nr">' + (i + 1) + '</span>' +
@@ -332,7 +433,7 @@
         kop + midden + '<div class="foto-tabelwrap" id="tabel-' + f.id + '"></div></div></section>';
     }).join('');
 
-    fotos.forEach(function (f) {
+    lijst.forEach(function (f) {
       if (window.zetBlok) zetBlok(f.id);
       if (!f.pad) { tekenTabel(f.id); return; }
       link(f.pad).then(function (url) {
@@ -378,9 +479,10 @@
   window.renderFotoTabellen = function () {
     var houder = el('fotoHouder');
     if (!houder) return;
-    if (!fotos.length || !houder.querySelector('.foto-blok')) { renderFotos(); return; }
-    if (fotos.some(function (f) { return !el('blok-' + f.id); })) { renderFotos(); return; }
-    fotos.forEach(function (f) {
+    var lijst = werkFotos();
+    if (!lijst.length || !houder.querySelector('.foto-blok')) { renderFotos(); return; }
+    if (lijst.some(function (f) { return !el('blok-' + f.id); })) { renderFotos(); return; }
+    lijst.forEach(function (f) {
       if (f.pad) {
         tekenMarkeringen(f.id);
         if (window.tekenInit) tekenInit(f.id);

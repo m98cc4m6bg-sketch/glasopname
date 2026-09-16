@@ -30,16 +30,32 @@
     var algS = (document.getElementById('spelingGlobal') || {}).value || '4';
     var algB = (document.getElementById('bijtelling') || {}).value || '11';
 
-    function opties(lijst, gekozen, algemeen) {
-      return '<option value=""' + (gekozen === '' ? ' selected' : '') + '>' +
-             algemeen + ' mm (algemeen)</option>' +
-             lijst.map(function (v) {
-               return '<option value="' + v + '"' + (gekozen === String(v) ? ' selected' : '') +
-                      '>' + v + ' mm</option>';
-             }).join('');
+    // Elke tabel heeft zijn eigen speling en bijtelling, dus de lijst toont
+    // gewoon de maten. Vroeger stond er bovenaan een aparte regel voor "geen
+    // eigen waarde, volg de algemene" — dat was verwarrend zodra elke tabel
+    // zijn eigen keuze kreeg, en het leverde twee regels op die hetzelfde
+    // zeiden. Heeft dit blok nog geen eigen waarde, dan staat de maat die er
+    // nu voor gerekend wordt gewoon voorgeselecteerd.
+    function opties(lijst, gekozen, terugval) {
+      var kies = gekozen !== '' ? parseInt(gekozen, 10) : parseInt(terugval, 10);
+      return lijst.map(function (v) {
+        return '<option value="' + v + '"' + (v === kies ? ' selected' : '') +
+               '>' + v + ' mm</option>';
+      }).join('');
     }
 
     var waarden = DATA.speling_opties.map(function (x) { return parseInt(x, 10); });
+
+    // Label en keuzelijst zitten in één omhulsel. Zonder dat breekt de
+    // regel op een telefoon tussen 'Speling' en zijn lijstje, en staat
+    // 'Bijtelling' ineens naast de verkeerde keuze.
+    function maatPaar(fotoId, wat, naam, gekozen, algemeen) {
+      return '<span class="blok-maat-paar">' +
+        '<label>' + naam + '</label>' +
+        '<select onchange="blokSpeling(\'' + fotoId + '\', \'' + wat + '\', this.value)">' +
+          opties(waarden, gekozen, algemeen) + '</select>' +
+        '</span>';
+    }
 
     return '<div class="blok-bediening">' +
       '<button class="btn btn-ghost btn-sm" onclick="blokOngedaan(\'' + id + '\')" ' +
@@ -50,12 +66,8 @@
         'title="Alleen deze tabel leegmaken">🗑 Leegmaken</button>' +
       (fotoId
         ? '<span class="blok-maat">' +
-            '<label>Speling</label>' +
-            '<select onchange="blokSpeling(\'' + fotoId + '\', \'speling\', this.value)">' +
-              opties(waarden, speling, algS) + '</select>' +
-            '<label>Bijtelling</label>' +
-            '<select onchange="blokSpeling(\'' + fotoId + '\', \'bijtelling\', this.value)">' +
-              opties(waarden, bijtelling, algB) + '</select>' +
+            maatPaar(fotoId, 'speling', 'Speling', speling, algS) +
+            maatPaar(fotoId, 'bijtelling', 'Bijtelling', bijtelling, algB) +
           '</span>'
         : '<span class="blok-maat" id="losseMaatPlek"></span>') +
       '</div>';

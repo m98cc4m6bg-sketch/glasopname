@@ -1,7 +1,7 @@
 # Glasopname — overdracht
 
 Lees dit eerst. Daarna kun je meteen aan het werk zonder de oude chat.
-Geschreven op v62, 14 september 2026.
+Geschreven op v65, 15 september 2026.
 
 ---
 
@@ -16,8 +16,10 @@ maten te beheren en bestellijsten te maken voor de glasleverancier.
 - **Gegevens:** Supabase (gratis laag), project-JSON in Postgres, foto's
   in Storage.
 - **Taal:** alles Nederlands — code-commentaar, variabelenamen, UI.
-- **Versie:** `APP_VERSIE` in index.html en `VERSIE` in sw.js, altijd
-  gelijk, elke oplevering +1. Zichtbaar in de app op drie plekken.
+- **Versie:** `APP_VERSIE` in index.html, `VERSIE` in sw.js en
+  `PDF_VERSIE` in pdf.js, alle drie gelijk, elke oplevering +1.
+- **Leverancier:** Van Noordenne. Het assortiment in de app komt uit hun
+  online showroom.
 
 ---
 
@@ -25,26 +27,34 @@ maten te beheren en bestellijsten te maken voor de glasleverancier.
 
 | Bestand | Regels | Doel |
 |---|---|---|
-| `index.html` | 2564 | Opmaak, tabbladen, tabelweergave, berekeningen, CSV, menu's |
-| `cloud.js` | 757 | Supabase: inloggen, projecten, opslaan, offline, live bijwerken, app-updates |
+| `index.html` | 2532 | Opmaak, tabbladen, tabelweergave, berekeningen, CSV, menu's |
 | `fotos.js` | 1171 | Foto/tekening-blokken, merkbolletjes, zoomen, draaien, leverfoto |
-| `pdf.js` | 843 | Beide pdf's, leverpagina, afleveren (map/deelvenster/download) |
+| `pdf.js` | 963 | Beide pdf's, leverpagina, afleveren (map/deelvenster/download) |
+| `cloud.js` | 781 | Supabase: inloggen, projecten, opslaan, offline, live bijwerken, app-updates |
 | `teken.js` | 730 | Tekenlaag: pen, vormen, tekst, selectie, verslepen |
+| `naslag.js` | 563 | Tabblad Naslag: glascatalogus met foto's, keuzelijst Glasbewerking, tabellen |
 | `import.js` | 504 | Sponningmaten uit PDF/XLSX/CSV/plaktekst, kozijnnummering |
 | `project.js` | 447 | Tabblad Project: klant, adreszoeken, levering, taken |
 | `bulk.js` | 345 | Selectie, doorvoeren per kolom (⤓) |
 | `merken.js` | 208 | Dubbele merkletters opsporen en oplossen |
 | `undo.js` | 197 | Momentopnames, Cmd+Z (hele project) |
 | `kopie.js` | 180 | Dupliceren, kopiëren naar groep, gelijktrekken |
+| `sw.js` | 178 | Service worker: offline, versiecontrole, catalogusfoto's |
 | `blokbalk.js` | 172 | Bediening per invoertabel (ongedaan/leeg/speling) |
-| `sw.js` | 94 | Service worker: offline, versiecontrole |
 | `config.js` | 20 | **Alleen bij Jan ingevuld** — URL + sleutel. Nooit overschrijven. |
 
 Verder: `logo.png`, `logo-wit.png`, `favicon.ico/.png`, `apple-touch-icon.png`,
-`icon-192/512.png`, `manifest.webmanifest`.
+`icon-192/512.png`, `manifest.webmanifest`, en de map `catalogus/` met 61
+foto's van glassoorten.
+
+Hulpbestanden die niet bij de app horen maar wel in de repo staan:
+`catalogus-fotos.txt` (bestandsnaam + bron-URL per foto),
+`fotos-ophalen.sh` (haalt ze op en verkleint ze met sips),
+`test-index.js`, `test-naslag.js`, `test-leverpagina.js`,
+`test-leverpagina.py`.
 
 Scriptvolgorde in index.html is betekenisvol: `cloud → import → bulk →
-project → blokbalk → fotos → kopie → teken → merken → pdf → undo`.
+project → blokbalk → fotos → kopie → teken → merken → naslag → pdf → undo`.
 `undo.js` en `merken.js` omhullen functies van eerder geladen bestanden.
 
 ---
@@ -83,8 +93,14 @@ bereikbaar, notities, leverAdres('werkplaats'|'werk'), leverSoort
 ('spoed'|'zsm'|'week'|'datum'), leverDatum, leverWeek, leverWeekTekst,
 leverInstructie`.
 
-**SQL-scripts** in `supabase/`, genummerd 01–08, op volgorde te draaien
-bij een nieuw project. 05 is een correctie op 04.
+**Tabel `app_data`**, sleutel `glas_data`: de keuzelijsten. `cloud.js`
+haalt die op en **overschrijft daarmee `DATA` uit index.html**. Wie een
+keuzelijst wijzigt moet dus altijd allebei doen — anders wint de database
+en lijkt de wijziging niet aan te komen.
+
+**SQL-scripts** in `supabase/`, genummerd 01–09, op volgorde te draaien
+bij een nieuw project. 05 is een correctie op 04; 09 vervangt alleen de
+sleutel `glasbewerking`.
 
 ---
 
@@ -132,10 +148,34 @@ te onderdrukken. `Cmd+P` is gekaapt.
 `showSaveFilePicker`/`showDirectoryPicker`) → deelvenster (aanraak­scherm)
 → gewone download. Het kiesvenster moet **direct na de klik** open,
 vóór het rekenwerk; anders trekt de browser de toestemming in. De
-bestandsnaam wordt daarom vooraf bepaald.
+bestandsnaam wordt daarom vooraf bepaald. Om dezelfde reden start de
+export bij een onvolledige invoer vanuit de klik op "Toch exporteren" in
+het meldingsvenster, niet vanuit een promise daarna.
 
 **Geen tabblad Foto's meer**: samengevoegd met Invoer. Blokken zijn
 inklapbaar.
+
+**De leverpagina gaat altijd mee met de bestellijst.** Tot v63 werd hij
+overgeslagen als er geen foto én geen instructie was, en dan ging er een
+bestellijst de deur uit zonder afleveradres zonder dat iemand het merkte.
+Wat ontbreekt staat nu op de pagina zelf. Een foto die er wél is maar niet
+opgehaald kan worden krijgt een andere tekst dan een ontbrekende foto —
+anders maakt iemand buiten een tweede foto terwijl die er al is.
+
+**Niets kiezen bij de levering betekent "eerste levermogelijkheid"** en is
+een geldige opdracht, geen ontbrekend gegeven. De controle vóór de export
+klaagt alleen als je wél een datum of week aanklikt en het veld leeg laat.
+
+**Figuurglas zit in de kolom Glasbewerking**, niet in een eigen kolom en
+niet als apart glastype. De 42 waarden komen uit de showroom van Van
+Noordenne, met de dikte in de naam. Oude waarden worden bij het laden
+omgezet waar dat eenduidig is; de twijfelgevallen blijven staan en komen
+onderaan het keuzevakje terug, zodat je ze ziet in plaats van dat de app
+stilletjes iets anders bestelt.
+
+**Catalogusfoto's staan lokaal in `catalogus/`**, niet op de server van de
+leverancier. Zonder bereik moet het naslagwerk het ook doen, en hun URL's
+veranderen. Ze worden opgehaald met `fotos-ophalen.sh`.
 
 ---
 
@@ -175,6 +215,24 @@ Deze zijn allemaal echt voorgekomen. Controleer ze bij soortgelijk werk.
     rij, niet met een lijstje velden.
 13. **Waarschuwingsbalken hangen aan `renderTabel()`**, niet aan losse
     gebeurtenissen, anders blijven ze staan na het wisselen van project.
+14. **Een keuzelijst wijzigen in index.html alleen is niet genoeg.**
+    `cloud.js` haalt `DATA` uit `app_data` en die overschrijft de lijst in
+    index.html. Zonder het bijbehorende SQL-script lijkt de wijziging niet
+    aan te komen. `pasDataToe()` negeert daarom een glasbewerkingslijst
+    zonder `Figuurglas — …` en zet een waarschuwing in de console.
+15. **Een waarde die niet meer in de keuzelijst staat wordt door de
+    browser niet getoond**: het vakje laat dan de eerste optie zien
+    terwijl de rij iets anders bevat. `bewerkingOpties()` plakt de
+    onbekende waarde onderaan de lijst zodat je ziet wat er echt staat.
+16. **Een zip in de repo doet niets.** GitHub pakt hem niet uit; de app
+    blijft de oude bestanden laden. Upload losse bestanden, of plak de
+    inhoud in de webeditor van GitHub.
+17. **Aan het versienummer in de app zie je niet welke `pdf.js` geladen
+    is.** Daarom schrijft pdf.js `[pdf] v65` in de console. Dat scheelt
+    zoeken als een update ergens blijft hangen — het heeft een keer een
+    uur gekost om te ontdekken dat alleen index.html ververst was.
+18. **jsPDF hangt zijn methodes aan `jsPDF.API`, niet aan het prototype.**
+    Een patch op `jsPDF.prototype.save` in een test doet dus niets.
 
 ---
 
@@ -184,6 +242,11 @@ Deze zijn allemaal echt voorgekomen. Controleer ze bij soortgelijk werk.
   een nagebootste Supabase-client. Pdf's worden echt gegenereerd met
   jsPDF en teruggelezen met `pdfplumber`. Bouw testen per onderwerp en
   laat ze het resultaat printen in plaats van te beweren dat iets werkt.
+  Er staan er vier klaar:
+  `node test-index.js` (tabbladen, keuzelijst, rekenwerk, bestellijst),
+  `node test-naslag.js` (catalogus, zoeken, in- en uitklappen),
+  `node test-leverpagina.js` gevolgd door `python3 test-leverpagina.py`
+  (maakt echte pdf's en leest ze terug).
 - **Vertraging nabootsen:** geef de nep-database een vertraging van
   ~250 ms bij `update`. Zonder dat blijven fouten rond synchronisatie
   onzichtbaar (dat is één keer misgegaan).
@@ -194,7 +257,9 @@ Deze zijn allemaal echt voorgekomen. Controleer ze bij soortgelijk werk.
   iets werkt.** Dit is een uitdrukkelijke afspraak; het is drie keer
   misgegaan omdat de testomgeving Chrome-gedrag nabootst.
 - **Opleveren:** alleen gewijzigde bestanden, plus altijd `index.html` en
-  `sw.js` (versienummer). Vertel wat je hebt getest en wat niet.
+  `sw.js` (versienummer). Vertel wat je hebt getest en wat niet. Jan heeft
+  geen lokale kopie van de repo: hij werkt via de webinterface van GitHub,
+  dus lever losse bestanden aan en geen patches.
 - **Stijl van antwoorden:** Nederlands, zakelijk, geen opsommingen waar
   proza volstaat, geen loftuitingen. Fouten benoemen als fouten.
 
@@ -205,6 +270,12 @@ Deze zijn allemaal echt voorgekomen. Controleer ze bij soortgelijk werk.
 - **Offline-wachtrij voor foto's.** Foto's toevoegen vereist bereik; de
   wachtrij gebruikt localStorage en daar passen geen afbeeldingen in.
   Hiervoor is IndexedDB nodig. Dit is het grootste openstaande gat.
+- **De skill `sponningmaten-bestellijst` loopt achter.** Die bouwt de
+  Excel-dropdowns uit een oudere kopie (`Glas_Inmeten.html`) en kent de
+  42 nieuwe glasbewerkingen niet.
+- **De catalogusfoto's zijn van Van Noordenne en de repo is openbaar.**
+  Intern gebruiken is iets anders dan opnieuw publiceren. Navragen, of de
+  repo op privé zetten.
 - **Versiegeschiedenis per project** (tabel + trigger met tijdslot van
   10 minuten, laatste 30 per project) en een **nachtelijke `pg_dump` naar
   de NAS/OneDrive**. Ontworpen, niet gebouwd. Op de gratis laag bestaat
@@ -221,25 +292,21 @@ Deze zijn allemaal echt voorgekomen. Controleer ze bij soortgelijk werk.
 
 ---
 
-## 8. Is dit de beste manier?
+## 8. Hoe je hiermee begint
 
-Dit bestand is een noodgreep. Beter, in volgorde:
+Dit document staat in de repository naast de code, en de app-bestanden
+staan samen met dit document in een Claude Project. Elke nieuwe chat
+binnen dat project heeft ze automatisch, zonder uploaden.
 
-**Zet het in de repository.** Sla dit op als `OVERDRACHT.md` naast de
-code op GitHub. Dan hoort het bij de versie waar het over gaat, gaat het
-mee als iemand anders het project overneemt, en kun je het bijwerken in
-dezelfde commit als de wijziging.
+Twee dingen die een samenvatting niet kan en die je zelf moet doen:
 
-**Gebruik een Claude Project.** Voeg de app-bestanden en dit document toe
-aan de projectkennis. Elke nieuwe chat binnen dat project heeft ze dan
-automatisch, zonder uploaden en zonder samenvatting. Dat is precies
-waarvoor die functie bedoeld is en het scheelt jou werk bij elke start.
+**Werk aan de echte bestanden.** Een bestand van 190 kB met de hand
+overtypen gaat een keer mis in een cijfer van de diktetabel, en dat merk
+je pas bij de leverancier. Zit een bestand alleen in de projectkennis,
+vraag het dan als bijlage op.
 
 **Laat de code zichzelf uitleggen.** Dat gebeurt al: de commentaren in de
 bestanden leggen niet uit *wat* er staat maar *waarom* — juist de
 valkuilen uit hoofdstuk 5 staan op de plek waar ze toeslaan. Dat is
-duurzamer dan een los document, want het veroudert niet apart.
-
-**Wat een samenvatting niet kan.** De precieze inhoud van de bestanden.
-Begin een nieuwe chat daarom met dit document **plus de bestanden zelf**;
-dit vervangt de geschiedenis, niet de code.
+duurzamer dan een los document, want het veroudert niet apart. Werk dit
+document bij in dezelfde oplevering als de wijziging.

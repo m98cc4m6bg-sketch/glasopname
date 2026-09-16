@@ -246,6 +246,38 @@ function bewerkingBijwerken(lijst) {
   return aantal;
 }
 
+// Tweeënveertig regels in één keuzelijst is op een telefoon niet te
+// overzien. Met optgroups zet de browser er kopjes boven — ook in het
+// keuzewiel van iOS — en hoeft de groepsnaam niet meer in elke regel.
+// De wáárde blijft wel de volledige tekst ('Figuurglas — Crepi blank
+// (4/6/8/10 mm)'): die staat zo in bestaande projecten en zo leest de
+// glasleverancier hem op de bestellijst.
+function bewerkingKeuzeHTML(huidig) {
+  var html = '';
+  var open = '';
+  bewerkingOpties(huidig).forEach(function (waarde) {
+    var groep = '';
+    var tekst = waarde;
+    var streep = waarde.indexOf(' — ');
+    if (streep > 0) {
+      groep = waarde.slice(0, streep);
+      tekst = waarde.slice(streep + 3);
+    } else if (waarde !== BEWERKING_STANDAARD && waarde !== BEWERKING_OVERIG) {
+      // Een waarde uit een ouder project die niet meer in de lijst staat.
+      groep = 'Oude waarde';
+    }
+    if (groep !== open) {
+      if (open) html += '</optgroup>';
+      if (groep) html += '<optgroup label="' + naslagEsc(groep) + '">';
+      open = groep;
+    }
+    html += '<option value="' + naslagEsc(waarde) + '"' +
+            (waarde === huidig ? ' selected' : '') + '>' + naslagEsc(tekst) + '</option>';
+  });
+  if (open) html += '</optgroup>';
+  return html;
+}
+
 // Een waarde die niet meer in de lijst staat (een oude, niet-omzetbare, of
 // er is met de hand iets ingetypt) moet wél zichtbaar blijven in het vakje.
 // Zonder deze regel toont de browser de eerste optie terwijl de rij iets

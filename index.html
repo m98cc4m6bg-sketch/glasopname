@@ -15,7 +15,12 @@
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="favicon.png" type="image/png" sizes="96x96">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1a3a5c">
+<!-- Moet gelijk zijn aan de achtergrond van de kopbalk. iOS 26 tekent een
+     glazen band onder de statusbalk in deze kleur en laat de inhoud daar
+     doorheen schemeren; met een donkerblauw op een witte kopbalk wast dat
+     het logo uit. Dit blauw was nog van vóór de huisstijl met antraciet en
+     rood. Wijzig je dit, pas dan ook theme_color in manifest.webmanifest aan. -->
+<meta name="theme-color" content="#ffffff">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Glasopname Formulier – Jelier Bouw</title>
 <style>
@@ -1871,7 +1876,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v69';
+const APP_VERSIE = 'v70';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

@@ -171,7 +171,14 @@
   .btn-sm { padding: 4px 10px; font-size: 12px; }
 
   /* ─── INVOERTABEL ─── */
-  .invoer-wrap { overflow-x: auto; }
+  /* De tabel staat in een kaart, dus de omlijsting komt van de wikkel.
+     Een schaduw op de tabel zélf gaf binnen die kaart een vage dubbele
+     rand. */
+  .invoer-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--grijs-rand);
+    border-radius: var(--radius);
+  }
   table.invoer {
     /* border-collapse: collapse en position: sticky gaan in Safari niet
        samen; de vastgezette kop en kolom blijven dan gewoon meeschuiven.
@@ -183,7 +190,6 @@
     min-width: 1200px;
     background: white;
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
     overflow: hidden;
   }
   /* Kolomkoppen: licht vlak, donkere tekst, rode onderlijn. De groepen
@@ -686,9 +692,21 @@
   .foto-melding { font-size: 12px; color: var(--grijs-tekst); min-height: 0; margin-top: 8px; }
   .foto-melding:empty { margin-top: 0; }
 
+  /* Elke groep is een eigen kaart: witte ondergrond, dunne rand, eigen
+     kopbalk en een gekleurde zijkant. Zonder die omlijsting liepen de
+     invoertabellen in elkaar over en leek het één lange pagina.
+     Let op: hier stond een schaduw die verwees naar een variabele met een
+     Nederlandse naam, en die is nergens gezet. De kaarten hadden dus in
+     het geheel geen schaduw — vandaar dat alles in elkaar overliep. */
   .foto-blok {
-    background: white; border-radius: var(--radius); box-shadow: var(--schaduw);
-    padding: 16px; margin-top: 16px;
+    --kaart-pad: 16px;
+    background: white;
+    border: 1px solid var(--grijs-rand);
+    border-left: 4px solid var(--merk);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(29,29,27,0.08);
+    padding: var(--kaart-pad);
+    margin-top: 26px;
   }
   .foto-balk { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
   .foto-nr { display: none;
@@ -751,7 +769,10 @@
   .merk-regel em { font-style: normal; font-size: 11px; opacity: .75; }
   .merk-uitleg { padding: 14px 16px; font-size: 12px; color: var(--grijs-tekst); line-height: 1.6; }
 
-  .foto-blok.zonder-foto { border-left: 4px solid var(--geel); }
+  /* De zijkant zegt wat voor blok het is: rood = groep met foto of
+     tekening, geel = groep die zijn foto kwijt is, grijs = de vangbak
+     met losse maten onderaan. */
+  .foto-blok.zonder-foto { border-left-color: var(--geel); }
   .foto-geenfoto {
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
     background: var(--grijs-licht); border-radius: var(--radius);
@@ -1002,6 +1023,12 @@
     .toolbar input, .toolbar select { width: 100%; min-width: 0; }
     .toolbar .info-icon { display: none; }
     .toolbar-maatinstelling { display: contents; }
+
+    /* Op een telefoon iets minder binnenruimte in de kaarten, zodat de
+       tabel breed blijft. De kopbalk schuift automatisch mee: die rekent
+       met --kaart-pad. */
+    .foto-blok { --kaart-pad: 12px; margin-top: 18px; }
+    .blok-balk h3 { font-size: 13px; }
   }
 
   /* ─── TEKENEN OP DE FOTO ─── */
@@ -1076,15 +1103,42 @@
   .imp-splits input { accent-color: var(--merk); }
 
   .blok-kop-card { margin-bottom: 16px; }
-  .los-blok { margin-top: 16px; }
+  .los-blok { border-left-color: var(--grijs-tekst); }
+  /* De eerste kaart sluit aan op de balk erboven; de marge is bedoeld als
+     tussenruimte, niet als aanloop. */
+  #fotoHouder > .foto-blok:first-child { margin-top: 0; }
+
+  /* De kopbalk van een blok loopt van rand tot rand, als de kop van een
+     kaart. De negatieve marges halen de binnenruimte van de kaart er
+     weer af; vandaar dat ze aan --kaart-pad gekoppeld zijn. */
   .blok-balk {
     display: flex; align-items: center; gap: 10px; cursor: pointer;
-    padding: 4px 0 10px; border-bottom: 1px solid var(--grijs-rand); margin-bottom: 10px;
+    margin: calc(var(--kaart-pad, 16px) * -1) calc(var(--kaart-pad, 16px) * -1) 14px;
+    padding: 11px var(--kaart-pad, 16px);
+    background: var(--grijs-licht);
+    border-bottom: 1px solid var(--grijs-rand);
+    border-radius: var(--radius) var(--radius) 0 0;
   }
-  .blok-balk h3 { font-size: 13px; color: var(--blauw); font-weight: 700; }
+  .blok-balk:hover { background: #efedeb; }
+  .blok-balk h3 {
+    font-size: 14px; color: var(--blauw); font-weight: 700;
+    letter-spacing: .01em;
+  }
   .blok-pijl { color: var(--merk); font-size: 12px; width: 12px; }
-  .blok-telling { font-size: 11px; color: var(--grijs-tekst); margin-left: auto; }
-  .foto-blok .blok-balk { margin-bottom: 8px; }
+  /* De telling als klein etiket, zodat hij niet als losse tekst in de
+     balk zweeft. */
+  .blok-telling {
+    font-size: 11px; color: var(--grijs-tekst); margin-left: auto;
+    background: white; border: 1px solid var(--grijs-rand);
+    border-radius: 999px; padding: 2px 9px; white-space: nowrap;
+  }
+  /* Dichtgeklapt is de kopbalk de hele kaart: geen losse witte strook
+     eronder. */
+  .foto-blok.dicht .blok-balk {
+    margin-bottom: calc(var(--kaart-pad, 16px) * -1);
+    border-bottom: 0;
+    border-radius: var(--radius);
+  }
 
   /* ─── UITKLAPLIJSTJES BIJ EEN VELD OF KNOP ─── */
   .veld-menu {
@@ -1216,7 +1270,9 @@
     border: 1px solid var(--grijs-rand); border-radius: var(--radius);
   }
   #leverFotoBlok { margin-top: 10px; }
-  #leverFotoBlok .foto-blok { padding: 0; box-shadow: none; margin-top: 0; }
+  /* De foto van de leverlocatie staat al in een kader op het tabblad
+     Project; daar hoeft de kaartopmaak niet overheen. */
+  #leverFotoBlok .foto-blok { padding: 0; box-shadow: none; margin-top: 0; border: 0; }
 
   /* ─── KALENDER ─── */
   .kalender { padding: 10px; min-width: 300px; }
@@ -1866,6 +1922,10 @@ function zetBlok(id) {
   if (!inhoud) return;
   inhoud.style.display = blokDicht[id] ? 'none' : '';
   if (pijl) pijl.textContent = blokDicht[id] ? '▸' : '▾';
+  // De kaart weet zelf of hij dichtgeklapt is; de opmaak laat de kopbalk
+  // dan de hele kaart vullen in plaats van een lege witte strook.
+  const kaart = document.getElementById('blok-' + id);
+  if (kaart) kaart.classList.toggle('dicht', !!blokDicht[id]);
 }
 
 function telLosseRijen() {
@@ -1889,7 +1949,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v71';
+const APP_VERSIE = 'v72';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

@@ -346,12 +346,13 @@
     if (!nieuw || typeof nieuw !== 'object') return;
     Object.keys(nieuw).forEach(function (k) {
       // De keuzelijst uit de database wint normaal van die in index.html.
-      // Eén uitzondering: is dat nog de lijst van vóór v63, dan zou het
-      // hele figuurglas-assortiment onzichtbaar blijven zodra deze app
-      // online komt. Draai 09_glasbewerking.sql en dit valt vanzelf weg.
+      // Eén uitzondering: is dat nog een oudere lijst — die van vóór v63
+      // zonder figuurglas, of die van v63 t/m v72 mét maten in de namen —
+      // dan zou de app achteruit gaan zodra hij online komt. Draai
+      // 11_glasbewerking_namen.sql en dit valt vanzelf weg.
       if (k === 'glasbewerking' && oudeBewerkingslijst(nieuw[k])) {
-        console.warn('[cloud] glasbewerking in de database is nog de oude lijst; ' +
-                     'draai 09_glasbewerking.sql. Tot die tijd gebruikt de app zijn eigen lijst.');
+        console.warn('[cloud] glasbewerking in de database is nog een oude lijst; ' +
+                     'draai 11_glasbewerking_namen.sql. Tot die tijd gebruikt de app zijn eigen lijst.');
         return;
       }
       DATA[k] = nieuw[k];
@@ -360,10 +361,14 @@
 
   function oudeBewerkingslijst(lijst) {
     if (!Array.isArray(lijst)) return true;
-    // De nieuwe lijst gebruikt een kastlijntje: 'Figuurglas — Crepi blank (…)'.
-    // De oude gebruikte een streepje: 'Figuurglas - Crepi'. Op dat verschil
-    // is de oude lijst te herkennen zonder hem helemaal na te lopen.
-    return !lijst.some(function (b) { return b.indexOf('Figuurglas — ') === 0; });
+    // Twee kenmerken van de huidige lijst:
+    //  • een kastlijntje ('Figuurglas — Crepi blank'); tot v62 stond daar
+    //    een streepje;
+    //  • geen maten meer in de naam; van v63 tot en met v72 stonden die
+    //    erachter ('… (4/6/8/10 mm)') en kwamen ze zo op de bestellijst.
+    var kastlijn = lijst.some(function (b) { return b.indexOf('Figuurglas — ') === 0; });
+    var metMaat = lijst.some(function (b) { return /\(\s*\d[\d/.,\s]*mm\s*\)\s*$/.test(b); });
+    return !kastlijn || metMaat;
   }
 
   function laadGecachteData() {

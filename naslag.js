@@ -198,7 +198,18 @@ const CATALOGUS = [
 const BEWERKING_STANDAARD = 'Helder (standaard)';
 const BEWERKING_OVERIG = 'Overig (zie opmerking)';
 
+// De naam, zonder maten. De diktes stonden er eerst achter — die kwamen zo
+// ook op de bestellijst terecht ('Satijnglas (4/5/6/8/10/12 mm)'), terwijl
+// er maar één dikte besteld wordt. Wat de leverancier moet zien is de
+// soort; de diktes zijn hier voortaan alleen nog gegevens om op te
+// controleren of de gekozen opbouw die soort kán bevatten.
 function bewerkingLabel(groep, item) {
+  return groep.label + ' — ' + item.naam;
+}
+
+// Zoals het tot en met v72 in de lijst stond: mét de maten erachter.
+// Alleen nog nodig om bestaande projecten om te zetten.
+function bewerkingLabelMetMaat(groep, item) {
   const maat = item.dikte ? item.dikte.join('/') + ' mm' : (item.opbouw || []).join('/');
   return groep.label + ' — ' + item.naam + (maat ? ' (' + maat + ')' : '');
 }
@@ -211,6 +222,136 @@ function glasbewerkingLijst() {
   });
   lijst.push(BEWERKING_OVERIG);
   return lijst;
+}
+
+// ═══════════════ LEVERBAARHEID ═══════════════
+// Een bewerking bestaat in bepaalde bladdiktes. Een opbouw noemt de diktes
+// van de bladen en de spouw ertussen. De combinatie kan dus alleen als één
+// van de bladen een dikte heeft die de soort kent: satijnglas bestaat in
+// 4 mm, dus 4-16-4 kan wel en 6-16-6 niet.
+//
+// Dit is een controle op de maten die Van Noordenne publiceert, geen
+// bestelbevestiging. Vandaar dat een niet-kloppende combinatie nergens
+// geblokkeerd wordt — hij wordt gemarkeerd, zodat iemand hem nakijkt.
+
+// Naam → { groep, item }, zodat de diktes bij een gekozen waarde te vinden
+// zijn zonder elke keer de hele catalogus te doorlopen.
+const BEWERKING_INDEX = (function () {
+  const kaart = {};
+  CATALOGUS.forEach(g => {
+    if (!g.bew) return;
+    g.items.forEach(i => { kaart[bewerkingLabel(g, i)] = { groep: g, item: i }; });
+  });
+  return kaart;
+})();
+
+// Alle losse bladen halveren: '33.2' is twee bladen van 3 mm, '1010.2'
+// twee van 10 mm. Het cijfer achter de punt is het aantal folies en zegt
+// niets over de dikte.
+function gelaagdeBladen(cijfers) {
+  const s = String(cijfers);
+  if (s.length % 2 === 0) {
+    const helft = s.length / 2;
+    const a = parseInt(s.slice(0, helft), 10);
+    const b = parseInt(s.slice(helft), 10);
+    if (a > 0 && b > 0) return [a, b];
+  }
+  const n = parseInt(s, 10);
+  return n > 0 ? [n] : [];
+}
+
+// De diktes van de losse glasbladen in een opbouw. Spouwmaten tellen niet
+// mee: die zitten op de even plekken tussen de bladen.
+function bladDiktes(glasType, opbouw) {
+  let code = String(opbouw || '').trim();
+  if (!code) return [];
+
+  // '6 mm' en '6 mm ESG' — enkel blad.
+  const enkel = code.match(/^(\d+)\s*mm\b/i);
+  if (enkel) return [parseInt(enkel[1], 10)];
+
+  // ESG en ZW zeggen iets over de behandeling, niet over de dikte.
+  code = code.replace(/\s*\b(ESG|ZW)\b/gi, '');
+
+  const diktes = [];
+  code.split('-').forEach((deel, i) => {
+    deel = deel.trim();
+    if (!deel) return;
+    // Een gelaagd blad ('33.2', '44.2A') is één blad, ook al staat er een
+    // punt in. Die herkennen we vóór de spouwregel.
+    const gelaagd = deel.match(/^(\d+)\.(\d+)A?$/i);
+    if (gelaagd) { gelaagdeBladen(gelaagd[1]).forEach(d => diktes.push(d)); return; }
+    if (i % 2 === 1) return;             // spouw
+    const n = parseInt(deel, 10);
+    if (n > 0) diktes.push(n);
+  });
+  return diktes.filter((d, i) => diktes.indexOf(d) === i).sort((a, b) => a - b);
+}
+
+// De diktes waarin een bewerking bestaat. Leeg = onbekend, en dan wordt er
+// niets gemeld.
+function bewerkingDiktes(waarde) {
+  const gevonden = BEWERKING_INDEX[waarde];
+  return gevonden && Array.isArray(gevonden.item.dikte) ? gevonden.item.dikte : [];
+}
+
+// Kan deze bewerking in deze opbouw? Bij twijfel: ja. Een onbekende waarde
+// (uit een ouder project), een lege keuze of een opbouw die nog niet gekozen
+// is levert geen melding op — anders staat het scherm vol rood voordat er
+// iets ingevuld is.
+function bewerkingKan(waarde, glasType, opbouw) {
+  if (!waarde || waarde === BEWERKING_STANDAARD || waarde === BEWERKING_OVERIG) return true;
+  const diktes = bewerkingDiktes(waarde);
+  if (!diktes.length) return true;
+  if (!glasType || !opbouw) return true;
+  const bladen = bladDiktes(glasType, opbouw);
+  if (!bladen.length) return true;
+  return diktes.some(d => bladen.indexOf(d) >= 0);
+}
+
+// Welke opbouwen van een glastype kunnen deze bewerking dragen.
+function opbouwVoorBewerking(glasType, waarde) {
+  const alle = (typeof DATA !== 'undefined' && DATA.opbouw_per_type &&
+                DATA.opbouw_per_type[glasType]) ? DATA.opbouw_per_type[glasType] : [];
+  if (!waarde || !bewerkingDiktes(waarde).length) return alle.slice();
+  return alle.filter(o => bewerkingKan(waarde, glasType, o));
+}
+
+// Welke glastypen nog overblijven: die met minstens één werkbare opbouw.
+function glasTypesVoorBewerking(waarde) {
+  const alle = (typeof DATA !== 'undefined' && DATA.opbouw_per_type)
+    ? Object.keys(DATA.opbouw_per_type) : [];
+  if (!waarde || !bewerkingDiktes(waarde).length) return alle.slice();
+  return alle.filter(t => opbouwVoorBewerking(t, waarde).length > 0);
+}
+
+// Eén regel uit de invoertabel: klopt de combinatie?
+function regelStrijdig(rij) {
+  if (!rij) return false;
+  return !bewerkingKan(rij.glasbewerking, rij.glasType, rij.opbouw);
+}
+
+// De tekst die bij een strijdige regel hoort, op het scherm en in de pdf.
+const STRIJDIG_NOOT = 'check beschikbaarheid combinatie dikte-glastype!';
+// Een const komt niet vanzelf op window terecht, en pdf.js en de
+// bestellijst hebben deze tekst nodig. Eén plek, drie gebruikers.
+if (typeof window !== 'undefined') {
+  window.STRIJDIG_NOOT = STRIJDIG_NOOT;
+  window.BEWERKING_STANDAARD = BEWERKING_STANDAARD;
+  window.BEWERKING_OVERIG = BEWERKING_OVERIG;
+}
+
+// Alleen het waarom; de kop van het venster zegt al dát het niet kan.
+function strijdigUitleg(rij) {
+  const diktes = bewerkingDiktes(rij && rij.glasbewerking);
+  const bladen = bladDiktes(rij && rij.glasType, rij && rij.opbouw);
+  const naam = String((rij && rij.glasbewerking) || 'Deze soort').split(' — ').pop();
+  if (!diktes.length || !bladen.length) {
+    return naam + ' bestaat niet in de dikte die bij de gekozen opbouw hoort.';
+  }
+  return naam + ' bestaat in ' + diktes.join(', ') + ' mm; de opbouw ' +
+    rij.opbouw + ' heeft ' + (bladen.length === 1 ? 'een blad van ' : 'bladen van ') +
+    bladen.join(' en ') + ' mm.';
 }
 
 // Oude waarden uit de lijst van vóór v63. Alleen omgezet waar het zeker is
@@ -234,6 +375,29 @@ const BEWERKING_OUD = {
   'Gekleurd glas (opgeven bij bestelling)': BEWERKING_OVERIG,
 };
 
+// Van v63 tot en met v72 stonden de maten in de naam. Die waarden staan in
+// bestaande projecten en moeten stil omgezet worden naar de naam zonder
+// maten. De kaart wordt uit de catalogus zelf opgebouwd, zodat hij niet uit
+// de pas kan lopen als er ooit een soort bij komt.
+// De regels hierboven wezen ook naar die oude namen; die worden in dezelfde
+// beweging doorgezet naar de nieuwe.
+(function () {
+  const metMaat = {};
+  CATALOGUS.forEach(g => {
+    if (!g.bew) return;
+    g.items.forEach(i => {
+      const oud = bewerkingLabelMetMaat(g, i);
+      const nieuw = bewerkingLabel(g, i);
+      if (oud !== nieuw) metMaat[oud] = nieuw;
+    });
+  });
+  Object.keys(BEWERKING_OUD).forEach(k => {
+    const doel = BEWERKING_OUD[k];
+    if (metMaat[doel]) BEWERKING_OUD[k] = metMaat[doel];
+  });
+  Object.keys(metMaat).forEach(k => { BEWERKING_OUD[k] = metMaat[k]; });
+})();
+
 // Wordt aangeroepen vanuit laadOpgeslagen() en na het inlezen van een
 // project uit de cloud: oude waarden omzetten zodra de rijen binnen zijn.
 function bewerkingBijwerken(lijst) {
@@ -252,9 +416,17 @@ function bewerkingBijwerken(lijst) {
 // De wáárde blijft wel de volledige tekst ('Figuurglas — Crepi blank
 // (4/6/8/10 mm)'): die staat zo in bestaande projecten en zo leest de
 // glasleverancier hem op de bestellijst.
-function bewerkingKeuzeHTML(huidig) {
-  var html = '';
-  var open = '';
+// Soorten die niet in de gekozen opbouw passen blijven kiesbaar — soms
+// wijzig je bewust eerst de bewerking en daarna de opbouw. Ze worden wel
+// als zodanig getoond: lichtgrijs (op een telefoon negeert Safari de kleur
+// van een optie, vandaar dat ze daarnaast onder een eigen kopje staan,
+// direct achter de leverbare soorten van dezelfde groep).
+function bewerkingKeuzeHTML(huidig, glasType, opbouw) {
+  // Eerst alles indelen. Binnen een groep komen de soorten die kunnen
+  // vooraan en die niet kunnen erachter, zodat elke groep hooguit twee
+  // kopjes oplevert in plaats van dat ze elkaar afwisselen.
+  var volgorde = [];
+  var groepen = {};
   bewerkingOpties(huidig).forEach(function (waarde) {
     var groep = '';
     var tekst = waarde;
@@ -266,15 +438,86 @@ function bewerkingKeuzeHTML(huidig) {
       // Een waarde uit een ouder project die niet meer in de lijst staat.
       groep = 'Oude waarde';
     }
-    if (groep !== open) {
-      if (open) html += '</optgroup>';
-      if (groep) html += '<optgroup label="' + naslagEsc(groep) + '">';
-      open = groep;
+    // 'Helder (standaard)' en 'Overig (zie opmerking)' horen bij geen enkele
+    // groep en staan boven- en onderaan. Die krijgen elk een eigen sleutel,
+    // anders schuiven ze bij elkaar.
+    var sleutel = groep || (' ' + waarde);
+    if (!groepen[sleutel]) {
+      groepen[sleutel] = { label: groep, wel: [], niet: [] };
+      volgorde.push(sleutel);
     }
-    html += '<option value="' + naslagEsc(waarde) + '"' +
-            (waarde === huidig ? ' selected' : '') + '>' + naslagEsc(tekst) + '</option>';
+    var regel = { waarde: waarde, tekst: tekst };
+    groepen[sleutel][bewerkingKan(waarde, glasType, opbouw) ? 'wel' : 'niet'].push(regel);
   });
-  if (open) html += '</optgroup>';
+
+  function optie(r, kan) {
+    return '<option value="' + naslagEsc(r.waarde) + '"' +
+           (r.waarde === huidig ? ' selected' : '') +
+           (kan ? '' : ' class="niet-lever"') + '>' + naslagEsc(r.tekst) + '</option>';
+  }
+
+  var html = '';
+  volgorde.forEach(function (sleutel) {
+    var g = groepen[sleutel];
+    if (!g.label) {
+      g.wel.concat(g.niet).forEach(function (r) { html += optie(r, true); });
+      return;
+    }
+    if (g.wel.length) {
+      html += '<optgroup label="' + naslagEsc(g.label) + '">';
+      g.wel.forEach(function (r) { html += optie(r, true); });
+      html += '</optgroup>';
+    }
+    if (g.niet.length) {
+      html += '<optgroup label="' + naslagEsc(g.label + ' · niet in deze opbouw') + '">';
+      g.niet.forEach(function (r) { html += optie(r, false); });
+      html += '</optgroup>';
+    }
+  });
+  return html;
+}
+
+// ─── Glas Type en Opbouw ───
+// Zodra er een bewerking gekozen is, tonen deze twee lijsten alleen nog wat
+// die bewerking kan dragen. De waarde die er nú staat blijft altijd staan,
+// ook als hij niet meer past: anders zie je iets anders dan er in de regel
+// zit. Zo'n waarde krijgt een eigen kopje, zodat duidelijk is waar het
+// conflict zit.
+function glasTypeKeuzeHTML(rij) {
+  var huidig = (rij && rij.glasType) || '';
+  var bew = (rij && rij.glasbewerking) || '';
+  var mag = glasTypesVoorBewerking(bew);
+  var html = '<option value="">— kies type —</option>';
+  var alle = (typeof DATA !== 'undefined' && DATA.opbouw_per_type)
+    ? Object.keys(DATA.opbouw_per_type) : [];
+  alle.forEach(function (t) {
+    if (mag.indexOf(t) < 0) return;
+    html += '<option value="' + naslagEsc(t) + '"' +
+            (t === huidig ? ' selected' : '') + '>' + naslagEsc(t) + '</option>';
+  });
+  if (huidig && mag.indexOf(huidig) < 0) {
+    html += '<optgroup label="Huidig · past niet bij de bewerking">' +
+            '<option value="' + naslagEsc(huidig) + '" selected class="niet-lever">' +
+            naslagEsc(huidig) + '</option></optgroup>';
+  }
+  return html;
+}
+
+function opbouwKeuzeHTML(rij) {
+  var type = (rij && rij.glasType) || '';
+  var huidig = (rij && rij.opbouw) || '';
+  var bew = (rij && rij.glasbewerking) || '';
+  var mag = type ? opbouwVoorBewerking(type, bew) : [];
+  var html = '<option value="">— kies opbouw —</option>';
+  mag.forEach(function (o) {
+    html += '<option value="' + naslagEsc(o) + '"' +
+            (o === huidig ? ' selected' : '') + '>' + naslagEsc(o) + '</option>';
+  });
+  if (huidig && mag.indexOf(huidig) < 0) {
+    html += '<optgroup label="Huidig · past niet bij de bewerking">' +
+            '<option value="' + naslagEsc(huidig) + '" selected class="niet-lever">' +
+            naslagEsc(huidig) + '</option></optgroup>';
+  }
   return html;
 }
 
@@ -591,5 +834,11 @@ function naslagGrootSluit() {
 
 // Voor de test in Node.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CATALOGUS, glasbewerkingLijst, BEWERKING_OUD, bewerkingBijwerken, NASLAG_TABELLEN };
+  module.exports = {
+    CATALOGUS, glasbewerkingLijst, BEWERKING_OUD, bewerkingBijwerken, NASLAG_TABELLEN,
+    bladDiktes, bewerkingDiktes, bewerkingKan, opbouwVoorBewerking,
+    glasTypesVoorBewerking, regelStrijdig, bewerkingKeuzeHTML,
+    glasTypeKeuzeHTML, opbouwKeuzeHTML, strijdigUitleg, STRIJDIG_NOOT,
+    BEWERKING_STANDAARD, BEWERKING_OVERIG
+  };
 }

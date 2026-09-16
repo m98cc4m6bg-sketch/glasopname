@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v72';
+  var PDF_VERSIE = 'v73';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -391,6 +391,12 @@
   // Zelfde regels, volgorde en kolommen als het tabblad Bestellijst,
   // zodat papier en scherm niet uit elkaar kunnen lopen.
 
+  // De controle zelf staat in naslag.js. Ontbreekt dat bestand, dan wordt er
+  // niets gemarkeerd en gaat de bestellijst gewoon door.
+  function strijdigeRegel(r) {
+    return !!(window.regelStrijdig && window.regelStrijdig(r));
+  }
+
   function bestelKolommen() {
     return [
       { kop: 'Pos',        w: 8,  haal: function (r, i) { return i + 1; }, altijd: true },
@@ -407,7 +413,10 @@
       { kop: 'Duco type',  w: 26, haal: function (r) { return r.ducoType; } },
       { kop: 'RAL kleur',  w: 30, haal: function (r) { return r.ralKleur; } },
       { kop: 'Glasbewerking', w: 26, haal: function (r) {
-          return r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : ''; } },
+          var t = r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '';
+          // Een sterretje bij een combinatie die volgens de catalogus niet
+          // bestaat; onder de tabel staat waar dat naar verwijst.
+          return t + (strijdigeRegel(r) ? ' *' : ''); } },
       { kop: 'Roedenverdeling', w: 26, haal: function (r) {
           return r.roedenverdeling !== 'Geen roedenverdeling' ? r.roedenverdeling : ''; } },
       { kop: 'Roede br',   w: 16, haal: function (r) { return r.roedenbreedte; } },
@@ -601,10 +610,42 @@
         headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [244, 246, 249] },
         columnStyles: stijlen,
+        // Regels waarvan de bewerking niet in de gekozen bladdikte bestaat
+        // krijgen een rode ondergrond. autoTable kleurt per cel, dus het
+        // gaat hier per cel van de betreffende regel.
+        didParseCell: function (data) {
+          if (data.section !== 'body') return;
+          if (!strijdigeRegel(lijst[data.row.index])) return;
+          data.cell.styles.fillColor = [253, 236, 234];
+          data.cell.styles.textColor = [142, 27, 18];
+          data.cell.styles.fontStyle = 'bold';
+        },
         didDrawPage: function (data) {
           if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)');
         }
       });
+
+      // Voetnoot bij die sterretjes, pal onder de tabel.
+      var strijdig = lijst.filter(strijdigeRegel).length;
+      if (strijdig) {
+        var ys = doc.lastAutoTable.finalY + 4;
+        if (ys > HOOGTE - MARGE - 20) { doc.addPage(); kopregel(doc, titel + ' (vervolg)'); ys = MARGE + 13; }
+        doc.setFillColor(253, 236, 234);
+        doc.setDrawColor(142, 27, 18);
+        doc.setLineWidth(0.8);
+        doc.rect(MARGE, ys, INHOUD, 11, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(142, 27, 18);
+        doc.text(schoon('*  ' + (window.STRIJDIG_NOOT ||
+                 'check beschikbaarheid combinatie dikte-glastype!')), MARGE + 3, ys + 4.6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(90, 40, 35);
+        doc.text(schoon(strijdig + ' ' + (strijdig === 1 ? 'regel staat' : 'regels staan') +
+                 ' met een glasbewerking die volgens de catalogus niet in de gekozen ' +
+                 'bladdikte bestaat. Rood gemarkeerd in de tabel hierboven.'), MARGE + 3, ys + 8.8);
+        doc.lastAutoTable.finalY = ys + 11;
+      }
 
       // Waarschuwing bij roosters, pal onder de tabel zodat de leverancier
       // hem niet over het hoofd ziet.

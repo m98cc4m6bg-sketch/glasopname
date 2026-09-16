@@ -15,11 +15,10 @@
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="favicon.png" type="image/png" sizes="96x96">
 <link rel="manifest" href="manifest.webmanifest">
-<!-- Moet gelijk zijn aan de achtergrond van de kopbalk. iOS 26 tekent een
-     glazen band onder de statusbalk in deze kleur en laat de inhoud daar
-     doorheen schemeren; met een donkerblauw op een witte kopbalk wast dat
-     het logo uit. Dit blauw was nog van vóór de huisstijl met antraciet en
-     rood. Wijzig je dit, pas dan ook theme_color in manifest.webmanifest aan. -->
+<!-- Wit, gelijk aan de kopbalk. Let op: Safari 26 op iOS trekt zich hier
+     weinig van aan — de wazige band bovenaan is daarmee niet te sturen.
+     Daarvoor staat er in de opmaak ruimte boven de kopbalk (--ios-band).
+     Wijzig je deze kleur, pas dan ook theme_color in manifest.webmanifest aan. -->
 <meta name="theme-color" content="#ffffff">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Glasopname Formulier – Jelier Bouw</title>
@@ -42,8 +41,17 @@
     --groen: #217a45;
     --radius: 6px;
     --shadow: 0 2px 8px rgba(29,29,27,0.12);
+    /* Hoogte van de glazen band die iOS 26 over de bovenrand van de pagina
+       legt. Op een telefoon zetten we die hieronder op 46px; op een iPad of
+       laptop blijft hij nul, zodat daar niets verschuift. Alles wat in die
+       band valt wordt door Safari vervaagd, dus we houden hem leeg en wit.
+       Valt de wazige rand nog over het logo, maak dit getal dan groter. */
+    --ios-band: 0px;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Safari kleurt de band bovenaan met de achtergrond van het document, niet
+     met die van de kopbalk. Wit dus, gelijk aan de kopbalk eronder. */
+  html { background: var(--wit); }
   body {
     font-family: 'Segoe UI', Arial, sans-serif;
     font-size: 13px;
@@ -939,18 +947,23 @@
      Ze gaan onder één menuknop. */
   .kop-menu-knop { display: none; }
   @media (max-width: 820px) {
+    /* iOS 26 legt een glazen band over de bovenste strook van de pagina en
+       vervaagt alles wat daaronder valt. Kleuren helpt niet: Safari negeert
+       theme-color hier. We houden de band daarom leeg — witte ruimte boven
+       de kopbalk — zodat het logo en de titel er onderuit komen. */
+    :root { --ios-band: 46px; }
     .merk-logo { height: 22px; }
     header h1 { font-size: 15px; }
     header .subtitle { display: none; }
     header {
       padding: 10px 14px;
-      padding-top: calc(10px + env(safe-area-inset-top));
+      padding-top: calc(10px + var(--ios-band) + env(safe-area-inset-top));
       gap: 10px;
     }
-    .header-actions { top: calc(58px + env(safe-area-inset-top)); }
     .kop-menu-knop { display: inline-flex; }
     .header-actions {
-      position: absolute; right: 10px; top: 58px; z-index: 7000;
+      position: absolute; right: 10px;
+      top: calc(58px + var(--ios-band) + env(safe-area-inset-top)); z-index: 7000;
       display: none; flex-direction: column; align-items: stretch; gap: 6px;
       background: white; border: 1px solid var(--grijs-rand);
       border-radius: var(--radius); box-shadow: 0 10px 30px rgba(29,29,27,0.2);
@@ -1876,7 +1889,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v70';
+const APP_VERSIE = 'v71';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

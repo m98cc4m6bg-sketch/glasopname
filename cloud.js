@@ -56,6 +56,7 @@
     volgendId = state.volgendId || (rijen.length + 1);
     fotos = state.fotos || [];
     projectInfo = state.info || {};
+    vulOpnemer();
     projectTaken = state.taken || [];
     if (el('projectNaam'))   el('projectNaam').value   = state.project || '';
     if (el('projectDatum'))  el('projectDatum').value  = state.datum || '';
@@ -70,6 +71,18 @@
     if (window.merkOpnieuwBeoordelen) merkOpnieuwBeoordelen();
     toonNaamWaarschuwing('');
     toonMelding('');
+  }
+
+  // 'Opgenomen door' invullen met de naam waarmee je bent ingelogd: alles
+  // vóór de @ uit het e-mailadres, dus jan@jelierbouw.nl wordt 'jan'.
+  // Alleen als het veld nog leeg is — anders zou je de collega overschrijven
+  // die de opname werkelijk gedaan heeft zodra jij zijn project opent.
+  // Het veld blijft gewoon met de hand aan te passen.
+  function vulOpnemer() {
+    if (!gebruiker || !gebruiker.email) return;
+    if (String(projectInfo.opnemer || '').trim()) return;
+    var naam = String(gebruiker.email).split('@')[0].trim();
+    if (naam) projectInfo.opnemer = naam;
   }
 
   // Wat de projectlijst moet tonen bewaren we apart, zodat die lijst niet
@@ -645,6 +658,9 @@
           if (res.error || !res.data) { projectId = null; localStorage.removeItem(LS_PROJECT); toonProjecten(); return; }
           // Lokale, nog niet gesynchroniseerde wijzigingen winnen.
           if (localStorage.getItem(LS_PENDING) === '1') {
+            // Openstaand werk wint; zetStaat wordt hier dus niet gedraaid en
+            // 'Opgenomen door' moet apart nagelopen worden.
+            vulOpnemer();
             vuil = true;
             status('⚠ Nog niet opgeslagen', '#8a5a00');
             synchroniseer();

@@ -2,7 +2,12 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Geen viewport-fit=cover: daarmee loopt de pagina tot achter de
+     statusbalk door, en Safari vervaagt die strook (de scroll edge van
+     iOS 26). Zonder cover begint de pagina onder de klok en is die rand
+     weg. De env(safe-area-inset-*) in de opmaak worden dan vanzelf nul,
+     dus de marges blijven kloppen. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <!-- default in plaats van black-translucent: anders schuift de inhoud onder
      de klok en de dynamic island door, en vervaagt Safari de bovenrand. -->
@@ -1866,7 +1871,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v68';
+const APP_VERSIE = 'v69';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

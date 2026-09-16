@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v68';
+  var PDF_VERSIE = 'v69';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 

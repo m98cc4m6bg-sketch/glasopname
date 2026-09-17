@@ -78,11 +78,28 @@
   // Alleen als het veld nog leeg is — anders zou je de collega overschrijven
   // die de opname werkelijk gedaan heeft zodra jij zijn project opent.
   // Het veld blijft gewoon met de hand aan te passen.
+  function gebruikersNaam() {
+    if (!gebruiker || !gebruiker.email) return '';
+    return String(gebruiker.email).split('@')[0].trim();
+  }
+
   function vulOpnemer() {
-    if (!gebruiker || !gebruiker.email) return;
     if (String(projectInfo.opnemer || '').trim()) return;
-    var naam = String(gebruiker.email).split('@')[0].trim();
+    var naam = gebruikersNaam();
     if (naam) projectInfo.opnemer = naam;
+  }
+
+  // 'Ingelogd als …' in de kopbalk. Handig op een gedeeld apparaat: je ziet
+  // met wiens account je aan het inmeten bent zonder een menu te openen.
+  function toonGebruiker() {
+    var vak = el('ingelogdAls');
+    if (!vak) return;
+    var naam = gebruikersNaam();
+    if (!naam) { vak.hidden = true; vak.innerHTML = ''; return; }
+    vak.hidden = false;
+    vak.innerHTML = 'Ingelogd als <b></b>';
+    vak.querySelector('b').textContent = naam;
+    vak.title = gebruiker.email;
   }
 
   // Wat de projectlijst moet tonen bewaren we apart, zodat die lijst niet
@@ -396,9 +413,13 @@
     el('cloudLoginFout').textContent = melding || '';
     el('cloudLogin').style.display = 'flex';
     el('cloudEmail').focus();
+    toonGebruiker();
   }
 
-  function verbergLogin() { el('cloudLogin').style.display = 'none'; }
+  function verbergLogin() {
+    el('cloudLogin').style.display = 'none';
+    toonGebruiker();
+  }
 
   function login() {
     var email = el('cloudEmail').value.trim();

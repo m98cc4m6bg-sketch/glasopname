@@ -187,7 +187,10 @@
     border-collapse: separate;
     border-spacing: 0;
     width: 100%;
-    min-width: 1200px;
+    /* Zo smal mogelijk: de kolommen groeien vanzelf mee met wat er in
+       staat. Met 1200 px moest er op een iPad altijd geschoven worden,
+       ook bij een half ingevulde regel. */
+    min-width: 940px;
     background: white;
     border-radius: var(--radius);
     overflow: hidden;
@@ -200,7 +203,7 @@
     color: var(--blauw);
     font-size: 11px;
     font-weight: 700;
-    padding: 8px 6px;
+    padding: 7px 4px;
     text-align: center;
     white-space: nowrap;
     border-right: 1px solid var(--grijs-rand);
@@ -221,7 +224,7 @@
   table.invoer thead tr:first-child th.groep-roeden { background: white; }
 
   table.invoer td {
-    padding: 4px 4px;
+    padding: 3px 3px;
     border-bottom: 1px solid var(--grijs-rand);
     border-right: 1px solid #eef1f5;
     vertical-align: middle;
@@ -240,6 +243,7 @@
     min-width: 28px;
   }
   table.invoer td.berekend {
+    white-space: nowrap;
     background: #f0f8f0 !important;
     color: var(--groen);
     font-weight: 700;
@@ -284,9 +288,38 @@
     color: #bbb;
   }
 
-  .aantal-input { width: 52px !important; text-align: center; }
-  .breedte-input, .hoogte-input { width: 78px !important; text-align: right; }
-  .merk-input { width: 90px !important; }
+  /* Geen enkele ruit met een rooster? Dan zeggen Duco type en RAL kleur
+     niets en blijven ze weg. Ze komen terug zodra er ergens 'Ja' staat. */
+  table.invoer.zonder-rooster .kol-duco,
+  table.invoer.zonder-rooster .kol-ral { display: none; }
+
+  /* Hetzelfde voor de roeden. De kolom Verdeling blijft altijd staan —
+     daar kies je het immers — maar de breedte en de opmerking erover
+     zeggen niets zolang er nergens een roedenverdeling gekozen is. */
+  table.invoer.zonder-roeden .kol-roedebr,
+  table.invoer.zonder-roeden .kol-roedeopm { display: none; }
+
+  /* Vaste maten waar de inhoud dat toelaat, zodat de brede kolommen
+     (glastype, bewerking) de ruimte krijgen die ze nodig hebben. */
+  .aantal-input { width: 40px !important; text-align: center; }
+  .breedte-input, .hoogte-input { width: 66px !important; text-align: right; }
+  .merk-input { width: 56px !important; }
+  /* De keuzevakjes vullen hun kolom, dus die kolommen worden zo breed als
+     hun kopje. Voor een paar daarvan is dat te krap: aan 'HR-' of '4-1'
+     heb je niets. Deze ondergrenzen zorgen dat je de waarde kunt lezen
+     zonder de hele tabel breed te maken. */
+  table.invoer .kol-type { min-width: 92px; }
+  table.invoer .kol-opbouw { min-width: 78px; }
+  table.invoer .kol-bewerking { min-width: 100px; }
+  table.invoer .kol-maatsoort { min-width: 80px; }
+  table.invoer .kol-duco { min-width: 88px; }
+  table.invoer .kol-ral { min-width: 88px; }
+  table.invoer .kol-verdeling { min-width: 86px; }
+
+  /* Opmerkingen mogen smal beginnen; ze rekken op zodra je erin staat. */
+  .opm-input { width: 68px !important; }
+  .opm-input.smal { width: 66px !important; }
+  .opm-input:focus { width: 200px !important; position: relative; z-index: 2; }
 
   td.delete-cel {
     text-align: center;
@@ -486,8 +519,8 @@
     .tab-btn { padding: 12px 16px; font-size: 13px; }
 
     /* Tabel: grotere rijen en inputs */
-    table.invoer th { font-size: 11px; padding: 10px 6px; }
-    table.invoer td { padding: 6px 4px; }
+    table.invoer th { font-size: 11px; padding: 10px 4px; }
+    table.invoer td { padding: 6px 3px; }
 
     table.invoer input[type=number],
     table.invoer input[type=text] {
@@ -855,6 +888,17 @@
   /* ─── LOGO EN MERK ─── */
   .merk-kop { display: flex; align-items: center; gap: 14px; }
   .merk-logo { height: 30px; width: auto; display: block; }
+  /* Wie er ingelogd is. Bewust licht: handig om te zien op een gedeeld
+     apparaat, maar het hoeft niet de aandacht te trekken. */
+  .kop-gebruiker {
+    font-size: 11px; color: var(--grijs-tekst);
+    border-left: 1px solid var(--grijs-rand);
+    padding-left: 14px; margin-left: 2px;
+    white-space: nowrap;
+  }
+  .kop-gebruiker b { font-weight: 600; color: var(--blauw-mid); }
+  /* Op een telefoon is er in de kopbalk geen ruimte naast logo en menu. */
+  @media (max-width: 640px) { .kop-gebruiker { display: none; } }
   .login-logo { display: block; width: 190px; max-width: 70%; margin: 0 auto 18px; }
   header { border-bottom: 3px solid var(--merk); box-shadow: 0 1px 4px rgba(29,29,27,0.06); }
   header h1 { color: var(--blauw); }
@@ -942,9 +986,18 @@
   /* Kolomkoppen en de merkkolom blijven staan tijdens het vegen,
      zodat je weet in welke ruit en welke kolom je zit. */
   .invoer-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* De kolomkoppen kleven binnen hun eigen schuifvenster (.invoer-wrap),
+     niet binnen het scherm: die wikkel schuift alleen zijwaarts. De maat
+     moet daarom 0 blijven — met een marge erin zakt de hele kop een paar
+     regels naar beneden en dekt hij de eerste ruiten af. */
   table.invoer thead th { position: sticky; top: 0; z-index: 3; }
   table.invoer thead tr:first-child th { top: 0; z-index: 4; }
   table.invoer thead tr:last-child th { top: 27px; }
+  /* Springen naar een regel (vanaf een bolletje op de foto, of na het
+     toevoegen) mag hem niet achter de vaste kop parkeren. */
+  table.invoer tr, .foto-blok, .blok-balk {
+    scroll-margin-top: calc(var(--vaste-kop-h, 0px) + 12px);
+  }
   table.invoer td.rijnr,
   table.invoer thead th:first-child {
     position: sticky; left: 0; z-index: 2;
@@ -1039,9 +1092,10 @@
     }
     .header-actions .btn { justify-content: flex-start; text-align: left; padding: 10px 12px; font-size: 13px; }
     #cloudStatus { order: -1; text-align: center; }
+    /* De tabbalk zit in .vaste-kop en blijft daarmee al staan; hier alleen
+       nog de mogelijkheid om er zijwaarts doorheen te vegen. */
     .tabs {
       overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;
-      position: sticky; top: 0; z-index: 6;
     }
     .tabs::-webkit-scrollbar { display: none; }
     .tab-btn { flex: 0 0 auto; }
@@ -1271,7 +1325,57 @@
     position: sticky; top: 0; z-index: 30;
     box-shadow: 0 2px 8px rgba(29,29,27,0.18);
   }
-  body.bulk-open .tabs { top: var(--bulkhoogte, 0px); }
+  body.bulk-open .vaste-kop { top: var(--bulkhoogte, 0px); }
+
+  /* ─── VASTE KOP: TABBLADEN EN DE KNOPPENBALK ─── */
+  /* Beide blijven bij het scrollen staan, zodat je vanaf elke plek in een
+     lange lijst van tabblad kunt wisselen en kunt exporteren. */
+  .vaste-kop {
+    position: sticky;
+    top: var(--bulkhoogte, 0px);
+    z-index: 45;
+    background: var(--grijs-licht);
+    box-shadow: 0 2px 8px rgba(29,29,27,0.10);
+  }
+  @media print { .vaste-kop { position: static; box-shadow: none; } }
+
+  /* ─── TEKSTVAK OP DE FOTO ─── */
+  /* Bij het tekstgereedschap verschijnt het invoerveld op de plek waar je
+     tikt, in de kleur en grootte die de tekst straks op de foto krijgt.
+     Links de greep om te verplaatsen, rechts die om te schalen. */
+  .tk-vak {
+    position: absolute; z-index: 8;
+    transform: translateY(-50%);
+    display: flex; align-items: center; gap: 5px;
+    line-height: 1; white-space: nowrap;
+  }
+  .tk-vak-veld {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: rgba(255,255,255,0.16);
+    border: 2px dashed var(--merk);
+    border-radius: 4px;
+    padding: 2px 6px;
+    outline: none;
+    min-width: 60px;
+    line-height: 1.2;
+    caret-color: var(--merk);
+  }
+  .tk-vak-greep, .tk-vak-klaar {
+    flex: 0 0 auto;
+    width: 30px; height: 30px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: white; border: 1px solid var(--grijs-rand); border-radius: 50%;
+    font-size: 14px; line-height: 1; color: var(--blauw);
+    font-family: inherit; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(29,29,27,0.35);
+    /* Zonder dit maakt Safari van het slepen aan een greep een schuifbeweging. */
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+  }
+  .tk-vak-klaar { background: var(--merk); border-color: var(--merk); color: white; }
+  .tk-vak-sleep { cursor: move; }
+  .tk-vak-maat { cursor: nwse-resize; }
+  .tk-knop .tk-a { font-size: 16px; font-weight: 800; line-height: 1; }
 
   .tk-knop svg { display: block; pointer-events: none; }
   .tk-knop.aan svg path[fill="currentColor"] { color: white; }
@@ -1428,6 +1532,9 @@
         <h1>Glasopname</h1>
         <div class="subtitle">Glas inmeetformulier · <span class="app-versie"></span></div>
       </div>
+      <!-- Wie is er ingelogd. Geen kritieke informatie, dus lichtgrijs en
+           klein: je wilt het kunnen zien, niet lezen. cloud.js vult het. -->
+      <span class="kop-gebruiker" id="ingelogdAls" hidden></span>
     </div>
   </div>
   <button class="btn btn-ghost btn-sm kop-menu-knop" onclick="kopMenu()" aria-label="Menu">☰</button>
@@ -1456,6 +1563,11 @@
   <span style="margin-left:auto;opacity:.75;font-weight:400;">Gebruik ⇣ in een kolomkop om een waarde door te voeren</span>
 </div>
 
+<!-- De tabbladen en de knoppen importeren/exporteren blijven bij het
+     scrollen bovenaan staan. Ze zitten daarom in één blok: twee losse
+     kleefbalken onder elkaar krijg je op Safari niet betrouwbaar op
+     elkaar aangesloten. -->
+<div class="vaste-kop" id="vasteKop">
 <div class="tabs">
   <button class="tab-btn" onclick="toon('project')">📋 Project</button>
   <button class="tab-btn active" onclick="toon('invoer')">📋 Invoer</button>
@@ -1471,6 +1583,7 @@
   <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
   <input type="file" id="tekeningBestand" accept="application/pdf,image/*"
          onchange="tekeningGekozen(this)" hidden>
+</div>
 </div>
 
 <div class="toolbar">
@@ -1558,34 +1671,41 @@
       <tr>
         <th rowspan="2" style="width:28px"></th>
         <th colspan="2" class="groep-algemeen">Algemeen</th>
-        <th colspan="4" class="groep-maat">Maatvoering</th>
-        <th colspan="2">Glasmaat (auto)</th>
+        <th colspan="4" class="groep-maat">Maatvoering (mm)</th>
+        <!-- De maten staan zonder 'mm' in de cellen; dat scheelt twee
+             regels afbreken en een kolom of dertig aan breedte. -->
+        <th colspan="2">Glasmaat (mm)</th>
         <th colspan="3" class="groep-glas">Glasspecificatie</th>
-        <th colspan="3">Ventilatie</th>
+        <!-- Duco en RAL vallen weg zodra er geen enkele ruit een rooster
+             heeft; roosterKolommen() zet de overspanning dan op 1. -->
+        <th colspan="3" class="groep-vent">Ventilatie</th>
         <th colspan="2" class="groep-glas">Afwerking</th>
-        <th colspan="3" class="groep-roeden">Roeden</th>
-        <th rowspan="2" style="width:56px"></th>
+        <!-- Breedte en opmerking vallen weg zolang er nergens een
+             roedenverdeling gekozen is; roosterKolommen() past de
+             overspanning dan aan. -->
+        <th colspan="3" class="groep-roeden groepkop-roeden">Roeden</th>
+        <th rowspan="2" style="width:52px"></th>
       </tr>
       <tr>
         <th class="groep-algemeen">Aantal</th>
         <th class="groep-algemeen">Merk</th>
-        <th class="groep-maat">Maat­soort</th>
-        <th class="groep-maat">Breedte (mm)</th>
-        <th class="groep-maat">Hoogte (mm)</th>
-        <th class="groep-maat">Correctie <i class="info-icon" onclick="toonInfo(this)" data-info="Een <b>afwijkende</b> speling of bijtelling voor deze ene ruit.<br><br>Ook deze waarde geldt <b>rondom</b> en wordt dus 2× gerekend: bij −6 mm wordt 1000 × 2000 een glasmaat van <b>988 × 1988</b>.<br><br>Staat er ‹alg.›, dan volgt de ruit de algemene waarde uit de balk bovenaan. Kies je zelf iets, dan kleurt het vakje geel.">i</i></th>
-        <th>Glasbreedte</th>
-        <th>Glashoogte</th>
-        <th class="groep-glas">Glas Type</th>
-        <th class="groep-glas">Opbouw</th>
-        <th class="groep-glas">Dikte / Gewicht</th>
+        <th class="groep-maat kol-maatsoort">Maat­soort</th>
+        <th class="groep-maat">Breedte</th>
+        <th class="groep-maat">Hoogte</th>
+        <th class="groep-maat">Corr. <i class="info-icon" onclick="toonInfo(this)" data-info="Een <b>afwijkende</b> speling of bijtelling voor deze ene ruit.<br><br>Ook deze waarde geldt <b>rondom</b> en wordt dus 2× gerekend: bij −6 mm wordt 1000 × 2000 een glasmaat van <b>988 × 1988</b>.<br><br>Staat er ‹alg.›, dan volgt de ruit de algemene waarde uit de balk bovenaan. Kies je zelf iets, dan kleurt het vakje geel.">i</i></th>
+        <th>Glas B.</th>
+        <th>Glas H.</th>
+        <th class="groep-glas kol-type">Glas Type</th>
+        <th class="groep-glas kol-opbouw">Opbouw</th>
+        <th class="groep-glas">Dikte</th>
         <th>Rooster</th>
-        <th>Duco Type</th>
-        <th>RAL Kleur</th>
-        <th class="groep-glas">Glasbewerking</th>
-        <th class="groep-glas">Opmerking</th>
-        <th class="groep-roeden">Verdeling</th>
-        <th class="groep-roeden">Breedte</th>
-        <th class="groep-roeden">Opmerking</th>
+        <th class="kol-duco">Duco Type</th>
+        <th class="kol-ral">RAL Kleur</th>
+        <th class="groep-glas kol-bewerking">Bewerking</th>
+        <th class="groep-glas">Opm.</th>
+        <th class="groep-roeden kol-verdeling">Verdeling</th>
+        <th class="groep-roeden kol-roedebr">Breedte</th>
+        <th class="groep-roeden kol-roedeopm">Opm.</th>
       </tr>
     </thead>
     <tbody id="invoerBody">
@@ -1937,7 +2057,20 @@ function toonMaatinstelling(tabNaam) {
     acties.style.display =
       ['invoer', 'samenvatting', 'bestellijst'].indexOf(tabNaam) >= 0 ? '' : 'none';
   }
+  meetVasteKop();
 }
+
+// De vaste kop is niet overal even hoog: op de tabbladen zonder knoppen
+// valt die balk weg. De kolomkoppen van de tabel kleven eronder, dus die
+// hoogte moet bekend zijn in de opmaak.
+function meetVasteKop() {
+  const kop = document.getElementById('vasteKop');
+  if (!kop) return;
+  const h = Math.round(kop.getBoundingClientRect().height);
+  document.documentElement.style.setProperty('--vaste-kop-h', h + 'px');
+}
+window.addEventListener('resize', meetVasteKop);
+window.addEventListener('orientationchange', function () { setTimeout(meetVasteKop, 250); });
 
 // Naar een tabblad springen zonder dat er op de knop geklikt is.
 function gaNaarTab(naam) {
@@ -2000,7 +2133,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v73';
+const APP_VERSIE = 'v74';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -2269,6 +2402,41 @@ function vulTabelBody(tbody, lijst) {
     tr.innerHTML = rijHTML(rij, idx + 1);
     tbody.appendChild(tr);
   });
+  roosterKolommen(tbody, lijst);
+}
+
+// ═══════════════ KOLOMMEN DIE MEEBEWEGEN ═══════════════
+// Duco type en RAL kleur zeggen alleen iets zodra er een rooster in zit.
+// Zolang geen enkele ruit in deze tabel er een heeft, blijven ze weg — dat
+// scheelt twee brede kolommen en dus schuiven op een tablet.
+function roosterKolommen(tbody, lijst) {
+  const tabel = tbody && tbody.closest ? tbody.closest('table') : null;
+  if (!tabel) return;
+  const tonen = (lijst || []).some(r => r.rooster === 'Ja');
+  tabel.classList.toggle('zonder-rooster', !tonen);
+  // De groepskop boven Rooster/Duco/RAL moet evenveel kolommen overspannen
+  // als er werkelijk staan, anders schuift de hele kop een vak op.
+  const groep = tabel.querySelector('th.groep-vent');
+  if (groep) groep.colSpan = tonen ? 3 : 1;
+
+  // Hetzelfde voor de roeden: breedte en opmerking komen pas in beeld
+  // zodra er ergens een verdeling gekozen is.
+  const roeden = (lijst || []).some(r =>
+    r.roedenverdeling && r.roedenverdeling !== 'Geen roedenverdeling');
+  tabel.classList.toggle('zonder-roeden', !roeden);
+  const groepR = tabel.querySelector('th.groepkop-roeden');
+  if (groepR) groepR.colSpan = roeden ? 3 : 1;
+}
+
+// Na het omzetten van één keuzelijst: alle zichtbare tabellen opnieuw
+// beoordelen, zonder de regels opnieuw op te bouwen.
+function roosterKolommenBij() {
+  const los = document.getElementById('invoerBody');
+  if (los) roosterKolommen(los, losseRijen());
+  document.querySelectorAll('tbody[id^="fotoBody-"]').forEach(tb => {
+    const fid = tb.id.slice('fotoBody-'.length);
+    roosterKolommen(tb, rijen.filter(r => r.fotoId === fid));
+  });
 }
 
 // ═══════════════ BEWERKING TEGENOVER OPBOUW ═══════════════
@@ -2442,11 +2610,14 @@ function rijHTML(rij, nr) {
     DATA.roedenbreedte.map(b =>
       `<option value="${b}" ${rij.roedenbreedte === b ? 'selected' : ''}>${b}</option>`).join('');
 
-  const glasBr = rij.glasBreedte != null ? rij.glasBreedte + ' mm' : '—';
-  const glasH = rij.glasHoogte != null ? rij.glasHoogte + ' mm' : '—';
-  const dikteKg = rij.totaalDikte != null
-    ? `${rij.totaalDikte} mm / ${berekenGewicht(rij)} kg`
-    : '—';
+  const glasBr = rij.glasBreedte != null ? String(rij.glasBreedte) : '—';
+  const glasH = rij.glasHoogte != null ? String(rij.glasHoogte) : '—';
+  // Alleen de dikte in de tabel. Het gewicht per ruit nam een brede kolom
+  // in beslag die op een tablet steeds in beeld geschoven moest worden;
+  // het staat nu in de tooltip, op de samenvatting en in de pdf.
+  const dikteKg = rij.totaalDikte != null ? String(rij.totaalDikte) : '—';
+  const dikteTitel = rij.totaalDikte != null
+    ? `${rij.totaalDikte} mm · ${berekenGewicht(rij)} kg per ruit` : '';
 
   const id = rij.id;
   return `
@@ -2456,7 +2627,7 @@ function rijHTML(rij, nr) {
        onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>
     <td><input type="text" class="merk-input" value="${esc(rij.merk)}" placeholder="merk…"
        oninput="setVal(${id},'merk',this.value); opslaan()"></td>
-    <td><select onchange="setVal(${id},'maatsoort',this.value); herbereken(); opslaan()">${maatsoortOpts}</select></td>
+    <td class="kol-maatsoort"><select onchange="setVal(${id},'maatsoort',this.value); herbereken(); opslaan()">${maatsoortOpts}</select></td>
     <td><input type="number" inputmode="numeric" enterkeyhint="next" class="breedte-input" value="${rij.breedte}" placeholder="mm"
        oninput="setVal(${id},'breedte',this.value); herbereken(); opslaan()"></td>
     <td><input type="number" inputmode="numeric" enterkeyhint="next" class="hoogte-input" value="${rij.hoogte}" placeholder="mm"
@@ -2464,25 +2635,25 @@ function rijHTML(rij, nr) {
     ${correctieCel(rij)}
     <td class="berekend ${rij.glasBreedte == null ? 'ongeldig' : ''}" id="br-${id}">${glasBr}</td>
     <td class="berekend ${rij.glasHoogte == null ? 'ongeldig' : ''}" id="bh-${id}">${glasH}</td>
-    <td><select onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
-    <td><select id="opb-${id}" onchange="wijzigOpbouw(${id},this.value)">${opbouwOpts}</select></td>
-    <td class="berekend ${rij.totaalDikte == null ? 'ongeldig' : ''}" id="dk-${id}">${dikteKg}</td>
+    <td class="kol-type"><select onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
+    <td class="kol-opbouw"><select id="opb-${id}" onchange="wijzigOpbouw(${id},this.value)">${opbouwOpts}</select></td>
+    <td class="berekend ${rij.totaalDikte == null ? 'ongeldig' : ''}" id="dk-${id}" title="${esc(dikteTitel)}">${dikteKg}</td>
     <td><select onchange="setVal(${id},'rooster',this.value); toggleDuco(${id},this.value); opslaan()">
       <option value="Nee" ${rij.rooster==='Nee'?'selected':''}>Nee</option>
       <option value="Ja" ${rij.rooster==='Ja'?'selected':''}>Ja</option>
     </select></td>
-    <td id="duco-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
+    <td class="kol-duco" id="duco-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
       <select onchange="setVal(${id},'ducoType',this.value); opslaan()">${ducoOpts}</select>
     </td>
-    <td id="ral-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
+    <td class="kol-ral" id="ral-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
       <select onchange="setVal(${id},'ralKleur',this.value); opslaan()">${ralOpts}</select>
     </td>
-    <td><select id="bew-${id}" onchange="kiesBewerking(${id},this)">${bewerkingOpts}</select></td>
-    <td><input type="text" value="${esc(rij.opmerking)}" placeholder="opmerking…" style="width:110px"
+    <td class="kol-bewerking"><select id="bew-${id}" onchange="kiesBewerking(${id},this)">${bewerkingOpts}</select></td>
+    <td><input type="text" class="opm-input" value="${esc(rij.opmerking)}" placeholder="opmerking…"
        oninput="setVal(${id},'opmerking',this.value); opslaan()"></td>
-    <td><select onchange="setVal(${id},'roedenverdeling',this.value); opslaan()">${verdelingOpts}</select></td>
-    <td><select onchange="setVal(${id},'roedenbreedte',this.value); opslaan()">${breedteOpts}</select></td>
-    <td><input type="text" value="${esc(rij.roedenopmerking)}" placeholder="opmerking…" style="width:90px"
+    <td class="kol-verdeling"><select onchange="setVal(${id},'roedenverdeling',this.value); roosterKolommenBij(); opslaan()">${verdelingOpts}</select></td>
+    <td class="kol-roedebr"><select onchange="setVal(${id},'roedenbreedte',this.value); opslaan()">${breedteOpts}</select></td>
+    <td class="kol-roedeopm"><input type="text" class="opm-input smal" value="${esc(rij.roedenopmerking)}" placeholder="opmerking…"
        oninput="setVal(${id},'roedenopmerking',this.value); opslaan()"></td>
     <td class="delete-cel">
       <button class="btn-kopie" onclick="kopieerRegel(${id})" title="Deze regel dupliceren">⧉</button>
@@ -2505,17 +2676,16 @@ function updateBerekendCellen() {
     const ducoEl = document.getElementById('duco-' + rij.id);
     if (!brEl) return;
 
-    const glasBr = rij.glasBreedte != null ? rij.glasBreedte + ' mm' : '—';
-    const glasH = rij.glasHoogte != null ? rij.glasHoogte + ' mm' : '—';
+    const glasBr = rij.glasBreedte != null ? String(rij.glasBreedte) : '—';
+    const glasH = rij.glasHoogte != null ? String(rij.glasHoogte) : '—';
     brEl.textContent = glasBr;
     bhEl.textContent = glasH;
     brEl.className = 'berekend' + (rij.glasBreedte == null ? ' ongeldig' : '');
     bhEl.className = 'berekend' + (rij.glasHoogte == null ? ' ongeldig' : '');
 
-    const dikteKg = rij.totaalDikte != null
-      ? `${rij.totaalDikte} mm / ${berekenGewicht(rij)} kg`
-      : '—';
-    dkEl.textContent = dikteKg;
+    dkEl.textContent = rij.totaalDikte != null ? String(rij.totaalDikte) : '—';
+    dkEl.title = rij.totaalDikte != null
+      ? rij.totaalDikte + ' mm · ' + berekenGewicht(rij) + ' kg per ruit' : '';
     dkEl.className = 'berekend' + (rij.totaalDikte == null ? ' ongeldig' : '');
 
     // Roosterwaarschuwing: kleur de Duco-cel rood indien incompatibel
@@ -2590,6 +2760,9 @@ function toggleDuco(id, val) {
   ralEl.style.pointerEvents = uit ? 'none' : '';
   if (uit) { setVal(id, 'ducoType', ''); setVal(id, 'ralKleur', ''); }
   updateBerekendCellen();
+  // De twee kolommen komen tevoorschijn zodra de eerste ruit een rooster
+  // krijgt, en verdwijnen weer als de laatste hem kwijtraakt.
+  roosterKolommenBij();
 }
 
 // ═══════════════ SAMENVATTING ═══════════════

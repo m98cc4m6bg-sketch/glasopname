@@ -14,7 +14,9 @@
   'use strict';
 
   var KLEUREN = [
-    { naam: 'Rood',   k: '#d00243' },
+    // Helder rood, niet het logo-rood: op een gevelfoto moet een pijl er
+    // uit springen, en #d00243 zakt weg tegen baksteen.
+    { naam: 'Rood',   k: '#ff2020' },
     { naam: 'Zwart',  k: '#1d1d1b' },
     { naam: 'Wit',    k: '#ffffff' },
     { naam: 'Lichtgeel',  k: '#ffe45c' },
@@ -34,10 +36,14 @@
   ];
   // Getekende pictogrammen in plaats van tekens uit het lettertype: die
   // zien er op elk apparaat hetzelfde uit en zijn beter te herkennen.
-  var PIJL_ICOON =
-    '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">' +
-    '<path d="M5 2.5 L19 12.5 L12.4 13.2 L16 20.5 L13.1 21.8 L9.6 14.6 L5 18.6 Z" ' +
-    'fill="currentColor" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/></svg>';
+  // Selecteren: een stippelkader met een muisaanwijzer erin. Alleen een
+  // pijltje werd verward met het pijl-gereedschap ernaast.
+  var KIES_ICOON =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+    '<rect x="2.2" y="2.2" width="13.4" height="13.4" rx="1.6" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.7" stroke-dasharray="3 2.4"/>' +
+    '<path d="M11 9.6 L21 14.1 L16.4 15.3 L18.7 20.1 L16.4 21.2 L14.1 16.3 L11 19.5 Z" ' +
+    'fill="currentColor" stroke="#fff" stroke-width="1.15" stroke-linejoin="round"/></svg>';
 
   var GUM_ICOON =
     '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
@@ -48,19 +54,21 @@
     '</g></svg>';
 
   var GEREEDSCHAP = [
-    { id: 'kies', teken: PIJL_ICOON, naam: 'Selecteren' },
+    { id: 'kies', teken: KIES_ICOON, naam: 'Selecteren' },
     { id: 'pen',  teken: '✏️', naam: 'Pen' },
     { id: 'lijn', teken: '╱',  naam: 'Rechte lijn' },
     { id: 'pijl', teken: '➔',  naam: 'Pijl' },
     { id: 'rect', teken: '▭',  naam: 'Rechthoek' },
-    { id: 'tekst', teken: 'T', naam: 'Tekst' },
+    { id: 'tekst', teken: '<b class="tk-a">A</b>', naam: 'Tekst' },
     { id: 'gum',  teken: GUM_ICOON, naam: 'Gum' }
   ];
 
   var NS = 'http://www.w3.org/2000/svg';
   var actief = null;      // fotoId waarop getekend wordt
   var stuk = 'pen';
-  var kleur = '#d00243';
+  // Geel is de standaardkleur: dat leest op vrijwel elke gevel, en op de
+  // foto's waar rood of zwart wegvalt nog steeds.
+  var kleur = '#ffe45c';
   var dikte = 6;
   var vingerTekent = false;
   var grootte = 40;       // lettergrootte voor nieuwe tekst
@@ -72,6 +80,7 @@
   var verplaatst = false;
   var bezig = null;       // lopende streek
   var lopendeIndex = -1;
+  var bewerk = null;      // lopende tekstinvoer: { fotoId, index, doos, veld }
 
   function el(id) { return document.getElementById(id); }
   function fotoVan(id) { return fotos.find(function (f) { return f.id === id; }); }
@@ -226,6 +235,12 @@
       if (s.t === 'pijl' && s.p.length > 1) svg.appendChild(pijlpunt(s, i));
     });
     if (gekozen >= inkt(foto).length) gekozen = -1;
+    // Tijdens het typen staat de tekst in het invoervak; twee keer dezelfde
+    // letters over elkaar leest niet.
+    if (bewerk && bewerk.fotoId === fotoId) {
+      var node = elementVan(fotoId, bewerk.index);
+      if (node) node.setAttribute('visibility', 'hidden');
+    }
     tekenKader(fotoId);
   }
 
@@ -251,8 +266,9 @@
   function magTekenen(e) {
     if (actief === null) return false;
     // Selecteren en verslepen is geen tekenen: dat moet ook met een vinger
-    // kunnen zonder dat je eerst een vinkje omzet.
-    if (stuk === 'kies') return true;
+    // kunnen zonder dat je eerst een vinkje omzet. Voor tekst geldt
+    // hetzelfde: je zet een tekstvak met je vinger neer.
+    if (stuk === 'kies' || stuk === 'tekst') return true;
     if (e.pointerType === 'pen' || e.pointerType === 'mouse') return true;
     return vingerTekent;
   }
@@ -276,7 +292,7 @@
           if (e.touches[i].touchType === 'stylus') pen = true;
         }
       }
-      if (!vingerTekent && !pen && stuk !== 'kies') return;
+      if (!vingerTekent && !pen && stuk !== 'kies' && stuk !== 'tekst') return;
       e.preventDefault();
     }
     svg.addEventListener('touchstart', houdTegen, { passive: false });
@@ -449,6 +465,9 @@
     if (!svg) return;
     Array.prototype.forEach.call(svg.querySelectorAll('[data-kader]'), function (k) { k.remove(); });
     if (gekozen < 0) return;
+    // Bij een tekst die op dit moment getypt wordt is het invoervak zelf
+    // het kader; twee omlijningen over elkaar wordt rommelig.
+    if (bewerk && bewerk.fotoId === fotoId && bewerk.index === gekozen) return;
     var node = elementVan(fotoId, gekozen);
     if (!node || !node.getBBox) return;
     var b;
@@ -532,11 +551,12 @@
     tekenBalk(fotoId);
   }
 
-  window.selectieOpheffen = function (fotoId) { kiesStreek(fotoId, -1); };
+  window.selectieOpheffen = function (fotoId) { stopTekst(); kiesStreek(fotoId, -1); };
 
   window.selectieWeg = function (fotoId) {
     if (gekozen < 0) return;
     var foto = fotoVan(fotoId);
+    if (bewerk && bewerk.fotoId === fotoId && bewerk.index === gekozen) sluitVak();
     if (window.bewaarStap) bewaarStap('Onderdeel verwijderd');
     foto.inkt.splice(gekozen, 1);
     gekozen = -1;
@@ -545,35 +565,202 @@
     opslaan();
   };
 
+  /* ─── tekst: een vak op de foto zelf ───────────────────────── */
+  // Vroeger opende hier een prompt() van de browser. Dat werkte, maar je
+  // zag niet waar de tekst terechtkwam en hoe groot hij werd. Nu verschijnt
+  // het invoervak op de plek waar je tikt, in de kleur en de grootte die
+  // het straks op de foto heeft, en komt het toetsenbord meteen op.
+
+  // Alleen het vak weghalen, zonder aan de streek te komen.
+  function sluitVak() {
+    if (!bewerk) return null;
+    var b = bewerk;
+    bewerk = null;
+    if (b.doos && b.doos.parentNode) b.doos.parentNode.removeChild(b.doos);
+    return b;
+  }
+
+  // Klaar met typen. Een leeg vak laat niets achter: anders staan er na een
+  // misgetikte foto onzichtbare lege teksten op.
+  function stopTekst() {
+    var b = sluitVak();
+    if (!b) return;
+    var foto = fotoVan(b.fotoId);
+    var s = foto && foto.inkt[b.index];
+    if (s) {
+      var tekst = String(b.veld.value || '').trim();
+      if (!tekst) {
+        foto.inkt.splice(b.index, 1);
+        if (gekozen === b.index) gekozen = -1;
+      } else {
+        s.tx = tekst;
+      }
+    }
+    tekenStreken(b.fotoId);
+    tekenBalk(b.fotoId);
+    opslaan();
+  }
+  window.tekstKlaar = function () { stopTekst(); };
+  window.tekstBezig = function () { return !!bewerk; };
+
+  // Waar staat het vak, hoe groot zijn de letters? Wordt bij elke wijziging
+  // opnieuw gerekend, zodat het vak de tekst blijft volgen.
+  function plaatsVak() {
+    if (!bewerk) return;
+    var foto = fotoVan(bewerk.fotoId);
+    var s = foto && foto.inkt[bewerk.index];
+    var doek = el('doek-' + bewerk.fotoId);
+    if (!s || !doek) return;
+    var breed = doek.getBoundingClientRect().width || 1000;
+    var schaal = breed / 1000;
+    var h = vbHoogte(foto);
+
+    bewerk.doos.style.left = (s.p[0][0] / 1000 * 100) + '%';
+    bewerk.doos.style.top = (s.p[0][1] / h * 100) + '%';
+
+    // De letters schalen mee met het vak: de lettergrootte op het scherm is
+    // de opgeslagen grootte maal de schaal waarop de foto getoond wordt.
+    // Zo staat er in het vak precies wat er straks op de foto komt.
+    // Ondergrens van 16 px: onder die maat zoomt Safari op een iPhone het
+    // hele scherm in zodra je in het veld tikt. Het vak is dan iets groter
+    // dan de letters worden, maar het beeld springt niet.
+    var px = Math.max(16, s.g * schaal);
+    var veld = bewerk.veld;
+    veld.style.fontSize = px + 'px';
+    veld.style.color = s.k;
+    veld.style.fontWeight = s.vet === false ? '400' : '700';
+    veld.style.fontStyle = s.schuin ? 'italic' : 'normal';
+    // Een rand in de tegenkleur, net als op de foto, zodat het vak ook op
+    // een lichte gevel leesbaar blijft.
+    var rand = lichtOfDonker(s.k);
+    veld.style.textShadow = [
+      '-1px -1px 0 ' + rand, '1px -1px 0 ' + rand,
+      '-1px 1px 0 ' + rand, '1px 1px 0 ' + rand
+    ].join(',');
+    // Breedte volgt de inhoud, met een ondergrens zodat er ruimte is om te
+    // beginnen. Zonder dit loopt de tekst uit het vak zodra hij langer wordt.
+    var tekens = Math.max(6, (veld.value || '').length + 1);
+    veld.style.width = Math.round(tekens * px * 0.62) + 'px';
+  }
+
+  // De grepen op het vak: linksboven verplaatsen, rechtsonder groter en
+  // kleiner. preventDefault houdt de focus in het invoerveld, zodat het
+  // toetsenbord op een telefoon niet wegklapt zodra je een greep pakt.
+  function koppelGreep(greep, rol) {
+    if (!greep) return;
+    greep.addEventListener('pointerdown', function (e) {
+      if (!bewerk) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var b = bewerk;
+      var foto = fotoVan(b.fotoId);
+      var s = foto && foto.inkt[b.index];
+      var doek = el('doek-' + b.fotoId);
+      if (!s || !doek) return;
+      var schaal = (doek.getBoundingClientRect().width || 1000) / 1000;
+      var begin = { x: e.clientX, y: e.clientY, p: s.p[0].slice(), g: s.g || grootte };
+      if (window.bewaarStap) bewaarStap(rol === 'sleep' ? 'Tekst verplaatst' : 'Tekst geschaald');
+      try { greep.setPointerCapture(e.pointerId); } catch (err) {}
+
+      function beweeg(ev) {
+        ev.preventDefault();
+        var dx = (ev.clientX - begin.x) / schaal;
+        var dy = (ev.clientY - begin.y) / schaal;
+        if (rol === 'sleep') {
+          s.p[0] = [Math.round((begin.p[0] + dx) * 10) / 10,
+                    Math.round((begin.p[1] + dy) * 10) / 10];
+        } else {
+          // Schuin naar rechtsonder slepen maakt groter. Beide richtingen
+          // tellen mee, dus het werkt ook als je vooral omlaag sleept.
+          s.g = Math.max(10, Math.min(400, Math.round(begin.g + (dx + dy) / 2)));
+          grootte = s.g;
+        }
+        plaatsVak();
+      }
+      function los(ev) {
+        greep.removeEventListener('pointermove', beweeg);
+        greep.removeEventListener('pointerup', los);
+        greep.removeEventListener('pointercancel', los);
+        try { greep.releasePointerCapture(ev.pointerId); } catch (err) {}
+        opslaan();
+        tekenBalk(b.fotoId);
+        if (bewerk) bewerk.veld.focus();
+      }
+      greep.addEventListener('pointermove', beweeg);
+      greep.addEventListener('pointerup', los);
+      greep.addEventListener('pointercancel', los);
+    });
+  }
+
+  function opentVak(fotoId, index) {
+    stopTekst();
+    var doek = el('doek-' + fotoId);
+    var foto = fotoVan(fotoId);
+    var s = foto && foto.inkt[index];
+    if (!doek || !s) return;
+
+    var doos = document.createElement('div');
+    doos.className = 'tk-vak';
+    doos.innerHTML =
+      '<span class="tk-vak-greep tk-vak-sleep" title="Verplaatsen">✥</span>' +
+      '<input class="tk-vak-veld" type="text" enterkeyhint="done" autocomplete="off" ' +
+        'autocorrect="off" spellcheck="false" placeholder="tekst…">' +
+      '<span class="tk-vak-greep tk-vak-maat" title="Groter of kleiner">⤡</span>' +
+      '<button class="tk-vak-klaar" type="button" title="Klaar">✓</button>';
+    doek.appendChild(doos);
+
+    var veld = doos.querySelector('.tk-vak-veld');
+    veld.value = s.tx || '';
+    bewerk = { fotoId: fotoId, index: index, doos: doos, veld: veld };
+
+    // Het vak is het geselecteerde onderdeel: de balk toont meteen de
+    // kleur- en grootteknoppen en die werken op déze tekst.
+    gekozen = index;
+    var node = elementVan(fotoId, index);
+    if (node) node.setAttribute('visibility', 'hidden');
+    tekenKader(fotoId);
+    plaatsVak();
+
+    veld.addEventListener('input', function () { s.tx = veld.value; plaatsVak(); });
+    veld.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); stopTekst(); }
+    });
+    doos.querySelector('.tk-vak-klaar').addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      stopTekst();
+    });
+    koppelGreep(doos.querySelector('.tk-vak-sleep'), 'sleep');
+    koppelGreep(doos.querySelector('.tk-vak-maat'), 'maat');
+
+    // Meteen focus: op een telefoon komt het toetsenbord alleen op als dit
+    // binnen de aanraking zelf gebeurt, niet in een timer erna.
+    veld.focus();
+    try { veld.setSelectionRange(veld.value.length, veld.value.length); } catch (err) {}
+    tekenBalk(fotoId);
+  }
+
+  // De ✎-knop in de balk: dezelfde bewerking als bij een nieuwe tekst.
   window.selectieTekst = function (fotoId) {
     var foto = fotoVan(fotoId);
     var s = gekozen >= 0 ? foto.inkt[gekozen] : null;
     if (!s || s.t !== 'tekst') return;
-    var nieuw = prompt('Tekst wijzigen:', s.tx || '');
-    if (nieuw === null) return;
-    nieuw = nieuw.trim();
-    if (!nieuw) return;
     if (window.bewaarStap) bewaarStap('Tekst gewijzigd');
-    s.tx = nieuw;
-    tekenStreken(fotoId);
-    tekenKader(fotoId);
-    opslaan();
+    opentVak(fotoId, gekozen);
   };
 
   function zetTekst(fotoId, punt) {
     var foto = fotoVan(fotoId);
-    var tekst = prompt('Welke tekst wil je op de foto zetten?', '');
-    if (tekst === null) return;
-    tekst = tekst.trim();
-    if (!tekst) return;
+    // Al aan het typen? Dan sluit die eerst af; tikken naast het vak is de
+    // manier om klaar te zijn.
+    if (bewerk) { stopTekst(); }
     if (window.bewaarStap) bewaarStap('Tekst toegevoegd');
     inkt(foto).push({ t: 'tekst', k: kleur, d: dikte, g: grootte,
-                      vet: vet, schuin: schuin, p: [punt], tx: tekst });
+                      vet: vet, schuin: schuin, p: [punt], tx: '' });
+    var index = foto.inkt.length - 1;
     var svgEl = el('inkt-' + fotoId);
-    if (svgEl) svgEl.appendChild(maakTekst(foto.inkt[foto.inkt.length - 1], foto.inkt.length - 1));
+    if (svgEl) svgEl.appendChild(maakTekst(foto.inkt[index], index));
     else tekenStreken(fotoId);
-    opslaan();
-    tekenBalk(fotoId);
+    opentVak(fotoId, index);
   }
 
   function gum(e, fotoId) {
@@ -589,6 +776,7 @@
   /* ─── balk met gereedschap ─────────────────────────────────── */
 
   window.tekenModus = function (fotoId) {
+    stopTekst();
     actief = (actief === fotoId) ? null : fotoId;
     fotos.forEach(function (f) { zetModus(f.id); tekenBalk(f.id); });
   };
@@ -599,7 +787,9 @@
     blok.classList.toggle('tekent', actief === fotoId);
     // Met vingertekenen aan mag het schuifvenster de veeg niet meer
     // afpakken; staat het uit, dan wil je juist wél kunnen schuiven.
-    blok.classList.toggle('vinger', actief === fotoId && vingerTekent);
+    // Met het tekstgereedschap geldt hetzelfde: je zet het vak met je
+    // vinger neer, dus de veeg mag niet doorgaan naar het schuifvenster.
+    blok.classList.toggle('vinger', actief === fotoId && (vingerTekent || stuk === 'tekst'));
   }
 
   // Is er iets geselecteerd, dan verandert die keuze dát onderdeel.
@@ -609,10 +799,15 @@
     var s = (gekozen >= 0 && foto) ? foto.inkt[gekozen] : null;
 
     if (wat === 'stuk') {
+      // Overstappen op ander gereedschap sluit een lopend tekstvak af.
+      if (waarde !== 'tekst') stopTekst();
       stuk = waarde;
       // Een selectie hoort bij het keuzegereedschap; stap je over op
       // tekenen, dan is die selectie niet meer aan de orde.
-      if (waarde !== 'kies' && gekozen >= 0) { gekozen = -1; tekenKader(fotoId); }
+      if (waarde !== 'kies' && waarde !== 'tekst' && gekozen >= 0) {
+        gekozen = -1; tekenKader(fotoId);
+      }
+      zetModus(fotoId);
       tekenBalk(fotoId);
       return;
     }
@@ -622,7 +817,7 @@
     if (wat === 'kleur') { kleur = waarde; if (s) s.k = waarde; }
     if (wat === 'dikte') { dikte = parseFloat(waarde); if (s) s.d = parseFloat(waarde); }
     if (wat === 'grootte') { grootte = parseFloat(waarde); if (s && s.t === 'tekst') s.g = parseFloat(waarde); }
-    if (wat === 'vet') { vet = !vet; if (s && s.t === 'tekst') s.vet = !(s.vet !== false); else vet = vet; }
+    if (wat === 'vet') { vet = !vet; if (s && s.t === 'tekst') s.vet = !(s.vet !== false); }
     if (wat === 'schuin') { schuin = !schuin; if (s && s.t === 'tekst') s.schuin = !s.schuin; }
 
     if (s) {
@@ -632,10 +827,14 @@
       tekenStreken(fotoId);
       opslaan();
     }
+    // Staat er een tekstvak open, dan moet dat de nieuwe kleur of grootte
+    // meteen laten zien — anders typ je in iets anders dan je krijgt.
+    if (bewerk && bewerk.fotoId === fotoId) { plaatsVak(); bewerk.veld.focus(); }
     tekenBalk(fotoId);
   };
 
   window.tekenTerug = function (fotoId) {
+    stopTekst();
     var foto = fotoVan(fotoId);
     if (!foto || !inkt(foto).length) return;
     foto.inkt.pop();
@@ -645,6 +844,7 @@
   };
 
   window.tekenWis = function (fotoId) {
+    stopTekst();
     var foto = fotoVan(fotoId);
     if (!foto || !inkt(foto).length) return;
     if (!confirm('Alle tekeningen op deze foto wissen? De merkbolletjes blijven staan.')) return;
@@ -654,6 +854,10 @@
     tekenBalk(fotoId);
     opslaan();
   };
+
+  // Zoomen of het venster verslepen verandert de schaal van de foto; het
+  // vak moet dan mee.
+  window.addEventListener('resize', function () { plaatsVak(); });
 
   function tekenBalk(fotoId) {
     var balk = el('tekenbalk-' + fotoId);
@@ -705,16 +909,20 @@
     var selectie = !gekozenStreek ? '' :
       '<div class="tk-selectie">' +
         '<span class="tk-label">' + esc(omschrijf(gekozenStreek)) + ' geselecteerd</span>' +
-        (gekozenStreek.t === 'tekst'
+        (gekozenStreek.t === 'tekst' && !bewerk
           ? '<button class="tk-knop" title="Tekst wijzigen" onclick="selectieTekst(\'' + fotoId + '\')">✎</button>' : '') +
+        (bewerk ? '<button class="tk-knop" title="Klaar met typen" onclick="tekstKlaar()">✓</button>' : '') +
         '<button class="tk-knop tk-weg" title="Verwijderen" onclick="selectieWeg(\'' + fotoId + '\')">🗑</button>' +
         '<button class="tk-knop" title="Selectie opheffen" onclick="selectieOpheffen(\'' + fotoId + '\')">✕</button>' +
       '</div>';
 
-    var hint = gekozenStreek
-      ? 'Sleep aan een hoekpunt om te verplaatsen · kleur, dikte en grootte gelden voor dit onderdeel'
-      : (stuk === 'kies' ? 'Tik op een lijn of tekst om hem te selecteren'
-                         : 'Pen tekent, vinger schuift');
+    var hint = bewerk
+      ? 'Typ de tekst · ✥ verplaatsen, ⤡ groter of kleiner, ✓ of Enter is klaar'
+      : (gekozenStreek
+        ? 'Sleep aan een hoekpunt om te verplaatsen · kleur, dikte en grootte gelden voor dit onderdeel'
+        : (stuk === 'kies' ? 'Tik op een lijn of tekst om hem te selecteren'
+          : (stuk === 'tekst' ? 'Tik op de foto waar de tekst moet komen'
+            : 'Pen tekent, vinger schuift')));
 
     balk.style.display = 'flex';
     balk.innerHTML = stukken + kleuren + diktes + tekstOpties + algemeen + selectie +

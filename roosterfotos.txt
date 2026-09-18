@@ -1,0 +1,14 @@
+# Bestandsnaam (zonder extensie), spatie, bron-URL.
+# Bron: productpagina's van Duco — https://www.duco.eu, opgehaald 18 september 2026
+# Ophalen met:  bash fotos-ophalen.sh roosterfotos.txt roosters
+#
+# Zes bestanden voor acht roosters in de app: DucoTon 10 en DucoTon 10 ZR
+# zijn hetzelfde profiel (handmatig of zelfregelend), en dat geldt ook voor
+# DucoGlasMax ZR en SR.
+
+ducoton-10 https://www.duco.eu/Wes/CDN/1/Products/ProductImages/2022-12-19%2014.15.59.600%20-%20DucoTon_10.jpg?width=900&mode=crop
+ducoton-18 https://www.duco.eu/Wes/CDN/1/Products/ProductImages/2014-10-07%2013.09.15.584%20-%2093_DucoTon_18.jpg?width=900&mode=crop
+ducosmart-60 https://www.duco.eu/Wes/CDN/1/PRODUCTS/95_DucoSmart%2060/FOTOS/DucoSmart%2060.jpg?width=900&mode=crop
+ducoklep-15 https://www.duco.eu/Wes/CDN/1/PRODUCTS/62_DucoKlep%2015/FOTOS/DucoKlep%2015.jpg?width=900&mode=crop
+ducoflat-12 https://www.duco.eu/Wes/CDN/1/Products/ProductImages/2024-12-10%2008.34.17.086%20-%20productshot-DucoFlat-80-ZR_thumb.jpg?width=900&mode=crop
+ducoglasmax https://www.duco.eu/Wes/CDN/1/Products/ProductImages/2015-02-12%2016.28.46.139%20-%20DUCOGLASMAX.jpg?width=900&mode=crop

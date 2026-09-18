@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v74';
+const VERSIE = 'v76';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -38,6 +38,7 @@ const CATALOGUS_FOTOS = [
   './catalogus/byzanthijn-fijn-blank.jpg',
   './catalogus/byzanthijn-grof-blank.jpg',
   './catalogus/canale-blank.jpg',
+  './catalogus/canale-mat-blank.jpg',
   './catalogus/carre-blank-13x13.jpg',
   './catalogus/cathedraal-groot-gehamerd.jpg',
   './catalogus/cathedraal-klein-duits.jpg',
@@ -98,6 +99,18 @@ const CATALOGUS_FOTOS = [
   './catalogus/starglass-rood.jpg',
 ];
 
+// De foto's van de Duco-roosters bij het tabblad Naslag. Zes bestanden voor
+// acht roosters: DucoTon 10 en 10 ZR zijn hetzelfde profiel, en GlasMax ZR
+// en SR ook.
+const ROOSTER_FOTOS = [
+  './roosters/ducoton-10.jpg',
+  './roosters/ducoton-18.jpg',
+  './roosters/ducosmart-60.jpg',
+  './roosters/ducoklep-15.jpg',
+  './roosters/ducoflat-12.jpg',
+  './roosters/ducoglasmax.jpg',
+];
+
 function inCache(c, lijst) {
   // cache:'reload' omzeilt de browsercache, anders belandt een
   // net vervangen bestand alsnog als oude versie in de cache
@@ -107,7 +120,9 @@ function inCache(c, lijst) {
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => inCache(c, SHELL).then(() => inCache(c, CATALOGUS_FOTOS)))
+      .then(c => inCache(c, SHELL)
+        .then(() => inCache(c, CATALOGUS_FOTOS))
+        .then(() => inCache(c, ROOSTER_FOTOS)))
   );
   // Bewust géén skipWaiting: de nieuwe versie blijft klaarstaan tot de
   // pagina zegt dat het mag. Anders zou de app kunnen omschakelen terwijl
@@ -147,7 +162,7 @@ self.addEventListener('fetch', e => {
 
   // De catalogusfoto's veranderen niet binnen een versie: eerst de cache.
   // Scheelt op locatie een hoop wachten en verkeer.
-  if (url.pathname.indexOf('/catalogus/') >= 0) {
+  if (url.pathname.indexOf('/catalogus/') >= 0 || url.pathname.indexOf('/roosters/') >= 0) {
     e.respondWith(
       caches.open(CACHE).then(c => c.match(e.request).then(hit => hit || fetch(e.request)
         .then(res => { if (res && res.ok) c.put(e.request, res.clone()); return res; })

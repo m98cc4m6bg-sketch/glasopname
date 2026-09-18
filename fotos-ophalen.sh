@@ -6,6 +6,11 @@
 #
 #     bash fotos-ophalen.sh
 #
+# Met twee argumenten haalt hetzelfde script een andere lijst op, in een
+# andere map:
+#
+#     bash fotos-ophalen.sh roosterfotos.txt roosters
+#
 # Verkleinen gebeurt met sips, dat standaard op een Mac staat. Zonder sips
 # worden de originelen bewaard; dat werkt ook, maar de map wordt dan een
 # stuk groter en de service worker moet meer opslaan voor offline gebruik.
@@ -15,8 +20,13 @@
 
 set -u
 
-LIJST="catalogus-fotos.txt"
-MAP="catalogus"
+# Welke lijst en welke map: standaard de glascatalogus, maar met twee
+# argumenten haalt hetzelfde script ook de foto's van de Duco-roosters op.
+#
+#     bash fotos-ophalen.sh                            # glascatalogus
+#     bash fotos-ophalen.sh roosterfotos.txt roosters  # Duco-roosters
+LIJST="${1:-catalogus-fotos.txt}"
+MAP="${2:-catalogus}"
 BREEDTE=600          # pixels; genoeg om het patroon te zien op een retina-scherm
 KWALITEIT=70         # jpeg-kwaliteit bij verkleinen
 

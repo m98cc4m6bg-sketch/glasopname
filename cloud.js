@@ -367,9 +367,24 @@
       // zonder figuurglas, of die van v63 t/m v72 mét maten in de namen —
       // dan zou de app achteruit gaan zodra hij online komt. Draai
       // 11_glasbewerking_namen.sql en dit valt vanzelf weg.
+      // Dezelfde afspraak voor de roeden: staan de opplakroeden er nog in,
+      // of de breedtes die alleen bij hen hoorden, dan is de lijst ouder
+      // dan de app en wint die van index.html niet.
+      if (k === 'roedenverdeling' && Array.isArray(nieuw[k]) &&
+          nieuw[k].some(function (v) { return /^Opplak/i.test(v); })) {
+        console.warn('[cloud] roedenverdeling in de database is nog de oude lijst; ' +
+                     'draai 12_roeden_en_canale.sql.');
+        return;
+      }
+      if (k === 'roedenbreedte' && Array.isArray(nieuw[k]) &&
+          nieuw[k].some(function (v) { return v === '28 mm' || v === '38 mm'; })) {
+        console.warn('[cloud] roedenbreedte in de database is nog de oude lijst; ' +
+                     'draai 12_roeden_en_canale.sql.');
+        return;
+      }
       if (k === 'glasbewerking' && oudeBewerkingslijst(nieuw[k])) {
         console.warn('[cloud] glasbewerking in de database is nog een oude lijst; ' +
-                     'draai 11_glasbewerking_namen.sql. Tot die tijd gebruikt de app zijn eigen lijst.');
+                     'draai 12_roeden_en_canale.sql. Tot die tijd gebruikt de app zijn eigen lijst.');
         return;
       }
       DATA[k] = nieuw[k];
@@ -384,8 +399,11 @@
     //  • geen maten meer in de naam; van v63 tot en met v72 stonden die
     //    erachter ('… (4/6/8/10 mm)') en kwamen ze zo op de bestellijst.
     var kastlijn = lijst.some(function (b) { return b.indexOf('Figuurglas — ') === 0; });
+    // Canale mat blank kwam er in v76 bij; ontbreekt hij, dan is de lijst
+    // van vóór die versie.
+    var compleet = lijst.indexOf('Figuurglas — Canale mat blank') >= 0;
     var metMaat = lijst.some(function (b) { return /\(\s*\d[\d/.,\s]*mm\s*\)\s*$/.test(b); });
-    return !kastlijn || metMaat;
+    return !kastlijn || metMaat || !compleet;
   }
 
   function laadGecachteData() {

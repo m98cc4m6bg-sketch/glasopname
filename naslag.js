@@ -41,6 +41,8 @@ const CATALOGUS = [
         syn: ['Viool grof', 'Gehamerd grof', 'Brokaat grof', 'Ornament 523'] },
       { naam: 'Canale blank', foto: 'canale-blank', dikte: [4],
         syn: ['Flutes', 'ribbelglas'] },
+      { naam: 'Canale mat blank', foto: 'canale-mat-blank', dikte: [4],
+        syn: ['Flutes mat', 'ribbelglas mat', 'Canalé mat-blank'] },
       { naam: 'Carre blank 13 x 13', foto: 'carre-blank-13x13', dikte: [4, 5],
         syn: ['Square'] },
       { naam: 'Cathedraal groot gehamerd / Brute blank', foto: 'cathedraal-groot-gehamerd',
@@ -532,6 +534,123 @@ function bewerkingOpties(huidig) {
   return lijst;
 }
 
+// ═══════════════ ROEDEN ═══════════════
+// Twee stelsels, elk met hun eigen profielbreedtes:
+//
+//   Kruisroeden in glas — een roede in de spouw, niets op het glas.
+//                         Leverbaar in 18, 26 en 45 mm.
+//   Wienersprossen      — een aluminium kader in de spouw met daarover
+//                         verlijmde latjes. Leverbaar in 20, 24 en 30 mm.
+//
+// Bron: de roedenpagina van Glaslinq, nagekeken 18 september 2026. De
+// opplakroeden (alleen latjes op het glas, 28 en 38 mm) zijn eruit: die
+// worden niet besteld. Klopt de lijst niet met wat Van Noordenne levert,
+// dan is dit de enige plek die aangepast hoeft te worden — plus het
+// bijbehorende SQL-script.
+const ROEDE_BREEDTES = {
+  wienersprossen: ['20 mm', '24 mm', '30 mm'],
+  kruisroeden: ['18 mm', '26 mm', '45 mm'],
+};
+const ROEDE_GEEN = 'Geen roedenverdeling';
+const ROEDE_OVERIG = 'Overig (zie opmerking)';
+
+// Welk stelsel hoort bij een gekozen verdeling? Leeg betekent: niet te
+// zeggen, en dan worden alle breedtes getoond.
+function roedeSoort(verdeling) {
+  const v = String(verdeling || '');
+  if (/^Wienersprossen/i.test(v)) return 'wienersprossen';
+  if (/^Kruisroeden/i.test(v)) return 'kruisroeden';
+  return '';
+}
+
+function roedeBreedtesVoor(verdeling) {
+  const soort = roedeSoort(verdeling);
+  const alle = (typeof DATA !== 'undefined' && DATA.roedenbreedte)
+    ? DATA.roedenbreedte.slice() : [];
+  if (!soort) return alle;
+  const eigen = ROEDE_BREEDTES[soort] || [];
+  // Overig blijft altijd staan: er is altijd wel een bijzonder profiel.
+  return alle.filter(b => eigen.indexOf(b) >= 0 || b === ROEDE_OVERIG);
+}
+
+// Een keuzelijst die een waarde uit een ouder project laat staan. De
+// opplakroeden zijn uit de app gehaald; een project waarin ze staan mag
+// niet stilletjes iets anders gaan tonen dan er werkelijk in zit.
+function keuzeMetOude(lijst, huidig, kopje) {
+  let html = '';
+  lijst.forEach(v => {
+    html += '<option value="' + naslagEsc(v) + '"' +
+            (v === huidig ? ' selected' : '') + '>' + naslagEsc(v) + '</option>';
+  });
+  if (huidig && lijst.indexOf(huidig) < 0) {
+    html += '<optgroup label="' + naslagEsc(kopje) + '">' +
+            '<option value="' + naslagEsc(huidig) + '" selected class="niet-lever">' +
+            naslagEsc(huidig) + '</option></optgroup>';
+  }
+  return html;
+}
+
+function roedenKeuzeHTML(rij) {
+  const alle = (typeof DATA !== 'undefined' && DATA.roedenverdeling)
+    ? DATA.roedenverdeling : [ROEDE_GEEN];
+  return keuzeMetOude(alle, (rij && rij.roedenverdeling) || '', 'Oude waarde');
+}
+
+function roedeBreedteKeuzeHTML(rij) {
+  const mag = roedeBreedtesVoor(rij && rij.roedenverdeling);
+  const huidig = (rij && rij.roedenbreedte) || '';
+  let html = '<option value="">\u2014</option>';
+  html += keuzeMetOude(mag, huidig, 'Hoort niet bij deze roede');
+  return html;
+}
+
+// ═══════════════ DUCO-ROOSTERS ═══════════════
+// De grenzen komen uit DATA.roosters in index.html; hier staat wat je erbij
+// wilt zien. De foto's staan lokaal in ./roosters/ en worden opgehaald met
+// roosterfotos-ophalen.sh, om dezelfde reden als de catalogusfoto's: zonder
+// bereik moet het ook werken en de URL's van Duco veranderen.
+// DucoTon 10 en 10 ZR zijn hetzelfde profiel, handmatig of zelfregelend; dat
+// geldt ook voor GlasMax ZR en SR. Die delen dus hun foto.
+const DUCO_ROOSTERS = [
+  { naam: 'DucoTon 10',     foto: 'ducoton-10',   min: 4,  max: 30,
+    uitleg: 'Klassiek tonrooster, handmatig instelbaar | glasaftrek 80 mm' },
+  { naam: 'DucoTon 10 ZR',  foto: 'ducoton-10',   min: 18, max: 30,
+    uitleg: 'Zelfregelend tonrooster, meest verkocht | glasaftrek 80 mm' },
+  { naam: 'DucoTon 18',     foto: 'ducoton-18',   min: 18, max: 22,
+    uitleg: 'Groot tonrooster voor renovatie | glasaftrek 120 mm' },
+  { naam: 'DucoSmart 60',   foto: 'ducosmart-60', min: 13, max: 22,
+    uitleg: 'Compact klepventilator, minimale glasaftrek 60 mm' },
+  { naam: 'DucoKlep 15 ZR', foto: 'ducoklep-15',  min: 18, max: 46,
+    uitleg: 'Vlak klepprofiel, ook voor triple glas | glasaftrek 80 mm' },
+  { naam: 'DucoFlat 12 ZR', foto: 'ducoflat-12',  min: 18, max: 30,
+    uitleg: 'Plat profiel voor schuiframen | glasaftrek 80 mm' },
+  { naam: 'DucoGlasMax ZR', foto: 'ducoglasmax',  min: 8,  max: 38,
+    uitleg: 'Geluidswerend, zelfregelend | glasaftrek 80 mm' },
+  { naam: 'DucoGlasMax SR', foto: 'ducoglasmax',  min: 8,  max: 38,
+    uitleg: 'Geluidswerend akoestisch (sound-reducing) | glasaftrek 80 mm' },
+];
+
+function ducoTabel() {
+  return '<table class="legenda legenda-foto">' +
+    '<thead><tr><th>Foto</th><th>Roostertype</th><th>Min. glasdikte</th>' +
+    '<th>Max. glasdikte</th><th>Toelichting</th></tr></thead><tbody>' +
+    DUCO_ROOSTERS.map(function (r) {
+      return '<tr>' +
+        '<td class="lg-foto"><img src="roosters/' + r.foto + '.jpg" alt="' + naslagEsc(r.naam) +
+          '" loading="lazy" onclick="naslagGroot(\'' + r.foto + '\',\'' + naslagEsc(r.naam) +
+          '\',\'Duco ventilatierooster\',\'roosters\')" ' +
+          'onerror="this.replaceWith(naslagGeenFoto())"></td>' +
+        '<td>' + naslagEsc(r.naam) + '</td>' +
+        '<td>\u2265 ' + r.min + ' mm</td>' +
+        '<td>\u2264 ' + r.max + ' mm</td>' +
+        '<td>' + naslagEsc(r.uitleg) + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table>' +
+    '<div class="info-note" style="margin-top:10px">Foto\u2019s van Duco. De glasdiktes zijn ' +
+    'dezelfde waarden waarop de app in de invoertabel controleert.</div>';
+}
+
 // ═══════════════ TABELLEN (voorheen tabblad Legenda) ═══════════════
 const NASLAG_TABELLEN = [
   {
@@ -566,19 +685,7 @@ const NASLAG_TABELLEN = [
   },
   {
     titel: 'Duco ventilatieroosters op glas',
-    html: `<table class="legenda">
-      <thead><tr><th>Roostertype</th><th>Min. glasdikte</th><th>Max. glasdikte</th><th>Toelichting</th></tr></thead>
-      <tbody>
-        <tr><td>DucoTon 10</td><td>≥ 4 mm</td><td>≤ 30 mm</td><td>Klassiek tonrooster, handmatig instelbaar | glasaftrek 80 mm</td></tr>
-        <tr><td>DucoTon 10 ZR</td><td>≥ 18 mm</td><td>≤ 30 mm</td><td>Zelfregelend tonrooster, meest verkocht | glasaftrek 80 mm</td></tr>
-        <tr><td>DucoTon 18</td><td>≥ 18 mm</td><td>≤ 22 mm</td><td>Groot tonrooster voor renovatie | glasaftrek 120 mm</td></tr>
-        <tr><td>DucoSmart 60</td><td>≥ 13 mm</td><td>≤ 22 mm</td><td>Compact klepventilator, minimale glasaftrek 60 mm</td></tr>
-        <tr><td>DucoKlep 15 ZR</td><td>≥ 18 mm</td><td>≤ 46 mm</td><td>Vlak klepprofiel, ook voor triple glas | glasaftrek 80 mm</td></tr>
-        <tr><td>DucoFlat 12 ZR</td><td>≥ 18 mm</td><td>≤ 30 mm</td><td>Plat profiel voor schuiframen | glasaftrek 80 mm</td></tr>
-        <tr><td>DucoGlasMax ZR</td><td>≥ 8 mm</td><td>≤ 38 mm</td><td>Geluidswerend, zelfregelend | glasaftrek 80 mm</td></tr>
-        <tr><td>DucoGlasMax SR</td><td>≥ 8 mm</td><td>≤ 38 mm</td><td>Geluidswerend akoestisch (sound-reducing) | glasaftrek 80 mm</td></tr>
-      </tbody>
-    </table>`,
+    html: ducoTabel(),
   },
   {
     titel: 'Figuurglas: in welke uitvoeringen',
@@ -655,6 +762,19 @@ const NASLAG_CSS = `
   .nsl-syn { font-size: 10px; color: var(--grijs-tekst); margin-top: 3px; line-height: 1.4; }
 
   .nsl-tabelblok { padding: 0 0 16px 22px; overflow-x: auto; }
+  /* De tabel met roosters heeft een kolom met kleine foto's; tikken maakt
+     ze groot, net als bij de glassoorten. */
+  table.legenda-foto td.lg-foto { width: 84px; padding: 4px 6px; }
+  table.legenda-foto td.lg-foto img {
+    width: 72px; height: 54px; object-fit: cover; display: block;
+    border-radius: 4px; border: 1px solid var(--grijs-rand); cursor: zoom-in;
+    background: var(--grijs-licht);
+  }
+  table.legenda-foto td.lg-foto .nsl-geenfoto {
+    width: 72px; height: 54px; font-size: 9px;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    border-radius: 4px; border: 1px dashed var(--grijs-rand); background: var(--grijs-licht);
+  }
 
   .nsl-groot {
     position: fixed; inset: 0; z-index: 9100; display: none;
@@ -813,11 +933,13 @@ function naslagZoeken(waarde) {
   renderNaslag();
 }
 
-function naslagGroot(foto, naam, groep) {
+// map is 'catalogus' voor de glassoorten en 'roosters' voor de Duco-foto's.
+function naslagGroot(foto, naam, groep, map) {
   const vak = document.getElementById('naslagGroot');
   if (!vak) return;
+  const pad = (map || 'catalogus') + '/' + foto + '.jpg';
   vak.innerHTML = `<div class="nsl-groot-vak" onclick="event.stopPropagation()">
-    ${foto ? `<img src="catalogus/${foto}.jpg" alt="${naslagEsc(naam)}">` : ''}
+    ${foto ? `<img src="${pad}" alt="${naslagEsc(naam)}">` : ''}
     <div class="nsl-groot-tekst">
       <h4>${naslagEsc(naam)}</h4>
       <p>${naslagEsc(groep)}</p>
@@ -839,6 +961,9 @@ if (typeof module !== 'undefined' && module.exports) {
     bladDiktes, bewerkingDiktes, bewerkingKan, opbouwVoorBewerking,
     glasTypesVoorBewerking, regelStrijdig, bewerkingKeuzeHTML,
     glasTypeKeuzeHTML, opbouwKeuzeHTML, strijdigUitleg, STRIJDIG_NOOT,
-    BEWERKING_STANDAARD, BEWERKING_OVERIG
+    BEWERKING_STANDAARD, BEWERKING_OVERIG,
+    DUCO_ROOSTERS, ducoTabel,
+    ROEDE_BREEDTES, roedeSoort, roedeBreedtesVoor,
+    roedenKeuzeHTML, roedeBreedteKeuzeHTML
   };
 }

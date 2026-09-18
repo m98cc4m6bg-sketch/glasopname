@@ -128,6 +128,12 @@
     if (streek.t === 'lijn' || streek.t === 'pijl') {
       return 'M' + p[0][0] + ' ' + p[0][1] + 'L' + p[1][0] + ' ' + p[1][1];
     }
+    // Een herkende veelhoek (driehoek) moet scherpe hoeken houden; die krijgt
+    // `recht` mee. In de pdf worden alle vrije streken toch al als rechte
+    // stukjes getekend, dus daar hoeft niets voor te veranderen.
+    if (streek.recht) {
+      return 'M' + p.map(function (q) { return q[0] + ' ' + q[1]; }).join('L');
+    }
     // Vrije hand: door de middens van opeenvolgende punten lopen geeft
     // een vloeiende lijn zonder hoekige knikken.
     var d = 'M' + p[0][0] + ' ' + p[0][1];
@@ -244,6 +250,345 @@
     tekenKader(fotoId);
   }
 
+  /* ─── vormherkenning ──────────────────────────────────────── */
+  // Even stil blijven staan tijdens het tekenen maakt er een nette vorm van.
+  // De streek wordt vergeleken met een rechte lijn, een rechthoek, een
+  // ellips en een driehoek; de kandidaat die er het dichtst bij zit wint,
+  // mits hij er dicht genoeg bij zit. Past niets, dan blijft de streek
+  // zoals hij getekend is — liever niets dan de verkeerde vorm.
+
+  var VAST_MS = 550;        // hoe lang stil staan
+  var VAST_SPELING = 9;     // hoeveel je nog mag bewegen (viewBox-eenheden)
+
+  function afst(a, b) {
+    return Math.sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
+  }
+
+  function padLengte(p) {
+    var l = 0;
+    for (var i = 1; i < p.length; i++) l += afst(p[i - 1], p[i]);
+    return l;
+  }
+
+  function omhullende(p) {
+    var x1 = p[0][0], y1 = p[0][1], x2 = x1, y2 = y1;
+    p.forEach(function (q) {
+      if (q[0] < x1) x1 = q[0];
+      if (q[0] > x2) x2 = q[0];
+      if (q[1] < y1) y1 = q[1];
+      if (q[1] > y2) y2 = q[1];
+    });
+    return { x1: x1, y1: y1, x2: x2, y2: y2, b: x2 - x1, h: y2 - y1 };
+  }
+
+  // Afstand van een punt tot een lijnstuk.
+  function afstTotStuk(q, a, b) {
+    var dx = b[0] - a[0], dy = b[1] - a[1];
+    var len2 = dx * dx + dy * dy;
+    if (!len2) return afst(q, a);
+    var t = ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    return afst(q, [a[0] + t * dx, a[1] + t * dy]);
+  }
+
+  function afstTotVeelhoek(q, hoeken) {
+    var m = Infinity;
+    for (var i = 0; i < hoeken.length; i++) {
+      var d = afstTotStuk(q, hoeken[i], hoeken[(i + 1) % hoeken.length]);
+      if (d < m) m = d;
+    }
+    return m;
+  }
+
+  function gemiddeld(lijst) {
+    var s = 0;
+    lijst.forEach(function (v) { s += v; });
+    return lijst.length ? s / lijst.length : 0;
+  }
+
+  // Alle maten worden gedeeld door de diagonaal van de omhullende, zodat
+  // een grote en een kleine tekening even streng beoordeeld worden.
+  function foutRechthoek(p, vak) {
+    var hoeken = [[vak.x1, vak.y1], [vak.x2, vak.y1], [vak.x2, vak.y2], [vak.x1, vak.y2]];
+    return gemiddeld(p.map(function (q) { return afstTotVeelhoek(q, hoeken); }));
+  }
+
+  function foutEllips(p, vak) {
+    var cx = (vak.x1 + vak.x2) / 2, cy = (vak.y1 + vak.y2) / 2;
+    var rx = Math.max(vak.b / 2, 0.001), ry = Math.max(vak.h / 2, 0.001);
+    // Afstand tot de ellips, bij benadering: het verschil tussen de straal
+    // van het punt en de straal van de ellips in diezelfde richting.
+    return gemiddeld(p.map(function (q) {
+      var dx = q[0] - cx, dy = q[1] - cy;
+      var r = Math.sqrt(dx * dx + dy * dy);
+      if (!r) return Math.min(rx, ry);
+      var t = Math.atan2(dy / ry, dx / rx);
+      var ex = rx * Math.cos(t), ey = ry * Math.sin(t);
+      return Math.abs(r - Math.sqrt(ex * ex + ey * ey));
+    }));
+  }
+
+  // Omhullende veelhoek (Andrew's monotone chain).
+  function omhulsel(p) {
+    var punten = p.slice().sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+    function kruis(o, a, b) {
+      return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    }
+    var onder = [], boven = [], i;
+    for (i = 0; i < punten.length; i++) {
+      while (onder.length >= 2 && kruis(onder[onder.length - 2], onder[onder.length - 1], punten[i]) <= 0) onder.pop();
+      onder.push(punten[i]);
+    }
+    for (i = punten.length - 1; i >= 0; i--) {
+      while (boven.length >= 2 && kruis(boven[boven.length - 2], boven[boven.length - 1], punten[i]) <= 0) boven.pop();
+      boven.push(punten[i]);
+    }
+    onder.pop(); boven.pop();
+    return onder.concat(boven);
+  }
+
+  // De grootste driehoek binnen het omhulsel. Bij een handgetekende
+  // driehoek zijn dat precies de drie hoekpunten.
+  function grootsteDriehoek(h) {
+    if (h.length < 3) return null;
+    var best = null, oppBest = 0;
+    for (var a = 0; a < h.length; a++) {
+      for (var b = a + 1; b < h.length; b++) {
+        for (var c = b + 1; c < h.length; c++) {
+          var opp = Math.abs((h[b][0] - h[a][0]) * (h[c][1] - h[a][1]) -
+                             (h[c][0] - h[a][0]) * (h[b][1] - h[a][1])) / 2;
+          if (opp > oppBest) { oppBest = opp; best = [h[a], h[b], h[c]]; }
+        }
+      }
+    }
+    return best;
+  }
+
+  function rondAf(p) {
+    return p.map(function (q) {
+      return [Math.round(q[0] * 10) / 10, Math.round(q[1] * 10) / 10];
+    });
+  }
+
+  function ellipsPunten(vak) {
+    var cx = (vak.x1 + vak.x2) / 2, cy = (vak.y1 + vak.y2) / 2;
+    var rx = vak.b / 2, ry = vak.h / 2;
+    var uit = [];
+    for (var i = 0; i <= 48; i++) {
+      var t = i / 48 * Math.PI * 2;
+      uit.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]);
+    }
+    return uit;
+  }
+
+  // Een streek naar een nette vorm. Geeft null als er niets past.
+  // De uitkomst gebruikt bestaande soorten, zodat de pdf-uitvoer er niets
+  // van hoeft te weten: een driehoek is een gesloten veelhoek met `recht`,
+  // een ellips een veelhoek van 48 punten.
+  function herkenVorm(punten, stuk) {
+    if (!punten || punten.length < 6) return null;
+    var vak = omhullende(punten);
+    var diag = Math.sqrt(vak.b * vak.b + vak.h * vak.h);
+    if (diag < 35) return null;                 // te klein om iets van te zeggen
+    var lengte = padLengte(punten);
+    if (lengte < diag * 0.6) return null;
+
+    var eerste = punten[0], laatste = punten[punten.length - 1];
+    var gesloten = afst(eerste, laatste) < Math.max(diag * 0.28, lengte * 0.16);
+
+    // ── open: een rechte lijn of een pijl ──
+    if (!gesloten) {
+      var lijnFout = gemiddeld(punten.map(function (q) {
+        return afstTotStuk(q, eerste, laatste);
+      })) / diag;
+      if (lijnFout < 0.045) {
+        return { t: stuk === 'pijl' ? 'pijl' : 'lijn', p: rondAf([eerste, laatste]) };
+      }
+      var pijl = herkenPijl(punten, diag);
+      if (pijl) return pijl;
+      return null;
+    }
+
+    // ── gesloten: rechthoek, ellips of driehoek ──
+    var fRecht = foutRechthoek(punten, vak) / diag;
+    var fEllips = foutEllips(punten, vak) / diag;
+    var drie = grootsteDriehoek(omhulsel(punten));
+    var fDrie = drie ? gemiddeld(punten.map(function (q) {
+      return afstTotVeelhoek(q, drie);
+    })) / diag : Infinity;
+
+    // Een kras heeft ook wel ergens een omhullende driehoek, maar zijn pad
+    // is veel langer dan de omtrek van die driehoek. Die verhouding zeeft
+    // het krabbelwerk eruit.
+    function omtrekPast(omtrek) {
+      return omtrek > 0 && lengte < omtrek * 1.45 && lengte > omtrek * 0.7;
+    }
+    if (!omtrekPast(2 * (vak.b + vak.h))) fRecht = Infinity;
+    var rx = vak.b / 2, ry = vak.h / 2;
+    // Omtrek van een ellips, benadering van Ramanujan.
+    var hR = (rx - ry) * (rx - ry) / ((rx + ry) * (rx + ry) || 1);
+    if (!omtrekPast(Math.PI * (rx + ry) * (1 + 3 * hR / (10 + Math.sqrt(4 - 3 * hR))))) fEllips = Infinity;
+    if (drie && !omtrekPast(afst(drie[0], drie[1]) + afst(drie[1], drie[2]) + afst(drie[2], drie[0]))) {
+      fDrie = Infinity;
+    }
+
+    // De driehoek wordt strenger beoordeeld dan de andere twee: elke
+    // gesloten krabbel heeft wel een omhullende driehoek die er aardig
+    // omheen valt, en dan zou een vijfhoek stilletjes een driehoek worden.
+    if (fDrie > 0.042) fDrie = Infinity;
+
+    var beste = Math.min(fRecht, fEllips, fDrie);
+    if (!isFinite(beste) || beste > 0.075) return null;   // nergens dicht genoeg bij
+
+    if (beste === fEllips) {
+      // Bijna even breed als hoog? Dan een cirkel van maken.
+      var vak2 = vak;
+      if (Math.abs(vak.b - vak.h) < Math.max(vak.b, vak.h) * 0.18) {
+        var r = (vak.b + vak.h) / 4;
+        var cx = (vak.x1 + vak.x2) / 2, cy = (vak.y1 + vak.y2) / 2;
+        vak2 = { x1: cx - r, y1: cy - r, x2: cx + r, y2: cy + r, b: r * 2, h: r * 2 };
+      }
+      return { t: 'pen', p: rondAf(ellipsPunten(vak2)) };
+    }
+    if (beste === fDrie) {
+      return { t: 'pen', recht: true, p: rondAf(drie.concat([drie[0]])) };
+    }
+    // Rechthoek, en bij bijna gelijke zijden een vierkant.
+    var x1 = vak.x1, y1 = vak.y1, x2 = vak.x2, y2 = vak.y2;
+    if (Math.abs(vak.b - vak.h) < Math.max(vak.b, vak.h) * 0.14) {
+      var z = (vak.b + vak.h) / 2;
+      var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      x1 = mx - z / 2; x2 = mx + z / 2; y1 = my - z / 2; y2 = my + z / 2;
+    }
+    return { t: 'rect', p: rondAf([[x1, y1], [x2, y2]]) };
+  }
+
+  // Een pijl in één streek: eerst de schacht, dan twee korte weerhaken die
+  // terugbuigen. Herkenbaar aan de knik waar de richting het sterkst
+  // omslaat, met daarachter alleen nog korte stukken die terugwijzen.
+  function herkenPijl(p, diag) {
+    var lengte = padLengte(p);
+    var knik = -1;
+    // Zoek het punt waarna de rest van de streek kort is (hooguit 45 %) en
+    // terugwijst naar het begin.
+    var loop = 0;
+    for (var i = 1; i < p.length; i++) {
+      loop += afst(p[i - 1], p[i]);
+      if (loop < lengte * 0.45) continue;
+      var schacht = [p[0], p[i]];
+      var fout = 0, n = 0;
+      for (var j = 0; j <= i; j++) { fout += afstTotStuk(p[j], schacht[0], schacht[1]); n++; }
+      if (fout / n / diag > 0.05) continue;         // schacht niet recht genoeg
+      var rest = lengte - loop;
+      if (rest > lengte * 0.55 || rest < lengte * 0.08) continue;
+      // Wijst de staart terug?
+      var rx = p[i][0] - p[0][0], ry = p[i][1] - p[0][1];
+      var terug = true;
+      for (j = i + 1; j < p.length; j++) {
+        var vx = p[j][0] - p[i][0], vy = p[j][1] - p[i][1];
+        if (vx * rx + vy * ry > 0) { terug = false; break; }
+      }
+      if (!terug) continue;
+      knik = i;
+      break;
+    }
+    if (knik < 0) return null;
+    return { t: 'pijl', p: rondAf([p[0], p[knik]]) };
+  }
+
+  // Een rechte lijn of rechthoek die je even vasthoudt wordt netjes gezet:
+  // horizontaal, verticaal of precies 45 graden, en een bijna-vierkant
+  // wordt een vierkant.
+  function rechtTrekken(streek) {
+    var p = streek.p;
+    if (!p || p.length < 2) return null;
+    if (streek.t === 'rect') {
+      var b = Math.abs(p[1][0] - p[0][0]), h = Math.abs(p[1][1] - p[0][1]);
+      if (Math.max(b, h) < 35) return null;
+      if (Math.abs(b - h) >= Math.max(b, h) * 0.14) return null;   // al goed zo
+      var z = (b + h) / 2;
+      var sx = p[1][0] >= p[0][0] ? 1 : -1, sy = p[1][1] >= p[0][1] ? 1 : -1;
+      return { t: 'rect', p: rondAf([p[0], [p[0][0] + sx * z, p[0][1] + sy * z]]) };
+    }
+    if (streek.t !== 'lijn' && streek.t !== 'pijl') return null;
+    var dx = p[1][0] - p[0][0], dy = p[1][1] - p[0][1];
+    var lang = Math.sqrt(dx * dx + dy * dy);
+    if (lang < 35) return null;
+    var hoek = Math.atan2(dy, dx);
+    var stap = Math.PI / 4;
+    var netjes = Math.round(hoek / stap) * stap;
+    if (Math.abs(hoek - netjes) > 12 * Math.PI / 180) return null;  // te schuin
+    return { t: streek.t, p: rondAf([p[0],
+      [p[0][0] + Math.cos(netjes) * lang, p[0][1] + Math.sin(netjes) * lang]]) };
+  }
+
+  function vormNaam(vorm) {
+    if (vorm.t === 'lijn') return 'rechte lijn';
+    if (vorm.t === 'pijl') return 'pijl';
+    if (vorm.t === 'rect') {
+      return Math.abs(vorm.p[1][0] - vorm.p[0][0]) === Math.abs(vorm.p[1][1] - vorm.p[0][1])
+        ? 'vierkant' : 'rechthoek';
+    }
+    if (vorm.recht) return 'driehoek';
+    var vak = omhullende(vorm.p);
+    return Math.abs(vak.b - vak.h) < 1 ? 'cirkel' : 'ovaal';
+  }
+
+  /* ─── stil blijven staan ──────────────────────────────────── */
+
+  var vastKlok = null;
+  var vastPunt = null;
+  var vastGemeld = '';
+  var vastMeldKlok = null;
+
+  function vastKlokStop() {
+    if (vastKlok) { clearTimeout(vastKlok); vastKlok = null; }
+    vastPunt = null;
+  }
+
+  function vastKlokStart(fotoId, punt) {
+    vastKlokStop();
+    if (!bezig || bezig.gum) return;
+    vastPunt = punt;
+    vastKlok = setTimeout(function () { pasVormToe(fotoId); }, VAST_MS);
+  }
+
+  function vastKlokBij(fotoId, punt) {
+    if (!vastPunt) { vastKlokStart(fotoId, punt); return; }
+    if (afst(punt, vastPunt) < VAST_SPELING) return;   // staat nog stil genoeg
+    vastKlokStart(fotoId, punt);
+  }
+
+  function pasVormToe(fotoId) {
+    vastKlok = null;
+    if (!bezig || bezig.gum || bezig.vast) return;
+    var foto = fotoVan(fotoId);
+    var s = foto && foto.inkt[lopendeIndex];
+    if (!s) return;
+    var vorm = s.t === 'pen' ? herkenVorm(s.p, s.t) : rechtTrekken(s);
+    if (!vorm) return;
+    s.t = vorm.t;
+    s.p = vorm.p;
+    if (vorm.recht) s.recht = true; else delete s.recht;
+    bezig.vast = true;
+    tekenStreken(fotoId);
+    meldVorm(fotoId, vormNaam(vorm));
+  }
+
+  // Even laten zien wát er van gemaakt is; anders weet je niet of het
+  // vasthouden werkte.
+  function meldVorm(fotoId, naam) {
+    vastGemeld = naam;
+    tekenBalk(fotoId);
+    if (vastMeldKlok) clearTimeout(vastMeldKlok);
+    vastMeldKlok = setTimeout(function () {
+      vastGemeld = '';
+      tekenBalk(fotoId);
+    }, 2000);
+  }
+
+  window.herkenVorm = herkenVorm;
+
   /* ─── invoer ───────────────────────────────────────────────── */
 
   function plek(e, svg) {
@@ -346,6 +691,7 @@
       } else {
         tekenStreken(fotoId);
       }
+      vastKlokStart(fotoId, punt);
     });
 
     svg.addEventListener('pointermove', function (e) {
@@ -369,6 +715,10 @@
       if (!bezig || actief !== fotoId) return;
       e.preventDefault();
       if (bezig.gum) { gum(e, fotoId); return; }
+      // Vastgezet door de vormherkenning: verder bewegen verandert er niets
+      // meer aan. Loslaten en opnieuw beginnen als het toch anders moet.
+      if (bezig.vast) return;
+      vastKlokBij(fotoId, plek(e, svg));
 
       if (bezig.t === 'pen') {
         // Een snelle veeg levert meerdere metingen per beeldopbouw op.
@@ -394,6 +744,7 @@
     });
 
     function klaar(e) {
+      vastKlokStop();
       if (sleep) {
         try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
         if (verplaatst) {
@@ -924,8 +1275,19 @@
           : (stuk === 'tekst' ? 'Tik op de foto waar de tekst moet komen'
             : 'Pen tekent, vinger schuift')));
 
+    // Vasthouden werkt bij pen, lijn, pijl en rechthoek. Bij selecteren,
+    // tekst en de gum valt die uitleg weg; daar doet hij niets.
+    var vormStukken = ['pen', 'lijn', 'pijl', 'rect'];
+    var vormhint = (vormStukken.indexOf(stuk) >= 0 && !bewerk && !gekozenStreek)
+      ? '<span class="tk-vormhint" title="Teken de vorm en blijf even stilstaan ' +
+        'voordat je loslaat">\u24d8 Hou vast voor nette vormen en lijnen</span>'
+      : '';
+    var gemaakt = vastGemeld
+      ? '<span class="tk-vormklaar">\u2713 ' + esc(vastGemeld) + ' gemaakt</span>' : '';
+
     balk.style.display = 'flex';
     balk.innerHTML = stukken + kleuren + diktes + tekstOpties + algemeen + selectie +
+      vormhint + gemaakt +
       '<label class="tk-vinger"><input type="checkbox"' + (vingerTekent ? ' checked' : '') +
         ' onchange="tekenKies(\'' + fotoId + '\',\'vinger\')"> Met vinger tekenen</label>' +
       '<span class="tk-info">' + inkt(foto).length + ' onderdelen · ' + hint + '</span>';

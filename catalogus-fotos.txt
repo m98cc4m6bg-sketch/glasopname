@@ -6,12 +6,12 @@
 byzanthijn-fijn-blank https://cdn.prod.website-files.com/6019655a1c11ba0ad4b7bf0c/62a9f5b3bb84e4aa711ac078_628606a8fc8920fdc067cc24_Byzanthijn_fijn-blank.jpeg
 byzanthijn-grof-blank https://cdn.prod.website-files.com/6019655a1c11ba0ad4b7bf0c/62a9f5b3dafe762813af5e8a_628606f7140ad39a55b20649_Byzanthijn_grof_blank.jpeg
 canale-blank https://cdn.prod.website-files.com/6019655a1c11ba0ad4b7bf0c/62a9f5b351b440295d3c7210_628608f2b9b676f8d8622858_Canale_Blank.jpeg
-# Canale mat blank — de bron-URL van deze foto heb ik niet kunnen ophalen;
-# de showroom van Van Noordenne liet zich hier niet lezen. Zet de URL van
-# 'Canale mat blank' uit de showroom hieronder en haal het commentaarteken
-# weg, of zet de foto zelf als catalogus/canale-mat-blank.jpg neer. Zonder
-# foto toont de kaart netjes 'foto ontbreekt'; de soort is gewoon kiesbaar.
-# canale-mat-blank <URL uit de showroom>
+# Canale mat blank — de showroom van Van Noordenne en die van Glasdiscount
+# lieten zich hier niet uitlezen, dus deze foto komt van JLM Glas. Heb je
+# liever die van Noordenne of Glasdiscount: vervang de URL hieronder, of zet
+# de foto zelf neer als catalogus/canale-mat-blank.jpg. Zonder foto toont de
+# kaart netjes 'foto ontbreekt'; de soort is gewoon kiesbaar.
+canale-mat-blank https://www.jlmglas.nl/images/product_new/canale-mat-blank.jpg
 carre-blank-13x13 https://cdn.prod.website-files.com/6019655a1c11ba0ad4b7bf0c/69d8e8da7d17ee9ca3f0f873_Noordenne%20Glas%20web-6.jpg
 cathedraal-groot-gehamerd https://cdn.prod.website-files.com/6019655a1c11ba0ad4b7bf0c/62a9f5b3348678a6c29254b5_628609b19c3a6fca1336d24f_Cathedraal_groot_gehamerd-brute_blank_4mm.jpeg
 cathedraal-klein-duits https://cdn.prod.website-files.com/6019655a1c11ba0ad4b7bf0c/62a9f5b3163e39b6eb574760_628609e991967676398a575f_Cathedraal_klein_duits_blank.jpeg

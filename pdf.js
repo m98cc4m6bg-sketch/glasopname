@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v76';
+  var PDF_VERSIE = 'v78';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -206,19 +206,50 @@
       // Tekst op de foto: alleen de letters, met een dunne rand eromheen
       // zodat hij ook op een drukke gevel leesbaar blijft.
       if (s.t === 'tekst') {
-        var mm = (s.g || (s.d || 6) * 6) * mmPerEenheid;
+        // Tekst staat sinds v77 in een vak met een eigen breedte en hoogte.
+        // Dat vak is een harde grens: de tekst breekt erbinnen af en wat er
+        // niet in past komt niet op papier — precies zoals op het scherm.
+        // teken.js zet het vak zo nodig eerst goed voor tekst uit een ouder
+        // project; ontbreekt dat bestand, dan blijft het bij één regel.
+        if (window.tekstVakNorm) window.tekstVakNorm(s);
+        var g = s.g || (s.d || 6) * 6;
+        var mm = g * mmPerEenheid;
         doc.setFont('helvetica', s.vet === false ? (s.schuin ? 'italic' : 'normal')
                                                  : (s.schuin ? 'bolditalic' : 'bold'));
         doc.setFontSize(Math.max(4, mm * 2.8346));
-        var tx = x + s.p[0][0] * sx, ty = y + s.p[0][1] * sy + mm * 0.35;
         var rand = kleurNaarRgb((0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) > 150 ? '#1d1d1b' : '#ffffff');
-        doc.setTextColor(rand[0], rand[1], rand[2]);
         var d = Math.max(0.12, mm * 0.05);
-        [[-d, 0], [d, 0], [0, -d], [0, d]].forEach(function (v) {
-          doc.text(schoon(s.tx), tx + v[0], ty + v[1]);
-        });
+        var pad = s.w ? mm * 0.18 : 0;
+        var lh = mm * 1.2;
+        var regels;
+        if (s.w) {
+          var ruimte = Math.max(1, s.w * mmPerEenheid - pad * 2);
+          regels = [];
+          String(s.tx == null ? '' : s.tx).split('\n').forEach(function (alinea) {
+            regels = regels.concat(doc.splitTextToSize(schoon(alinea), ruimte));
+          });
+          var past = Math.max(1, Math.floor((s.h * mmPerEenheid - pad * 2) / lh + 0.2));
+          regels = regels.slice(0, past);
+        } else {
+          regels = [schoon(s.tx)];
+        }
+        var tx = x + s.p[0][0] * sx + pad;
+        // Dezelfde basislijn als op het scherm: halve regelsprong plus
+        // stokhoogte, zie BASISLIJN in teken.js.
+        var basis = window.TEKST_BASISLIJN || 1.0;
+        var ty0 = y + s.p[0][1] * sy + (s.w ? pad + mm * basis : mm * 0.35);
+        // De rand om de letters: één keer tekenen met vulling én omlijning.
+        // Vroeger stond elke regel vijf keer op papier, vier keer een
+        // haartje verschoven. Dat zag er goed uit, maar in de tekstlaag van
+        // de pdf stond dan 'KKKKKooooozzzzz…' — onleesbaar zodra je de tekst
+        // wilt zoeken of kopiëren.
         doc.setTextColor(rgb[0], rgb[1], rgb[2]);
-        doc.text(schoon(s.tx), tx, ty);
+        doc.setDrawColor(rand[0], rand[1], rand[2]);
+        doc.setLineWidth(Math.max(0.1, d * 0.9));
+        regels.forEach(function (regel, i) {
+          doc.text(regel, tx, ty0 + i * lh, { renderingMode: 'fillThenStroke' });
+        });
+        doc.setLineWidth(0.2);
         return;
       }
 

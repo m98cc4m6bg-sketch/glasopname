@@ -1161,7 +1161,10 @@
     background: var(--grijs-licht); border: 1px solid var(--grijs-rand);
     border-radius: var(--radius); padding: 7px 10px; margin: 8px 0;
   }
-  .tk-groep { display: flex; align-items: center; gap: 4px; }
+  /* De groep gereedschappen moet mee kunnen afbreken: met acht knoppen past
+     hij op een telefoon niet meer op één regel en liep hij anders buiten de
+     balk door. */
+  .tk-groep { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
   .tk-knop {
     min-width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
     background: white; border: 1px solid var(--grijs-rand); border-radius: var(--radius);
@@ -1368,15 +1371,11 @@
     background: var(--grijs-licht);
     box-shadow: 0 2px 8px rgba(29,29,27,0.10);
   }
-  /* Zodra hij werkelijk vastzit, neemt hij de strook onder de statusbalk
-     mee: iOS 26 vervaagt die strook, en met deze ruimte valt de vervaging
-     op de eigen achtergrond van de balk in plaats van op de tabbladen.
-     Op een iPad of laptop is --ios-band nul en verandert er niets. */
-  body.kop-vast .vaste-kop { padding-top: var(--ios-band, 0px); }
-  /* Staat de gele balk open, dan is díe het bovenste blok en hoort de
-     ruimte daar. */
-  body.kop-vast.bulk-open .vaste-kop { padding-top: 0; }
-  body.kop-vast.bulk-open .bulk-balk { padding-top: calc(7px + var(--ios-band, 0px)); }
+  /* Zodra hij werkelijk vastzit valt de schaduw op; daarvóór hoort hij bij
+     de pagina. Bewust géén extra ruimte meer bovenin: die strook (bedoeld
+     voor de vervaging van iOS 26) las als een gat waar de kop halverwege
+     bleef hangen. De balk staat nu pal tegen de rand. */
+  body.kop-vast .vaste-kop { box-shadow: 0 4px 12px rgba(29,29,27,0.16); }
   #kopAnker { height: 1px; margin-bottom: -1px; }
   @media print {
     .vaste-kop { position: static; box-shadow: none; padding-top: 0; }
@@ -1388,24 +1387,38 @@
      Links de greep om te verplaatsen, rechts die om te schalen. */
   .tk-vak {
     position: absolute; z-index: 8;
-    transform: translateY(-50%);
-    display: flex; align-items: center; gap: 5px;
-    line-height: 1; white-space: nowrap;
+    /* De linkerbovenhoek van het vak ligt op p[0] van de tekst; breedte en
+       hoogte worden in beeldpunten gezet vanuit plaatsVak(). */
   }
+  /* Het veld zelf wordt op ware grootte getekend en daarna gekrompen, zodat
+     Safari op een iPhone niet inzoomt bij letters kleiner dan 16 px. De
+     grepen zitten bewust buiten dit vlak: die moeten hun eigen maat houden. */
+  .tk-vak-schaal { transform-origin: top left; }
   .tk-vak-veld {
+    display: block; width: 100%; height: 100%;
+    box-sizing: border-box;
     font-family: 'Segoe UI', Arial, sans-serif;
     background: rgba(255,255,255,0.16);
-    border: 2px dashed var(--merk);
+    border: none;
+    /* De stippelrand met `outline` in plaats van `border`: een rand telt mee
+       in de hoogte van het veld, waardoor er net geen regel meer in past en
+       het veld gaat schuiven. Een outline neemt geen ruimte in, dus de maat
+       van het vak op het scherm is precies die van de tekst in de pdf.
+       Hij vervangt meteen de focusring, die we hier niet willen. */
+    outline: 2px dashed var(--merk); outline-offset: -2px;
     border-radius: 4px;
-    padding: 2px 6px;
-    outline: none;
-    min-width: 60px;
-    line-height: 1.2;
+    resize: none; overflow: hidden;
     caret-color: var(--merk);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  /* Verplaatsen en klaar staan in een balkje bóven het vak; de maatgreep
+     zit schuin onder de rechterhoek. Zo dekt er nooit iets de tekst af. */
+  .tk-vak-knoppen {
+    position: absolute; left: 0; bottom: 100%; margin-bottom: 6px;
+    display: flex; gap: 6px;
   }
   .tk-vak-greep, .tk-vak-klaar {
-    flex: 0 0 auto;
-    width: 30px; height: 30px; padding: 0;
+    width: 28px; height: 28px; padding: 0;
     display: inline-flex; align-items: center; justify-content: center;
     background: white; border: 1px solid var(--grijs-rand); border-radius: 50%;
     font-size: 14px; line-height: 1; color: var(--blauw);
@@ -1415,9 +1428,14 @@
     touch-action: none;
     -webkit-user-select: none; user-select: none;
   }
-  .tk-vak-klaar { background: var(--merk); border-color: var(--merk); color: white; }
+  /* Staat het vak boven in de foto, dan is er geen ruimte boven: het balkje
+     klapt dan naar onderen, zodat de knoppen altijd bereikbaar blijven. */
+  .tk-vak-onder .tk-vak-knoppen {
+    bottom: auto; top: 100%; margin-bottom: 0; margin-top: 6px;
+  }
   .tk-vak-sleep { cursor: move; }
-  .tk-vak-maat { cursor: nwse-resize; }
+  .tk-vak-klaar { background: var(--merk); border-color: var(--merk); color: white; }
+  .tk-vak-maat  { position: absolute; right: -18px; bottom: -18px; cursor: nwse-resize; }
   .tk-knop .tk-a { font-size: 16px; font-weight: 800; line-height: 1; }
 
   .tk-knop svg { display: block; pointer-events: none; }
@@ -2210,7 +2228,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v76';
+const APP_VERSIE = 'v78';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

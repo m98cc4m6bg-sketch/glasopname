@@ -45,6 +45,14 @@
     '<path d="M11 9.6 L21 14.1 L16.4 15.3 L18.7 20.1 L16.4 21.2 L14.1 16.3 L11 19.5 Z" ' +
     'fill="currentColor" stroke="#fff" stroke-width="1.15" stroke-linejoin="round"/></svg>';
 
+  // De lasso: een stippellus met een staartje, zoals in een notitie-app.
+  var LASSO_ICOON =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+    '<ellipse cx="12" cy="9.2" rx="8.6" ry="6.2" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-dasharray="3 2.4"/>' +
+    '<path d="M9.2 14.9 C8.4 17.9 10 19.9 12.4 21.2" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round"/></svg>';
+
   var GUM_ICOON =
     '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
     '<g transform="rotate(-38 12 12)">' +
@@ -55,6 +63,7 @@
 
   var GEREEDSCHAP = [
     { id: 'kies', teken: KIES_ICOON, naam: 'Selecteren' },
+    { id: 'lasso', teken: LASSO_ICOON, naam: 'Meerdere kiezen' },
     { id: 'pen',  teken: '✏️', naam: 'Pen' },
     { id: 'lijn', teken: '╱',  naam: 'Rechte lijn' },
     { id: 'pijl', teken: '➔',  naam: 'Pijl' },
@@ -74,9 +83,14 @@
   var grootte = 40;       // lettergrootte voor nieuwe tekst
   var vet = true;
   var schuin = false;
-  var gekozen = -1;       // welke streek geselecteerd is, -1 = geen
+  // De selectie. `keuze` is de volledige lijst; `gekozen` is het eerste lid
+  // en blijft bestaan omdat de balk daaraan aflezen moet welke kleur, dikte
+  // en lettergrootte er op dit moment gelden.
+  var keuze = [];
+  var gekozen = -1;       // eerste geselecteerde streek, -1 = geen
+  var lasso = null;       // lopende omcirkeling met het lassogereedschap
   var metPen = false;     // laatste aanraking kwam van een pen of muis
-  var sleep = null;       // bezig met verslepen van een geselecteerd onderdeel
+  var sleep = null;       // bezig met verslepen of schalen van de selectie
   var verplaatst = false;
   var bezig = null;       // lopende streek
   var lopendeIndex = -1;
@@ -157,22 +171,127 @@
     return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#1d1d1b' : '#ffffff';
   }
 
+  // ── TEKSTVAK ──
+  // Een tekst is een vak met een linkerbovenhoek (p[0]), een breedte (w) en
+  // een hoogte (h). De lettergrootte (g) staat daar los van: het vak is een
+  // harde grens waarbinnen de tekst afbreekt, zoals in Notability. Maak je
+  // het vak smaller, dan wordt de zin langer; maak je het hoger en smal, dan
+  // staat hij onder elkaar. De letters blijven even groot.
+  var REGELHOOGTE = 1.2;     // regelafstand als deel van de lettergrootte
+  var TEKSTRAND = 0.18;      // binnenruimte, ook als deel daarvan
+  var TEKST_MAXB = 780;      // waarboven een nieuw vak zelf gaat afbreken
+  // Waar de basislijn van de eerste regel ligt, gerekend vanaf de bovenkant
+  // van de binnenruimte. Een browser zet die op de halve regelsprong plus de
+  // stokhoogte van het lettertype: (1.2 − 1) / 2 + 0.9. Dezelfde waarde
+  // gebruikt pdf.js, zodat de tekst op papier precies staat waar hij tijdens
+  // het typen stond.
+  var BASISLIJN = 1.0;
+
+  // Tekstbreedte meten met een canvas: hetzelfde lettertype als in de svg,
+  // en het werkt zonder het element eerst in de pagina te hangen.
+  var meetVlak;
+  function tekstMeet(str, s) {
+    if (meetVlak === undefined) {
+      var c = document.createElement('canvas');
+      meetVlak = (c && c.getContext) ? c.getContext('2d') : null;
+    }
+    var g = s.g || 40;
+    if (!meetVlak) return String(str).length * g * 0.55;   // ruwe terugval
+    meetVlak.font = (s.schuin ? 'italic ' : '') +
+      (s.vet === false ? '400 ' : '700 ') + g + "px 'Segoe UI', Arial, sans-serif";
+    return meetVlak.measureText(String(str)).width;
+  }
+
+  // Alles wat de tekst aan regels oplevert binnen de breedte van het vak.
+  // Een eigen regeleinde blijft een regeleinde; een woord dat zelf te lang
+  // is wordt hard afgebroken, anders zou het buiten het vak steken.
+  function tekstRegels(s) {
+    var g = s.g || 40;
+    var max = Math.max(g * 0.8, (s.w || g * 6) - g * TEKSTRAND * 2);
+    var uit = [];
+    String(s.tx == null ? '' : s.tx).split('\n').forEach(function (alinea) {
+      var regel = '';
+      alinea.split(' ').forEach(function (woord) {
+        var proef = regel ? regel + ' ' + woord : woord;
+        if (regel && tekstMeet(proef, s) > max) { uit.push(regel); regel = woord; }
+        else regel = proef;
+        while (tekstMeet(regel, s) > max && regel.length > 1) {
+          var knip = regel.length - 1;
+          while (knip > 1 && tekstMeet(regel.slice(0, knip), s) > max) knip--;
+          uit.push(regel.slice(0, knip));
+          regel = regel.slice(knip);
+        }
+      });
+      uit.push(regel);
+    });
+    return uit;
+  }
+
+  // Hoeveel regels er werkelijk in het vak passen. De rest wordt niet
+  // getekend: het vak is een grens, geen suggestie.
+  function tekstPassend(s) {
+    var g = s.g || 40;
+    var ruimte = (s.h || g * 1.5) - g * TEKSTRAND * 2;
+    var n = Math.max(1, Math.floor(ruimte / (g * REGELHOOGTE) + 0.2));
+    return tekstRegels(s).slice(0, n);
+  }
+
+  // Het vak op maat van de tekst. Gebeurt alleen zolang je het vak niet
+  // zelf hebt versleept: daarna bepaal jíj de vorm.
+  function tekstPas(s) {
+    if (s.vast) return;
+    var g = s.g || 40;
+    var langste = 0;
+    String(s.tx == null ? '' : s.tx).split('\n').forEach(function (a) {
+      langste = Math.max(langste, tekstMeet(a, s));
+    });
+    s.w = Math.round(Math.min(TEKST_MAXB,
+      Math.max(g * 2.2, langste + g * TEKSTRAND * 2 + g * 0.25)));
+    s.h = Math.round(tekstRegels(s).length * g * REGELHOOGTE + g * TEKSTRAND * 2);
+  }
+
+  // Tekst uit een project van vóór v77 heeft nog geen vak. Toen stond p[0]
+  // op het midden van de enige regel; nu is het de linkerbovenhoek. Deze
+  // verschuiving houdt oude tekeningen op hun plek.
+  function tekstNorm(s) {
+    if (!s || s.t !== 'tekst') return s;
+    if (s.w && s.h) return s;
+    var g = s.g || (s.d || 6) * 6;
+    s.p[0] = [Math.round((s.p[0][0] - g * TEKSTRAND) * 10) / 10,
+              Math.round((s.p[0][1] - g * 0.65) * 10) / 10];
+    s.vast = false;
+    tekstPas(s);
+    return s;
+  }
+  window.tekstVakNorm = tekstNorm;
+  window.tekstRegels = tekstRegels;
+  window.tekstPassend = tekstPassend;
+  window.TEKST_BASISLIJN = BASISLIJN;
+
   function maakTekst(streek, index) {
+    tekstNorm(streek);
+    var g = streek.g || 40;
+    var pad = g * TEKSTRAND;
+    var lh = g * REGELHOOGTE;
     var el = document.createElementNS(NS, 'text');
-    el.setAttribute('x', streek.p[0][0]);
-    el.setAttribute('y', streek.p[0][1]);
-    el.setAttribute('dy', '0.35em');
     el.setAttribute('fill', streek.k);
     el.setAttribute('stroke', lichtOfDonker(streek.k));
-    el.setAttribute('stroke-width', Math.max(1, streek.d * 0.28));
+    el.setAttribute('stroke-width', Math.max(1, (streek.d || 6) * 0.28));
     el.setAttribute('paint-order', 'stroke fill');
     el.setAttribute('stroke-linejoin', 'round');
-    el.setAttribute('font-size', streek.g || streek.d * 6);
+    el.setAttribute('font-size', g);
     el.setAttribute('font-family', "'Segoe UI', Arial, sans-serif");
     el.setAttribute('font-weight', streek.vet === false ? '400' : '700');
     if (streek.schuin) el.setAttribute('font-style', 'italic');
     el.setAttribute('data-streek', index);
-    el.textContent = streek.tx || '';
+    var x = streek.p[0][0] + pad;
+    tekstPassend(streek).forEach(function (r, i) {
+      var t = document.createElementNS(NS, 'tspan');
+      t.setAttribute('x', x);
+      t.setAttribute('y', streek.p[0][1] + pad + i * lh + g * BASISLIJN);
+      t.textContent = r;
+      el.appendChild(t);
+    });
     return el;
   }
 
@@ -240,7 +359,14 @@
       svg.appendChild(maakPad(s, i));
       if (s.t === 'pijl' && s.p.length > 1) svg.appendChild(pijlpunt(s, i));
     });
-    if (gekozen >= inkt(foto).length) gekozen = -1;
+    // Onderdelen kunnen tussendoor verdwenen zijn (ongedaan maken, wissen);
+    // een selectie die daar nog naar wijst moet mee opschonen.
+    var aantal = inkt(foto).length;
+    if (keuze.some(function (i) { return i >= aantal; })) {
+      keuze = keuze.filter(function (i) { return i < aantal; });
+      gekozen = keuze.length ? keuze[0] : -1;
+    }
+    if (gekozen >= aantal) gekozen = -1;
     // Tijdens het typen staat de tekst in het invoervak; twee keer dezelfde
     // letters over elkaar leest niet.
     if (bewerk && bewerk.fotoId === fotoId) {
@@ -262,6 +388,84 @@
 
   function afst(a, b) {
     return Math.sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
+  }
+
+  function rond(n) { return Math.round(n * 10) / 10; }
+
+  /* ─── vakken om de selectie ────────────────────────────────── */
+  // Eén manier om te bepalen hoe groot iets is, gebruikt door het kader,
+  // het schalen en de lasso. Bij tekst is dat het tekstvak zelf en niet de
+  // omhullende van de letters: daar sleep je immers aan.
+
+  function vakVanPunten(p) {
+    var x1 = p[0][0], y1 = p[0][1], x2 = x1, y2 = y1;
+    p.forEach(function (q) {
+      if (q[0] < x1) x1 = q[0];
+      if (q[0] > x2) x2 = q[0];
+      if (q[1] < y1) y1 = q[1];
+      if (q[1] > y2) y2 = q[1];
+    });
+    return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+  }
+
+  function vakVanStreek(s) {
+    if (!s || !s.p || !s.p.length) return null;
+    if (s.t === 'tekst') {
+      tekstNorm(s);
+      return { x: s.p[0][0], y: s.p[0][1], w: s.w, h: s.h };
+    }
+    return vakVanPunten(s.p);
+  }
+
+  function vakSamen(vakken) {
+    var g = null;
+    vakken.forEach(function (v) {
+      if (!v) return;
+      if (!g) { g = { x: v.x, y: v.y, w: v.w, h: v.h }; return; }
+      var x2 = Math.max(g.x + g.w, v.x + v.w), y2 = Math.max(g.y + g.h, v.y + v.h);
+      g.x = Math.min(g.x, v.x);
+      g.y = Math.min(g.y, v.y);
+      g.w = x2 - g.x;
+      g.h = y2 - g.y;
+    });
+    return g;
+  }
+
+  /* ─── lasso: ligt dit onderdeel binnen de lus? ─────────────── */
+
+  function inVeelhoek(q, veel) {
+    var binnen = false;
+    for (var i = 0, j = veel.length - 1; i < veel.length; j = i++) {
+      var a = veel[i], b = veel[j];
+      if ((a[1] > q[1]) !== (b[1] > q[1]) &&
+          q[0] < (b[0] - a[0]) * (q[1] - a[1]) / (b[1] - a[1]) + a[0]) binnen = !binnen;
+    }
+    return binnen;
+  }
+
+  // Waar we op proeven. Een rechthoek en een tekstvak zijn in de gegevens
+  // maar twee punten; die zou je met een lus om het midden al te pakken
+  // hebben. Daarom tellen daar de vier hoeken en het midden mee.
+  function proefPunten(s) {
+    if (s.t === 'tekst' || s.t === 'rect') {
+      var v = vakVanStreek(s);
+      if (!v) return [];
+      return [[v.x, v.y], [v.x + v.w, v.y], [v.x, v.y + v.h], [v.x + v.w, v.y + v.h],
+              [v.x + v.w / 2, v.y + v.h / 2]];
+    }
+    return s.p || [];
+  }
+
+  // Zeven van de tien punten binnen de lus is genoeg. Helemaal omcirkelen
+  // lukt op een telefoon zelden precies, en een streek die er half in ligt
+  // wil je meestal wél mee hebben.
+  var LASSO_DEEL = 0.7;
+  function inLasso(s, veel) {
+    var p = proefPunten(s);
+    if (!p.length) return false;
+    var raak = 0;
+    for (var i = 0; i < p.length; i++) if (inVeelhoek(p[i], veel)) raak++;
+    return raak / p.length >= LASSO_DEEL;
   }
 
   function padLengte(p) {
@@ -613,7 +817,7 @@
     // Selecteren en verslepen is geen tekenen: dat moet ook met een vinger
     // kunnen zonder dat je eerst een vinkje omzet. Voor tekst geldt
     // hetzelfde: je zet een tekstvak met je vinger neer.
-    if (stuk === 'kies' || stuk === 'tekst') return true;
+    if (stuk === 'kies' || stuk === 'lasso' || stuk === 'tekst') return true;
     if (e.pointerType === 'pen' || e.pointerType === 'mouse') return true;
     return vingerTekent;
   }
@@ -637,7 +841,7 @@
           if (e.touches[i].touchType === 'stylus') pen = true;
         }
       }
-      if (!vingerTekent && !pen && stuk !== 'kies' && stuk !== 'tekst') return;
+      if (!vingerTekent && !pen && stuk !== 'kies' && stuk !== 'lasso' && stuk !== 'tekst') return;
       e.preventDefault();
     }
     svg.addEventListener('touchstart', houdTegen, { passive: false });
@@ -652,25 +856,38 @@
       try { svg.setPointerCapture(e.pointerId); } catch (err) {}
 
       var punt = plek(e, svg);
-      if (stuk === 'kies') {
-        // Een greep vastpakken versleept wat er geselecteerd is.
+
+      // Een greep vastpakken verplaatst of schaalt wat er geselecteerd is —
+      // of je nu met het keuze- of met het lassogereedschap werkt.
+      if ((stuk === 'kies' || stuk === 'lasso') && keuze.length) {
         var onder = document.elementFromPoint(e.clientX, e.clientY);
-        if (gekozen >= 0 && onder && onder.hasAttribute && onder.hasAttribute('data-greep')) {
-          var g = fotoVan(fotoId).inkt[gekozen];
-          sleep = { index: gekozen, start: punt, oorsprong: g.p.map(function (q) { return q.slice(); }) };
+        if (onder && onder.hasAttribute && onder.hasAttribute('data-greep')) {
+          sleep = grijpSelectie(fotoId, punt, onder.getAttribute('data-greep') === 'maat');
           try { svg.setPointerCapture(e.pointerId); } catch (err) {}
           return;
         }
+      }
+
+      if (stuk === 'lasso') {
+        lasso = { fotoId: fotoId, p: [punt] };
+        zetKeuze(fotoId, []);
+        tekenLasso(fotoId);
+        return;
+      }
+
+      if (stuk === 'kies') {
         var gevonden = zoekStreek(fotoId, e);
+        // Nog een keer tikken op tekst die al geselecteerd is opent hem om
+        // te bewerken — zoals in een notitie-app. Zo hoef je niet eerst de
+        // ✎-knop in de balk te zoeken.
+        if (gevonden >= 0 && keuze.length === 1 && gevonden === gekozen) {
+          var al = fotoVan(fotoId).inkt[gevonden];
+          if (al && al.t === 'tekst') { selectieTekst(fotoId); return; }
+        }
         kiesStreek(fotoId, gevonden);
         // Meteen kunnen slepen: aanklikken en verplaatsen is één beweging.
         if (gevonden >= 0) {
-          var s = fotoVan(fotoId).inkt[gevonden];
-          sleep = {
-            index: gevonden,
-            start: punt,
-            oorsprong: s.p.map(function (q) { return q.slice(); })
-          };
+          sleep = grijpSelectie(fotoId, punt, false);
           try { svg.setPointerCapture(e.pointerId); } catch (err) {}
         }
         return;
@@ -695,19 +912,31 @@
     });
 
     svg.addEventListener('pointermove', function (e) {
-      // Een geselecteerd onderdeel verslepen.
+      // Bezig met omcirkelen.
+      if (lasso && actief === fotoId) {
+        e.preventDefault();
+        var q = plek(e, svg);
+        var eind = lasso.p[lasso.p.length - 1];
+        if (Math.abs(q[0] - eind[0]) + Math.abs(q[1] - eind[1]) < 2) return;
+        lasso.p.push(q);
+        tekenLasso(fotoId);
+        return;
+      }
+      // De selectie verslepen of schalen.
       if (sleep && actief === fotoId) {
         e.preventDefault();
         var nu = plek(e, svg);
         var dx = nu[0] - sleep.start[0], dy = nu[1] - sleep.start[1];
-        var s = fotoVan(fotoId).inkt[sleep.index];
-        if (!s) { sleep = null; return; }
+        if (!sleep.leden.length) { sleep = null; return; }
         // De momentopname moet vóór de eerste verplaatsing gemaakt worden,
         // anders zet ongedaan maken het onderdeel terug op de nieuwe plek.
-        if (!verplaatst && window.bewaarStap) bewaarStap('Onderdeel verplaatst');
-        s.p = sleep.oorsprong.map(function (q) {
-          return [Math.round((q[0] + dx) * 10) / 10, Math.round((q[1] + dy) * 10) / 10];
-        });
+        if (!verplaatst && window.bewaarStap) {
+          var wat = sleep.leden.length > 1 ? 'Selectie' : 'Onderdeel';
+          bewaarStap(wat + (sleep.maat ? ' geschaald' : ' verplaatst'));
+        }
+        var foto2 = fotoVan(fotoId);
+        if (sleep.maat) schaalSelectie(foto2, sleep, dx, dy);
+        else verplaatsSelectie(foto2, sleep, dx, dy);
         verplaatst = true;
         tekenStreken(fotoId);   // tekent ook het kader en de grepen opnieuw
         return;
@@ -745,6 +974,18 @@
 
     function klaar(e) {
       vastKlokStop();
+      if (lasso) {
+        try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
+        var lus = lasso.p;
+        lasso = null;
+        wisLasso(fotoId);
+        // Een tik zonder lus is gewoon 'niets selecteren'.
+        if (lus.length < 6) { zetKeuze(fotoId, []); tekenBalk(fotoId); return; }
+        var binnen = [];
+        inkt(fotoVan(fotoId)).forEach(function (s, i) { if (inLasso(s, lus)) binnen.push(i); });
+        zetKeuze(fotoId, binnen);
+        return;
+      }
       if (sleep) {
         try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
         if (verplaatst) {
@@ -811,18 +1052,51 @@
     return -1;
   }
 
+  // De lus die je met het lassogereedschap trekt. Wit eronder, zwart
+  // gestippeld erover: zichtbaar op een lichte én op een donkere foto.
+  function wisLasso(fotoId) {
+    var svg = el('inkt-' + fotoId);
+    if (!svg) return;
+    Array.prototype.forEach.call(svg.querySelectorAll('[data-lasso]'), function (n) { n.remove(); });
+  }
+
+  function tekenLasso(fotoId) {
+    var svg = el('inkt-' + fotoId);
+    if (!svg || !lasso || !lasso.p.length) return;
+    wisLasso(fotoId);
+    var d = 'M' + lasso.p.map(function (q) { return q[0] + ' ' + q[1]; }).join('L') + 'Z';
+    [{ k: '#ffffff', w: 3.5, s: null }, { k: '#1d1d1b', w: 2, s: '9 7' }].forEach(function (laag) {
+      var pad = document.createElementNS(NS, 'path');
+      pad.setAttribute('d', d);
+      pad.setAttribute('fill', 'rgba(255,255,255,0.10)');
+      pad.setAttribute('stroke', laag.k);
+      pad.setAttribute('stroke-width', laag.w);
+      if (laag.s) pad.setAttribute('stroke-dasharray', laag.s);
+      pad.setAttribute('vector-effect', 'non-scaling-stroke');
+      pad.setAttribute('pointer-events', 'none');
+      pad.setAttribute('data-lasso', '1');
+      svg.appendChild(pad);
+    });
+  }
+
   function tekenKader(fotoId) {
     var svg = el('inkt-' + fotoId);
     if (!svg) return;
     Array.prototype.forEach.call(svg.querySelectorAll('[data-kader]'), function (k) { k.remove(); });
-    if (gekozen < 0) return;
+    if (!keuze.length) return;
     // Bij een tekst die op dit moment getypt wordt is het invoervak zelf
     // het kader; twee omlijningen over elkaar wordt rommelig.
-    if (bewerk && bewerk.fotoId === fotoId && bewerk.index === gekozen) return;
-    var node = elementVan(fotoId, gekozen);
-    if (!node || !node.getBBox) return;
-    var b;
-    try { b = node.getBBox(); } catch (err) { return; }
+    if (bewerk && bewerk.fotoId === fotoId && keuze.length === 1 && bewerk.index === keuze[0]) return;
+    var foto = fotoVan(fotoId);
+    var vakken = [];
+    keuze.forEach(function (i) {
+      var v = vakVanStreek(foto.inkt[i]);
+      if (v) vakken.push(v);
+    });
+    if (!vakken.length) return;
+    var een = vakken.length === 1 ? foto.inkt[keuze[0]] : null;
+    var v0 = vakSamen(vakken);
+    var b = { x: v0.x, y: v0.y, width: v0.w, height: v0.h };
     // Hoe groot is één beeldpunt op het scherm in de maat van de tekening?
     // Daarmee houden kader en grepen dezelfde grootte, hoe ver je ook
     // in- of uitzoomt.
@@ -833,7 +1107,30 @@
     // zwarte stippellijn. Zo blijft de omlijning zichtbaar op een donkere
     // én op een lichte foto, en heeft de gekozen tekenkleur er geen
     // invloed op.
-    var m = 10;
+    var m = (een && een.t === 'tekst') ? 0 : 10;
+
+    // Bij meerdere onderdelen krijgt elk er een dun kadertje omheen, zodat
+    // je ziet wát er precies in de lasso viel. Het grote kader eromheen is
+    // waar je aan sleept.
+    if (!een) {
+      vakken.forEach(function (v) {
+        var los = document.createElementNS(NS, 'rect');
+        los.setAttribute('x', v.x - 4);
+        los.setAttribute('y', v.y - 4);
+        los.setAttribute('width', v.w + 8);
+        los.setAttribute('height', v.h + 8);
+        los.setAttribute('fill', 'none');
+        los.setAttribute('stroke', '#1d1d1b');
+        los.setAttribute('stroke-width', '1.2');
+        los.setAttribute('stroke-dasharray', '5 5');
+        los.setAttribute('opacity', '0.55');
+        los.setAttribute('vector-effect', 'non-scaling-stroke');
+        los.setAttribute('pointer-events', 'none');
+        los.setAttribute('data-kader', '1');
+        svg.appendChild(los);
+      });
+    }
+
     [{ k: '#ffffff', streep: null }, { k: '#1d1d1b', streep: '10 8' }].forEach(function (laag) {
       var kader = document.createElementNS(NS, 'rect');
       kader.setAttribute('x', b.x - m);
@@ -864,8 +1161,12 @@
       vlak.setAttribute('height', raak);
       vlak.setAttribute('fill', 'transparent');
       vlak.setAttribute('data-kader', '1');
-      vlak.setAttribute('data-greep', '1');
-      vlak.style.cursor = 'move';
+      // De hoek rechtsonder maakt groter of kleiner — bij tekst, bij een
+      // tekening, en bij een hele lasso-selectie. De andere drie hoeken
+      // verplaatsen.
+      var maat = hoek[0] === x2 && hoek[1] === y2;
+      vlak.setAttribute('data-greep', maat ? 'maat' : '1');
+      vlak.style.cursor = maat ? 'nwse-resize' : 'move';
       svg.appendChild(vlak);
 
       var blok = document.createElementNS(NS, 'rect');
@@ -884,11 +1185,17 @@
     });
   }
 
-  function kiesStreek(fotoId, index) {
-    gekozen = index;
+  // Eén plek waar de selectie gezet wordt, of het er nu één is of tien.
+  function zetKeuze(fotoId, lijst) {
+    var foto = fotoVan(fotoId);
+    var aantal = foto ? inkt(foto).length : 0;
+    keuze = (lijst || []).filter(function (i, n, a) {
+      return i >= 0 && i < aantal && a.indexOf(i) === n;
+    });
+    gekozen = keuze.length ? keuze[0] : -1;
     // De instellingen in de balk volgen wat je hebt aangeklikt, zodat je
     // ziet welke kleur en grootte het onderdeel nu heeft.
-    var s = index >= 0 ? fotoVan(fotoId).inkt[index] : null;
+    var s = gekozen >= 0 ? foto.inkt[gekozen] : null;
     if (s) {
       kleur = s.k;
       dikte = s.d;
@@ -902,27 +1209,87 @@
     tekenBalk(fotoId);
   }
 
-  window.selectieOpheffen = function (fotoId) { stopTekst(); kiesStreek(fotoId, -1); };
+  function kiesStreek(fotoId, index) {
+    zetKeuze(fotoId, index >= 0 ? [index] : []);
+  }
+
+  window.selectieOpheffen = function (fotoId) { stopTekst(); zetKeuze(fotoId, []); };
 
   window.selectieWeg = function (fotoId) {
-    if (gekozen < 0) return;
+    if (!keuze.length) return;
     var foto = fotoVan(fotoId);
-    if (bewerk && bewerk.fotoId === fotoId && bewerk.index === gekozen) sluitVak();
-    if (window.bewaarStap) bewaarStap('Onderdeel verwijderd');
-    foto.inkt.splice(gekozen, 1);
-    gekozen = -1;
+    if (bewerk && bewerk.fotoId === fotoId && keuze.indexOf(bewerk.index) >= 0) sluitVak();
+    if (window.bewaarStap) {
+      bewaarStap(keuze.length > 1 ? keuze.length + ' onderdelen verwijderd' : 'Onderdeel verwijderd');
+    }
+    // Van achter naar voren wissen, anders schuiven de volgende indexen weg
+    // onder de nog te verwijderen onderdelen.
+    keuze.slice().sort(function (a, b) { return b - a; }).forEach(function (i) {
+      foto.inkt.splice(i, 1);
+    });
+    zetKeuze(fotoId, []);
     tekenStreken(fotoId);
-    tekenBalk(fotoId);
     opslaan();
   };
 
-  /* ─── tekst: een vak op de foto zelf ───────────────────────── */
-  // Vroeger opende hier een prompt() van de browser. Dat werkte, maar je
-  // zag niet waar de tekst terechtkwam en hoe groot hij werd. Nu verschijnt
-  // het invoervak op de plek waar je tikt, in de kleur en de grootte die
-  // het straks op de foto heeft, en komt het toetsenbord meteen op.
+  /* ─── verplaatsen en schalen ───────────────────────────────── */
 
-  // Alleen het vak weghalen, zonder aan de streek te komen.
+  function verplaatsSelectie(foto, sl, dx, dy) {
+    sl.leden.forEach(function (lid) {
+      var s = foto.inkt[lid.i];
+      if (!s) return;
+      s.p = lid.p.map(function (q) { return [rond(q[0] + dx), rond(q[1] + dy)]; });
+    });
+  }
+
+  // Schalen gaat vanuit de linkerbovenhoek van de selectie: die blijft
+  // staan, de hoek rechtsonder volgt je vinger. De lijndikte en de
+  // lettergrootte veranderen niet mee — die kies je in de balk, en een
+  // kleiner gesleepte pijl hoort niet ineens een haarlijn te worden.
+  // De toestand van de hele selectie vastleggen op het moment dat je hem
+  // vastpakt. Daarna rekenen we alles vanuit die momentopname, zodat er
+  // geen afrondingsfouten opstapelen tijdens het slepen.
+  function grijpSelectie(fotoId, punt, maat) {
+    var foto = fotoVan(fotoId);
+    var leden = [];
+    var vakken = [];
+    keuze.forEach(function (i) {
+      var s = foto.inkt[i];
+      if (!s) return;
+      leden.push({ i: i, p: s.p.map(function (q) { return q.slice(); }), w: s.w, h: s.h });
+      vakken.push(vakVanStreek(s));
+    });
+    return { start: punt, maat: !!maat, leden: leden, vak: vakSamen(vakken) };
+  }
+
+  var MIN_MAAT = 12;
+  function schaalSelectie(foto, sl, dx, dy) {
+    var v = sl.vak;
+    if (!v) return;
+    var fx = v.w > 1 ? Math.max(MIN_MAAT, v.w + dx) / v.w : 1;
+    var fy = v.h > 1 ? Math.max(MIN_MAAT, v.h + dy) / v.h : 1;
+    sl.leden.forEach(function (lid) {
+      var s = foto.inkt[lid.i];
+      if (!s) return;
+      s.p = lid.p.map(function (q) {
+        return [rond(v.x + (q[0] - v.x) * fx), rond(v.y + (q[1] - v.y) * fy)];
+      });
+      // Bij tekst is het vak de vorm; de letters blijven even groot en de
+      // zin breekt binnen het nieuwe vak opnieuw af.
+      if (s.t === 'tekst') zetVakMaat(s, lid.w * fx, lid.h * fy);
+    });
+  }
+
+  /* ─── tekst: een vak op de foto zelf ───────────────────────── */
+  // Tikken met het tekstgereedschap opent het vak op die plek, in de kleur
+  // en de grootte die de tekst op de foto krijgt. Wat je in het vak ziet is
+  // wat er komt te staan: dezelfde breedte, dezelfde regelafbreking.
+  //
+  // Werkwijze zoals in Notability: het vak groeit mee terwijl je typt, maar
+  // zodra je zelf aan de hoek sleept bepaal jij de vorm en breekt de tekst
+  // daarbinnen af. De letters veranderen daar niet van grootte — die kies je
+  // met de A-knoppen in de balk.
+
   function sluitVak() {
     if (!bewerk) return null;
     var b = bewerk;
@@ -939,10 +1306,13 @@
     var foto = fotoVan(b.fotoId);
     var s = foto && foto.inkt[b.index];
     if (s) {
-      var tekst = String(b.veld.value || '').trim();
-      if (!tekst) {
+      var tekst = String(b.veld.value || '').replace(/\s+$/, '');
+      if (!tekst.trim()) {
         foto.inkt.splice(b.index, 1);
-        if (gekozen === b.index) gekozen = -1;
+        // Het lege vak is weg; alles wat erachter stond schuift een plek op.
+        keuze = keuze.filter(function (i) { return i !== b.index; })
+                     .map(function (i) { return i > b.index ? i - 1 : i; });
+        gekozen = keuze.length ? keuze[0] : -1;
       } else {
         s.tx = tekst;
       }
@@ -954,48 +1324,89 @@
   window.tekstKlaar = function () { stopTekst(); };
   window.tekstBezig = function () { return !!bewerk; };
 
-  // Waar staat het vak, hoe groot zijn de letters? Wordt bij elke wijziging
-  // opnieuw gerekend, zodat het vak de tekst blijft volgen.
+  // Het vak op zijn plek zetten en op maat maken.
+  //
+  // Eén voetangel: Safari op een iPhone zoomt het hele scherm in zodra je in
+  // een veld tikt waarvan de letters kleiner zijn dan 16 px. De letters op de
+  // foto zijn dat vaak wel. Daarom tekenen we het vak op ware grootte met
+  // minimaal 16 px en krimpen het geheel daarna met een transform. De
+  // regelafbreking wordt dus op de grote maat gerekend en verkleind — precies
+  // dezelfde afbreking, zonder dat het beeld verspringt.
   function plaatsVak() {
     if (!bewerk) return;
     var foto = fotoVan(bewerk.fotoId);
     var s = foto && foto.inkt[bewerk.index];
     var doek = el('doek-' + bewerk.fotoId);
     if (!s || !doek) return;
-    var breed = doek.getBoundingClientRect().width || 1000;
-    var schaal = breed / 1000;
+    var schaal = (doek.getBoundingClientRect().width || 1000) / 1000;
     var h = vbHoogte(foto);
 
-    bewerk.doos.style.left = (s.p[0][0] / 1000 * 100) + '%';
-    bewerk.doos.style.top = (s.p[0][1] / h * 100) + '%';
+    var doos = bewerk.doos;
+    doos.style.left = (s.p[0][0] / 1000 * 100) + '%';
+    doos.style.top = (s.p[0][1] / h * 100) + '%';
+    doos.style.width = (s.w * schaal) + 'px';
+    doos.style.height = (s.h * schaal) + 'px';
+    // Het knoppenbalkje staat boven het vak; ligt het vak tegen de bovenrand
+    // van de foto, dan is daar geen plek en klapt het balkje naar onderen.
+    var hoogteDoek = doek.getBoundingClientRect().height || 0;
+    var bovenPx = s.p[0][1] / h * hoogteDoek;
+    doos.classList.toggle('tk-vak-onder', bovenPx < 40);
 
-    // De letters schalen mee met het vak: de lettergrootte op het scherm is
-    // de opgeslagen grootte maal de schaal waarop de foto getoond wordt.
-    // Zo staat er in het vak precies wat er straks op de foto komt.
-    // Ondergrens van 16 px: onder die maat zoomt Safari op een iPhone het
-    // hele scherm in zodra je in het veld tikt. Het vak is dan iets groter
-    // dan de letters worden, maar het beeld springt niet.
-    var px = Math.max(16, s.g * schaal);
+    var wens = s.g * schaal;
+    var basis = Math.max(16, wens);
+    var krimp = wens / basis;
+    var vlak = bewerk.vlak;
+    vlak.style.transform = 'scale(' + krimp + ')';
+    vlak.style.width = (s.w * schaal / krimp) + 'px';
+    vlak.style.height = (s.h * schaal / krimp) + 'px';
+
     var veld = bewerk.veld;
-    veld.style.fontSize = px + 'px';
+    veld.style.fontSize = basis + 'px';
+    veld.style.lineHeight = REGELHOOGTE;
+    veld.style.padding = (basis * TEKSTRAND) + 'px';
     veld.style.color = s.k;
     veld.style.fontWeight = s.vet === false ? '400' : '700';
     veld.style.fontStyle = s.schuin ? 'italic' : 'normal';
-    // Een rand in de tegenkleur, net als op de foto, zodat het vak ook op
-    // een lichte gevel leesbaar blijft.
     var rand = lichtOfDonker(s.k);
     veld.style.textShadow = [
       '-1px -1px 0 ' + rand, '1px -1px 0 ' + rand,
       '-1px 1px 0 ' + rand, '1px 1px 0 ' + rand
     ].join(',');
-    // Breedte volgt de inhoud, met een ondergrens zodat er ruimte is om te
-    // beginnen. Zonder dit loopt de tekst uit het vak zodra hij langer wordt.
-    var tekens = Math.max(6, (veld.value || '').length + 1);
-    veld.style.width = Math.round(tekens * px * 0.62) + 'px';
   }
 
-  // De grepen op het vak: linksboven verplaatsen, rechtsonder groter en
-  // kleiner. preventDefault houdt de focus in het invoerveld, zodat het
+  // Tijdens het typen groeit het vak mee, tenzij je het zelf al hebt
+  // versleept. Daarna blijft de vorm staan en breekt de tekst daarbinnen af.
+  function tekstGetypt() {
+    if (!bewerk) return;
+    var foto = fotoVan(bewerk.fotoId);
+    var s = foto && foto.inkt[bewerk.index];
+    if (!s) return;
+    s.tx = bewerk.veld.value;
+    tekstPas(s);
+    plaatsVak();
+    werkTekstBij(bewerk.fotoId, bewerk.index);
+  }
+
+  // Alleen deze ene tekst opnieuw tekenen; de hele laag opbouwen bij elke
+  // toetsaanslag is onnodig werk.
+  function werkTekstBij(fotoId, index) {
+    var svg = el('inkt-' + fotoId);
+    var foto = fotoVan(fotoId);
+    var s = foto && foto.inkt[index];
+    if (!svg || !s) return;
+    var oud = svg.querySelector('[data-streek="' + index + '"]');
+    var nieuw = maakTekst(s, index);
+    if (bewerk && bewerk.fotoId === fotoId && bewerk.index === index) {
+      // Tijdens het typen staat de tekst in het vak; hem er ook onder
+      // tekenen geeft dubbele letters.
+      nieuw.setAttribute('visibility', 'hidden');
+    }
+    if (oud) svg.replaceChild(nieuw, oud); else svg.appendChild(nieuw);
+    tekenKader(fotoId);
+  }
+
+  // De grepen op het vak: linksboven verplaatsen, rechtsonder het vak groter
+  // of kleiner maken. preventDefault houdt de focus in het veld, zodat het
   // toetsenbord op een telefoon niet wegklapt zodra je een greep pakt.
   function koppelGreep(greep, rol) {
     if (!greep) return;
@@ -1009,8 +1420,8 @@
       var doek = el('doek-' + b.fotoId);
       if (!s || !doek) return;
       var schaal = (doek.getBoundingClientRect().width || 1000) / 1000;
-      var begin = { x: e.clientX, y: e.clientY, p: s.p[0].slice(), g: s.g || grootte };
-      if (window.bewaarStap) bewaarStap(rol === 'sleep' ? 'Tekst verplaatst' : 'Tekst geschaald');
+      var begin = { x: e.clientX, y: e.clientY, p: s.p[0].slice(), w: s.w, h: s.h };
+      if (window.bewaarStap) bewaarStap(rol === 'sleep' ? 'Tekst verplaatst' : 'Tekstvak aangepast');
       try { greep.setPointerCapture(e.pointerId); } catch (err) {}
 
       function beweeg(ev) {
@@ -1021,12 +1432,10 @@
           s.p[0] = [Math.round((begin.p[0] + dx) * 10) / 10,
                     Math.round((begin.p[1] + dy) * 10) / 10];
         } else {
-          // Schuin naar rechtsonder slepen maakt groter. Beide richtingen
-          // tellen mee, dus het werkt ook als je vooral omlaag sleept.
-          s.g = Math.max(10, Math.min(400, Math.round(begin.g + (dx + dy) / 2)));
-          grootte = s.g;
+          zetVakMaat(s, begin.w + dx, begin.h + dy);
         }
         plaatsVak();
+        werkTekstBij(b.fotoId, b.index);
       }
       function los(ev) {
         greep.removeEventListener('pointermove', beweeg);
@@ -1043,38 +1452,56 @@
     });
   }
 
+  // Eén plek waar de maat van een vak wordt vastgelegd, met ondergrenzen die
+  // aan de lettergrootte hangen: smaller dan één letter heeft geen zin.
+  function zetVakMaat(s, w, h) {
+    var g = s.g || 40;
+    s.w = Math.round(Math.max(g * 1.4, Math.min(1000, w)));
+    s.h = Math.round(Math.max(g * REGELHOOGTE + g * TEKSTRAND * 2, Math.min(2000, h)));
+    s.vast = true;
+  }
+  window.zetVakMaat = zetVakMaat;
+
   function opentVak(fotoId, index) {
     stopTekst();
     var doek = el('doek-' + fotoId);
     var foto = fotoVan(fotoId);
     var s = foto && foto.inkt[index];
     if (!doek || !s) return;
+    tekstNorm(s);
 
     var doos = document.createElement('div');
     doos.className = 'tk-vak';
     doos.innerHTML =
-      '<span class="tk-vak-greep tk-vak-sleep" title="Verplaatsen">✥</span>' +
-      '<input class="tk-vak-veld" type="text" enterkeyhint="done" autocomplete="off" ' +
-        'autocorrect="off" spellcheck="false" placeholder="tekst…">' +
-      '<span class="tk-vak-greep tk-vak-maat" title="Groter of kleiner">⤡</span>' +
-      '<button class="tk-vak-klaar" type="button" title="Klaar">✓</button>';
+      '<div class="tk-vak-knoppen">' +
+        '<span class="tk-vak-greep tk-vak-sleep" title="Verplaatsen">✥</span>' +
+        '<button class="tk-vak-klaar" type="button" title="Klaar">✓</button>' +
+      '</div>' +
+      '<div class="tk-vak-schaal"><textarea class="tk-vak-veld" ' +
+        'autocomplete="off" autocorrect="off" spellcheck="false" ' +
+        'placeholder="tekst…"></textarea></div>' +
+      '<span class="tk-vak-greep tk-vak-maat" title="Vak groter of kleiner">⤡</span>';
     doek.appendChild(doos);
 
     var veld = doos.querySelector('.tk-vak-veld');
     veld.value = s.tx || '';
-    bewerk = { fotoId: fotoId, index: index, doos: doos, veld: veld };
+    bewerk = { fotoId: fotoId, index: index, doos: doos,
+               vlak: doos.querySelector('.tk-vak-schaal'), veld: veld };
 
-    // Het vak is het geselecteerde onderdeel: de balk toont meteen de
-    // kleur- en grootteknoppen en die werken op déze tekst.
+    // Het vak is het geselecteerde onderdeel: de balk toont meteen de kleur-
+    // en grootteknoppen en die werken op déze tekst.
+    keuze = [index];
     gekozen = index;
     var node = elementVan(fotoId, index);
     if (node) node.setAttribute('visibility', 'hidden');
     tekenKader(fotoId);
     plaatsVak();
 
-    veld.addEventListener('input', function () { s.tx = veld.value; plaatsVak(); });
+    veld.addEventListener('input', tekstGetypt);
     veld.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); stopTekst(); }
+      // Enter maakt een nieuwe regel, net als in een notitie-app. Klaar ben
+      // je met het vinkje, met Escape, of door naast het vak te tikken.
+      if (e.key === 'Escape') { e.preventDefault(); stopTekst(); }
     });
     doos.querySelector('.tk-vak-klaar').addEventListener('pointerdown', function (e) {
       e.preventDefault();
@@ -1105,11 +1532,13 @@
     // manier om klaar te zijn.
     if (bewerk) { stopTekst(); }
     if (window.bewaarStap) bewaarStap('Tekst toegevoegd');
-    inkt(foto).push({ t: 'tekst', k: kleur, d: dikte, g: grootte,
-                      vet: vet, schuin: schuin, p: [punt], tx: '' });
+    var nieuw = { t: 'tekst', k: kleur, d: dikte, g: grootte,
+                  vet: vet, schuin: schuin, p: [punt.slice()], tx: '', vast: false };
+    tekstPas(nieuw);
+    inkt(foto).push(nieuw);
     var index = foto.inkt.length - 1;
     var svgEl = el('inkt-' + fotoId);
-    if (svgEl) svgEl.appendChild(maakTekst(foto.inkt[index], index));
+    if (svgEl) svgEl.appendChild(maakTekst(nieuw, index));
     else tekenStreken(fotoId);
     opentVak(fotoId, index);
   }
@@ -1140,23 +1569,30 @@
     // afpakken; staat het uit, dan wil je juist wél kunnen schuiven.
     // Met het tekstgereedschap geldt hetzelfde: je zet het vak met je
     // vinger neer, dus de veeg mag niet doorgaan naar het schuifvenster.
-    blok.classList.toggle('vinger', actief === fotoId && (vingerTekent || stuk === 'tekst'));
+    blok.classList.toggle('vinger', actief === fotoId &&
+      (vingerTekent || stuk === 'tekst' || stuk === 'lasso'));
   }
 
   // Is er iets geselecteerd, dan verandert die keuze dát onderdeel.
   // Zonder selectie geldt de keuze voor alles wat je daarna maakt.
   window.tekenKies = function (fotoId, wat, waarde) {
     var foto = fotoVan(fotoId);
-    var s = (gekozen >= 0 && foto) ? foto.inkt[gekozen] : null;
+    // Alles wat geselecteerd is verandert mee. Bij één onderdeel is dat
+    // precies zoals het altijd werkte; na een lasso geldt het voor de hele
+    // groep in één keer.
+    var leden = [];
+    if (foto) {
+      keuze.forEach(function (i) { if (foto.inkt[i]) leden.push(foto.inkt[i]); });
+    }
 
     if (wat === 'stuk') {
       // Overstappen op ander gereedschap sluit een lopend tekstvak af.
       if (waarde !== 'tekst') stopTekst();
       stuk = waarde;
-      // Een selectie hoort bij het keuzegereedschap; stap je over op
-      // tekenen, dan is die selectie niet meer aan de orde.
-      if (waarde !== 'kies' && waarde !== 'tekst' && gekozen >= 0) {
-        gekozen = -1; tekenKader(fotoId);
+      // Een selectie hoort bij het keuze- of lassogereedschap; stap je over
+      // op tekenen, dan is die selectie niet meer aan de orde.
+      if (waarde !== 'kies' && waarde !== 'lasso' && waarde !== 'tekst' && keuze.length) {
+        zetKeuze(fotoId, []);
       }
       zetModus(fotoId);
       tekenBalk(fotoId);
@@ -1165,17 +1601,33 @@
 
     if (wat === 'vinger') { vingerTekent = !vingerTekent; zetModus(fotoId); tekenBalk(fotoId); return; }
 
-    if (wat === 'kleur') { kleur = waarde; if (s) s.k = waarde; }
-    if (wat === 'dikte') { dikte = parseFloat(waarde); if (s) s.d = parseFloat(waarde); }
-    if (wat === 'grootte') { grootte = parseFloat(waarde); if (s && s.t === 'tekst') s.g = parseFloat(waarde); }
-    if (wat === 'vet') { vet = !vet; if (s && s.t === 'tekst') s.vet = !(s.vet !== false); }
-    if (wat === 'schuin') { schuin = !schuin; if (s && s.t === 'tekst') s.schuin = !s.schuin; }
+    function opAlle(doe) { leden.forEach(doe); }
+    if (wat === 'kleur') { kleur = waarde; opAlle(function (x) { x.k = waarde; }); }
+    if (wat === 'dikte') {
+      dikte = parseFloat(waarde);
+      opAlle(function (x) { x.d = dikte; });
+    }
+    if (wat === 'grootte') {
+      grootte = parseFloat(waarde);
+      opAlle(function (x) { if (x.t === 'tekst') x.g = grootte; });
+    }
+    if (wat === 'vet') { vet = !vet; opAlle(function (x) { if (x.t === 'tekst') x.vet = vet; }); }
+    if (wat === 'schuin') { schuin = !schuin; opAlle(function (x) { if (x.t === 'tekst') x.schuin = schuin; }); }
 
-    if (s) {
-      if (wat === 'vet') vet = s.vet !== false;
-      if (wat === 'schuin') schuin = !!s.schuin;
-      if (window.bewaarStap) bewaarStap('Onderdeel gewijzigd');
+    if (leden.length) {
+      // Een andere lettergrootte of stijl verandert hoeveel ruimte de tekst
+      // nodig heeft. Een vak dat je zelf hebt versleept blijft zoals het is
+      // — daar breekt de tekst dan binnen af.
+      opAlle(function (x) { if (x.t === 'tekst') tekstPas(x); });
+      if (bewerk) plaatsVak();
+      if (window.bewaarStap) {
+        bewaarStap(leden.length > 1 ? leden.length + ' onderdelen gewijzigd' : 'Onderdeel gewijzigd');
+      }
       tekenStreken(fotoId);
+      if (bewerk) {
+        var node2 = elementVan(fotoId, bewerk.index);
+        if (node2) node2.setAttribute('visibility', 'hidden');
+      }
       opslaan();
     }
     // Staat er een tekstvak open, dan moet dat de nieuwe kleur of grootte
@@ -1217,7 +1669,11 @@
     if (actief !== fotoId) { balk.style.display = 'none'; balk.innerHTML = ''; return; }
 
     var gekozenStreek = gekozen >= 0 ? foto.inkt[gekozen] : null;
-    var tekstActief = stuk === 'tekst' || (gekozenStreek && gekozenStreek.t === 'tekst');
+    var meer = keuze.length > 1;
+    var heeftTekst = keuze.some(function (i) {
+      return foto.inkt[i] && foto.inkt[i].t === 'tekst';
+    });
+    var tekstActief = stuk === 'tekst' || heeftTekst;
 
     var stukken = '<div class="tk-groep">' +
       GEREEDSCHAP.map(function (g) {
@@ -1259,8 +1715,10 @@
 
     var selectie = !gekozenStreek ? '' :
       '<div class="tk-selectie">' +
-        '<span class="tk-label">' + esc(omschrijf(gekozenStreek)) + ' geselecteerd</span>' +
-        (gekozenStreek.t === 'tekst' && !bewerk
+        '<span class="tk-label">' +
+          (meer ? keuze.length + ' onderdelen geselecteerd'
+                : esc(omschrijf(gekozenStreek)) + ' geselecteerd') + '</span>' +
+        (!meer && gekozenStreek.t === 'tekst' && !bewerk
           ? '<button class="tk-knop" title="Tekst wijzigen" onclick="selectieTekst(\'' + fotoId + '\')">✎</button>' : '') +
         (bewerk ? '<button class="tk-knop" title="Klaar met typen" onclick="tekstKlaar()">✓</button>' : '') +
         '<button class="tk-knop tk-weg" title="Verwijderen" onclick="selectieWeg(\'' + fotoId + '\')">🗑</button>' +
@@ -1270,10 +1728,12 @@
     var hint = bewerk
       ? 'Typ de tekst · ✥ verplaatsen, ⤡ groter of kleiner, ✓ of Enter is klaar'
       : (gekozenStreek
-        ? 'Sleep aan een hoekpunt om te verplaatsen · kleur, dikte en grootte gelden voor dit onderdeel'
+        ? 'Sleep aan een hoek om te verplaatsen, rechtsonder om groter of kleiner te maken · ' +
+          'kleur, dikte en grootte gelden voor ' + (meer ? 'alles wat geselecteerd is' : 'dit onderdeel')
         : (stuk === 'kies' ? 'Tik op een lijn of tekst om hem te selecteren'
-          : (stuk === 'tekst' ? 'Tik op de foto waar de tekst moet komen'
-            : 'Pen tekent, vinger schuift')));
+          : (stuk === 'lasso' ? 'Omcirkel wat je wilt selecteren'
+            : (stuk === 'tekst' ? 'Tik op de foto waar de tekst moet komen'
+              : 'Pen tekent, vinger schuift'))));
 
     // Vasthouden werkt bij pen, lijn, pijl en rechthoek. Bij selecteren,
     // tekst en de gum valt die uitleg weg; daar doet hij niets.

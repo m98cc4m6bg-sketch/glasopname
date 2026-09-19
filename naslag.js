@@ -630,6 +630,98 @@ const DUCO_ROOSTERS = [
     uitleg: 'Geluidswerend akoestisch (sound-reducing) | glasaftrek 80 mm' },
 ];
 
+// Waar de foto's vandaan komen als ze nog niet lokaal staan. Zo is de tabel
+// meteen compleet, ook voordat roosterfotos-ophalen.sh gedraaid is; met de
+// bestanden in ./roosters/ werkt hij daarna ook zonder bereik.
+const DUCO_BRON = {
+  'ducoton-10': 'https://www.duco.eu/Wes/CDN/1/Products/ProductImages/2022-12-19%2014.15.59.600%20-%20DucoTon_10.jpg?width=600&mode=crop',
+  'ducoton-18': 'https://www.duco.eu/Wes/CDN/1/Products/ProductImages/2014-10-07%2013.09.15.584%20-%2093_DucoTon_18.jpg?width=600&mode=crop',
+  'ducosmart-60': 'https://www.duco.eu/Wes/CDN/1/PRODUCTS/95_DucoSmart%2060/FOTOS/DucoSmart%2060.jpg?width=600&mode=crop',
+  'ducoklep-15': 'https://www.duco.eu/Wes/CDN/1/PRODUCTS/62_DucoKlep%2015/FOTOS/DucoKlep%2015.jpg?width=600&mode=crop',
+  'ducoflat-12': 'https://www.duco.eu/Wes/CDN/1/Products/ProductImages/2024-12-10%2008.34.17.086%20-%20productshot-DucoFlat-80-ZR_thumb.jpg?width=600&mode=crop',
+  'ducoglasmax': 'https://www.duco.eu/Wes/CDN/1/Products/ProductImages/2015-02-12%2016.28.46.139%20-%20DUCOGLASMAX.jpg?width=600&mode=crop',
+};
+
+// Eigen doorsnedetekeningen als laatste vangnet. Staat ./roosters/ nog leeg
+// én is er geen bereik naar Duco, dan zie je hier toch waar het profiel op
+// lijkt: welke kant het glas op zit, hoe hoog het profiel bouwt en waar de
+// lucht langs gaat. Het is een schets, geen maatvoering — die staat in de
+// kolommen ernaast.
+const SCHETS_STIJL =
+  '<rect width="120" height="90" fill="#ffffff"/>' +
+  '<rect x="50" y="46" width="14" height="34" fill="#d8e8ee" stroke="#8fa9b4" stroke-width="1.2"/>' +
+  '<path d="M57 46 v34" stroke="#8fa9b4" stroke-width="0.8"/>' +
+  '<text x="4" y="86" font-family="Arial,sans-serif" font-size="8" fill="#9b9892">buiten</text>' +
+  '<text x="86" y="86" font-family="Arial,sans-serif" font-size="8" fill="#9b9892">binnen</text>';
+// Pijl die de luchtstroom van buiten naar binnen aangeeft. Hij wordt als
+// laatste getekend, dus óver het profiel heen; een witte onderlaag houdt hem
+// leesbaar op het donkere profiel.
+function schetsPijl(y) {
+  return '<path d="M14 ' + y + ' H100" stroke="#ffffff" stroke-width="5" fill="none" stroke-linecap="round"/>' +
+    '<path d="M14 ' + y + ' H98" stroke="#d00243" stroke-width="2.2" fill="none"/>' +
+    '<path d="M104 ' + y + ' l-9 -5 v10 z" fill="#d00243" stroke="#ffffff" stroke-width="1.2"/>';
+}
+
+const ROOSTER_SCHETS = {
+  // Tonrooster: ronde kap boven op het glas, handmatig of zelfregelend.
+  'ducoton-10': { pijl: 30, vorm:
+    '<path d="M30 42 h60 v-7 a30 30 0 0 0 -60 0 z" fill="#43423f"/>' +
+    '<rect x="30" y="42" width="60" height="4" fill="#1d1d1b"/>' },
+  // Zelfde vorm, breder en hoger: het grote profiel voor renovatie.
+  'ducoton-18': { pijl: 28, vorm:
+    '<path d="M22 42 h76 v-6 a38 32 0 0 0 -76 0 z" fill="#43423f"/>' +
+    '<rect x="22" y="42" width="76" height="4" fill="#1d1d1b"/>' },
+  // Klepventilator, compact: laag kastje met een scharnierende klep.
+  'ducosmart-60': { pijl: 33, vorm:
+    '<rect x="36" y="24" width="48" height="18" rx="3" fill="#43423f"/>' +
+    '<path d="M36 42 l-15 -10" stroke="#43423f" stroke-width="4" stroke-linecap="round"/>' +
+    '<rect x="36" y="42" width="48" height="4" fill="#1d1d1b"/>' },
+  // Vlakke klep, ook voor triple: breder kastje, klep verder open.
+  'ducoklep-15': { pijl: 34, vorm:
+    '<rect x="28" y="26" width="64" height="16" rx="3" fill="#43423f"/>' +
+    '<path d="M28 42 l-17 -14" stroke="#43423f" stroke-width="4" stroke-linecap="round"/>' +
+    '<rect x="28" y="42" width="64" height="4" fill="#1d1d1b"/>' },
+  // Plat profiel voor schuiframen: nauwelijks bouwhoogte.
+  'ducoflat-12': { pijl: 38, vorm:
+    '<rect x="24" y="34" width="72" height="8" rx="2" fill="#43423f"/>' +
+    '<rect x="24" y="42" width="72" height="4" fill="#1d1d1b"/>' },
+  // Geluidswerend: twee kamers achter elkaar, de lucht maakt een bocht.
+  'ducoglasmax': { pijl: 32, vorm:
+    '<rect x="26" y="22" width="68" height="20" rx="3" fill="#43423f"/>' +
+    '<rect x="31" y="26" width="26" height="12" fill="#f6f5f4"/>' +
+    '<rect x="63" y="26" width="26" height="12" fill="#f6f5f4"/>' +
+    '<rect x="26" y="42" width="68" height="4" fill="#1d1d1b"/>' },
+};
+
+// De schets als data-URI, zodat hij net als een foto in een <img> past en
+// ook in het uitvergrote venster werkt.
+function roosterSchets(slug) {
+  var s = ROOSTER_SCHETS[slug];
+  if (!s) return '';
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" width="120" height="90">' +
+    SCHETS_STIJL + s.vorm + schetsPijl(s.pijl) + '</svg>';
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+// Staat het bestand er niet, dan eerst de bron van Duco proberen, daarna de
+// eigen doorsnedetekening, en pas als ook die ontbreekt geven we het op.
+function roosterFotoFout(img, slug) {
+  var stap = img.dataset.stap || '0';
+  if (stap === '0' && DUCO_BRON[slug]) {
+    img.dataset.stap = '1';
+    img.src = DUCO_BRON[slug];
+    return;
+  }
+  if (stap !== '2' && ROOSTER_SCHETS[slug]) {
+    img.dataset.stap = '2';
+    img.classList.add('nsl-schets');
+    img.title = 'Schematische doorsnede — de foto van Duco is hier niet beschikbaar';
+    img.src = roosterSchets(slug);
+    return;
+  }
+  img.replaceWith(naslagGeenFoto());
+}
+
 function ducoTabel() {
   return '<table class="legenda legenda-foto">' +
     '<thead><tr><th>Foto</th><th>Roostertype</th><th>Min. glasdikte</th>' +
@@ -639,7 +731,7 @@ function ducoTabel() {
         '<td class="lg-foto"><img src="roosters/' + r.foto + '.jpg" alt="' + naslagEsc(r.naam) +
           '" loading="lazy" onclick="naslagGroot(\'' + r.foto + '\',\'' + naslagEsc(r.naam) +
           '\',\'Duco ventilatierooster\',\'roosters\')" ' +
-          'onerror="this.replaceWith(naslagGeenFoto())"></td>' +
+          'onerror="roosterFotoFout(this, \'' + r.foto + '\')"></td>' +
         '<td>' + naslagEsc(r.naam) + '</td>' +
         '<td>\u2265 ' + r.min + ' mm</td>' +
         '<td>\u2264 ' + r.max + ' mm</td>' +
@@ -647,8 +739,10 @@ function ducoTabel() {
       '</tr>';
     }).join('') +
     '</tbody></table>' +
-    '<div class="info-note" style="margin-top:10px">Foto\u2019s van Duco. De glasdiktes zijn ' +
-    'dezelfde waarden waarop de app in de invoertabel controleert.</div>';
+    '<div class="info-note" style="margin-top:10px">Foto\u2019s van Duco. Is er geen bereik en ' +
+    'staan de foto\u2019s nog niet in de map <code>roosters/</code>, dan zie je een eigen ' +
+    'doorsnedetekening van het profiel. De glasdiktes zijn dezelfde waarden waarop de app ' +
+    'in de invoertabel controleert.</div>';
 }
 
 // ═══════════════ TABELLEN (voorheen tabblad Legenda) ═══════════════
@@ -770,6 +864,9 @@ const NASLAG_CSS = `
     border-radius: 4px; border: 1px solid var(--grijs-rand); cursor: zoom-in;
     background: var(--grijs-licht);
   }
+  /* Een doorsnedetekening mag niet bijgesneden worden zoals een foto. */
+  table.legenda-foto td.lg-foto img.nsl-schets,
+  .nsl-groot-vak img.nsl-schets { object-fit: contain; background: white; }
   table.legenda-foto td.lg-foto .nsl-geenfoto {
     width: 72px; height: 54px; font-size: 9px;
     display: flex; align-items: center; justify-content: center; text-align: center;
@@ -938,8 +1035,10 @@ function naslagGroot(foto, naam, groep, map) {
   const vak = document.getElementById('naslagGroot');
   if (!vak) return;
   const pad = (map || 'catalogus') + '/' + foto + '.jpg';
+  const terug = (map === 'roosters' && DUCO_BRON[foto])
+    ? ` onerror="roosterFotoFout(this, '${naslagEsc(foto)}')"` : '';
   vak.innerHTML = `<div class="nsl-groot-vak" onclick="event.stopPropagation()">
-    ${foto ? `<img src="${pad}" alt="${naslagEsc(naam)}">` : ''}
+    ${foto ? `<img src="${pad}" alt="${naslagEsc(naam)}"${terug}>` : ''}
     <div class="nsl-groot-tekst">
       <h4>${naslagEsc(naam)}</h4>
       <p>${naslagEsc(groep)}</p>
@@ -962,7 +1061,7 @@ if (typeof module !== 'undefined' && module.exports) {
     glasTypesVoorBewerking, regelStrijdig, bewerkingKeuzeHTML,
     glasTypeKeuzeHTML, opbouwKeuzeHTML, strijdigUitleg, STRIJDIG_NOOT,
     BEWERKING_STANDAARD, BEWERKING_OVERIG,
-    DUCO_ROOSTERS, ducoTabel,
+    DUCO_ROOSTERS, DUCO_BRON, ducoTabel, ROOSTER_SCHETS, roosterSchets, roosterFotoFout,
     ROEDE_BREEDTES, roedeSoort, roedeBreedtesVoor,
     roedenKeuzeHTML, roedeBreedteKeuzeHTML
   };

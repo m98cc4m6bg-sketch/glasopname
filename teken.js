@@ -726,24 +726,10 @@
       [p[0][0] + Math.cos(netjes) * lang, p[0][1] + Math.sin(netjes) * lang]]) };
   }
 
-  function vormNaam(vorm) {
-    if (vorm.t === 'lijn') return 'rechte lijn';
-    if (vorm.t === 'pijl') return 'pijl';
-    if (vorm.t === 'rect') {
-      return Math.abs(vorm.p[1][0] - vorm.p[0][0]) === Math.abs(vorm.p[1][1] - vorm.p[0][1])
-        ? 'vierkant' : 'rechthoek';
-    }
-    if (vorm.recht) return 'driehoek';
-    var vak = omhullende(vorm.p);
-    return Math.abs(vak.b - vak.h) < 1 ? 'cirkel' : 'ovaal';
-  }
-
   /* ─── stil blijven staan ──────────────────────────────────── */
 
   var vastKlok = null;
   var vastPunt = null;
-  var vastGemeld = '';
-  var vastMeldKlok = null;
 
   function vastKlokStop() {
     if (vastKlok) { clearTimeout(vastKlok); vastKlok = null; }
@@ -775,20 +761,9 @@
     s.p = vorm.p;
     if (vorm.recht) s.recht = true; else delete s.recht;
     bezig.vast = true;
+    // Geen bevestiging in de balk: je ziet de vorm zelf al veranderen op de
+    // foto, en bij elke lijn een melding werd hinderlijk.
     tekenStreken(fotoId);
-    meldVorm(fotoId, vormNaam(vorm));
-  }
-
-  // Even laten zien wát er van gemaakt is; anders weet je niet of het
-  // vasthouden werkte.
-  function meldVorm(fotoId, naam) {
-    vastGemeld = naam;
-    tekenBalk(fotoId);
-    if (vastMeldKlok) clearTimeout(vastMeldKlok);
-    vastMeldKlok = setTimeout(function () {
-      vastGemeld = '';
-      tekenBalk(fotoId);
-    }, 2000);
   }
 
   window.herkenVorm = herkenVorm;
@@ -857,12 +832,20 @@
 
       var punt = plek(e, svg);
 
-      // Een greep vastpakken verplaatst of schaalt wat er geselecteerd is —
-      // of je nu met het keuze- of met het lassogereedschap werkt.
+      // Een hoekgreep vastpakken schaalt wat er geselecteerd is — of je nu
+      // met het keuze- of met het lassogereedschap werkt.
       if ((stuk === 'kies' || stuk === 'lasso') && keuze.length) {
         var onder = document.elementFromPoint(e.clientX, e.clientY);
         if (onder && onder.hasAttribute && onder.hasAttribute('data-greep')) {
-          sleep = grijpSelectie(fotoId, punt, onder.getAttribute('data-greep') === 'maat');
+          sleep = grijpSelectie(fotoId, punt, onder.getAttribute('data-greep'));
+          try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+          return;
+        }
+        // Binnen het kader van een groep: de hele groep verslepen. Zonder
+        // dit zou een tik binnen de lassoselectie er één onderdeel uit
+        // pakken, of een nieuwe lus beginnen.
+        if (keuze.length > 1 && inSelectie(fotoId, punt)) {
+          sleep = grijpSelectie(fotoId, punt, '');
           try { svg.setPointerCapture(e.pointerId); } catch (err) {}
           return;
         }
@@ -887,7 +870,7 @@
         kiesStreek(fotoId, gevonden);
         // Meteen kunnen slepen: aanklikken en verplaatsen is één beweging.
         if (gevonden >= 0) {
-          sleep = grijpSelectie(fotoId, punt, false);
+          sleep = grijpSelectie(fotoId, punt, '');
           try { svg.setPointerCapture(e.pointerId); } catch (err) {}
         }
         return;
@@ -1161,12 +1144,12 @@
       vlak.setAttribute('height', raak);
       vlak.setAttribute('fill', 'transparent');
       vlak.setAttribute('data-kader', '1');
-      // De hoek rechtsonder maakt groter of kleiner — bij tekst, bij een
-      // tekening, en bij een hele lasso-selectie. De andere drie hoeken
-      // verplaatsen.
-      var maat = hoek[0] === x2 && hoek[1] === y2;
-      vlak.setAttribute('data-greep', maat ? 'maat' : '1');
-      vlak.style.cursor = maat ? 'nwse-resize' : 'move';
+      // Elke hoek maakt groter of kleiner, vanuit de hoek er tegenover —
+      // die blijft staan. Verplaatsen doe je door het onderdeel zelf te
+      // pakken, of bij meerdere door binnen het kader te slepen.
+      var oost = hoek[0] === x2, zuid = hoek[1] === y2;
+      vlak.setAttribute('data-greep', (zuid ? 'z' : 'n') + (oost ? 'o' : 'w'));
+      vlak.style.cursor = (oost === zuid) ? 'nwse-resize' : 'nesw-resize';
       svg.appendChild(vlak);
 
       var blok = document.createElementNS(NS, 'rect');
@@ -1242,14 +1225,11 @@
     });
   }
 
-  // Schalen gaat vanuit de linkerbovenhoek van de selectie: die blijft
-  // staan, de hoek rechtsonder volgt je vinger. De lijndikte en de
-  // lettergrootte veranderen niet mee — die kies je in de balk, en een
-  // kleiner gesleepte pijl hoort niet ineens een haarlijn te worden.
   // De toestand van de hele selectie vastleggen op het moment dat je hem
   // vastpakt. Daarna rekenen we alles vanuit die momentopname, zodat er
   // geen afrondingsfouten opstapelen tijdens het slepen.
-  function grijpSelectie(fotoId, punt, maat) {
+  // `hoek` is leeg bij verplaatsen, of 'no', 'nw', 'zo', 'zw' bij schalen.
+  function grijpSelectie(fotoId, punt, hoek) {
     var foto = fotoVan(fotoId);
     var leden = [];
     var vakken = [];
@@ -1259,25 +1239,52 @@
       leden.push({ i: i, p: s.p.map(function (q) { return q.slice(); }), w: s.w, h: s.h });
       vakken.push(vakVanStreek(s));
     });
-    return { start: punt, maat: !!maat, leden: leden, vak: vakSamen(vakken) };
+    return { start: punt, maat: !!hoek, hoek: hoek || '', leden: leden, vak: vakSamen(vakken) };
   }
 
+  // Schalen gaat vanuit de hoek tegenover de greep: die blijft staan, de
+  // greep volgt je vinger. De lijndikte en de lettergrootte veranderen niet
+  // mee — die kies je in de balk, en een kleiner gesleepte pijl hoort niet
+  // ineens een haarlijn te worden.
   var MIN_MAAT = 12;
   function schaalSelectie(foto, sl, dx, dy) {
     var v = sl.vak;
     if (!v) return;
-    var fx = v.w > 1 ? Math.max(MIN_MAAT, v.w + dx) / v.w : 1;
-    var fy = v.h > 1 ? Math.max(MIN_MAAT, v.h + dy) / v.h : 1;
+    var oost = sl.hoek.indexOf('o') >= 0;      // sleep je aan de rechterkant?
+    var zuid = sl.hoek.indexOf('z') >= 0;      // en aan de onderkant?
+    var ax = oost ? v.x : v.x + v.w;           // het ankerpunt ligt ertegenover
+    var ay = zuid ? v.y : v.y + v.h;
+    var breed = oost ? v.w + dx : v.w - dx;
+    var hoog  = zuid ? v.h + dy : v.h - dy;
+    var fx = v.w > 1 ? Math.max(MIN_MAAT, breed) / v.w : 1;
+    var fy = v.h > 1 ? Math.max(MIN_MAAT, hoog) / v.h : 1;
     sl.leden.forEach(function (lid) {
       var s = foto.inkt[lid.i];
       if (!s) return;
       s.p = lid.p.map(function (q) {
-        return [rond(v.x + (q[0] - v.x) * fx), rond(v.y + (q[1] - v.y) * fy)];
+        return [rond(ax + (q[0] - ax) * fx), rond(ay + (q[1] - ay) * fy)];
       });
       // Bij tekst is het vak de vorm; de letters blijven even groot en de
       // zin breekt binnen het nieuwe vak opnieuw af.
       if (s.t === 'tekst') zetVakMaat(s, lid.w * fx, lid.h * fy);
     });
+  }
+
+  // Ligt dit punt binnen het kader om de selectie? Daarmee kun je een hele
+  // lasso-selectie verslepen door ergens binnen het kader te pakken.
+  function inSelectie(fotoId, punt) {
+    if (!keuze.length) return false;
+    var foto = fotoVan(fotoId);
+    var vakken = [];
+    keuze.forEach(function (i) {
+      var v = vakVanStreek(foto.inkt[i]);
+      if (v) vakken.push(v);
+    });
+    var v = vakSamen(vakken);
+    if (!v) return false;
+    var m = 10;
+    return punt[0] >= v.x - m && punt[0] <= v.x + v.w + m &&
+           punt[1] >= v.y - m && punt[1] <= v.y + v.h + m;
   }
 
   /* ─── tekst: een vak op de foto zelf ───────────────────────── */
@@ -1646,11 +1653,13 @@
     opslaan();
   };
 
-  window.tekenWis = function (fotoId) {
+  window.tekenWis = async function (fotoId) {
     stopTekst();
     var foto = fotoVan(fotoId);
     if (!foto || !inkt(foto).length) return;
-    if (!confirm('Alle tekeningen op deze foto wissen? De merkbolletjes blijven staan.')) return;
+    if (!await appVraag('Alle tekeningen op deze foto wissen? De merkbolletjes blijven staan.',
+        { kop: 'Tekening wissen', ja: 'Wissen', gevaarlijk: true })) return;
+    if (!fotoVan(fotoId) || !inkt(foto).length) return;
     if (window.bewaarStap) bewaarStap('Tekening gewist');
     foto.inkt = [];
     tekenStreken(fotoId);
@@ -1742,12 +1751,10 @@
       ? '<span class="tk-vormhint" title="Teken de vorm en blijf even stilstaan ' +
         'voordat je loslaat">\u24d8 Hou vast voor nette vormen en lijnen</span>'
       : '';
-    var gemaakt = vastGemeld
-      ? '<span class="tk-vormklaar">\u2713 ' + esc(vastGemeld) + ' gemaakt</span>' : '';
 
     balk.style.display = 'flex';
     balk.innerHTML = stukken + kleuren + diktes + tekstOpties + algemeen + selectie +
-      vormhint + gemaakt +
+      vormhint +
       '<label class="tk-vinger"><input type="checkbox"' + (vingerTekent ? ' checked' : '') +
         ' onchange="tekenKies(\'' + fotoId + '\',\'vinger\')"> Met vinger tekenen</label>' +
       '<span class="tk-info">' + inkt(foto).length + ' onderdelen · ' + hint + '</span>';

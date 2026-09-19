@@ -66,7 +66,7 @@
         'title="Alleen deze tabel leegmaken">🗑 Leegmaken</button>' +
       (fotoId
         ? '<span class="blok-maat">' +
-            maatPaar(fotoId, 'speling', 'Speling', speling, algS) +
+            maatPaar(fotoId, 'speling', 'Speling aftrek', speling, algS) +
             maatPaar(fotoId, 'bijtelling', 'Bijtelling', bijtelling, algB) +
           '</span>'
         : '<span class="blok-maat" id="losseMaatPlek"></span>') +
@@ -85,7 +85,7 @@
 
   /* ─── leegmaken, alleen deze tabel ─────────────────────────── */
 
-  window.blokLeeg = function (id) {
+  window.blokLeeg = async function (id) {
     var fotoId = id === 'los' ? null : id;
     var eigen = rijenInBlok(fotoId);
     var gevuld = eigen.filter(function (r) { return r.breedte || r.hoogte || r.glasType || r.merk; });
@@ -93,8 +93,9 @@
     var waar = fotoId
       ? 'deze ' + (window.soortNaam ? soortNaam(fotos.find(function (f) { return f.id === fotoId; })) : 'foto')
       : 'de losse maten';
-    if (!confirm('Alle ' + gevuld.length + ' ruiten bij ' + waar + ' verwijderen?\n\n' +
-                 'De rest van het project blijft ongemoeid.')) return;
+    if (!await appVraag('Alle ' + gevuld.length + ' ruiten bij ' + waar + ' verwijderen?\n' +
+        'De rest van het project blijft ongemoeid.',
+        { kop: 'Tabel leegmaken', ja: 'Verwijderen', gevaarlijk: true })) return;
 
     if (window.bewaarStap) bewaarStap('Tabel leeggemaakt');
     var weg = {};

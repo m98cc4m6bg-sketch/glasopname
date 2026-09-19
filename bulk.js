@@ -40,9 +40,10 @@
 
   window.bulkSelectieWissen = function () { bulkAlles(false); };
 
-  window.bulkVerwijderSelectie = function () {
+  window.bulkVerwijderSelectie = async function () {
     if (!selectie.size) return;
-    if (!confirm(selectie.size + ' ruit' + (selectie.size === 1 ? '' : 'en') + ' verwijderen?')) return;
+    if (!await appVraag(selectie.size + ' ruit' + (selectie.size === 1 ? '' : 'en') +
+        ' verwijderen?', { kop: 'Ruiten verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
     // markeringen van verwijderde ruiten gaan mee
     if (typeof fotos !== 'undefined') {
       fotos.forEach(function (f) {

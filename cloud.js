@@ -304,8 +304,11 @@
     // overschrijven, maar wel zeggen dat het er is.
     toonMelding('Een collega heeft dit project gewijzigd.' +
       (vuil ? ' Jouw wijzigingen staan nog open en overschrijven die van hem zodra ze omhoog gaan.' : ''),
-      'Hun versie laden', function () {
-        if (vuil && !confirm('Jouw nog niet opgeslagen wijzigingen gaan hiermee verloren. Doorgaan?')) return;
+      'Hun versie laden', async function () {
+        if (vuil && !await appVraag(
+            'Jouw nog niet opgeslagen wijzigingen gaan hiermee verloren.',
+            { kop: 'Versie van je collega laden', ja: 'Laden en mijn werk laten vallen',
+              gevaarlijk: true })) return;
         zetStaat(rij.data);
         laatsteJson = JSON.stringify(huidigeStaat());
         vuil = false;
@@ -592,7 +595,7 @@
   window.cloudOpen = function (id) {
     if (vuil) synchroniseer();
     sb.from('projecten').select('id,data').eq('id', id).single().then(function (res) {
-      if (res.error) { alert('Openen mislukt: ' + res.error.message); return; }
+      if (res.error) { appFout('Openen mislukt: ' + res.error.message); return; }
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
@@ -608,19 +611,22 @@
     });
   };
 
-  window.cloudNieuw = function (voorstel) {
-    var naam = prompt('Naam van het nieuwe project (bijv. adres):', voorstel || '');
+  window.cloudNieuw = async function (voorstel, melding) {
+    var naam = await appInvoer(melding || 'Waar gaat dit project over? Meestal het adres.',
+      { kop: 'Nieuw project', waarde: voorstel || '',
+        plaatshouder: 'bijv. Teststraat 12', ja: 'Aanmaken' });
     if (naam === null) return;
-    if (!naam.trim()) { alert('Geef het project een naam.'); window.cloudNieuw(); return; }
-    zoekNaam(naam, null).then(function (bestaand) {
-      if (bestaand) {
-        alert('Er bestaat al een project met de naam ‹' + bestaand.naam + '›.\n\n' +
-              'Kies een andere naam, of open het bestaande project via de lijst.');
-        window.cloudNieuw(naam);
-        return;
-      }
-      maakProject(naam);
-    });
+    if (!naam.trim()) {
+      window.cloudNieuw('', 'Een project heeft een naam nodig. Meestal het adres.');
+      return;
+    }
+    var bestaand = await zoekNaam(naam, null);
+    if (bestaand) {
+      window.cloudNieuw(naam, 'Er bestaat al een project met de naam \u2039' + bestaand.naam +
+        '\u203a. Kies een andere naam, of open het bestaande project via de lijst.');
+      return;
+    }
+    maakProject(naam);
   };
 
   function maakProject(naam) {
@@ -632,7 +638,7 @@
       aantal_ruiten: 0, adres: '', open_taken: 0,
       gewijzigd_door: gebruiker.id
     }).select('id').single().then(function (res) {
-      if (res.error) { alert('Aanmaken mislukt: ' + res.error.message); return; }
+      if (res.error) { appFout('Aanmaken mislukt: ' + res.error.message); return; }
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
@@ -659,16 +665,17 @@
       .catch(function (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); });
   }
 
-  window.cloudVerwijder = function (id) {
-    if (!confirm('Dit project definitief verwijderen? Dit geldt voor iedereen.\n\n' +
-                 'De foto\'s van dit project worden ook verwijderd.')) return;
+  window.cloudVerwijder = async function (id) {
+    if (!await appVraag('Dit project definitief verwijderen? Dit geldt voor iedereen.\n' +
+        'De foto\'s van dit project worden ook verwijderd.',
+        { kop: 'Project verwijderen', ja: 'Definitief verwijderen', gevaarlijk: true })) return;
     var lijst = document.getElementById('cloudProjectLijst');
     if (lijst) lijst.style.opacity = '0.5';
     fotosOpruimen(id).then(function () {
       return sb.from('projecten').delete().eq('id', id);
     }).then(function (res) {
       if (lijst) lijst.style.opacity = '';
-      if (res && res.error) { alert('Verwijderen mislukt: ' + res.error.message); return; }
+      if (res && res.error) { appFout('Verwijderen mislukt: ' + res.error.message); return; }
       if (id === projectId) {
         projectId = null;
         window.glasProjectId = null;
@@ -677,7 +684,7 @@
       toonProjecten();
     }).catch(function (e) {
       if (lijst) lijst.style.opacity = '';
-      alert('Verwijderen mislukt: ' + e.message);
+      appFout('Verwijderen mislukt: ' + e.message);
     });
   };
 

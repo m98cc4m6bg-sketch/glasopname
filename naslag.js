@@ -771,9 +771,10 @@ const NASLAG_TABELLEN = [
       <thead><tr><th>Maatsoort</th><th colspan="3">Uitleg</th></tr></thead>
       <tbody>
         <tr><td><strong>Glasmaat (direct)</strong></td><td colspan="3">Directe netto bestelmaat. Geen correctie nodig. Voer de exacte glasmaat in.</td></tr>
-        <tr><td><strong>Sponningmaat</strong></td><td colspan="3">Binnenwerks kozijn (de sleuf). 2× speling wordt afgetrokken. Bijv. 4 mm speling → −8 mm totaal.</td></tr>
+        <tr><td><strong>Sponningmaat</strong></td><td colspan="3">Dit is de werkelijke maat van de sponning, zonder aftrek van eventuele speling. De app trekt de speling er zelf af: 2× per richting, dus bij 4 mm speling gaat er −8 mm van de breedte en −8 mm van de hoogte.</td></tr>
         <tr><td><strong>Dagmaat</strong></td><td colspan="3">Zichtmaat van de ruit met glaslatten. 2× speling wordt opgeteld. Bijv. 4 mm speling → +8 mm totaal.</td></tr>
-        <tr><td><strong>Speling (rondom)</strong></td><td colspan="3">Instelbare randspeling per zijde. Standaard 4 mm. Kies hoger bij grote ruiten of kunststof kozijnen.</td></tr>
+        <tr><td><strong>Speling aftrek rondom</strong></td><td colspan="3">Instelbare randspeling per zijde, die van de sponningmaat af gaat. Standaard 4 mm. Kies hoger bij grote ruiten of kunststof kozijnen.</td></tr>
+        <tr><td><strong>Bijtelling dagmaat</strong></td><td colspan="3">Dit is de maat die de rúit groter moet worden dan de dagmaat van het kozijn. Te gebruiken bij bijvoorbeeld meten van binnenuit. Standaard 11 mm per zijde, dus +22 mm op de breedte en +22 mm op de hoogte.</td></tr>
       </tbody>
     </table>`,
   },

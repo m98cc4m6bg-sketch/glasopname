@@ -214,8 +214,26 @@
     return 1 + Math.round(((t - eerste) / 86400000 - 3 + ((eerste.getDay() + 6) % 7)) / 7);
   }
 
-  window.leverKalender = function (knop, perWeek) {
+  // Hoeveel weken de kalender standaard laat zien, en hoeveel na het
+  // uitklappen. Acht weken is genoeg voor de meeste leveringen; een
+  // renovatie die in het najaar begint moet verder vooruit kunnen kiezen.
+  var KALENDER_WEKEN = 8;
+  var KALENDER_JAAR = 53;
+  var kalenderKnop = null;
+
+  // Het uitklappen bouwt dezelfde kalender opnieuw, nu met een heel jaar.
+  window.leverKalenderJaar = function () {
+    var knop = kalenderKnop;
+    if (!knop) return;
+    sluitKalender();
+    leverKalender(knop, true, KALENDER_JAAR);
+  };
+
+  window.leverKalender = function (knop, perWeek, weken) {
     if (document.querySelector('.kalender')) { sluitKalender(); return; }
+    kalenderKnop = knop;
+    var aantal = weken || KALENDER_WEKEN;
+    var heelJaar = aantal > KALENDER_WEKEN;
     var vandaag = new Date(); vandaag.setHours(0, 0, 0, 0);
     var start = new Date(vandaag);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));   // maandag van deze week
@@ -229,7 +247,15 @@
 
     var maanden = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
     var loop = new Date(start);
-    for (var w = 0; w < 8; w++) {
+    var vorigeMaand = -1;
+    html += '<div class="kalender-lijst' + (heelJaar ? ' jaar' : '') + '">';
+    for (var w = 0; w < aantal; w++) {
+      // Bij een heel jaar is een streepje per maand nodig; anders tel je
+      // weeknummers af om te zien waar je zit.
+      if (heelJaar && loop.getMonth() !== vorigeMaand) {
+        vorigeMaand = loop.getMonth();
+        html += '<div class="kalender-maand">' + maanden[vorigeMaand] + ' ' + loop.getFullYear() + '</div>';
+      }
       var wk = weekNummer(loop);
       var weekEind = new Date(loop); weekEind.setDate(weekEind.getDate() + 6);
       var weekTekst = 'week ' + wk + ' (' +
@@ -254,17 +280,41 @@
       }
       html += '</div>';
     }
+    html += '</div>';
+
+    // Alleen bij het kiezen van een week: verder vooruit dan acht weken.
+    // Bij een losse datum staat de gewone datumkiezer al open.
+    if (perWeek && !heelJaar) {
+      html += '<button type="button" class="kalender-meer" onclick="leverKalenderJaar()">' +
+        '\u{1F4C5} Heel jaar tonen</button>';
+    }
 
     var menu = document.createElement('div');
-    menu.className = 'veld-menu kalender';
+    menu.className = 'veld-menu kalender' + (heelJaar ? ' kalender-jaar' : '');
     menu.innerHTML = html;
     document.body.appendChild(menu);
-    var r = knop.getBoundingClientRect();
-    var max = window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 10;
-    menu.style.left = Math.max(window.scrollX + 8, Math.min(r.left + window.scrollX, max)) + 'px';
-    menu.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    plaatsKalender(menu, knop);
     setTimeout(function () { document.addEventListener('pointerdown', kalenderBuiten, true); }, 0);
   };
+
+  // De kalender binnen het scherm houden: een heel jaar is te hoog om altijd
+  // onder de knop te passen, en op een telefoon past zelfs acht weken er
+  // soms niet onder.
+  function plaatsKalender(menu, knop) {
+    var r = knop.getBoundingClientRect();
+    var breed = document.documentElement.clientWidth;
+    var hoog = document.documentElement.clientHeight;
+    var max = window.scrollX + breed - menu.offsetWidth - 10;
+    menu.style.left = Math.max(window.scrollX + 8, Math.min(r.left + window.scrollX, max)) + 'px';
+
+    var onder = r.bottom + 4;
+    var h = menu.offsetHeight;
+    var top;
+    if (onder + h <= hoog - 8) top = onder;                 // past eronder
+    else if (r.top - 4 - h >= 8) top = r.top - 4 - h;       // dan erboven
+    else top = Math.max(8, hoog - h - 8);                   // anders passend schuiven
+    menu.style.top = (top + window.scrollY) + 'px';
+  }
 
   function kalenderBuiten(e) {
     var menu = document.querySelector('.kalender');
@@ -424,11 +474,13 @@
     opslaan();
   };
 
-  window.takenOpruimen = function () {
+  window.takenOpruimen = async function () {
     var lijst = taken();
     var klaar = lijst.filter(function (t) { return t.klaar; }).length;
     if (!klaar) return;
-    if (!confirm(klaar + ' afgeronde ' + (klaar === 1 ? 'taak' : 'taken') + ' verwijderen?')) return;
+    if (!await appVraag(klaar + ' afgeronde ' + (klaar === 1 ? 'taak' : 'taken') + ' verwijderen?',
+        { kop: 'Taken opruimen', ja: 'Opruimen' })) return;
+    lijst = taken();
     if (window.bewaarStap) bewaarStap('Afgeronde taken opgeruimd');
     projectTaken = lijst.filter(function (t) { return !t.klaar; });
     renderTaken();

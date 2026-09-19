@@ -344,10 +344,12 @@
     m.style.color = fout ? 'var(--rood)' : 'var(--grijs-tekst)';
   }
 
-  window.leverFotoWeg = function () {
+  window.leverFotoWeg = async function () {
     var f = window.leverFoto();
     if (!f) return;
-    if (!confirm('De foto van de leverlocatie verwijderen?')) return;
+    if (!await appVraag('De foto van de leverlocatie verwijderen?',
+        { kop: 'Foto verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
+    if (!window.leverFoto()) return;
     var sb = sbClient();
     if (sb && f.pad) sb.storage.from(BUCKET).remove([f.pad]);
     fotos = fotos.filter(function (x) { return x.soort !== 'lever'; });
@@ -848,14 +850,16 @@
   // Alleen de afbeelding weg. De groep en zijn ruiten blijven staan,
   // zodat je er een nieuwe foto in kunt hangen en de letters opnieuw
   // kunt aanwijzen.
-  window.fotoVerwijder = function (id) {
+  window.fotoVerwijder = async function (id) {
     var f = fotoVan(id);
     if (!f || !f.pad) return;
     var aantal = rijenVan(id).length;
-    if (!confirm('De ' + soortNaam(f) + ' verwijderen?' + (aantal
-      ? '\n\nDe ' + aantal + ' ruiten eronder blijven staan. Je kunt er daarna een nieuwe ' +
-        soortNaam(f) + ' in zetten en dezelfde merkletters opnieuw aanwijzen.'
-      : ''))) return;
+    if (!await appVraag('De ' + soortNaam(f) + ' verwijderen?' + (aantal
+        ? '\nDe ' + aantal + ' ruiten eronder blijven staan. Je kunt er daarna een nieuwe ' +
+          soortNaam(f) + ' in zetten en dezelfde merkletters opnieuw aanwijzen.'
+        : ''), { kop: 'Afbeelding verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
+    f = fotoVan(id);
+    if (!f || !f.pad) return;
     if (window.bewaarStap) bewaarStap('Foto verwijderd');
     var sb = sbClient();
     if (sb) sb.storage.from(BUCKET).remove([f.pad]);
@@ -867,17 +871,29 @@
   };
 
   // De hele groep weg, inclusief de keuze wat er met de ruiten gebeurt.
-  window.groepVerwijder = function (id) {
+  window.groepVerwijder = async function (id) {
     var f = fotoVan(id);
     if (!f) return;
     var eigen = rijenVan(id);
-    if (!confirm('Deze groep verwijderen?')) return;
     var ookRuiten = false;
     if (eigen.length) {
-      ookRuiten = confirm('Wat moet er met de ' + eigen.length + ' ruiten in deze groep gebeuren?\n\n' +
-        'OK = ruiten ook verwijderen\n' +
-        'Annuleren = ruiten bewaren, ze verhuizen naar het tabblad Invoer');
+      // Eén venster met drie antwoorden in plaats van twee keer een vraag
+      // waarbij 'OK' en 'Annuleren' iets heel anders betekenden.
+      var keus = await appKeuze('Deze groep heeft ' + eigen.length + ' ruit' +
+        (eigen.length === 1 ? '' : 'en') + '. Wat moet daarmee gebeuren?',
+        [{ tekst: 'Annuleren', waarde: null },
+         { tekst: 'Ruiten bewaren', waarde: 'bewaren' },
+         { tekst: 'Ruiten ook weg', waarde: 'weg', soort: 'btn-danger' }],
+        { kop: 'Groep verwijderen' });
+      if (keus === null) return;
+      ookRuiten = keus === 'weg';
+    } else {
+      if (!await appVraag('Deze groep verwijderen?',
+          { kop: 'Groep verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
     }
+    f = fotoVan(id);
+    if (!f) return;
+    eigen = rijenVan(id);
     if (window.bewaarStap) bewaarStap('Groep verwijderd');
     var sb = sbClient();
     if (sb && f.pad) sb.storage.from(BUCKET).remove([f.pad]);
@@ -1129,26 +1145,32 @@
     renderFotoTabellen();
   };
 
-  window.markRuitWeg = function (fotoId, index) {
+  window.markRuitWeg = async function (fotoId, index) {
     var foto = fotoVan(fotoId);
     var m = foto && foto.markeringen[index];
     var rij = m && getRij(m.rijId);
     sluitMenu();
     if (!rij) return;
-    if (!confirm('Ruit ' + labelVan(rij) + ' helemaal verwijderen, inclusief de ingevulde maten?')) return;
+    if (!await appVraag('Ruit ' + labelVan(rij) + ' helemaal verwijderen, inclusief de ' +
+        'ingevulde maten?', { kop: 'Ruit verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
+    if (!getRij(rij.id)) return;
     verwijderRij(rij.id);
     renderFotoTabellen();
   };
 
-  function markTik(fotoId, index) {
+  async function markTik(fotoId, index) {
     var foto = fotoVan(fotoId);
     var m = foto.markeringen[index];
     var rij = getRij(m.rijId);
     if (!rij) {
-      if (confirm('De regel bij deze markering bestaat niet meer. Markering verwijderen?')) {
-        foto.markeringen.splice(index, 1);
-        opslaan();
-        renderFotos();
+      if (await appVraag('De regel bij deze markering bestaat niet meer. Markering verwijderen?',
+          { kop: 'Losse markering', ja: 'Markering weghalen' })) {
+        var nu = fotoVan(fotoId);
+        if (nu && nu.markeringen[index] === m) {
+          nu.markeringen.splice(index, 1);
+          opslaan();
+          renderFotos();
+        }
       }
       return;
     }

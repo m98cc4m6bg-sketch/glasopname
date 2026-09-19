@@ -466,8 +466,9 @@
     afronden(nieuw.length + ' rijen toegevoegd');
   };
 
-  window.impVervangen = function () {
-    if (!confirm('Alle huidige rijen vervangen door de geïmporteerde rijen?')) return;
+  window.impVervangen = async function () {
+    if (!await appVraag('Alle huidige rijen vervangen door de geïmporteerde rijen?',
+        { kop: 'Rijen vervangen', ja: 'Vervangen', gevaarlijk: true })) return;
     var nieuw = verwerkMerken(bouwRijen());
     rijen = nieuw;
     afronden(nieuw.length + ' rijen ingelezen');

@@ -914,14 +914,37 @@
   .pi-kop { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 4px; flex-wrap: wrap; }
   .pi-kop h2 { font-size: 16px; color: var(--blauw); }
   .pi-sub { font-size: 12px; color: var(--grijs-tekst); margin-top: 3px; }
-  .pi-groep { margin-top: 18px; }
-  /* De kopjes vielen weg tussen de invoervelden. Een vlak met een rode
-     streep ervoor leest als een kop, ook op een klein scherm. */
-  .pi-groep h3, .pi-kolommen h3, .taken-kop h3 {
-    font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
-    color: var(--blauw); font-weight: 800; margin-bottom: 10px;
-    background: var(--grijs-licht); border-left: 3px solid var(--merk);
-    border-radius: 0 4px 4px 0; padding: 7px 10px;
+  /* Elk blok op Project info is een kaart met een kopbalk, net als de
+     tabellen op Invoer (zie .foto-blok en .blok-balk). Zonder dat liep
+     alles over in één witte lap en zag je niet waar een blok begon. */
+  .pi-groep {
+    --kaart-pad: 16px;
+    background: white;
+    border: 1px solid var(--grijs-rand);
+    border-left: 4px solid var(--merk);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(29,29,27,0.08);
+    padding: var(--kaart-pad);
+    margin-top: 26px;
+  }
+  /* De kopbalk loopt over de volle breedte van de kaart; de negatieve
+     marges halen de binnenruimte er weer af. */
+  .pi-groep > h3, .pi-groep > .taken-kop {
+    margin: calc(var(--kaart-pad) * -1) calc(var(--kaart-pad) * -1) 14px;
+    padding: 11px var(--kaart-pad);
+    background: var(--grijs-licht);
+    border-bottom: 1px solid var(--grijs-rand);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .pi-groep > h3, .pi-groep > .taken-kop h3 {
+    font-size: 14px; font-weight: 700; color: var(--blauw);
+    letter-spacing: .01em; text-transform: none;
+  }
+  /* De teller als etiket rechts, zoals de telling bij een fototabel. */
+  .taken-teller:not(:empty) {
+    margin-left: auto; background: white;
+    border: 1px solid var(--grijs-rand); border-radius: 999px;
+    padding: 2px 9px; white-space: nowrap;
   }
   .pi-raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 14px; }
   .pi-veld { display: flex; flex-direction: column; gap: 3px; }
@@ -936,8 +959,13 @@
     outline: 2px solid var(--merk); outline-offset: -1px;
   }
 
-  .pi-kolommen { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 16px; }
-  .pi-kolommen section { margin-bottom: 6px; }
+  /* Twee kolommen met kaarten; de kaarten houden hun eigen marge, dus de
+     raster-tussenruimte gaat alleen over de breedte. */
+  .pi-kolommen { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; align-items: start; }
+  /* Zonder min-width: 0 rekt een rasterkolom op tot de breedste inhoud die
+     niet wil afbreken; op een telefoon schoof de hele pagina daardoor 28 px
+     opzij. */
+  .pi-kolom { min-width: 0; }
   #projectNotitie {
     width: 100%; min-height: 190px; padding: 10px; font-size: 13px;
     font-family: inherit; line-height: 1.6; resize: vertical;
@@ -1048,6 +1076,42 @@
   @media (max-width: 480px) {
     .bew-vraag-knoppen { flex-direction: column-reverse; }
     .bew-vraag-knoppen .btn { width: 100%; justify-content: center; }
+  }
+
+  /* ─── MELDINGEN (melding.js) ─── */
+  /* Vervangt alert, confirm en prompt. Zelfde vorm als het venster
+     hierboven, maar met een kleur per soort melding. */
+  .melding-laag {
+    position: fixed; inset: 0; z-index: 9400;
+    background: rgba(29,29,27,0.45);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  .melding-venster {
+    background: white; border-radius: var(--radius);
+    max-width: 440px; width: 100%; max-height: 100%; overflow-y: auto;
+    box-shadow: 0 18px 50px rgba(29,29,27,0.35);
+    border-top: 4px solid var(--blauw);
+    padding: 18px 20px 16px;
+  }
+  .melding-venster h3 { font-size: 15px; margin-bottom: 8px; }
+  .melding-tekst p { font-size: 13px; color: var(--blauw); line-height: 1.55; }
+  .melding-tekst p + p { margin-top: 8px; }
+  .melding-invoer {
+    width: 100%; margin-top: 12px; padding: 9px 10px;
+    font-family: inherit; font-size: 16px;   /* 16px: anders zoomt Safari in */
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius);
+    color: var(--blauw); background: white;
+  }
+  .melding-invoer:focus { outline: none; border-color: var(--merk); }
+  .melding-knoppen {
+    display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 16px;
+  }
+  @media (max-width: 480px) {
+    .melding-knoppen { flex-direction: column-reverse; }
+    .melding-knoppen .btn { width: 100%; justify-content: center; }
   }
 
 
@@ -1184,11 +1248,6 @@
   .tk-vormhint {
     font-size: 11px; color: var(--grijs-tekst); white-space: nowrap;
     background: var(--grijs-licht); border: 1px solid var(--grijs-rand);
-    border-radius: 999px; padding: 3px 9px;
-  }
-  .tk-vormklaar {
-    font-size: 11px; font-weight: 700; color: #14532b; white-space: nowrap;
-    background: #eef7f1; border: 1px solid var(--groen);
     border-radius: 999px; padding: 3px 9px;
   }
   .tk-info { font-size: 11px; color: var(--grijs-tekst); margin-left: auto; }
@@ -1451,10 +1510,9 @@
   .adres-bezig { padding: 10px 14px; font-size: 12px; color: var(--grijs-tekst); line-height: 1.5; }
 
   /* ─── LEVERING ─── */
-  .lever-kop { margin-top: 22px; }
   .lever-rij { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
   .lever-label { font-size: 11px; font-weight: 600; color: var(--grijs-tekst); min-width: 110px; }
-  .lever-keuze { display: flex; gap: 4px; }
+  .lever-keuze { display: flex; gap: 4px; flex-wrap: wrap; }
   .lever-keuze button {
     background: white; border: 1px solid var(--grijs-rand); color: var(--blauw);
     padding: 6px 12px; border-radius: var(--radius);
@@ -1479,7 +1537,9 @@
   #leverFotoBlok .foto-blok { padding: 0; box-shadow: none; margin-top: 0; border: 0; }
 
   /* ─── KALENDER ─── */
-  .kalender { padding: 10px; min-width: 300px; }
+  /* Op een telefoon mag de kalender nooit breder zijn dan het scherm;
+     anders schuift de hele pagina opzij. */
+  .kalender { padding: 10px; min-width: 300px; max-width: calc(100vw - 16px); }
   .kalender-kop, .kalender-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
   .kalender-kop span {
     font-size: 10px; text-transform: uppercase; color: var(--grijs-tekst);
@@ -1532,6 +1592,27 @@
   .kalender-week.kiesbaar { cursor: pointer; border-radius: 4px; }
   .kalender-week.kiesbaar:hover { background: var(--blauw-licht); outline: 2px solid var(--merk); }
   .kalender-week.kiesbaar .kalender-dag { pointer-events: none; }
+  /* Een heel jaar past niet op het scherm; die lijst schuift. De kop met de
+     dagen blijft staan, zodat je blijft zien welke kolom welke dag is. */
+  .kalender-jaar { min-width: 320px; }
+  .kalender-jaar .kalender-lijst.jaar {
+    max-height: min(52vh, 420px); overflow-y: auto; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kalender-maand {
+    position: sticky; top: 0; z-index: 1;
+    background: white; padding: 6px 0 3px;
+    font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.4px; color: var(--merk);
+    border-bottom: 1px solid var(--grijs-rand); margin-bottom: 3px;
+  }
+  .kalender-meer {
+    display: block; width: 100%; margin-top: 8px; padding: 8px;
+    background: var(--grijs-licht); border: 1px solid var(--grijs-rand);
+    border-radius: var(--radius); cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 600; color: var(--blauw);
+  }
+  .kalender-meer:hover { background: var(--blauw-licht); border-color: var(--merk); }
 
   .pl-taken { color: var(--rood); font-weight: 800; }
 
@@ -1662,7 +1743,7 @@
   
 
   <span class="toolbar-maatinstelling">
-    <label>Speling sponningmaat (rondom):</label>
+    <label>Speling aftrek rondom:</label>
     <select id="spelingGlobal" onchange="herbereken(); opslaan()"><option value="2">2 mm</option><option value="3">3 mm</option><option value="4" selected>4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="7">7 mm</option><option value="8">8 mm</option><option value="9">9 mm</option><option value="10">10 mm</option><option value="11">11 mm</option><option value="12">12 mm</option><option value="13">13 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="17">17 mm</option><option value="18">18 mm</option><option value="19">19 mm</option><option value="20">20 mm</option><option value="21">21 mm</option><option value="22">22 mm</option><option value="23">23 mm</option><option value="24">24 mm</option><option value="25">25 mm</option></select>
     <i class="info-icon" onclick="toonInfo(this)" data-info="De speling geldt <b>rondom</b>: hij gaat er aan beide zijden af, dus 2× van de breedte en 2× van de hoogte.<br><br>Bij 4 mm speling wordt een sponningmaat van 1000 × 2000 dus een glasmaat van <b>992 × 1992</b>.">i</i>
     <label style="margin-left:12px;">Bijtelling dagmaat (rondom):</label>
@@ -1675,7 +1756,7 @@
 
 <!-- ═══════════════════════ PROJECT ═══════════════════════ -->
 <div id="panel-project" class="tab-panel">
-  <div class="card">
+  <div class="container">
     <div class="pi-kop">
       <div>
         <h2>Projectgegevens</h2>
@@ -1683,36 +1764,46 @@
       </div>
       <button class="btn btn-secondary btn-sm" id="pi-kaart" style="display:none">📍 Adres in kaarten</button>
     </div>
+
+    <!-- Elk blok is een eigen kaart met een kopbalk, dezelfde opzet als de
+         tabellen op Invoer. Zonder dat liep alles in één witte lap over. -->
     <div id="projectVelden"></div>
-  </div>
 
-  <div class="card pi-kolommen">
-    <section>
-      <h3>Notities</h3>
-      <textarea id="projectNotitie" placeholder="Afspraken, bijzonderheden, wat de klant zei…"
-                oninput="projectNotitie(this.value)"></textarea>
+    <div class="pi-kolommen">
+      <div class="pi-kolom">
+        <section class="pi-groep">
+          <h3>Notities</h3>
+          <textarea id="projectNotitie" placeholder="Afspraken, bijzonderheden, wat de klant zei…"
+                    oninput="projectNotitie(this.value)"></textarea>
+        </section>
 
-      <h3 class="lever-kop">Levering</h3>
-      <div id="leverBlok"></div>
-      <div class="lever-melding" id="leverMelding"></div>
-      <div id="leverFotoBlok"></div>
-      <textarea id="leverInstructie" class="lever-instructie"
-                placeholder="Instructies voor de chauffeur — waar mag het glas staan, wie is aanwezig, hoe kom je erbij…"
-                oninput="leverInstructie(this.value)"></textarea>
-      <div class="lever-uitleg">Een foto met instructies gaat als losse pagina mee met de bestellijst.</div>
-    </section>
-    <section>
-      <div class="taken-kop">
-        <h3>Taken</h3>
-        <span class="taken-teller" id="takenTeller"></span>
+        <section class="pi-groep">
+          <h3>Levering</h3>
+          <div id="leverBlok"></div>
+          <div class="lever-melding" id="leverMelding"></div>
+          <div id="leverFotoBlok"></div>
+          <textarea id="leverInstructie" class="lever-instructie"
+                    placeholder="Instructies voor de chauffeur — waar mag het glas staan, wie is aanwezig, hoe kom je erbij…"
+                    oninput="leverInstructie(this.value)"></textarea>
+          <div class="lever-uitleg">Een foto met instructies gaat als losse pagina mee met de bestellijst.</div>
+        </section>
       </div>
-      <div class="taak-nieuw">
-        <input type="text" id="taakNieuw" placeholder="Nieuwe taak…">
-        <button class="btn btn-primary btn-sm" onclick="taakToevoegen()">Toevoegen</button>
+
+      <div class="pi-kolom">
+        <section class="pi-groep">
+          <div class="taken-kop">
+            <h3>Taken</h3>
+            <span class="taken-teller" id="takenTeller"></span>
+          </div>
+          <div class="taak-nieuw">
+            <input type="text" id="taakNieuw" placeholder="Nieuwe taak…">
+            <button class="btn btn-primary btn-sm" onclick="taakToevoegen()">Toevoegen</button>
+          </div>
+          <div id="takenLijst"></div>
+          <button class="btn btn-ghost btn-sm taken-opruimen" onclick="takenOpruimen()">Afgeronde taken opruimen</button>
+        </section>
       </div>
-      <div id="takenLijst"></div>
-      <button class="btn btn-ghost btn-sm taken-opruimen" onclick="takenOpruimen()">Afgeronde taken opruimen</button>
-    </section>
+    </div>
   </div>
 </div>
 
@@ -2228,7 +2319,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v78';
+const APP_VERSIE = 'v79';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -3054,8 +3145,9 @@ function laadOpgeslagen() {
   } catch(e) { rijen = []; }
 }
 
-function clearAlles() {
-  if (!confirm('Alle invoer wissen? Dit kan niet ongedaan worden gemaakt.')) return;
+async function clearAlles() {
+  if (!await appVraag('Alle invoer wissen? Dit kan niet ongedaan worden gemaakt.',
+      { kop: 'Alles wissen', ja: 'Alles wissen', gevaarlijk: true })) return;
   rijen = [];
   volgendId = 1;
   document.getElementById('projectNaam').value = '';
@@ -3066,9 +3158,13 @@ function clearAlles() {
 
 // ═══════════════ PRINT ═══════════════
 // ═══════════════ CSV EXPORT ═══════════════
-function exportCSV() {
+async function exportCSV() {
   const ingevuld = rijen.filter(r => r.glasType || r.breedte || r.hoogte);
-  if (ingevuld.length === 0) { alert('Geen data om te exporteren.'); return; }
+  if (ingevuld.length === 0) {
+    await appMelding('Er is nog niets ingevuld om te exporteren.',
+      { kop: 'Niets te exporteren', soort: 'letop' });
+    return;
+  }
 
   const headers = ['Pos','Aantal','Merk','Maatsoort','Breedte invoer','Hoogte invoer',
     'Glasbreedte','Glashoogte','Glas Type','Opbouw','Totaal dikte (mm)',
@@ -3099,6 +3195,24 @@ function exportCSV() {
   a.download = 'glasopname_' + (document.getElementById('projectNaam').value||'export') + '.csv';
   a.click();
 }
+</script>
+<script src="melding.js"></script>
+<script>
+  // Terugval als melding.js niet geladen is (verkeerd geüpload, of een
+  // oude service worker die het bestand nog niet kent). Dan liever een
+  // lelijk venster van de browser dan een knop die niets doet.
+  if (typeof window.appVraag !== 'function') {
+    window.appMelding = function (t) { window.alert(t); return Promise.resolve(true); };
+    window.appFout = window.appMelding;
+    window.appVraag = function (t) { return Promise.resolve(window.confirm(t)); };
+    window.appInvoer = function (t, o) {
+      return Promise.resolve(window.prompt(t, (o && o.waarde) || ''));
+    };
+    window.appKeuze = function (t, k) {
+      return Promise.resolve(window.confirm(t) ? (k[k.length - 1] || {}).waarde : null);
+    };
+    window.appMeldingBezig = function () { return false; };
+  }
 </script>
 <script src="cloud.js"></script>
 <script src="import.js"></script>

@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v78';
+  var PDF_VERSIE = 'v79';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -337,8 +337,12 @@
     var naam = maakNaam('Inmeting', project, datum);
 
     if (!fotos.length && !losseRijen().some(function (r) { return r.breedte || r.hoogte; })) {
-      alert('Er is nog niets om te exporteren.');
-      return;
+      appMelding('Er staan nog geen foto\'s of maten in dit project.',
+        { kop: 'Niets te exporteren', soort: 'letop' });
+      // Een belofte teruggeven, geen undefined: de aanroeper hangt er een
+      // .then aan. Stond hier eerder alleen `return;`, waardoor de console
+      // een fout gaf zodra er niets te exporteren was.
+      return Promise.resolve(null);
     }
 
     if (knop) knop.disabled = true;
@@ -591,7 +595,8 @@
       return r.glasType && r.opbouw && r.glasBreedte && r.glasHoogte;
     });
     if (!lijst.length) {
-      alert('Geen volledige regels gevonden. Een regel telt mee zodra glastype, opbouw en de glasmaten ingevuld zijn.');
+      appMelding('Geen volledige regels gevonden. Een regel telt mee zodra glastype, opbouw ' +
+        'en de glasmaten ingevuld zijn.', { kop: 'Niets te bestellen', soort: 'letop' });
       return Promise.resolve(null);
     }
 
@@ -905,7 +910,7 @@
   function mislukt(e) {
     console.error('[pdf]', e);
     bezig('');
-    alert('Pdf maken mislukt: ' + e.message);
+    appFout('Pdf maken mislukt: ' + e.message);
   }
 
   function mapVragen() {

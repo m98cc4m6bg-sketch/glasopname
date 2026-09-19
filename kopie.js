@@ -123,10 +123,11 @@
     });
   }
 
-  window.gelijktrekken = function () {
+  window.gelijktrekken = async function () {
     var gekozen = geselecteerd();
     if (gekozen.length < 2) {
-      alert('Selecteer eerst de ruit die al ingevuld is, plus de ruiten die hetzelfde moeten worden.');
+      await appMelding('Selecteer eerst de ruit die al ingevuld is, plus de ruiten die ' +
+        'hetzelfde moeten worden.', { kop: 'Te weinig geselecteerd', soort: 'letop' });
       return;
     }
     // De eerste geselecteerde ruit mét inhoud is het voorbeeld; staat er
@@ -135,11 +136,12 @@
     var doelen = gekozen.filter(function (r) { return r !== bron; });
     var overschrijft = doelen.filter(heeftInhoud);
 
-    if (overschrijft.length && !confirm(
+    if (overschrijft.length && !await appVraag(
         overschrijft.length + ' van de geselecteerde ruiten ' +
         (overschrijft.length === 1 ? 'is' : 'zijn') + ' al ingevuld (' +
-        overschrijft.map(function (r) { return r.merk || '?'; }).join(', ') + ').\n\n' +
-        'Die worden overschreven met de gegevens van ' + (bron.merk || 'de eerste ruit') + '. Doorgaan?')) return;
+        overschrijft.map(function (r) { return r.merk || '?'; }).join(', ') + ').\n' +
+        'Die worden overschreven met de gegevens van ' + (bron.merk || 'de eerste ruit') + '.',
+        { kop: 'Ruiten gelijktrekken', ja: 'Overschrijven', gevaarlijk: true })) return;
 
     if (window.bewaarStap) bewaarStap('Ruiten gelijkgetrokken');
     doelen.forEach(function (r) {

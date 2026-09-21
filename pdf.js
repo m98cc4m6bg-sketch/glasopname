@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v80';
+  var PDF_VERSIE = 'v82';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -129,14 +129,21 @@
       .catch(function () { logoData = false; return false; });
   }
 
+  // Bovenkant van het logo in de kopregel. Onderkant = LOGO_BOVEN + 8,05 mm
+  // = MARGE + 2,05 mm; de rode lijn begint op MARGE + 3,2 mm.
+  var LOGO_BOVEN = MARGE - 6;
+
   function kopregel(doc, titel) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(29, 29, 27);
     doc.text(schoon(titel), MARGE, MARGE + 1);
     if (logoData) {
+      // Het logo eindigt ruim boven de rode lijn. Tot v81 stond de
+      // onderkant (AANNEMERSBEDRIJF) op MARGE + 3,55 mm, precies op de lijn
+      // (MARGE + 3,5 mm, 0,6 mm dik), zodat die er half doorheen liep.
       var lb = 34, lh = lb * 142 / 600;
-      doc.addImage(logoData, 'PNG', BREEDTE - MARGE - lb, MARGE - 4.5, lb, lh);
+      doc.addImage(logoData, 'PNG', BREEDTE - MARGE - lb, LOGO_BOVEN, lb, lh);
     }
     doc.setDrawColor(208, 2, 67);
     doc.setLineWidth(0.6);
@@ -959,15 +966,29 @@
             .catch(function (e) {
               bezig('');
               if (e && (e.name === 'AbortError' || /abort|cancel/i.test(e.message || ''))) return;
-              stukken.forEach(function (s) { s.doc.save(s.naam); });
+              return naElkaarDownloaden(stukken);
             });
         }
       } catch (e) {}
     }
 
-    stukken.forEach(function (s) { s.doc.save(s.naam); });
-    bezig('');
-    return Promise.resolve();
+    return naElkaarDownloaden(stukken);
+  }
+
+  // Safari (en soms ook andere browsers) laat van downloads die in één
+  // klap achter elkaar starten er maar één door: de laatste. Bij 'alles'
+  // bleef daardoor alleen de inmeting over en viel de bestellijst met de
+  // leverpagina weg. Daarom één voor één, met een korte pauze ertussen.
+  var DOWNLOAD_PAUZE = 1500;   // ms
+  function naElkaarDownloaden(stukken) {
+    return stukken.reduce(function (rij, s, i) {
+      return rij.then(function () {
+        if (i === 0) return;
+        return new Promise(function (ok) { setTimeout(ok, DOWNLOAD_PAUZE); });
+      }).then(function () {
+        s.doc.save(s.naam);
+      });
+    }, Promise.resolve()).then(function () { bezig(''); });
   }
 
   /* ═══════════════ AFLEVEREN ═══════════════

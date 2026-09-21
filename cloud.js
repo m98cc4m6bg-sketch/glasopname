@@ -183,7 +183,19 @@
     if (!navigator.onLine) { status('⚠ Offline — lokaal', '#a3231a'); return; }
     bezig = true;
     status('… Opslaan');
-    var state = huidigeStaat();
+    // Een vaste kopie van wat er nu omhoog gaat. huidigeStaat() geeft de
+    // levende lijsten terug; typ je door terwijl het opslaan onderweg is,
+    // dan veranderen die mee en klopt de vingerafdruk achteraf niet meer
+    // met wat er werkelijk verstuurd is (v80 en eerder: valse melding
+    // "een collega heeft dit project gewijzigd").
+    var json = JSON.stringify(huidigeStaat());
+    var state = JSON.parse(json);
+    state._sessie = SESSIE;
+    // Vóór het versturen onthouden: het live bericht van de database kan
+    // eerder binnen zijn dan het antwoord op de update.
+    var afdruk = vingerafdruk(state);
+    eigenSchrijfsels.push(afdruk);
+    if (eigenSchrijfsels.length > 8) eigenSchrijfsels.shift();
     sb.from('projecten').update({
       naam: state.project || '(naamloos)',
       datum: state.datum || '',
@@ -196,6 +208,8 @@
     }).eq('id', projectId).then(function (res) {
       bezig = false;
       if (res.error) {
+        var i = eigenSchrijfsels.lastIndexOf(afdruk);
+        if (i >= 0) eigenSchrijfsels.splice(i, 1);
         if (res.error.code === '23505') {
           status('⚠ Naam al in gebruik', '#a3231a');
           toonNaamWaarschuwing('⚠ Deze projectnaam is al in gebruik. Kies een andere naam; ' +
@@ -204,13 +218,22 @@
           status('⚠ Niet opgeslagen — ' + res.error.message, '#a3231a');
         }
         setTimeout(plan, 8000);
+      } else if (JSON.stringify(huidigeStaat()) !== json) {
+        // Tijdens het opslaan is er doorgetypt. Dat staat nog niet in de
+        // database: open laten en meteen de volgende ronde plannen.
+        vuil = true;
+        localStorage.setItem(LS_PENDING, '1');
+        plan();
       } else {
         vuil = false;
         localStorage.removeItem(LS_PENDING);
-        eigenSchrijfsels.push(vingerafdruk(state));
-        if (eigenSchrijfsels.length > 8) eigenSchrijfsels.shift();
         statusOpgeslagen();
       }
+    }, function (e) {
+      // Netwerkfout zonder antwoord: niets is zeker weggeschreven.
+      bezig = false;
+      status('⚠ Niet opgeslagen — ' + ((e && e.message) || 'geen verbinding'), '#a3231a');
+      setTimeout(plan, 8000);
     });
   }
 
@@ -227,9 +250,12 @@
   function diepCanon(x) {
     if (Array.isArray(x)) return '[' + x.map(diepCanon).join(',') + ']';
     if (x && typeof x === 'object') {
-      return '{' + Object.keys(x).sort().map(function (k) {
-        return JSON.stringify(k) + ':' + diepCanon(x[k]);
-      }).join(',') + '}';
+      // Sleutels met de waarde undefined overslaan: JSON (en dus de
+      // database) laat ze weg, dus anders lijkt je eigen stand verschillend.
+      return '{' + Object.keys(x).filter(function (k) { return x[k] !== undefined; })
+        .sort().map(function (k) {
+          return JSON.stringify(k) + ':' + diepCanon(x[k]);
+        }).join(',') + '}';
     }
     return JSON.stringify(x === undefined ? null : x);
   }
@@ -261,6 +287,11 @@
   // terug, ook de onze; die komt aan als jij alweer verder hebt getypt en
   // is dan niet meer te herkennen aan wat er op het scherm staat.
   var eigenSchrijfsels = [];
+  // Elke geopende pagina krijgt een eigen kenmerk dat met de opslag
+  // meegaat. Zo herken je je eigen terugkaatsende opslag ook als je
+  // intussen verder bent gegaan. Bewust niet het gebruikers-id: dezelfde
+  // gebruiker op een tweede apparaat moet wél live bijgewerkt worden.
+  var SESSIE = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 
   function luisterOpProject() {
     // Een oudere bibliotheek uit de cache kent geen kanalen. Dan werkt de
@@ -281,6 +312,9 @@
 
   function vanElders(rij) {
     if (!rij || !rij.data) return;
+    // Onze eigen opslag die terugkaatst — ook een oudere: er is sindsdien
+    // alleen nog meer van onszelf bijgekomen.
+    if (rij.data._sessie === SESSIE) return;
     var binnen = vingerafdruk(rij.data);
     // Gelijk aan wat er nu staat: niets aan de hand.
     if (binnen === vingerafdruk(huidigeStaat())) return;
@@ -350,10 +384,13 @@
     // invoer die nog omhoog moet. Eerst wegschrijven; wat er daarna echt
     // van een ander komt, meldt de live verbinding vanzelf.
     if (vuil) { synchroniseer(); return; }
+    // Opslaan nog onderweg: wat de database nu teruggeeft is ouder dan je
+    // scherm. Het antwoord op die opslag regelt de rest.
+    if (bezig) return;
 
     sb.from('projecten').select('data').eq('id', projectId).maybeSingle().then(function (res) {
       if (res.error || !res.data) return;
-      if (vuil) return;              // intussen toch weer iets getypt
+      if (vuil || bezig) return;     // intussen toch weer iets getypt
       vanElders({ data: res.data.data });
     });
   }
@@ -714,6 +751,8 @@
             vulOpnemer();
             vuil = true;
             status('⚠ Nog niet opgeslagen', '#8a5a00');
+            laatsteJson = JSON.stringify(huidigeStaat());
+            luisterOpProject();
             synchroniseer();
           } else {
             zetStaat(res.data.data || {});

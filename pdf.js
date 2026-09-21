@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v79';
+  var PDF_VERSIE = 'v80';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -158,10 +158,16 @@
     // blijven bij inzoomen en afdrukken.
     tekenInkt(doc, foto, x, y, b, h);
 
-    // bolletjes
+    // bolletjes — per regel hooguit zoveel als het aantal. Staan er op het
+    // scherm meer (aantal achteraf verlaagd), dan is dat daar al met een
+    // rode rand gemeld; op papier hoort het beeld bij de bestelling.
+    var getekend = {};
     foto.markeringen.forEach(function (m) {
       var rij = getRij(m.rijId);
       if (!rij) return;
+      var max = parseInt(rij.aantal, 10) > 0 ? parseInt(rij.aantal, 10) : 1;
+      getekend[m.rijId] = (getekend[m.rijId] || 0) + 1;
+      if (getekend[m.rijId] > max) return;
       var cx = x + m.x * b;
       var cy = y + m.y * h;
       doc.setFillColor(240, 165, 0);

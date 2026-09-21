@@ -775,6 +775,13 @@
     cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.45); line-height: 1;
   }
   .foto-mark.verweesd { background: var(--rood); color: white; }
+  /* Meer bolletjes dan het aantal op de regel — bijvoorbeeld als het
+     aantal achteraf verlaagd is. Niet stilletjes weghalen: jij hebt ze
+     neergezet. Wel zichtbaar maken, met een gestreepte rode rand. */
+  .foto-mark.teveel {
+    border: 2px dashed var(--rood);
+    box-shadow: 0 0 0 2px white, 0 2px 6px rgba(0,0,0,0.45);
+  }
   .foto-geenrijen {
     font-size: 12px; color: var(--grijs-tekst); padding: 14px;
     background: var(--grijs-licht); border-radius: var(--radius);
@@ -852,6 +859,8 @@
     background: var(--geel); color: #3a2a00; padding: 7px 12px;
     font-size: 13px; font-weight: 800;
   }
+  .mark-menu-kop span { font-weight: 600; font-size: 12px; }
+  .mark-menu-kop span.teveel { color: var(--rood); }
   .mark-menu button {
     display: block; width: 100%; text-align: left; background: none; border: none;
     border-top: 1px solid var(--grijs-rand); padding: 9px 12px;
@@ -2298,11 +2307,21 @@ function zetBlok(id) {
   if (kaart) kaart.classList.toggle('dicht', !!blokDicht[id]);
 }
 
+// Een regel met aantal 3 is drie ruiten. De telling zegt daarom ruiten,
+// en noemt het aantal regels erbij zodra dat anders is.
+function ruitenTelling(lijst, leeg) {
+  const gevuld = lijst.filter(r => r.merk || r.breedte || r.hoogte || r.glasType);
+  if (!gevuld.length) return leeg;
+  const ruiten = gevuld.reduce((n, r) => n + (parseInt(r.aantal, 10) > 0 ? parseInt(r.aantal, 10) : 1), 0);
+  const tekst = ruiten + (ruiten === 1 ? ' ruit' : ' ruiten');
+  return ruiten === gevuld.length ? tekst
+    : tekst + ' \u00b7 ' + gevuld.length + (gevuld.length === 1 ? ' regel' : ' regels');
+}
+
 function telLosseRijen() {
   const t = document.getElementById('telling-los');
   if (!t) return;
-  const n = losseRijen().filter(r => r.merk || r.breedte || r.hoogte || r.glasType).length;
-  t.textContent = n ? n + ' ruiten ingevuld' : 'leeg';
+  t.textContent = ruitenTelling(losseRijen(), 'leeg');
 }
 
 // ═══════════════ KOPMENU (telefoon) ═══════════════
@@ -2319,7 +2338,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v79';
+const APP_VERSIE = 'v80';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

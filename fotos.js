@@ -65,6 +65,68 @@
     return (rij.merk && rij.merk.trim()) ? rij.merk.trim() : '·';
   }
 
+  /* ─── meer bolletjes bij een aantal groter dan 1 ───────────── */
+  // Een regel met aantal 3 is drie gelijke ruiten op één bestelregel. Die
+  // krijgt dus drie bolletjes, elk met hetzelfde merk. Zo blijft de
+  // bestellijst compact (één regel ×3 in plaats van drie regels ×1) en
+  // staat toch elke ruit op de foto.
+
+  function aantalVan(rij) {
+    var n = parseInt(rij && rij.aantal, 10);
+    return n > 0 ? n : 1;
+  }
+
+  // Hoeveel bolletjes deze regel al heeft, over alle foto's heen.
+  function bollenVan(rijId) {
+    var n = 0;
+    fotos.forEach(function (f) {
+      (f.markeringen || []).forEach(function (m) { if (m.rijId === rijId) n++; });
+    });
+    return n;
+  }
+
+  // Het hoeveelste bolletje van zijn regel dit is (1, 2, 3 …), op volgorde
+  // van de foto's en daarbinnen van plaatsing. Bolletjes boven het aantal
+  // zijn er te veel — bijvoorbeeld als het aantal achteraf omlaag ging.
+  function volgnummerVan(fotoId, index) {
+    var foto = fotoVan(fotoId);
+    var doel = foto && foto.markeringen[index];
+    if (!doel) return 0;
+    var n = 0;
+    for (var i = 0; i < fotos.length; i++) {
+      var lijst = fotos[i].markeringen || [];
+      for (var j = 0; j < lijst.length; j++) {
+        if (lijst[j].rijId !== doel.rijId) continue;
+        n++;
+        if (lijst[j] === doel) return n;
+      }
+    }
+    return n;
+  }
+
+  // Klasse en uitleg van een bolletje op één plek, zodat tekenen en
+  // bijwerken hetzelfde laten zien.
+  function bolStaat(fotoId, index) {
+    var foto = fotoVan(fotoId);
+    var m = foto && foto.markeringen[index];
+    var rij = m ? getRij(m.rijId) : null;
+    if (!rij) {
+      return { klasse: 'foto-mark verweesd', label: '?',
+               titel: 'De regel bij deze markering bestaat niet meer' };
+    }
+    var label = labelVan(rij);
+    var aantal = aantalVan(rij);
+    var nr = volgnummerVan(fotoId, index);
+    var klasse = 'foto-mark' + (label.length > 2 ? ' lang' : '');
+    var titel = 'Naar de regel van ' + label;
+    if (aantal > 1) titel = label + ' · ruit ' + Math.min(nr, aantal) + ' van ' + aantal;
+    if (nr > aantal) {
+      klasse += ' teveel';
+      titel = label + ' · één bolletje te veel: het aantal is ' + aantal;
+    }
+    return { klasse: klasse, label: label, titel: titel, nr: nr, aantal: aantal };
+  }
+
   /* ─── verkleinen en uploaden ───────────────────────────────── */
 
   function verklein(file) {
@@ -608,12 +670,33 @@
       f.markeringen.forEach(function (m, i) {
         var bol = bollen[i];
         if (!bol) return;
-        var rij = getRij(m.rijId);
-        bol.textContent = rij ? labelVan(rij) : '?';
-        bol.className = 'foto-mark' + (rij ? '' : ' verweesd');
+        var st = bolStaat(f.id, i);
+        bol.textContent = st.label;
+        bol.className = st.klasse;
+        bol.title = st.titel;
       });
     });
   };
+
+  // Na het wijzigen van een aantal: telling, bolletjes en de knop
+  // 'Ruiten aanwijzen (n)' bijwerken zonder de tabel opnieuw op te bouwen
+  // — dan blijft de cursor waar hij was.
+  window.bolletjesBijwerken = function () {
+    window.fotoLabelsBijwerken();
+    werkFotos().forEach(function (f) {
+      telBlok(f.id);
+      var wrap = el('tabel-' + f.id);
+      var voet = wrap && wrap.querySelector('.foto-voet');
+      if (voet) voet.outerHTML = voetHTML(f.id);
+    });
+    tekenAanwijsbalk();
+  };
+  // Bubbelfase: de inline onchange van het veld (setVal) is dan al geweest.
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('aantal-input')) {
+      window.bolletjesBijwerken();
+    }
+  });
 
   // De telling in de balk van een blok bijwerken zonder alles opnieuw
   // op te bouwen — anders blijft er 'nog geen ruiten' staan nadat je er
@@ -623,8 +706,9 @@
     if (!blok) return;
     var teller = blok.querySelector('.blok-telling');
     if (!teller) return;
-    var n = rijenVan(fotoId).length;
-    teller.textContent = n ? n + (n === 1 ? ' ruit' : ' ruiten') : 'nog geen ruiten';
+    var eigen = rijenVan(fotoId);
+    teller.textContent = window.ruitenTelling ? ruitenTelling(eigen, 'nog geen ruiten')
+      : (eigen.length ? eigen.length + ' ruiten' : 'nog geen ruiten');
   }
 
   function tekenMarkeringen(fotoId) {
@@ -633,15 +717,15 @@
     if (!doek || !foto) return;
     Array.prototype.forEach.call(doek.querySelectorAll('.foto-mark'), function (m) { m.remove(); });
     foto.markeringen.forEach(function (m, i) {
-      var rij = getRij(m.rijId);
+      var st = bolStaat(fotoId, i);
       var b = document.createElement('button');
-      b.className = 'foto-mark' + (rij ? '' : ' verweesd');
+      // langere merken (A12) krijgen iets meer ruimte; een bolletje boven
+      // het aantal van zijn regel krijgt een waarschuwingsrand
+      b.className = st.klasse;
       b.style.left = (m.x * 100) + '%';
       b.style.top = (m.y * 100) + '%';
-      b.textContent = rij ? labelVan(rij) : '?';
-      // langere merken (A12) krijgen iets meer ruimte
-      if (b.textContent.length > 2) b.classList.add('lang');
-      b.title = rij ? 'Naar de regel van ' + labelVan(rij) : 'De regel bij deze markering bestaat niet meer';
+      b.textContent = st.label;
+      b.title = st.titel;
       maakSleepbaar(b, fotoId, i);
       // Een klik die op het bolletje zelf landt mag nooit doorlekken
       // naar de foto eronder.
@@ -685,23 +769,38 @@
     }
   }
 
-  // Ruiten die nog nergens op een foto staan. Ook losse regels tellen
-  // mee, zodat je een geïmporteerde lijst alsnog op een foto kunt zetten.
+  // Regels die nog niet al hun bolletjes hebben. Een regel met aantal 3 en
+  // één bolletje staat er dus nog in. Ook losse regels tellen mee, zodat
+  // je een geïmporteerde lijst alsnog op een foto kunt zetten. Een regel
+  // die al bij een andere foto hoort, blijft daar: alle ruiten van één
+  // regel staan in één groep.
   window.zonderMarkering = function (fotoId) {
-    var gemarkeerd = {};
+    var geteld = {};
     fotos.forEach(function (f) {
-      f.markeringen.forEach(function (m) { gemarkeerd[m.rijId] = true; });
+      f.markeringen.forEach(function (m) { geteld[m.rijId] = (geteld[m.rijId] || 0) + 1; });
     });
     return rijen.filter(function (r) {
-      if (gemarkeerd[r.id]) return false;
+      if ((geteld[r.id] || 0) >= aantalVan(r)) return false;
       if (r.fotoId && r.fotoId !== fotoId) return false;
       return !!(r.merk || r.breedte || r.hoogte || r.glasType);
     });
   };
 
+  // Elke nog open ruit afzonderlijk, voor de wachtrij van het aanwijzen:
+  // A4 met aantal 3 en één bolletje staat er twee keer in, achter elkaar.
+  function openPlekken(fotoId) {
+    var uit = [];
+    zonderMarkering(fotoId).forEach(function (r) {
+      var open = aantalVan(r) - bollenVan(r.id);
+      for (var i = 0; i < open; i++) uit.push(r.id);
+    });
+    return uit;
+  }
+  window.openPlekken = openPlekken;
+
   function voetHTML(fotoId) {
     var foto = fotoVan(fotoId);
-    var open = zonderMarkering(fotoId);
+    var open = openPlekken(fotoId);
     return '<div class="foto-voet">' +
       '<button class="btn btn-secondary btn-sm" onclick="fotoRegelToevoegen(\'' + fotoId + '\')">' +
       '+ Regel zonder markering</button>' +
@@ -927,9 +1026,9 @@
   function pauzeerFototik(ms) { negeerTikTot = Date.now() + (ms || 700); }
 
   window.fotoAanwijzen = function (fotoId) {
-    var open = zonderMarkering(fotoId);
+    var open = openPlekken(fotoId);
     if (!open.length) { aanwijzenStop(); return; }
-    aanwijzen = { fotoId: fotoId, wachtrij: open.map(function (r) { return r.id; }) };
+    aanwijzen = { fotoId: fotoId, wachtrij: open };
     tekenAanwijsbalk();
   };
 
@@ -954,13 +1053,18 @@
         return;
       }
       var rij = getRij(aanwijzen.wachtrij[0]);
-      if (!rij) { aanwijzen.wachtrij.shift(); tekenAanwijsbalk(); return; }
+      // Weg, of het aantal is intussen verlaagd: deze plek overslaan.
+      if (!rij || bollenVan(rij.id) >= aantalVan(rij)) {
+        aanwijzen.wachtrij.shift(); tekenAanwijsbalk(); return;
+      }
+      var aantal = aantalVan(rij);
+      var welke = aantal > 1 ? ' — ruit ' + (bollenVan(rij.id) + 1) + ' van ' + aantal : '';
       balk.style.display = 'flex';
       balk.innerHTML =
         '<span class="aanwijs-letter">' + esc(labelVan(rij)) + '</span>' +
         '<span class="aanwijs-tekst">Tik op de foto waar deze ruit zit' +
         (rij.breedte && rij.hoogte ? ' (' + rij.breedte + ' × ' + rij.hoogte + ')' : '') +
-        ' — nog ' + aanwijzen.wachtrij.length + ' te gaan</span>' +
+        welke + ' · nog ' + aanwijzen.wachtrij.length + ' te gaan</span>' +
         '<button class="btn btn-ghost btn-sm" onclick="aanwijzenOverslaan()">Overslaan</button>' +
         '<button class="btn btn-secondary btn-sm" onclick="aanwijzenStop()">Klaar</button>';
     });
@@ -983,11 +1087,11 @@
     if (aanwijzen && aanwijzen.fotoId === fotoId && aanwijzen.wachtrij.length) {
       var bestaandeId = aanwijzen.wachtrij.shift();
       var bestaande = getRij(bestaandeId);
-      if (bestaande) {
+      // Tot v79 werden de bestaande bolletjes van deze regel hier eerst
+      // weggehaald: één bolletje per merk. Nu komt er een bij, zolang de
+      // regel er nog niet genoeg heeft voor zijn aantal.
+      if (bestaande && bollenVan(bestaandeId) < aantalVan(bestaande)) {
         if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(bestaande) + ' aangewezen');
-        fotos.forEach(function (g) {
-          g.markeringen = g.markeringen.filter(function (m) { return m.rijId !== bestaandeId; });
-        });
         bestaande.fotoId = fotoId;
         foto.markeringen.push({ rijId: bestaandeId, x: x, y: y });
         herbereken();
@@ -1109,13 +1213,23 @@
     var m = foto.markeringen[index];
     var rij = getRij(m.rijId);
 
+    var st = bolStaat(fotoId, index);
+    var meer = rij && st.aantal > 1;
     var d = document.createElement('div');
     d.className = 'mark-menu';
     d.innerHTML =
-      '<div class="mark-menu-kop">' + esc(rij ? labelVan(rij) : '?') + '</div>' +
+      '<div class="mark-menu-kop">' + esc(rij ? labelVan(rij) : '?') +
+        (meer ? ' <span>· ruit ' + Math.min(st.nr, st.aantal) + ' van ' + st.aantal + '</span>' : '') +
+        (rij && st.nr > st.aantal ? ' <span class="teveel">· te veel</span>' : '') +
+      '</div>' +
       (rij ? '<button onclick="markNaarRegel(\'' + fotoId + '\',' + index + ')">Naar de regel</button>' : '') +
       '<button onclick="markWeg(\'' + fotoId + '\',' + index + ')">Alleen markering verwijderen</button>' +
-      (rij ? '<button class="gevaar" onclick="markRuitWeg(\'' + fotoId + '\',' + index + ')">Ruit verwijderen</button>' : '') +
+      // Bij een regel ×3 wil je meestal één van de drie kwijt, niet de
+      // hele bestelregel. Dat haalt dit bolletje weg én het aantal omlaag.
+      (meer ? '<button onclick="markEenMinder(\'' + fotoId + '\',' + index + ')">' +
+        'Één ruit minder (aantal ' + st.aantal + ' → ' + (st.aantal - 1) + ')</button>' : '') +
+      (rij ? '<button class="gevaar" onclick="markRuitWeg(\'' + fotoId + '\',' + index + ')">' +
+        (meer ? 'Hele regel verwijderen (' + st.aantal + ' ruiten)' : 'Ruit verwijderen') + '</button>' : '') +
       '<button onclick="markMenuSluit()">Annuleren</button>';
     document.body.appendChild(d);
     menu = d;
@@ -1145,14 +1259,37 @@
     renderFotoTabellen();
   };
 
+  // Eén van de gelijke ruiten eruit: dit bolletje weg en het aantal één
+  // lager. De bestelregel zelf blijft staan.
+  window.markEenMinder = function (fotoId, index) {
+    sluitMenu();
+    var foto = fotoVan(fotoId);
+    var m = foto && foto.markeringen[index];
+    var rij = m && getRij(m.rijId);
+    if (!rij) return;
+    var aantal = aantalVan(rij);
+    if (aantal < 2) return;
+    if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(rij) + ': aantal ' + aantal + ' → ' + (aantal - 1));
+    foto.markeringen.splice(index, 1);
+    rij.aantal = aantal - 1;
+    herbereken();
+    renderTabel();
+    opslaan();
+  };
+
   window.markRuitWeg = async function (fotoId, index) {
     var foto = fotoVan(fotoId);
     var m = foto && foto.markeringen[index];
     var rij = m && getRij(m.rijId);
     sluitMenu();
     if (!rij) return;
-    if (!await appVraag('Ruit ' + labelVan(rij) + ' helemaal verwijderen, inclusief de ' +
-        'ingevulde maten?', { kop: 'Ruit verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
+    var n = aantalVan(rij);
+    if (!await appVraag(n > 1
+        ? 'Regel ' + labelVan(rij) + ' helemaal verwijderen? Dat zijn ' + n + ' ruiten, met al ' +
+          'hun bolletjes en de ingevulde maten.'
+        : 'Ruit ' + labelVan(rij) + ' helemaal verwijderen, inclusief de ingevulde maten?',
+        { kop: n > 1 ? 'Regel verwijderen' : 'Ruit verwijderen', ja: 'Verwijderen',
+          gevaarlijk: true })) return;
     if (!getRij(rij.id)) return;
     verwijderRij(rij.id);
     renderFotoTabellen();

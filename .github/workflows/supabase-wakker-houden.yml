@@ -1,0 +1,33 @@
+# Houdt de Supabase-database van Glasopname actief.
+# Gratis Supabase-projecten pauzeren na 7 dagen zonder activiteit;
+# deze workflow doet twee keer per week een kleine leesopdracht.
+#
+# Plaats dit bestand in de repo als:
+#   .github/workflows/supabase-wakker-houden.yml
+
+name: Supabase wakker houden
+
+on:
+  schedule:
+    - cron: '0 6 * * 1,4'   # maandag en donderdag 06:00 UTC
+  workflow_dispatch:         # knop "Run workflow" om handmatig te testen
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kleine query op app_data
+        env:
+          # Dezelfde waarden als in config.js (die zijn al publiek).
+          SUPABASE_URL: https://dctxxcmxceapoytwvrej.supabase.co
+          SUPABASE_KEY: sb_publishable_uACM-qro8Cc90WCwbsLlfQ_4mxPua53
+        run: |
+          status=$(curl -s -o antwoord.txt -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/app_data?select=key&limit=1" \
+            -H "apikey: $SUPABASE_KEY")
+          echo "HTTP-status: $status"
+          cat antwoord.txt; echo
+          if [ "$status" != "200" ]; then
+            echo "::error::Supabase gaf status $status"
+            exit 1
+          fi

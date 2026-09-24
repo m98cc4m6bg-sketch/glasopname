@@ -1564,6 +1564,12 @@
 
   window.tekenModus = function (fotoId) {
     stopTekst();
+    // De selectie hoort bij de foto waar hij gemaakt is. Bleef hij staan,
+    // dan werkten kleur, dikte en de prullenbak op dezelfde plek in de
+    // lijst van de volgende foto — dus op onderdelen die je nooit had
+    // aangewezen (v83).
+    keuze = [];
+    gekozen = -1;
     actief = (actief === fotoId) ? null : fotoId;
     fotos.forEach(function (f) { zetModus(f.id); tekenBalk(f.id); });
   };

@@ -60,8 +60,23 @@
     projectTaken = state.taken || [];
     if (el('projectNaam'))   el('projectNaam').value   = state.project || '';
     if (el('projectDatum'))  el('projectDatum').value  = state.datum || '';
-    if (el('spelingGlobal') && state.speling)     el('spelingGlobal').value = state.speling;
-    if (el('bijtelling')    && state.bijtelling)  el('bijtelling').value    = state.bijtelling;
+    // Altijd zetten, ook als het project ze niet bewaard heeft. Stond er
+    // eerder een controle op state.speling, dan hield het formulier de
+    // waarde van het vórige project en rekende de app dit project met een
+    // andere speling door — zonder enige melding (v83).
+    if (el('spelingGlobal')) el('spelingGlobal').value = state.speling || '4';
+    if (el('bijtelling'))    el('bijtelling').value    = state.bijtelling || '11';
+    // Ruiten die naar een groep wijzen die niet in dit project zit weer
+    // losmaken; anders zijn ze nergens op het scherm te zien.
+    if (window.verweesdeRijenLosmaken) {
+      var losgemaakt = verweesdeRijenLosmaken();
+      if (losgemaakt && window.appMelding) {
+        appMelding(losgemaakt + (losgemaakt === 1 ? ' ruit hoorde' : ' ruiten hoorden') +
+          ' bij een foto die niet in dit project staat. ' +
+          (losgemaakt === 1 ? 'Hij staat' : 'Ze staan') + ' nu bij "Zonder foto of tekening".',
+          { kop: 'Ruiten teruggezet', soort: 'letop' });
+      }
+    }
     if (rijen.length === 0) voegRijenToe(typeof START_REGELS !== 'undefined' ? START_REGELS : 5);
     renderTabel();
     herbereken();
@@ -168,20 +183,63 @@
   };
 
   window.clearAlles = function () {
-    origClearAlles();
-    window.opslaan();
+    // Eerst de bevestiging afwachten. Zonder await werd er opgeslagen
+    // vóórdat er gewist was, en kwam de oude opname bij de volgende start
+    // gewoon weer terug (v83).
+    return Promise.resolve(origClearAlles()).then(function (gewist) {
+      if (gewist === false) return;
+      window.opslaan();
+    });
   };
 
   var timer = null;
+  var wachtKlok = null;
   function plan() {
     clearTimeout(timer);
     timer = setTimeout(synchroniseer, 1200);
   }
 
+  // Gaat er een stand omhoog waarin ruiten naar een foto wijzen die er
+  // niet is, dan klopt de stand niet en zou het verzenden ervan de goede
+  // gegevens in de database overschrijven. Dat is precies wat er in
+  // september 2026 bij één project gebeurd is (v83).
+  function standDeugt(state) {
+    if (!state || !Array.isArray(state.rijen)) return false;
+    var ids = {};
+    (Array.isArray(state.fotos) ? state.fotos : []).forEach(function (f) { if (f) ids[f.id] = true; });
+    return !state.rijen.some(function (r) { return r && r.fotoId && !ids[r.fotoId]; });
+  }
+
+  var standGemeld = false;
+  // Naar buiten voor test-herstel.js; verder gebruikt niemand dit.
+  window.standDeugt = standDeugt;
+
   function synchroniseer() {
     if (!sb || !gebruiker || !projectId || !vuil || bezig) return;
     if (!navigator.onLine) { status('⚠ Offline — lokaal', '#a3231a'); return; }
+    if (!standDeugt(huidigeStaat())) {
+      status('⚠ Niet verstuurd — zie melding', '#a3231a');
+      if (!standGemeld && window.appFout) {
+        standGemeld = true;
+        appFout('Er staan ruiten in deze opname die bij een foto horen die niet in het project zit. ' +
+                'Om te voorkomen dat er werk overschreven wordt, is er niets naar de server gestuurd. ' +
+                'Ververs de pagina (knop ↻ Bijwerken); de ruiten komen dan terug bij "Zonder foto of tekening".',
+                { kop: 'Opname niet verstuurd' });
+      }
+      return;
+    }
+    standGemeld = false;
     bezig = true;
+    // Een verzoek dat nooit antwoordt liet `bezig` voor altijd aan staan;
+    // daarna werd er de hele dag niets meer opgeslagen, met "… Opslaan"
+    // in beeld (v83). Na 30 seconden geven we het op en proberen opnieuw.
+    clearTimeout(wachtKlok);
+    wachtKlok = setTimeout(function () {
+      if (!bezig) return;
+      bezig = false;
+      status('⚠ Niet opgeslagen — geen antwoord', '#a3231a');
+      setTimeout(plan, 5000);
+    }, 30000);
     status('… Opslaan');
     // Een vaste kopie van wat er nu omhoog gaat. huidigeStaat() geeft de
     // levende lijsten terug; typ je door terwijl het opslaan onderweg is,
@@ -205,8 +263,25 @@
       open_taken: openTaken(state),
       status: (state.info && state.info.status) || 'open',
       gewijzigd_door: gebruiker.id
-    }).eq('id', projectId).then(function (res) {
+    }).eq('id', projectId).select('id').then(function (res) {
       bezig = false;
+      clearTimeout(wachtKlok);
+      // Een update die geen enkele rij raakt geeft géén fout. Zonder deze
+      // controle bleef de app "✓ Opgeslagen" melden terwijl er niets
+      // werd weggeschreven — bijvoorbeeld als een collega het project
+      // intussen verwijderd had (v83).
+      if (!res.error && Array.isArray(res.data) && res.data.length === 0) {
+        var i2 = eigenSchrijfsels.lastIndexOf(afdruk);
+        if (i2 >= 0) eigenSchrijfsels.splice(i2, 1);
+        status('⚠ Niet opgeslagen — project weg?', '#a3231a');
+        if (window.appFout) {
+          appFout('Het opslaan kwam niet aan: dit project bestaat niet meer, of je mag er niet meer bij. ' +
+                  'Je werk staat nog op dit apparaat. Maak een nieuw project aan en exporteer of kopieer ' +
+                  'de maten daarheen voordat je de app sluit.',
+                  { kop: 'Niet opgeslagen' });
+        }
+        return;
+      }
       if (res.error) {
         var i = eigenSchrijfsels.lastIndexOf(afdruk);
         if (i >= 0) eigenSchrijfsels.splice(i, 1);
@@ -232,6 +307,7 @@
     }, function (e) {
       // Netwerkfout zonder antwoord: niets is zeker weggeschreven.
       bezig = false;
+      clearTimeout(wachtKlok);
       status('⚠ Niet opgeslagen — ' + ((e && e.message) || 'geen verbinding'), '#a3231a');
       setTimeout(plan, 8000);
     });
@@ -494,7 +570,9 @@
     });
   }
 
-  function uitloggen() {
+  async function uitloggen() {
+    if (!await magVerlaten('uitloggen')) return;
+    localStorage.removeItem(LS_PENDING);
     sb.auth.signOut().then(function () {
       gebruiker = null;
       projectId = null;
@@ -629,8 +707,37 @@
       });
   }
 
-  window.cloudOpen = function (id) {
-    if (vuil) synchroniseer();
+  // Is er werk dat nog niet op de server staat? Dan mag je niet zomaar
+  // een ander project openen, uitloggen of een nieuw project maken: de
+  // lokale kopie wordt daarbij overschreven en dat werk is dan weg (v83).
+  function openstaandWerk() {
+    return vuil || localStorage.getItem(LS_PENDING) === '1';
+  }
+
+  function wacht(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  async function magVerlaten(wat) {
+    if (!openstaandWerk()) return true;
+    // Eerst gewoon proberen alsnog op te slaan.
+    if (navigator.onLine) {
+      synchroniseer();
+      for (var i = 0; i < 12 && openstaandWerk(); i++) await wacht(500);
+      if (!openstaandWerk()) return true;
+    }
+    var keus = await appKeuze('Er staat werk in dit project dat nog niet op de server is opgeslagen. ' +
+      'Ga je nu ' + wat + ', dan is dat werk weg.',
+      [{ tekst: 'Annuleren', waarde: null },
+       { tekst: 'Opnieuw proberen', waarde: 'opnieuw' },
+       { tekst: 'Toch doorgaan', waarde: 'door', soort: 'btn-danger' }],
+      { kop: 'Nog niet opgeslagen' });
+    if (keus === 'opnieuw') return magVerlaten(wat);
+    return keus === 'door';
+  }
+
+  window.cloudOpen = async function (id) {
+    if (!await magVerlaten('een ander project openen')) return;
+    localStorage.removeItem(LS_PENDING);
+    vuil = false;
     sb.from('projecten').select('id,data').eq('id', id).single().then(function (res) {
       if (res.error) { appFout('Openen mislukt: ' + res.error.message); return; }
       projectId = res.data.id;
@@ -649,6 +756,7 @@
   };
 
   window.cloudNieuw = async function (voorstel, melding) {
+    if (!melding && !await magVerlaten('een nieuw project aanmaken')) return;
     var naam = await appInvoer(melding || 'Waar gaat dit project over? Meestal het adres.',
       { kop: 'Nieuw project', waarde: voorstel || '',
         plaatshouder: 'bijv. Teststraat 12', ja: 'Aanmaken' });
@@ -708,15 +816,30 @@
         { kop: 'Project verwijderen', ja: 'Definitief verwijderen', gevaarlijk: true })) return;
     var lijst = document.getElementById('cloudProjectLijst');
     if (lijst) lijst.style.opacity = '0.5';
-    fotosOpruimen(id).then(function () {
-      return sb.from('projecten').delete().eq('id', id);
+    // Eerst de projectrij weg, dan pas de foto's. Andersom stonden bij een
+    // mislukte verwijdering de foto's al onherstelbaar weg terwijl de app
+    // meldde dat het niet gelukt was (v83).
+    sb.from('projecten').delete().eq('id', id).then(function (res) {
+      if (res && res.error) {
+        if (lijst) lijst.style.opacity = '';
+        appFout('Verwijderen mislukt: ' + res.error.message);
+        return null;
+      }
+      return fotosOpruimen(id);
     }).then(function (res) {
+      if (res === null) return;
       if (lijst) lijst.style.opacity = '';
-      if (res && res.error) { appFout('Verwijderen mislukt: ' + res.error.message); return; }
       if (id === projectId) {
         projectId = null;
         window.glasProjectId = null;
         localStorage.removeItem(LS_PROJECT);
+        // Het scherm leegmaken hoort erbij: anders typ je door in een
+        // project dat niet meer bestaat en gaat dat werk alsnog verloren.
+        localStorage.removeItem(LS_PENDING);
+        localStorage.removeItem(LS_STATE);
+        vuil = false;
+        zetStaat({});
+        status('Project verwijderd', '#6b6862');
       }
       toonProjecten();
     }).catch(function (e) {
@@ -738,17 +861,64 @@
 
   /* ─── opstarten ────────────────────────────────────────────── */
 
+  // Openstaand lokaal werk wint van de database. Maar als er ruiten in
+  // dat werk naar een foto wijzen die lokaal niet meer bestaat, halen we
+  // die foto alsnog uit de database terug — met markeringen en tekening.
+  // Lukt dat niet, dan maken we de ruiten los, zodat ze zichtbaar zijn en
+  // het opslaan niet geblokkeerd raakt (v83).
+  function herstelOntbrekendeFotos(serverStaat) {
+    if (typeof rijen === 'undefined' || typeof fotos === 'undefined') return;
+    var heb = {};
+    (fotos || []).forEach(function (f) { if (f) heb[f.id] = true; });
+    var mist = {};
+    (rijen || []).forEach(function (r) { if (r && r.fotoId && !heb[r.fotoId]) mist[r.fotoId] = true; });
+    if (!Object.keys(mist).length) return;
+
+    var terug = 0;
+    (Array.isArray(serverStaat.fotos) ? serverStaat.fotos : []).forEach(function (f) {
+      if (f && mist[f.id]) { fotos.push(f); heb[f.id] = true; delete mist[f.id]; terug++; }
+    });
+    var los = window.verweesdeRijenLosmaken ? verweesdeRijenLosmaken() : 0;
+
+    if (window.renderFotos) renderFotos();
+    if (window.renderTabel) renderTabel();
+    if (window.herbereken) herbereken();
+
+    if (window.appMelding && (terug || los)) {
+      appMelding((terug ? terug + (terug === 1 ? ' foto is' : ' foto\'s zijn') +
+                   ' teruggehaald uit de opgeslagen versie. ' : '') +
+                 (los ? los + (los === 1 ? ' ruit hoorde' : ' ruiten hoorden') +
+                   ' bij een foto die nergens meer te vinden is; ' +
+                   (los === 1 ? 'die staat' : 'die staan') + ' nu bij "Zonder foto of tekening". ' : '') +
+                 'Controleer de invoer voordat je verder gaat.',
+                 { kop: 'Opname hersteld', soort: 'letop' });
+    }
+  }
+
   function start() {
     haalData();
     if (projectId) {
       sb.from('projecten').select('id,data,updated_at').eq('id', projectId).maybeSingle()
         .then(function (res) {
-          if (res.error || !res.data) { projectId = null; localStorage.removeItem(LS_PROJECT); toonProjecten(); return; }
+          // Een fout is iets anders dan een project dat niet bestaat.
+          // Eerder werd élke fout — ook 'geen verbinding' — behandeld als
+          // 'project weg': de koppeling werd gewist en daarna ging er
+          // niets meer omhoog, terwijl het werk op het scherm stond (v83).
+          if (res.error) {
+            status('⚠ Geen verbinding — lokaal', '#a3231a');
+            laatsteJson = JSON.stringify(huidigeStaat());
+            if (localStorage.getItem(LS_PENDING) === '1') { vuil = true; }
+            luisterOpProject();
+            setTimeout(function () { if (vuil) synchroniseer(); }, 5000);
+            return;
+          }
+          if (!res.data) { projectId = null; localStorage.removeItem(LS_PROJECT); toonProjecten(); return; }
           // Lokale, nog niet gesynchroniseerde wijzigingen winnen.
           if (localStorage.getItem(LS_PENDING) === '1') {
             // Openstaand werk wint; zetStaat wordt hier dus niet gedraaid en
             // 'Opgenomen door' moet apart nagelopen worden.
             vulOpnemer();
+            herstelOntbrekendeFotos(res.data.data || {});
             vuil = true;
             status('⚠ Nog niet opgeslagen', '#8a5a00');
             laatsteJson = JSON.stringify(huidigeStaat());

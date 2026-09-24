@@ -2338,7 +2338,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v82';
+const APP_VERSIE = 'v83';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -2537,15 +2537,24 @@ function berekenGlasMaat(rij) {
   }
   if (rij.maatsoort === 'Glasmaat (direct)') {
     rij.glasBreedte = b; rij.glasHoogte = h;
-  } else if (rij.maatsoort === 'Sponningmaat') {
-    rij.glasBreedte = b - 2 * correctie;
-    rij.glasHoogte = h - 2 * correctie;
-  } else { // Dagmaat
+  } else if (rij.maatsoort === 'Dagmaat') {
     rij.glasBreedte = b + 2 * correctie;
     rij.glasHoogte = h + 2 * correctie;
+  } else {
+    // Sponningmaat, en alles wat we niet herkennen. Aftrekken is hier de
+    // veilige kant: de kolom Corr. toont een min, dus optellen zou iets
+    // anders doen dan er op het scherm staat (v83).
+    rij.glasBreedte = b - 2 * correctie;
+    rij.glasHoogte = h - 2 * correctie;
   }
   rij.glasBreedte = Math.round(rij.glasBreedte);
   rij.glasHoogte = Math.round(rij.glasHoogte);
+  // Een glasmaat van nul of minder is geen maat. Die niet doorlaten:
+  // eerder kwam '−2' gewoon op de bestellijst, en bij precies 0 viel de
+  // ruit stilzwijgend van de lijst (v83).
+  if (rij.glasBreedte <= 0 || rij.glasHoogte <= 0) {
+    rij.glasBreedte = null; rij.glasHoogte = null;
+  }
 }
 
 function berekenDikte(rij) {
@@ -2593,9 +2602,30 @@ function updateCorrectieCellen() {
 // Regels zonder foto horen op het tabblad Invoer; regels die bij een
 // foto horen staan onder die foto. Eén lijst `rijen`, twee plekken om
 // hem in te vullen — de bestellijst telt ze allebei mee.
-function losseRijen() {
-  return rijen.filter(r => !r.fotoId);
+// Een regel met een fotoId van een groep die niet (meer) bestaat hoort
+// hier ook thuis. Anders is hij nergens te zien: de fotogroep bestaat
+// niet, en zonder deze uitzondering zou de losse tabel hem overslaan —
+// terwijl hij wél op de bestellijst en in de pdf komt (v83).
+function fotoBestaat(id) {
+  return typeof fotos !== 'undefined' && Array.isArray(fotos) &&
+         fotos.some(f => f && f.id === id);
 }
+
+function losseRijen() {
+  return rijen.filter(r => !r.fotoId || !fotoBestaat(r.fotoId));
+}
+
+// Regels die naar een verdwenen groep wijzen weer losmaken, zodat ze
+// gewoon bij de losse maten staan en bewerkt kunnen worden. Geeft terug
+// hoeveel er losgemaakt zijn, zodat de aanroeper het kan melden.
+function verweesdeRijenLosmaken() {
+  let aantal = 0;
+  rijen.forEach(r => {
+    if (r.fotoId && !fotoBestaat(r.fotoId)) { delete r.fotoId; aantal++; }
+  });
+  return aantal;
+}
+window.verweesdeRijenLosmaken = verweesdeRijenLosmaken;
 
 function vulTabelBody(tbody, lijst) {
   if (!tbody) return;
@@ -2802,13 +2832,23 @@ function rijHTML(rij, nr) {
       opbouwOpties.map(o =>
         `<option value="${o}" ${rij.opbouw === o ? 'selected' : ''}>${o}</option>`).join('');
 
+  // Staat de bewaarde waarde niet (meer) in de lijst, dan hoort hij er
+  // tóch in te staan. Anders toont het vakje '— geen —' terwijl de ruit
+  // nog een rooster of een kleur draagt, en dat komt wél op de
+  // bestellijst en in de pdf (v83). Zelfde vangnet als bij glastype en
+  // bewerking, dat in naslag.js staat.
+  const ducoNamen = DATA.roosters.map(r => r.naam);
   const ducoOpts = '<option value="">— geen —</option>' +
-    DATA.roosters.map(r =>
-      `<option value="${r.naam}" ${rij.ducoType === r.naam ? 'selected' : ''}>${r.naam}</option>`).join('');
+    (window.keuzeMetOude
+      ? keuzeMetOude(ducoNamen, rij.ducoType, 'Niet meer in de lijst')
+      : ducoNamen.map(n =>
+          `<option value="${n}" ${rij.ducoType === n ? 'selected' : ''}>${n}</option>`).join(''));
 
   const ralOpts = '<option value="">— geen —</option>' +
-    DATA.ral_kleuren.map(c =>
-      `<option value="${c}" ${rij.ralKleur === c ? 'selected' : ''}>${c}</option>`).join('');
+    (window.keuzeMetOude
+      ? keuzeMetOude(DATA.ral_kleuren, rij.ralKleur, 'Niet meer in de lijst')
+      : DATA.ral_kleuren.map(c =>
+          `<option value="${c}" ${rij.ralKleur === c ? 'selected' : ''}>${c}</option>`).join(''));
 
   // Staat er een waarde in de rij die niet meer in de lijst voorkomt (een
   // oude, of iets uit een ander project), dan moet die tóch in het vakje
@@ -3070,11 +3110,38 @@ function renderSamenvatting() {
 }
 
 // ═══════════════ BESTELLIJST ═══════════════
+// Een regel telt mee op de bestellijst als hij compleet is. Eén plek,
+// zodat het scherm, de pdf en de csv niet elk hun eigen idee hebben van
+// wat 'ingevuld' betekent (v83).
+function bestelbaar(r) {
+  return !!(r.glasType && r.opbouw && r.glasBreedte != null && r.glasHoogte != null);
+}
+window.bestelbaar = bestelbaar;
+
+// Regels waar de gebruiker aan begonnen is maar die niet besteld worden.
+// Die horen gemeld te worden; eerder vielen ze zonder een woord weg.
+function onvolledigeRijen() {
+  return rijen.filter(r => !bestelbaar(r) &&
+    (r.merk || r.breedte || r.hoogte || r.glasType || r.opbouw));
+}
+window.onvolledigeRijen = onvolledigeRijen;
+
+function onvolledigTekst(lijst) {
+  const namen = lijst.map(r => r.merk || '(zonder merk)').slice(0, 12).join(', ');
+  return '<div class="strijdig-noot"><span class="strijdig-teken">!</span><div>' +
+    '<strong>' + lijst.length + (lijst.length === 1 ? ' regel staat' : ' regels staan') +
+    ' niet op deze lijst.</strong> Er ontbreekt een glastype, een opbouw of een maat. ' +
+    'Het gaat om: ' + esc(namen) + (lijst.length > 12 ? ' …' : '') +
+    '. Vul ze aan op het tabblad Invoer, of verwijder ze.</div></div>';
+}
+
 function renderBestellijst() {
-  const ingevuld = rijen.filter(r => r.glasType && r.opbouw && r.glasBreedte && r.glasHoogte);
+  const ingevuld = rijen.filter(bestelbaar);
+  const onvolledig = onvolledigeRijen();
   const el = document.getElementById('bestellijstInhoud');
   if (ingevuld.length === 0) {
-    el.innerHTML = '<em style="color:var(--grijs-tekst)">Geen volledige regels gevonden.</em>';
+    el.innerHTML = '<em style="color:var(--grijs-tekst)">Geen volledige regels gevonden.</em>' +
+      (onvolledig.length ? onvolledigTekst(onvolledig) : '');
     return;
   }
   const project = document.getElementById('projectNaam').value || '—';
@@ -3102,7 +3169,7 @@ function renderBestellijst() {
     <td>${esc(r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '')}${isStrijdig(r) ? '<span class="strijdig-teken">*</span>' : ''}</td>
     <td>${esc(r.roedenverdeling !== 'Geen roedenverdeling' ? r.roedenverdeling : '')}</td>
     <td>${esc(r.roedenbreedte)}</td>
-    <td>${esc(r.roedenopmerking || r.opmerking)}</td>
+    <td>${esc([r.opmerking, r.roedenopmerking].filter(Boolean).join(' · '))}</td>
   </tr>`).join('');
 
   el.innerHTML = `
@@ -3132,21 +3199,41 @@ function renderBestellijst() {
       <div><strong>${window.STRIJDIG_NOOT || 'check beschikbaarheid combinatie dikte-glastype!'}</strong>
       ${strijdig === 1 ? 'Eén regel staat' : strijdig + ' regels staan'} met een bewerking die volgens de
       catalogus niet in de gekozen bladdikte bestaat.</div>
-    </div>` : ''}`;
+    </div>` : ''}
+    ${onvolledig.length ? onvolledigTekst(onvolledig) : ''}`;
 }
 
 // ═══════════════ OPSLAAN / LADEN ═══════════════
+// De lokale kopie moet de héle opname bevatten. Stond hier eerder alleen
+// rijen in, dan kwam de app na een herstart terug met ruiten die naar een
+// foto verwezen die nergens meer stond — onzichtbaar op Invoer, wél op de
+// bestellijst (v83). cloud.js vervangt deze functie zodra Supabase er is,
+// en schrijft dan dezelfde velden weg.
 function opslaan() {
   const state = {
     rijen,
     volgendId,
+    fotos: typeof fotos !== 'undefined' ? fotos : [],
+    info: typeof projectInfo !== 'undefined' ? projectInfo : {},
+    taken: typeof projectTaken !== 'undefined' ? projectTaken : [],
     project: document.getElementById('projectNaam').value,
     datum: document.getElementById('projectDatum').value,
     speling: document.getElementById('spelingGlobal').value,
     bijtelling: (document.getElementById('bijtelling')||{}).value || '11',
   };
-  try { localStorage.setItem('glasopname_v2', JSON.stringify(state)); } catch(e) {}
+  try { localStorage.setItem('glasopname_v2', JSON.stringify(state)); } catch(e) {
+    // Vol geheugen of privémodus: dan niet stilzwijgend doorgaan alsof er
+    // bewaard is. Eén keer melden is genoeg; opslaan() draait elke tien
+    // seconden en bij elke toetsaanslag.
+    if (!opslagGemeld && window.appFout) {
+      opslagGemeld = true;
+      appFout('De lokale kopie kon niet bewaard worden — het geheugen van de browser zit vol ' +
+              'of staat niets toe. Zorg dat je verbinding hebt, zodat het werk naar de server gaat.',
+              { kop: 'Niet lokaal bewaard' });
+    }
+  }
 }
+let opslagGemeld = false;
 
 function laadOpgeslagen() {
   try {
@@ -3157,22 +3244,49 @@ function laadOpgeslagen() {
     // Waarden uit de oude keuzelijst Glasbewerking omzetten (zie naslag.js)
     if (window.bewerkingBijwerken) bewerkingBijwerken(rijen);
     volgendId = state.volgendId || (rijen.length + 1);
+    // Foto's, projectgegevens en taken horen hier óók terug te komen.
+    // Zonder dit hield de app na een herstart alleen de ruiten over; die
+    // verwezen dan naar foto's die niet meer bestonden en waren nergens
+    // meer te zien, terwijl cloud.js die halve stand vervolgens naar de
+    // server schreef (v83).
+    if (typeof fotos !== 'undefined') fotos = Array.isArray(state.fotos) ? state.fotos : [];
+    if (typeof projectInfo !== 'undefined') projectInfo = (state.info && typeof state.info === 'object') ? state.info : {};
+    if (typeof projectTaken !== 'undefined') projectTaken = Array.isArray(state.taken) ? state.taken : [];
     if (state.project) document.getElementById('projectNaam').value = state.project;
     if (state.datum) document.getElementById('projectDatum').value = state.datum;
-    if (state.speling) document.getElementById('spelingGlobal').value = state.speling;
-    if (state.bijtelling && document.getElementById('bijtelling')) document.getElementById('bijtelling').value = state.bijtelling;
+    // Speling en bijtelling altijd zetten, ook als ze niet bewaard zijn:
+    // anders houdt het formulier de waarde van het vorige project en
+    // rekent de app stilzwijgend met een andere speling (v83).
+    document.getElementById('spelingGlobal').value = state.speling || '4';
+    if (document.getElementById('bijtelling')) {
+      document.getElementById('bijtelling').value = state.bijtelling || '11';
+    }
+    // Ruiten die naar een groep wijzen die hier niet in staat, worden
+    // hier bewust niet losgemaakt: cloud.js krijgt eerst de kans de foto
+    // uit de database terug te halen. Tot die tijd zijn ze gewoon te zien
+    // bij de losse maten, want losseRijen() telt ze mee.
   } catch(e) { rijen = []; }
 }
 
+// Geeft true terug als er werkelijk gewist is, zodat cloud.js pas daarna
+// opslaat. Wist nu ook de foto's, de projectgegevens en de taken: die
+// bleven eerder staan en kwamen bij de volgende synchronisatie gewoon
+// weer terug (v83).
 async function clearAlles() {
   if (!await appVraag('Alle invoer wissen? Dit kan niet ongedaan worden gemaakt.',
-      { kop: 'Alles wissen', ja: 'Alles wissen', gevaarlijk: true })) return;
+      { kop: 'Alles wissen', ja: 'Alles wissen', gevaarlijk: true })) return false;
   rijen = [];
   volgendId = 1;
+  if (typeof fotos !== 'undefined') fotos = [];
+  if (typeof projectInfo !== 'undefined') projectInfo = {};
+  if (typeof projectTaken !== 'undefined') projectTaken = [];
   document.getElementById('projectNaam').value = '';
   document.getElementById('projectDatum').value = '';
   localStorage.removeItem('glasopname_v2');
   voegRijenToe(START_REGELS);
+  if (window.renderFotos) renderFotos();
+  if (window.renderProject) renderProject();
+  return true;
 }
 
 // ═══════════════ PRINT ═══════════════

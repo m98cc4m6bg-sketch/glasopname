@@ -342,6 +342,10 @@
           bestaand.breedte = res.breedte;
           bestaand.hoogte = res.hoogte;
           bestaand.markeringen = [];
+          // De tekening hoorde bij de vorige afbeelding en stond in de
+          // verhouding daarvan; op een nieuwe foto komt hij scheef en op de
+          // verkeerde plek te liggen, ook in de pdf (v83).
+          bestaand.inkt = [];
           bestaand.bron = bron || bestaand.bron || 'foto';
           if (titel && !bestaand.titel) bestaand.titel = titel;
         } else {
@@ -494,6 +498,7 @@
             bestaand.breedte = res.breedte;
             bestaand.hoogte = res.hoogte;
             bestaand.markeringen = [];
+            bestaand.inkt = [];
           } else {
             fotos.push({
               id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -960,8 +965,9 @@
     f = fotoVan(id);
     if (!f || !f.pad) return;
     if (window.bewaarStap) bewaarStap('Foto verwijderd');
-    var sb = sbClient();
-    if (sb) sb.storage.from(BUCKET).remove([f.pad]);
+    // Het bestand blijft in Storage staan: anders is ongedaan maken een
+    // lege huls en krijg je de melding dat de foto 'er wel staat maar niet
+    // binnenkomt' (v83). Opruimen gebeurt als het project verwijderd wordt.
     f.pad = null;
     f.markeringen = [];
     aanwijzen = null;
@@ -994,8 +1000,8 @@
     if (!f) return;
     eigen = rijenVan(id);
     if (window.bewaarStap) bewaarStap('Groep verwijderd');
-    var sb = sbClient();
-    if (sb && f.pad) sb.storage.from(BUCKET).remove([f.pad]);
+    // Zie fotoVerwijder: het bestand blijft staan zodat ongedaan maken
+    // werkt. Het wordt opgeruimd bij het verwijderen van het project.
     if (ookRuiten) {
       var weg = {};
       eigen.forEach(function (r) { weg[r.id] = true; });

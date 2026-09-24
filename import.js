@@ -269,6 +269,12 @@
   }
 
   window.impMapWijzig = function (index, waarde) {
+    // Hetzelfde veld bij een andere kolom loslaten. Bleef dat staan, dan
+    // won per rij de laatste gevulde kolom en kreeg je een mengsel van
+    // twee breedtekolommen, zonder dat iets dat liet zien (v83).
+    if (waarde) {
+      mapping = mapping.map(function (v, i) { return (i !== index && v === waarde) ? '' : v; });
+    }
     mapping[index] = waarde;
     tekenStap2();
   };
@@ -279,6 +285,21 @@
       mapping.forEach(function (veld, i) {
         if (!veld) return;
         var v = (r[i] === undefined ? '' : String(r[i])).trim();
+        // Staat er '1200 x 600' in één cel, dan zijn dat twee maten. Eerder
+        // werd alleen 1200 overgenomen en bleef de hoogte leeg, waarna de
+        // ruit stilzwijgend van de bestellijst viel (v83).
+        var paar = (veld === 'breedte' || veld === 'hoogte') &&
+                   v.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*[x×*]\s*(-?\d+(?:[.,]\d+)?)\s*(?:mm)?\s*$/i);
+        if (paar) {
+          if (veld === 'breedte') {
+            o.breedte = getal(paar[1]);
+            // De hoogte alleen overnemen als er geen eigen hoogtekolom is.
+            if (mapping.indexOf('hoogte') < 0) o.hoogte = getal(paar[2]);
+          } else {
+            o.hoogte = getal(paar[2]);
+          }
+          return;
+        }
         if (veld === 'breedte' || veld === 'hoogte' || veld === 'aantal' || veld === 'maxPakket') v = getal(v);
         if (v !== '') o[veld] = v;
       });

@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v82';
+  var PDF_VERSIE = 'v83';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -468,7 +468,10 @@
       { kop: 'Roedenverdeling', w: 26, haal: function (r) {
           return r.roedenverdeling !== 'Geen roedenverdeling' ? r.roedenverdeling : ''; } },
       { kop: 'Roede br',   w: 16, haal: function (r) { return r.roedenbreedte; } },
-      { kop: 'Opmerking',  w: 34, haal: function (r) { return r.roedenopmerking || r.opmerking; } }
+      // Beide opmerkingen. Eerder won de roedenopmerking en verdween de
+      // gewone opmerking uit de bestelling (v83).
+      { kop: 'Opmerking',  w: 34, haal: function (r) {
+          return [r.opmerking, r.roedenopmerking].filter(Boolean).join(' \u00b7 '); } }
     ];
   }
 
@@ -604,14 +607,38 @@
     var datum = (document.getElementById('projectDatum') || {}).value || '';
     var naam = maakNaam('Bestellijst', project, datum);
 
-    var lijst = rijen.filter(function (r) {
-      return r.glasType && r.opbouw && r.glasBreedte && r.glasHoogte;
-    });
+    var compleet = window.bestelbaar || function (r) {
+      return !!(r.glasType && r.opbouw && r.glasBreedte != null && r.glasHoogte != null);
+    };
+    var lijst = rijen.filter(compleet);
     if (!lijst.length) {
       appMelding('Geen volledige regels gevonden. Een regel telt mee zodra glastype, opbouw ' +
         'en de glasmaten ingevuld zijn.', { kop: 'Niets te bestellen', soort: 'letop' });
       return Promise.resolve(null);
     }
+    // Regels waar wél aan begonnen is maar die niet compleet zijn, vielen
+    // zonder een woord van de bestellijst. Die gingen dus niet mee in de
+    // bestelling terwijl niemand dat zag (v83).
+    var onvolledig = rijen.filter(function (r) {
+      return !compleet(r) && (r.merk || r.breedte || r.hoogte || r.glasType || r.opbouw);
+    });
+    if (onvolledig.length) {
+      var namen = onvolledig.map(function (r) { return r.merk || '(zonder merk)'; })
+                            .slice(0, 12).join(', ');
+      return appVraag(onvolledig.length + (onvolledig.length === 1 ? ' regel is' : ' regels zijn') +
+        ' niet compleet en ' + (onvolledig.length === 1 ? 'komt' : 'komen') +
+        ' niet op de bestellijst: ' + namen + (onvolledig.length > 12 ? ' …' : '') + '.\n' +
+        'Er ontbreekt een glastype, een opbouw of een maat.',
+        { kop: 'Niet alles gaat mee', ja: 'Toch doorgaan', nee: 'Eerst aanvullen', gevaarlijk: true })
+        .then(function (door) {
+          if (!door) return null;
+          return bestellijstTekenen(knop, project, datum, naam, lijst);
+        });
+    }
+    return bestellijstTekenen(knop, project, datum, naam, lijst);
+  }
+
+  function bestellijstTekenen(knop, project, datum, naam, lijst) {
 
     if (knop) knop.disabled = true;
     bezig('Bestellijst als pdf maken…');

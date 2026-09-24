@@ -151,24 +151,30 @@
     // Typen in een veld: stand bewaren bij binnenkomen, weggooien als
     // er niets is veranderd. Zo levert één bewerkte cel één stap op,
     // en niet één per toetsaanslag.
-    var tabel = document.getElementById('invoerBody');
-    if (tabel) {
-      tabel.addEventListener('focusin', function (e) {
-        if (inBewerking || !e.target.matches('input, select, textarea')) return;
-        bijBetreden = { staat: staat(), label: null };
-      }, true);
-
-      tabel.addEventListener('focusout', function (e) {
-        if (inBewerking || !bijBetreden || !e.target.matches('input, select, textarea')) return;
-        var voor = bijBetreden;
-        bijBetreden = null;
-        if (voor.staat === staat()) return;                  // niets veranderd
-        terug.push({ staat: voor.staat, label: 'Cel gewijzigd' });
-        if (terug.length > MAX) terug.shift();
-        vooruit.length = 0;
-        tekenKnoppen();
-      }, true);
+    // Aan het document, niet aan één tabel: de tabellen onder een foto
+    // worden pas later opgebouwd en hebben een eigen tbody. Die kregen
+    // daardoor nooit een momentopname, en één keer ongedaan maken wiste
+    // alles wat er onder die foto ingetypt was (v83).
+    function inInvoertabel(el) {
+      return el && el.closest && el.closest('table.invoer') &&
+             el.matches('input, select, textarea');
     }
+
+    document.addEventListener('focusin', function (e) {
+      if (inBewerking || !inInvoertabel(e.target)) return;
+      bijBetreden = { staat: staat(), label: null };
+    }, true);
+
+    document.addEventListener('focusout', function (e) {
+      if (inBewerking || !bijBetreden || !inInvoertabel(e.target)) return;
+      var voor = bijBetreden;
+      bijBetreden = null;
+      if (voor.staat === staat()) return;                  // niets veranderd
+      terug.push({ staat: voor.staat, label: 'Cel gewijzigd' });
+      if (terug.length > MAX) terug.shift();
+      vooruit.length = 0;
+      tekenKnoppen();
+    }, true);
 
     // Losse bewerkingen
     omhul('verwijderRij', 'Rij verwijderd');

@@ -120,7 +120,7 @@
 
   function zelfdeRegels(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
-  function zetRegelsTerug(fotoId, nieuweRegels) {
+  function zetRegelsTerug(fotoId, nieuweRegels, markeringen) {
     var anders = rijen.filter(function (r) { return (r.fotoId || null) !== (fotoId || null); });
     var eerste = rijen.findIndex(function (r) { return (r.fotoId || null) === (fotoId || null); });
     if (eerste < 0) eerste = rijen.length;
@@ -136,10 +136,21 @@
     // volgende id veilig zetten.
     var bestaat = {};
     rijen.forEach(function (r) { bestaat[r.id] = true; });
+    // De bolletjes van deze foto horen mee terug te komen; anders staan de
+    // ruiten er weer, maar is niet meer te zien welke maat waar zit (v83).
+    if (fotoId && Array.isArray(markeringen)) {
+      var doelFoto = fotos.find(function (f) { return f.id === fotoId; });
+      if (doelFoto) doelFoto.markeringen = JSON.parse(JSON.stringify(markeringen));
+    }
     fotos.forEach(function (f) {
       f.markeringen = (f.markeringen || []).filter(function (m) { return bestaat[m.rijId]; });
     });
-    volgendId = rijen.reduce(function (m, r) { return Math.max(m, r.id || 0); }, 0) + 1;
+    // Nooit omlaag: rijen die door dit ongedaan maken even uit de lijst
+    // zijn kunnen straks met ↷ terugkomen. Kreeg een nieuwe ruit intussen
+    // hetzelfde id, dan wezen bolletjes en verwijderknoppen naar twee
+    // ruiten tegelijk (v83).
+    volgendId = Math.max(volgendId || 1,
+      rijen.reduce(function (m, r) { return Math.max(m, r.id || 0); }, 0) + 1);
 
     herbereken();
     renderTabel();
@@ -154,13 +165,19 @@
     var nu = rijenInBlok(fotoId);
 
     for (var i = stapels.terug.length - 1; i >= 0; i--) {
-      var toen;
-      try { toen = JSON.parse(stapels.terug[i].staat).rijen || []; } catch (e) { continue; }
+      var toen, toenStaat;
+      try { toenStaat = JSON.parse(stapels.terug[i].staat); } catch (e) { continue; }
+      toen = toenStaat.rijen || [];
       var toenBlok = toen.filter(function (r) { return (r.fotoId || null) === (fotoId || null); });
       if (zelfdeRegels(toenBlok, nu)) continue;
 
-      (vooruitPerBlok[id] = vooruitPerBlok[id] || []).push(JSON.parse(JSON.stringify(nu)));
-      zetRegelsTerug(fotoId, toenBlok);
+      var toenFoto = (toenStaat.fotos || []).find(function (f) { return f.id === fotoId; });
+      var nuFoto = fotos.find(function (f) { return f.id === fotoId; });
+      (vooruitPerBlok[id] = vooruitPerBlok[id] || []).push({
+        regels: JSON.parse(JSON.stringify(nu)),
+        markeringen: nuFoto ? JSON.parse(JSON.stringify(nuFoto.markeringen || [])) : null
+      });
+      zetRegelsTerug(fotoId, toenBlok, toenFoto ? toenFoto.markeringen : null);
       melding('Laatste wijziging in deze tabel teruggedraaid');
       return;
     }
@@ -174,7 +191,7 @@
     var nu = rijenInBlok(fotoId);
     var terug = lijst.pop();
     if (window.bewaarStap) bewaarStap('Opnieuw gedaan');
-    zetRegelsTerug(fotoId, terug);
+    zetRegelsTerug(fotoId, terug.regels || terug, terug.markeringen);
     melding('Opnieuw gedaan');
   };
 

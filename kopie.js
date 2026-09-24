@@ -116,6 +116,7 @@
 
   function heeftInhoud(r) {
     var leeg = nieuweRij();
+    if (r.correctie != null) return true;
     return Object.keys(leeg).some(function (veld) {
       if (NIET_OVERNEMEN[veld] || BEREKEND[veld]) return false;
       return String(r[veld] === undefined ? '' : r[veld]) !==
@@ -145,6 +146,13 @@
 
     if (window.bewaarStap) bewaarStap('Ruiten gelijkgetrokken');
     doelen.forEach(function (r) {
+      // Eerst weg wat de bron niet heeft. Een eigen correctie (speling)
+      // bleef anders in de doelruit staan, terwijl de melding zei dat de
+      // ruiten gelijkgetrokken waren — met andere glasmaten tot gevolg (v83).
+      Object.keys(r).forEach(function (veld) {
+        if (NIET_OVERNEMEN[veld]) return;
+        if (!(veld in bron)) delete r[veld];
+      });
       Object.keys(bron).forEach(function (veld) {
         if (NIET_OVERNEMEN[veld]) return;
         r[veld] = bron[veld];
@@ -159,7 +167,8 @@
 
   window.kopieerNaarMenu = function (e) {
     if (!geselecteerd().length) return;
-    var keuzes = fotos.map(function (f, i) {
+    var lijst = window.werkFotos ? werkFotos() : fotos;
+    var keuzes = lijst.map(function (f, i) {
       var naam = f.titel || (f.pad ? 'Foto ' + (i + 1) : 'Groep ' + (i + 1));
       return '<button onclick="kopieerNaar(\'' + f.id + '\')"><b>' + esc(naam) + '</b>' +
              '<span>' + rijen.filter(function (r) { return r.fotoId === f.id; }).length +

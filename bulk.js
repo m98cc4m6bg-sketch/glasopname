@@ -16,6 +16,11 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // Zonder lege eerste optie staat de bovenste waarde meteen geselecteerd:
+  // één tik op Doorvoeren zette dan bijvoorbeeld elke ruit op 'Glasmaat
+  // (direct)' en verdween de speling-aftrek uit alle maten (v83).
+  var LEEGKEUZE = '<option value="">— kies —</option>';
+
   function opts(lijst, huidig) {
     return lijst.map(function (v) {
       return '<option value="' + esc2(v) + '"' + (v === huidig ? ' selected' : '') + '>' + esc2(v) + '</option>';
@@ -110,11 +115,11 @@
       // zetten levert altijd een botsing op.
 
       { kop: 'Maatsoort', titel: 'Maatsoort', html: function () {
-          return '<select id="bulkVeld">' + opts(MAATSOORTEN) + '</select>'; },
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(MAATSOORTEN) + '</select>'; },
         zet: function (r, v) { r.maatsoort = v; },
         leeg: function (r) { return !r.maatsoort; } },
 
-      { kop: 'Correctie', titel: 'Speling / bijtelling', html: function () {
+      { kop: 'Corr.', titel: 'Speling / bijtelling', leegMag: true, html: function () {
           return '<select id="bulkVeld"><option value="">— volg algemeen —</option>' +
                  opts(DATA.speling_opties.map(function (s) { return parseInt(s, 10); })) + '</select>'; },
         zet: function (r, v) { if (v === '') delete r.correctie; else r.correctie = +v; },
@@ -126,36 +131,36 @@
         leeg: function (r) { return !r.glasType || !r.opbouw; } },
 
       { kop: 'Rooster', titel: 'Rooster', html: function () {
-          return '<select id="bulkVeld">' + opts(ROOSTER_JA_NEE) + '</select>'; },
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(ROOSTER_JA_NEE) + '</select>'; },
         zet: function (r, v) { r.rooster = v; if (v === 'Nee') { r.ducoType = ''; r.ralKleur = ''; } },
         leeg: function (r) { return r.rooster !== 'Ja'; } },
 
       { kop: 'Duco Type', titel: 'Duco type', html: function () {
-          return '<select id="bulkVeld">' + opts(DATA.roosters.map(function (r) { return r.naam; })) + '</select>'; },
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(DATA.roosters.map(function (r) { return r.naam; })) + '</select>'; },
         zet: function (r, v) { r.ducoType = v; if (v) r.rooster = 'Ja'; },
         leeg: function (r) { return !r.ducoType; } },
 
       { kop: 'RAL Kleur', titel: 'RAL kleur', html: function () {
-          return '<select id="bulkVeld">' + opts(DATA.ral_kleuren) + '</select>'; },
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(DATA.ral_kleuren) + '</select>'; },
         zet: function (r, v) { r.ralKleur = v; },
         leeg: function (r) { return !r.ralKleur; } },
 
-      { kop: 'Glasbewerking', titel: 'Glasbewerking', html: function () {
-          return '<select id="bulkVeld">' + opts(DATA.glasbewerking) + '</select>'; },
+      { kop: 'Bewerking', titel: 'Glasbewerking', html: function () {
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(DATA.glasbewerking) + '</select>'; },
         zet: function (r, v) { r.glasbewerking = v; },
         leeg: function (r) { return !r.glasbewerking || r.glasbewerking === 'Helder (standaard)'; } },
 
       { kop: 'Verdeling', titel: 'Roedenverdeling', html: function () {
-          return '<select id="bulkVeld">' + opts(DATA.roedenverdeling) + '</select>'; },
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(DATA.roedenverdeling) + '</select>'; },
         zet: function (r, v) { r.roedenverdeling = v; },
         leeg: function (r) { return !r.roedenverdeling || r.roedenverdeling === 'Geen roedenverdeling'; } },
 
       { kop: 'Breedte', groep: 'groep-roeden', titel: 'Roedenbreedte', html: function () {
-          return '<select id="bulkVeld">' + opts(DATA.roedenbreedte) + '</select>'; },
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(DATA.roedenbreedte) + '</select>'; },
         zet: function (r, v) { r.roedenbreedte = v; },
         leeg: function (r) { return !r.roedenbreedte; } },
 
-      { kop: 'Opmerking', groep: 'groep-glas', titel: 'Opmerking', html: function () {
+      { kop: 'Opm.', groep: 'groep-glas', titel: 'Opmerking', leegMag: true, html: function () {
           return '<input type="text" id="bulkVeld" placeholder="opmerking…">'; },
         zet: function (r, v) { r.opmerking = v; },
         leeg: function (r) { return !r.opmerking; } }
@@ -272,6 +277,8 @@
     } else {
       var el = document.getElementById('bulkVeld');
       var waarde = el.value;
+      // Niets gekozen? Dan ook niets doorvoeren.
+      if (waarde === '' && !veld.leegMag) { sluitPopover(); return; }
       doel.forEach(function (r) {
         if (bereik === 'leeg' && !veld.leeg(r)) { overgeslagen++; return; }
         veld.zet(r, waarde);

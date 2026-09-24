@@ -44,10 +44,13 @@ check('print verbergt het juiste paneel',
   d.documentElement.innerHTML.indexOf('#panel-samenvatting, #panel-naslag') >= 0);
 
 console.log('\n2. Keuzelijst in DATA');
-check('42 opties', g('DATA').glasbewerking.length === 42, g('DATA').glasbewerking.length + '');
+// Niet op een vast aantal vastpinnen: de catalogus groeit. Wel moet de
+// lijst in index.html gelijk zijn aan die uit naslag.js (de controle
+// hieronder), en dat is waar het om gaat.
+check('lijst is gevuld', g('DATA').glasbewerking.length > 40, g('DATA').glasbewerking.length + ' opties');
 check('standaardwaarde ongewijzigd', g('DATA').glasbewerking[0] === 'Helder (standaard)');
-check('22 figuurglassoorten',
-  g('DATA').glasbewerking.filter(b => b.indexOf('Figuurglas — ') === 0).length === 22);
+const figuur = g('DATA').glasbewerking.filter(b => b.indexOf('Figuurglas — ') === 0).length;
+check('figuurglassoorten aanwezig', figuur > 20, figuur + ' soorten');
 check('lijst in index.html gelijk aan die uit de catalogus',
   JSON.stringify(g('DATA').glasbewerking) === JSON.stringify(w.glasbewerkingLijst()));
 check('overige DATA-sleutels intact',
@@ -68,18 +71,20 @@ console.log('\n4. Keuzevakje in de invoertabel');
 w.renderTabel();
 let sels = [...d.querySelectorAll('#invoerBody tr:first-child select')];
 let bew = sels.find(s => s.innerHTML.indexOf('Helder (standaard)') >= 0);
-check('vakje heeft 42 opties', bew && bew.options.length === 42,
+check('vakje heeft evenveel opties als de lijst',
+  bew && bew.options.length === g('DATA').glasbewerking.length,
   bew ? bew.options.length + '' : 'niet gevonden');
-check('figuurglas staat erin met dikte',
-  bew && [...bew.options].some(o => o.value === 'Figuurglas — Chinchilla blank (4 mm)'));
+check('figuurglas staat in het keuzevakje',
+  bew && [...bew.options].some(o => o.value === 'Figuurglas — Chinchilla blank'));
 
 console.log('\n5. Oude waarde blijft zichtbaar');
 g('rijen')[0].glasbewerking = 'Figuurglas - Hammerglas';   // niet om te zetten
 w.renderTabel();
 sels = [...d.querySelectorAll('#invoerBody tr:first-child select')];
 bew = sels.find(s => s.innerHTML.indexOf('Helder (standaard)') >= 0);
-check('43 opties: de oude waarde is toegevoegd', bew && bew.options.length === 43,
-  bew ? bew.options.length + '' : '-');
+check('de oude waarde is als extra optie toegevoegd',
+  bew && bew.options.length === g('DATA').glasbewerking.length + 1,
+  bew ? bew.options.length + ' opties' : '-');
 check('en staat geselecteerd', bew && bew.value === 'Figuurglas - Hammerglas', bew && bew.value);
 
 console.log('\n6. Oude waarden omzetten bij het laden');
@@ -92,7 +97,7 @@ const oudeStaat = {
 w.localStorage.setItem('glasopname_v2', JSON.stringify(oudeStaat));
 w.laadOpgeslagen();
 check('Master Carré omgezet naar de nieuwe naam',
-  g('rijen')[0].glasbewerking === 'Figuurglas — Master carre (4/6 mm)', g('rijen')[0].glasbewerking);
+  g('rijen')[0].glasbewerking === 'Figuurglas — Master carre', g('rijen')[0].glasbewerking);
 
 console.log('\n7. Bestellijst toont de bewerking');
 g('rijen')[0].breedte = 1000; g('rijen')[0].hoogte = 1000;
@@ -106,8 +111,8 @@ console.log('\n8. Tabblad Naslag');
 w.toon('naslag');
 const paneel = d.getElementById('naslagInhoud');
 check('paneel is gevuld', paneel.innerHTML.length > 1000, paneel.innerHTML.length + ' tekens');
-check('22 figuurglaskaarten open', paneel.querySelectorAll('.nsl-kaart').length === 22,
-  paneel.querySelectorAll('.nsl-kaart').length + '');
+check('figuurglaskaarten open', paneel.querySelectorAll('.nsl-kaart').length === figuur,
+  paneel.querySelectorAll('.nsl-kaart').length + ' kaarten');
 check('13 secties', paneel.querySelectorAll('.nsl-sectie').length === 13);
 // De tabellen zitten in dichtgeklapte secties; openen en dan kijken.
 w.naslagKlap('Duco ventilatieroosters op glas');
@@ -124,13 +129,24 @@ check('zoeken werkt vanuit het echte paneel',
 w.naslagZoeken('');
 
 console.log('\n9. Versie');
-check('APP_VERSIE is v65', g('APP_VERSIE') === 'v65', g('APP_VERSIE'));
+// De drie versienummers moeten gelijk zijn; welk nummer dat is doet er
+// niet toe. Zo blijft deze test kloppen na elke volgende versie.
+const versie = g('APP_VERSIE');
 const sw = fs.readFileSync('sw.js', 'utf8');
-check('sw.js staat op dezelfde versie', /const VERSIE = 'v65';/.test(sw));
+const pdfjs = fs.readFileSync('pdf.js', 'utf8');
+check('APP_VERSIE ingevuld', /^v\d+$/.test(versie), versie);
+check('sw.js staat op dezelfde versie',
+  sw.indexOf("const VERSIE = '" + versie + "'") >= 0);
+check('pdf.js staat op dezelfde versie',
+  pdfjs.indexOf("PDF_VERSIE = '" + versie + "'") >= 0);
 check('sw.js cachet naslag.js', sw.indexOf("'./naslag.js'") >= 0);
-check('sw.js cachet 61 catalogusfoto\'s',
-  (sw.match(/\.\/catalogus\/[a-z0-9-]+\.jpg/g) || []).length === 61,
-  (sw.match(/\.\/catalogus\/[a-z0-9-]+\.jpg/g) || []).length + '');
+// Even veel foto's in sw.js als er in de map staan: anders mist er
+// offline een plaatje, of staat er een pad naar een bestand dat weg is.
+const opSchijf = fs.existsSync('catalogus')
+  ? fs.readdirSync('catalogus').filter(n => n.endsWith('.jpg')).length : 0;
+const inSw = (sw.match(/\.\/catalogus\/[a-z0-9-]+\.jpg/g) || []).length;
+check('sw.js cachet alle catalogusfoto\'s', inSw === opSchijf,
+  inSw + ' in sw.js, ' + opSchijf + ' op schijf');
 
 console.log('\n' + (fouten === 0 ? 'Alles goed.' : fouten + ' fout(en).'));
 process.exit(fouten === 0 ? 0 : 1);

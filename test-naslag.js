@@ -25,7 +25,8 @@ function check(naam, gelukt, extra) {
 
 console.log('\n1. Catalogus');
 const totaal = mod.CATALOGUS.reduce((n, g) => n + g.items.length, 0);
-check('61 soorten', totaal === 61, totaal + ' gevonden');
+// Geen vast aantal: de catalogus groeit met het assortiment mee.
+check('catalogus is gevuld', totaal > 55, totaal + ' soorten');
 const namen = [];
 mod.CATALOGUS.forEach(g => g.items.forEach(i => namen.push(g.groep + '|' + i.naam)));
 check('geen dubbele namen binnen een groep', new Set(namen).size === namen.length);
@@ -38,11 +39,13 @@ check('elke soort heeft dikte of opbouw', zonderMaat.length === 0, zonderMaat.jo
 
 console.log('\n2. Keuzelijst Glasbewerking');
 const lijst = mod.glasbewerkingLijst();
-check('42 opties', lijst.length === 42, lijst.length + ' opties');
+check('keuzelijst is gevuld', lijst.length > 40, lijst.length + ' opties');
 check('eerste is Helder (standaard)', lijst[0] === 'Helder (standaard)');
 check('laatste is Overig (zie opmerking)', lijst[lijst.length - 1] === 'Overig (zie opmerking)');
 check('geen dubbele opties', new Set(lijst).size === lijst.length);
-check('dikte staat in elk label', lijst.slice(1, -1).every(l => /\(.+\)$/.test(l)));
+// Sinds v76 staat de dikte niet meer in het label; de naam is de naam.
+check('elk label heeft een soortaanduiding',
+  lijst.slice(1, -1).every(l => l.indexOf(' — ') > 0));
 console.log('       voorbeeld: ' + lijst[7]);
 
 console.log('\n3. Oude waarden omzetten');
@@ -54,8 +57,10 @@ const rijen = [
 ];
 const omgezet = mod.bewerkingBijwerken(rijen);
 check('twee rijen omgezet', omgezet === 2, omgezet + ' omgezet');
-check('Master Carré → Master carre', rijen[0].glasbewerking === 'Figuurglas — Master carre (4/6 mm)');
-check('Blauw → Float dark blue', rijen[1].glasbewerking === 'Getint — Float dark blue (6/8/10 mm)');
+check('Master Carré → Master carre', rijen[0].glasbewerking === 'Figuurglas — Master carre',
+  rijen[0].glasbewerking);
+check('Blauw → Float dark blue', rijen[1].glasbewerking === 'Getint — Float dark blue',
+  rijen[1].glasbewerking);
 check('twijfelgeval blijft staan', rijen[2].glasbewerking === 'Figuurglas - Hammerglas');
 check('standaardwaarde blijft ongemoeid', rijen[3].glasbewerking === 'Helder (standaard)');
 check('alle omzettingen wijzen naar een bestaande optie',
@@ -72,8 +77,9 @@ console.log('\n5. Weergave');
 w.renderNaslag();
 const html = w.document.getElementById('naslagInhoud');
 check('paneel is gevuld', html.innerHTML.length > 1000, html.innerHTML.length + ' tekens');
-check('figuurglas staat open', html.querySelectorAll('.nsl-kaart').length === 22,
-  html.querySelectorAll('.nsl-kaart').length + ' kaarten zichtbaar');
+const figuurAantal = (mod.CATALOGUS.find(g => g.groep === 'Figuurglas') || { items: [] }).items.length;
+check('figuurglas staat open', html.querySelectorAll('.nsl-kaart').length === figuurAantal,
+  html.querySelectorAll('.nsl-kaart').length + ' van ' + figuurAantal + ' kaarten zichtbaar');
 check('negen catalogusgroepen plus vier tabellen',
   html.querySelectorAll('.nsl-sectie').length === 13,
   html.querySelectorAll('.nsl-sectie').length + ' secties');
@@ -86,8 +92,9 @@ check('foto\'s laden pas als ze in beeld komen',
 
 console.log('\n6. Sectie openen en sluiten');
 w.naslagKlap('Draadglas');
-check('draadglas open: 22 + 3 kaarten',
-  w.document.querySelectorAll('.nsl-kaart').length === 25,
+const draadAantal = (mod.CATALOGUS.find(g => g.groep === 'Draadglas') || { items: [] }).items.length;
+check('draadglas erbij open',
+  w.document.querySelectorAll('.nsl-kaart').length === figuurAantal + draadAantal,
   w.document.querySelectorAll('.nsl-kaart').length + ' kaarten');
 w.naslagKlap('Figuurglas');
 check('figuurglas dicht: 3 kaarten over',

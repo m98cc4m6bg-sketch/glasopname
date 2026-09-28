@@ -313,7 +313,12 @@
     });
   }
 
-  window.addEventListener('online', function () { if (vuil) synchroniseer(); });
+  window.addEventListener('online', function () {
+    herstelPoging = 0;
+    if (!geladen) { herstelProbeer(); return; }
+    if (!kanaalGezond()) luisterOpProject();
+    if (vuil) synchroniseer(); else statusOpgeslagen();
+  });
   window.addEventListener('offline', function () {
     status('⚠ Offline — lokaal', '#a3231a');
   });
@@ -369,17 +374,47 @@
   // gebruiker op een tweede apparaat moet wél live bijgewerkt worden.
   var SESSIE = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 
+  var kanaalKlok = null;
+  var kanaalPoging = 0;
+  var kanaalZelfWeg = false;
+
+  // Staat de live verbinding er nog? Na een slaapstand of een wifi-wissel
+  // valt die stil zonder dat er iets gemeld wordt; dan komen wijzigingen
+  // van een collega niet meer binnen (v84).
+  function kanaalGezond() {
+    return !!(kanaal && (kanaal.state === 'joined' || kanaal.state === 'joining'));
+  }
+
   function luisterOpProject() {
     // Een oudere bibliotheek uit de cache kent geen kanalen. Dan werkt de
     // app gewoon door, alleen zonder live bijwerken.
     if (!sb || !projectId || typeof sb.channel !== 'function') return;
-    if (kanaal) { try { sb.removeChannel(kanaal); } catch (e) {} kanaal = null; }
+    clearTimeout(kanaalKlok);
+    if (kanaal) {
+      kanaalZelfWeg = true;
+      try { sb.removeChannel(kanaal); } catch (e) {}
+      kanaal = null;
+      setTimeout(function () { kanaalZelfWeg = false; }, 1000);
+    }
     try {
       kanaal = sb.channel('project-' + projectId)
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'projecten', filter: 'id=eq.' + projectId
         }, function (bericht) { vanElders(bericht.new); })
-        .subscribe();
+        .subscribe(function (staat) {
+          if (staat === 'SUBSCRIBED') { kanaalPoging = 0; return; }
+          if (kanaalZelfWeg) return;
+          if (staat === 'CHANNEL_ERROR' || staat === 'TIMED_OUT' || staat === 'CLOSED') {
+            clearTimeout(kanaalKlok);
+            var wacht = Math.min(30000, 3000 * Math.pow(2, Math.min(kanaalPoging++, 3)));
+            kanaalKlok = setTimeout(function () {
+              luisterOpProject();
+              // Tijdens de stilte kan er van alles gewijzigd zijn; één keer
+              // navragen in plaats van wachten op het volgende bericht.
+              if (!vuil && !bezig) bijTerugkeer();
+            }, wacht);
+          }
+        });
     } catch (e) {
       console.warn('[cloud] live bijwerken niet beschikbaar', e);
       kanaal = null;
@@ -453,7 +488,10 @@
   // laat liggen, bijvoorbeeld na een tijd zonder bereik.
   function bijTerugkeer() {
     if (document.visibilityState !== 'visible' || !sb || !gebruiker || !projectId) return;
-    luisterOpProject();
+    if (!kanaalGezond()) luisterOpProject();
+    // Is de stand nog nooit binnengekomen, dan is dít het moment om het
+    // opnieuw te proberen — niet pas als er iets opgeslagen moet worden.
+    if (!geladen) { herstelPoging = 0; herstelProbeer(); return; }
 
     // Staat er eigen werk open, dan wijkt de database per definitie af van
     // je scherm. Dat is geen wijziging van een collega maar je eigen
@@ -465,10 +503,17 @@
     if (bezig) return;
 
     sb.from('projecten').select('data').eq('id', projectId).maybeSingle().then(function (res) {
-      if (res.error || !res.data) return;
+      if (res.error) { mislukt('terugkeer'); return; }
+      if (!res.data) { status('⚠ Project bestaat niet meer', '#a3231a'); return; }
       if (vuil || bezig) return;     // intussen toch weer iets getypt
-      vanElders({ data: res.data.data });
-    });
+      geladen = true;
+      if (vingerafdruk(res.data.data || {}) !== vingerafdruk(huidigeStaat())) {
+        vanElders({ data: res.data.data });
+      } else {
+        // Alles gelijk: dan hoort er geen waarschuwing meer te staan.
+        statusOpgeslagen();
+      }
+    }, function () { mislukt('terugkeer'); });
   }
   document.addEventListener('visibilitychange', bijTerugkeer);
   window.addEventListener('focus', bijTerugkeer);
@@ -895,8 +940,90 @@
     }
   }
 
+  /* ─── verbinding kwijt en weer terug ───────────────────────── */
+  // De stand van de server is binnen (true) of nog niet (false). Zolang
+  // hij niet binnen is, werkt de app lokaal door en blijft hij proberen.
+  var geladen = false;
+  var herstelPoging = 0;
+  var herstelKlok = null;
+  var hartslag = null;
+
+  function mislukt(wat) {
+    geladen = false;
+    status('⚠ Geen verbinding — lokaal', '#a3231a');
+    planHerstel();
+    if (wat) console.warn('[cloud] ' + wat + ' mislukt; opnieuw proberen');
+  }
+
+  function planHerstel() {
+    clearTimeout(herstelKlok);
+    // 5, 10, 20, dan elke 30 seconden. Zo staat de app na een tunnel of
+    // een wifi-wissel vanzelf weer in verbinding.
+    var wacht = Math.min(30000, 5000 * Math.pow(2, Math.min(herstelPoging, 3)));
+    herstelKlok = setTimeout(herstelProbeer, wacht);
+  }
+
+  function herstelProbeer() {
+    if (!sb || !gebruiker || !projectId || geladen) return;
+    if (!navigator.onLine) { planHerstel(); return; }
+    status('… Verbinden');
+    sb.from('projecten').select('id,data,updated_at').eq('id', projectId).maybeSingle()
+      .then(function (res) {
+        if (res.error) {
+          // Een sessie die verlopen is geeft dezelfde fout als geen
+          // verbinding. getSession() vernieuwt hem als dat nodig is, zodat
+          // de volgende poging wél langs de beveiliging komt.
+          try { if (sb.auth && sb.auth.getSession) sb.auth.getSession(); } catch (e) {}
+          herstelPoging++; mislukt('verbinden'); return;
+        }
+        geladen = true;
+        herstelPoging = 0;
+        clearTimeout(herstelKlok);
+        if (!res.data) {
+          // Het project bestaat niet meer. Niet stilletjes doorgaan.
+          status('⚠ Project bestaat niet meer', '#a3231a');
+          return;
+        }
+        luisterOpProject();
+        if (vuil || localStorage.getItem(LS_PENDING) === '1') {
+          vuil = true;
+          synchroniseer();
+          return;
+        }
+        // Wat er intussen op de server veranderd is, langs dezelfde weg als
+        // een melding van een collega: die weet wat er moet gebeuren als er
+        // op dit apparaat getypt wordt.
+        if (vingerafdruk(res.data.data || {}) !== vingerafdruk(huidigeStaat())) {
+          vanElders({ data: res.data.data });
+        } else {
+          statusOpgeslagen();
+        }
+      }, function () { herstelPoging++; mislukt('verbinden'); });
+  }
+
+  // Elke vijf minuten even voelen of de verbinding er nog is, maar alleen
+  // als de app in beeld staat en er niets openstaat. Zo klopt het
+  // statuspilletje met de werkelijkheid in plaats van met de laatste keer
+  // dat er iets gebeurde.
+  function startHartslag() {
+    clearInterval(hartslag);
+    hartslag = setInterval(function () {
+      if (!sb || !gebruiker || !projectId) return;
+      if (document.visibilityState !== 'visible') return;
+      if (vuil || bezig) return;
+      if (!navigator.onLine) { mislukt(null); return; }
+      if (!geladen) { herstelProbeer(); return; }
+      sb.from('projecten').select('id').eq('id', projectId).maybeSingle()
+        .then(function (res) {
+          if (res.error) { herstelPoging = 0; mislukt('hartslag'); return; }
+          if (!kanaalGezond()) luisterOpProject();
+        }, function () { herstelPoging = 0; mislukt('hartslag'); });
+    }, 300000);
+  }
+
   function start() {
     haalData();
+    startHartslag();
     if (projectId) {
       sb.from('projecten').select('id,data,updated_at').eq('id', projectId).maybeSingle()
         .then(function (res) {
@@ -905,13 +1032,18 @@
           // 'project weg': de koppeling werd gewist en daarna ging er
           // niets meer omhoog, terwijl het werk op het scherm stond (v83).
           if (res.error) {
-            status('⚠ Geen verbinding — lokaal', '#a3231a');
+            // Geen verbinding is geen eindstation: blijven proberen, en de
+            // melding weghalen zodra het wél lukt. Anders bleef er rood
+            // 'Geen verbinding' staan tot er toevallig iets opgeslagen werd,
+            // terwijl de app intussen allang weer online was (v84).
             laatsteJson = JSON.stringify(huidigeStaat());
             if (localStorage.getItem(LS_PENDING) === '1') { vuil = true; }
             luisterOpProject();
-            setTimeout(function () { if (vuil) synchroniseer(); }, 5000);
+            mislukt('verbinden');
             return;
           }
+          geladen = true;
+          herstelPoging = 0;
           if (!res.data) { projectId = null; localStorage.removeItem(LS_PROJECT); toonProjecten(); return; }
           // Lokale, nog niet gesynchroniseerde wijzigingen winnen.
           if (localStorage.getItem(LS_PENDING) === '1') {

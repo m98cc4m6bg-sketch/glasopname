@@ -32,6 +32,21 @@
   function el(id) { return document.getElementById(id); }
   function waarde(id) { var e = el(id); return e ? e.value : ''; }
 
+  // Ruiten die naar een groep wijzen die niet (meer) bestaat weer losmaken.
+  // index.html heeft dezelfde functie; deze is er zodat cloud.js ook in zijn
+  // eentje klopt — de rem op het opslaan hangt ervan af (v85).
+  function losseVerweesde() {
+    if (window.verweesdeRijenLosmaken) return verweesdeRijenLosmaken();
+    if (typeof rijen === 'undefined' || typeof fotos === 'undefined') return 0;
+    var heb = {};
+    (fotos || []).forEach(function (f) { if (f) heb[f.id] = true; });
+    var n = 0;
+    (rijen || []).forEach(function (r) {
+      if (r && r.fotoId && !heb[r.fotoId]) { delete r.fotoId; n++; }
+    });
+    return n;
+  }
+
   function huidigeStaat() {
     return {
       rijen: rijen,
@@ -68,8 +83,8 @@
     if (el('bijtelling'))    el('bijtelling').value    = state.bijtelling || '11';
     // Ruiten die naar een groep wijzen die niet in dit project zit weer
     // losmaken; anders zijn ze nergens op het scherm te zien.
-    if (window.verweesdeRijenLosmaken) {
-      var losgemaakt = verweesdeRijenLosmaken();
+    if (true) {
+      var losgemaakt = losseVerweesde();
       if (losgemaakt && window.appMelding) {
         appMelding(losgemaakt + (losgemaakt === 1 ? ' ruit hoorde' : ' ruiten hoorden') +
           ' bij een foto die niet in dit project staat. ' +
@@ -504,7 +519,7 @@
 
     sb.from('projecten').select('data').eq('id', projectId).maybeSingle().then(function (res) {
       if (res.error) { mislukt('terugkeer'); return; }
-      if (!res.data) { status('⚠ Project bestaat niet meer', '#a3231a'); return; }
+      if (!res.data) { projectWeg(); return; }
       if (vuil || bezig) return;     // intussen toch weer iets getypt
       geladen = true;
       if (vingerafdruk(res.data.data || {}) !== vingerafdruk(huidigeStaat())) {
@@ -781,6 +796,9 @@
 
   window.cloudOpen = async function (id) {
     if (!await magVerlaten('een ander project openen')) return;
+    wegGemeld = false;
+    werkTeRedden = false;
+    geladen = false;
     localStorage.removeItem(LS_PENDING);
     vuil = false;
     sb.from('projecten').select('id,data').eq('id', id).single().then(function (res) {
@@ -816,10 +834,17 @@
         '\u203a. Kies een andere naam, of open het bestaande project via de lijst.');
       return;
     }
-    maakProject(naam);
+    var meenemen = false;
+    if (werkTeRedden && ingevuldeRijen(huidigeStaat()) > 0) {
+      meenemen = await appVraag('De ruiten die nu op het scherm staan meenemen naar dit nieuwe ' +
+        'project? De foto\'s van het vorige project zijn niet meer beschikbaar; de maten blijven ' +
+        'gewoon staan.',
+        { kop: 'Ruiten meenemen', ja: 'Meenemen', nee: 'Leeg beginnen' });
+    }
+    maakProject(naam, meenemen);
   };
 
-  function maakProject(naam) {
+  function maakProject(naam, meenemen) {
     sb.from('projecten').insert({
       naam: naam || '(naamloos)',
       datum: '',
@@ -828,29 +853,58 @@
       aantal_ruiten: 0, adres: '', open_taken: 0,
       gewijzigd_door: gebruiker.id
     }).select('id').single().then(function (res) {
-      if (res.error) { appFout('Aanmaken mislukt: ' + res.error.message); return; }
+      if (res.error || !res.data || !res.data.id) {
+        appFout('Aanmaken mislukt: ' + ((res.error && res.error.message) ||
+                'de database gaf geen nieuw project terug'), { kop: 'Niet aangemaakt' });
+        return;
+      }
+      wegGemeld = false;
+      geladen = true;
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
       luisterOpProject();
-      rijen = []; volgendId = 1; fotos = []; projectInfo = {}; projectTaken = [];
-      zetStaat({ project: naam, datum: '', speling: '4', bijtelling: '11' });
+      werkTeRedden = false;
+      if (meenemen) {
+        // De ruiten blijven staan; de foto's horen bij het oude project en
+        // zijn daar met dat project verdwenen. De ruiten die eraan hingen
+        // komen bij 'zonder foto of tekening' terecht (v85).
+        fotos = [];
+        losseVerweesde();
+        if (el('projectNaam')) el('projectNaam').value = naam || '';
+        if (window.renderTabel) renderTabel();
+        if (window.herbereken) herbereken();
+        if (window.renderFotos) renderFotos();
+        if (window.renderProject) renderProject();
+      } else {
+        rijen = []; volgendId = 1; fotos = []; projectInfo = {}; projectTaken = [];
+        zetStaat({ project: naam, datum: '', speling: '4', bijtelling: '11' });
+      }
       toonNaamWaarschuwing('');
       el('cloudProjecten').style.display = 'none';
+      vuil = true;
       window.opslaan();
+      synchroniseer();
     });
   }
 
   // Foto's moeten via de Storage-API weg; rechtstreeks uit de
   // opslagtabellen verwijderen staat Supabase niet toe. Daarom eerst
   // de map van dit project leegmaken, dan pas de projectrij.
-  function fotosOpruimen(id) {
+  // De lijst komt per 500 bestanden binnen; bij een groot project bleef de
+  // rest anders achter. Doorgaan tot de map leeg is, met een harde grens
+  // zodat dit nooit blijft rondjes draaien (v85).
+  function fotosOpruimen(id, ronde) {
     if (!sb) return Promise.resolve();
+    ronde = ronde || 1;
     return sb.storage.from('projectfotos').list(id, { limit: 500 })
       .then(function (res) {
         if (res.error || !res.data || !res.data.length) return null;
         var paden = res.data.map(function (f) { return id + '/' + f.name; });
-        return sb.storage.from('projectfotos').remove(paden);
+        return sb.storage.from('projectfotos').remove(paden).then(function (weg) {
+          if (paden.length === 500 && ronde < 20) return fotosOpruimen(id, ronde + 1);
+          return weg;
+        });
       })
       .catch(function (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); });
   }
@@ -859,38 +913,72 @@
     if (!await appVraag('Dit project definitief verwijderen? Dit geldt voor iedereen.\n' +
         'De foto\'s van dit project worden ook verwijderd.',
         { kop: 'Project verwijderen', ja: 'Definitief verwijderen', gevaarlijk: true })) return;
+
     var lijst = document.getElementById('cloudProjectLijst');
     if (lijst) lijst.style.opacity = '0.5';
+
     // Eerst de projectrij weg, dan pas de foto's. Andersom stonden bij een
     // mislukte verwijdering de foto's al onherstelbaar weg terwijl de app
     // meldde dat het niet gelukt was (v83).
-    sb.from('projecten').delete().eq('id', id).then(function (res) {
+    //
+    // Let op de manier waarop hier afgehandeld wordt: in v83 stond hier een
+    // keten waarin 'niets teruggekregen' zowel 'er ging iets mis' als 'er
+    // waren geen foto's' betekende. Een project zonder foto's liet daardoor
+    // de lijst grijs staan, bleef in het overzicht staan en hield de
+    // koppeling met het verwijderde project vast (v85).
+    var gelukt = false;
+    var melding = '';
+    try {
+      var res = await sb.from('projecten').delete().eq('id', id).select('id');
       if (res && res.error) {
-        if (lijst) lijst.style.opacity = '';
-        appFout('Verwijderen mislukt: ' + res.error.message);
-        return null;
+        melding = res.error.message;
+      } else if (res && Array.isArray(res.data) && res.data.length === 0) {
+        // Niets verwijderd. Bestaat hij nog, dan mag deze gebruiker het niet;
+        // is hij er niet meer, dan was een ander ons voor.
+        var na = await sb.from('projecten').select('id').eq('id', id).maybeSingle();
+        if (!na.error && na.data) melding = 'je hebt hier geen rechten voor';
+        else gelukt = true;
+      } else {
+        gelukt = true;
       }
-      return fotosOpruimen(id);
-    }).then(function (res) {
-      if (res === null) return;
-      if (lijst) lijst.style.opacity = '';
-      if (id === projectId) {
-        projectId = null;
-        window.glasProjectId = null;
-        localStorage.removeItem(LS_PROJECT);
-        // Het scherm leegmaken hoort erbij: anders typ je door in een
-        // project dat niet meer bestaat en gaat dat werk alsnog verloren.
-        localStorage.removeItem(LS_PENDING);
-        localStorage.removeItem(LS_STATE);
-        vuil = false;
-        zetStaat({});
-        status('Project verwijderd', '#6b6862');
-      }
-      toonProjecten();
-    }).catch(function (e) {
-      if (lijst) lijst.style.opacity = '';
-      appFout('Verwijderen mislukt: ' + e.message);
-    });
+    } catch (e) {
+      melding = (e && e.message) || 'geen verbinding';
+    }
+
+    // De foto's pas opruimen als de rij echt weg is. Mislukt dat, dan is het
+    // project alsnog verwijderd; de bestanden blijven dan achter, maar
+    // niemand kan er nog bij.
+    if (gelukt) {
+      try { await fotosOpruimen(id); } catch (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); }
+    }
+
+    if (lijst) lijst.style.opacity = '';
+
+    if (!gelukt) {
+      toonProjecten(true);
+      appFout('Verwijderen mislukt: ' + melding + '. Het project staat er nog.',
+              { kop: 'Niet verwijderd' });
+      return;
+    }
+
+    if (id === projectId) {
+      projectId = null;
+      window.glasProjectId = null;
+      geladen = false;
+      clearTimeout(herstelKlok);
+      if (kanaal) { kanaalZelfWeg = true; try { sb.removeChannel(kanaal); } catch (e) {} kanaal = null; }
+      localStorage.removeItem(LS_PROJECT);
+      // Het scherm leegmaken hoort erbij: anders typ je door in een project
+      // dat niet meer bestaat en gaat dat werk alsnog verloren.
+      localStorage.removeItem(LS_PENDING);
+      localStorage.removeItem(LS_STATE);
+      vuil = false;
+      bezig = false;
+      laatsteJson = null;
+      zetStaat({});
+      status('Project verwijderd', '#6b6862');
+    }
+    toonProjecten(true);
   };
 
   window.cloudProjectenTonen = function () {
@@ -923,7 +1011,7 @@
     (Array.isArray(serverStaat.fotos) ? serverStaat.fotos : []).forEach(function (f) {
       if (f && mist[f.id]) { fotos.push(f); heb[f.id] = true; delete mist[f.id]; terug++; }
     });
-    var los = window.verweesdeRijenLosmaken ? verweesdeRijenLosmaken() : 0;
+    var los = losseVerweesde();
 
     if (window.renderFotos) renderFotos();
     if (window.renderTabel) renderTabel();
@@ -947,6 +1035,28 @@
   var herstelPoging = 0;
   var herstelKlok = null;
   var hartslag = null;
+
+  var wegGemeld = false;
+  var werkTeRedden = false;   // project weg, maar er staat nog invoer op het scherm
+
+  // Het geopende project bestaat niet meer — verwijderd door een collega,
+  // of de rechten zijn weg. Eén keer duidelijk melden, en niet doen alsof
+  // er nog opgeslagen wordt (v85).
+  function projectWeg() {
+    status('⚠ Project bestaat niet meer', '#a3231a');
+    geladen = false;
+    clearTimeout(herstelKlok);
+    werkTeRedden = ingevuldeRijen(huidigeStaat()) > 0;
+    if (wegGemeld) return;
+    wegGemeld = true;
+    if (window.appFout) {
+      appFout('Dit project bestaat niet meer op de server; iemand heeft het verwijderd. ' +
+              'Je invoer staat nog op dit apparaat. Maak een nieuw project aan: de app vraagt ' +
+              'dan of de ruiten van dit scherm mee moeten. De foto\'s van het oude project ' +
+              'zijn wel weg.',
+              { kop: 'Project bestaat niet meer' });
+    }
+  }
 
   function mislukt(wat) {
     geladen = false;
@@ -979,11 +1089,7 @@
         geladen = true;
         herstelPoging = 0;
         clearTimeout(herstelKlok);
-        if (!res.data) {
-          // Het project bestaat niet meer. Niet stilletjes doorgaan.
-          status('⚠ Project bestaat niet meer', '#a3231a');
-          return;
-        }
+        if (!res.data) { projectWeg(); return; }
         luisterOpProject();
         if (vuil || localStorage.getItem(LS_PENDING) === '1') {
           vuil = true;
@@ -1016,6 +1122,7 @@
       sb.from('projecten').select('id').eq('id', projectId).maybeSingle()
         .then(function (res) {
           if (res.error) { herstelPoging = 0; mislukt('hartslag'); return; }
+          if (!res.data) { projectWeg(); return; }
           if (!kanaalGezond()) luisterOpProject();
         }, function () { herstelPoging = 0; mislukt('hartslag'); });
     }, 300000);

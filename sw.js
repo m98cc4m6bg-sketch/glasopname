@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v85';
+const VERSIE = 'v86';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',

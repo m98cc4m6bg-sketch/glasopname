@@ -12,6 +12,16 @@ function check(naam, ok, extra) {
   if (!ok) fouten++;
 }
 const wacht = ms => new Promise(r => setTimeout(r, ms));
+// Sinds v86 probeert de app een paar keer opnieuw voordat hij 'geen
+// verbinding' meldt; daar moet de test op wachten.
+async function wachtTot(voorwaarde, maximaal) {
+  const eind = Date.now() + (maximaal || 15000);
+  while (Date.now() < eind) {
+    if (voorwaarde()) return true;
+    await wacht(200);
+  }
+  return false;
+}
 
 const html = `<!DOCTYPE html><html><body>
   <span id="cloudStatus"></span>
@@ -51,6 +61,7 @@ const stand = { rijen: [], volgendId: 1, fotos: [], info: {}, taken: [],
                 project: 'test 55', datum: '', speling: '4', bijtelling: '11' };
 const teller = { select: 0, update: 0 };
 let netwerk = true;
+let jwtFouten = 0;     // aantal keren dat de server 'JWT issued at future' geeft
 
 function bouwer(tabel) {
   const b = {};
@@ -62,6 +73,10 @@ function bouwer(tabel) {
     };
   });
   function antwoord() {
+    if (jwtFouten > 0) {
+      jwtFouten--;
+      return { data: null, error: { code: 'PGRST303', message: 'JWT issued at future' } };
+    }
     if (!netwerk) return { data: null, error: { message: 'Failed to fetch' } };
     if (tabel === 'projecten') return { data: { id: 'p1', data: stand, updated_at: '2026-09-28T10:00:00Z' }, error: null };
     return { data: null, error: null };
@@ -99,15 +114,16 @@ script.textContent = fs.readFileSync('cloud.js', 'utf8');
   console.log('\n1. Opstarten zonder verbinding');
   netwerk = false;
   w.document.body.appendChild(script);            // cloud.js draait init() meteen
-  await wacht(200);
   const pil = () => w.document.getElementById('cloudStatus').textContent;
-  check('het pilletje meldt geen verbinding', pil().indexOf('Geen verbinding') >= 0, pil());
+  await wachtTot(() => pil().indexOf('Geen verbinding') >= 0);
+  check('het pilletje meldt geen verbinding (na de herkansingen)',
+    pil().indexOf('Geen verbinding') >= 0, pil());
 
   console.log('\n2. Verbinding terug: de app herstelt uit zichzelf');
   netwerk = true;
   const voor = teller.select;
   w.dispatchEvent(new w.Event('online'));
-  await wacht(300);
+  await wachtTot(() => pil().indexOf('Opgeslagen') >= 0);
   check('er is opnieuw bij de server nagevraagd', teller.select > voor,
     (teller.select - voor) + ' extra bevragingen');
   check('het pilletje staat weer op opgeslagen', pil().indexOf('Opgeslagen') >= 0, pil());
@@ -115,24 +131,52 @@ script.textContent = fs.readFileSync('cloud.js', 'utf8');
   console.log('\n3. Terugkomen op het tabblad met een dode verbinding');
   netwerk = false;
   w.document.dispatchEvent(new w.Event('visibilitychange'));
-  await wacht(200);
+  await wachtTot(() => pil().indexOf('Geen verbinding') >= 0);
   check('dat wordt gemeld in plaats van genegeerd', pil().indexOf('Geen verbinding') >= 0, pil());
 
   console.log('\n4. En weer terug bij het volgende bezoek');
   netwerk = true;
   w.document.dispatchEvent(new w.Event('visibilitychange'));
-  await wacht(300);
+  await wachtTot(() => pil().indexOf('Opgeslagen') >= 0);
   check('het pilletje klopt weer', pil().indexOf('Opgeslagen') >= 0, pil());
 
   console.log('\n5. Vanzelf opnieuw proberen, zonder iets te doen');
   netwerk = false;
   w.document.dispatchEvent(new w.Event('visibilitychange'));
-  await wacht(200);
+  await wachtTot(() => pil().indexOf('Geen verbinding') >= 0);
   check('eerst rood', pil().indexOf('Geen verbinding') >= 0, pil());
   netwerk = true;
-  // De eerste herkansing staat na 5 seconden gepland.
-  await wacht(6000);
-  check('en na de wachttijd vanzelf weer groen', pil().indexOf('Opgeslagen') >= 0, pil());
+  // De app plant zelf een nieuwe poging; daar hoeft niets voor te gebeuren.
+  await wachtTot(() => pil().indexOf('Opgeslagen') >= 0, 20000);
+  check('en daarna vanzelf weer groen, zonder iets te doen',
+    pil().indexOf('Opgeslagen') >= 0, pil());
+
+  console.log('\n6. De sleutelklok loopt voor (PGRST303, JWT issued at future)');
+  // Zo gedraagt Supabase zich bij een vers vernieuwde sleutel: de eerste
+  // paar verzoeken worden geweigerd, daarna werkt dezelfde sleutel gewoon.
+  jwtFouten = 2;
+  const voorJwt = teller.select;
+  w.cloudProjectenTonen();
+  await wacht(400);
+  const lijstTekst = () => w.document.getElementById('cloudProjectLijst').textContent;
+  check('de gebruiker ziet dat het opnieuw geprobeerd wordt',
+    lijstTekst().indexOf('Nieuwe poging') >= 0, lijstTekst().slice(0, 70));
+  await wacht(5000);
+  check('en daarna staat de lijst er gewoon',
+    lijstTekst().indexOf('Nieuwe poging') < 0 && lijstTekst().indexOf('mislukt') < 0,
+    lijstTekst().slice(0, 70));
+  check('er is meer dan één poging gedaan', teller.select - voorJwt >= 2,
+    (teller.select - voorJwt) + ' pogingen');
+  check('er blijft geen rode foutmelding staan', lijstTekst().indexOf('niet opgehaald') < 0);
+
+  console.log('\n7. Blijft de fout aanhouden, dan wordt het wél gemeld');
+  jwtFouten = 99;
+  w.cloudProjectenTonen();
+  await wacht(12000);
+  check('na drie pogingen volgt een nette melding met een knop',
+    lijstTekst().indexOf('niet opgehaald') >= 0 && lijstTekst().indexOf('Opnieuw proberen') >= 0,
+    lijstTekst().slice(0, 90));
+  jwtFouten = 0;
 
   console.log('\n' + (fouten ? fouten + ' fout(en).' : 'Alles goed.'));
   w.close();

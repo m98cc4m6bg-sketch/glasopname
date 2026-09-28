@@ -35,6 +35,55 @@
   // Ruiten die naar een groep wijzen die niet (meer) bestaat weer losmaken.
   // index.html heeft dezelfde functie; deze is er zodat cloud.js ook in zijn
   // eentje klopt — de rem op het opslaan hangt ervan af (v85).
+  // Supabase geeft soms een fout die vanzelf overgaat. De bekendste is
+  // PGRST303 'JWT issued at future': de klok van de beveiligingsdienst die
+  // de sleutel uitgeeft loopt een paar seconden voor op de klok van de
+  // database die hem controleert. Dat gebeurt vooral met een vers
+  // vernieuwde sleutel, dus precies bij het opstarten van de app. Een
+  // seconde later werkt dezelfde sleutel gewoon (v86).
+  // Eigen ontsnapping voor tekst in meldingen: index.html heeft esc(),
+  // maar cloud.js hoort ook zonder dat bestand te kloppen.
+  function veiligeTekst(t) {
+    return String(t === undefined || t === null ? '' : t)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  }
+
+  function tijdelijkeFout(err) {
+    if (!err) return false;
+    var t = String((err.code || '') + ' ' + (err.message || '')).toLowerCase();
+    return t.indexOf('pgrst303') >= 0 ||
+           t.indexOf('issued at future') >= 0 ||
+           t.indexOf('jwt expired') >= 0 ||
+           (t.indexOf('jwt') >= 0 && t.indexOf('future') >= 0) ||
+           t.indexOf('failed to fetch') >= 0 ||
+           t.indexOf('load failed') >= 0 ||
+           t.indexOf('networkerror') >= 0;
+  }
+
+  // Voert een verzoek uit en probeert het bij zo'n fout nog een paar keer,
+  // met een beetje meer geduld per keer. De sleutel wordt er tussendoor
+  // vernieuwd. bezigMelding krijgt te horen dat er nog gewacht wordt.
+  function metHerkansing(maakVerzoek, klaar, bezigMelding, poging) {
+    poging = poging || 0;
+    var wachten = [1200, 3000, 5000];
+    function nogEens(res) {
+      if (poging >= wachten.length) { klaar(res); return; }
+      try { if (sb && sb.auth && sb.auth.getSession) sb.auth.getSession(); } catch (e) {}
+      if (bezigMelding) bezigMelding(poging + 1);
+      setTimeout(function () {
+        metHerkansing(maakVerzoek, klaar, bezigMelding, poging + 1);
+      }, wachten[poging]);
+    }
+    var verzoek;
+    try { verzoek = maakVerzoek(); } catch (e) { klaar({ error: { message: e.message } }); return; }
+    Promise.resolve(verzoek).then(function (res) {
+      if (res && res.error && tijdelijkeFout(res.error)) { nogEens(res); return; }
+      klaar(res);
+    }, function (e) {
+      nogEens({ error: { message: (e && e.message) || 'geen verbinding' } });
+    });
+  }
+
   function losseVerweesde() {
     if (window.verweesdeRijenLosmaken) return verweesdeRijenLosmaken();
     if (typeof rijen === 'undefined' || typeof fotos === 'undefined') return 0;
@@ -304,6 +353,12 @@
           status('⚠ Naam al in gebruik', '#a3231a');
           toonNaamWaarschuwing('⚠ Deze projectnaam is al in gebruik. Kies een andere naam; ' +
                                'je metingen blijven zolang lokaal bewaard.');
+        } else if (tijdelijkeFout(res.error)) {
+          // Gaat vanzelf over; niet alarmeren, gewoon zo weer proberen.
+          status('… Opnieuw proberen');
+          try { if (sb.auth && sb.auth.getSession) sb.auth.getSession(); } catch (e2) {}
+          setTimeout(plan, 2000);
+          return;
         } else {
           status('⚠ Niet opgeslagen — ' + res.error.message, '#a3231a');
         }
@@ -719,16 +774,21 @@
     el('cloudProjecten').style.display = 'flex';
 
     // Alleen de velden die de lijst toont; de inhoud van een project
-    // wordt pas opgehaald als je hem opent.
-    var vraag = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at');
-    if (zoekTerm.trim()) {
-      var t = '%' + zoekTerm.trim().replace(/[%_]/g, '') + '%';
-      vraag = vraag.or('naam.ilike.' + t + ',datum.ilike.' + t + ',adres.ilike.' + t);
-    }
-    vraag.order('updated_at', { ascending: false }).limit(200)
-      .then(function (res) {
+    // wordt pas opgehaald als je hem opent. Bij een fout die vanzelf
+    // overgaat wordt het een paar keer opnieuw geprobeerd (v86).
+    metHerkansing(function () {
+      var q = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at');
+      if (zoekTerm.trim()) {
+        var z = '%' + zoekTerm.trim().replace(/[%_]/g, '') + '%';
+        q = q.or('naam.ilike.' + z + ',datum.ilike.' + z + ',adres.ilike.' + z);
+      }
+      return q.order('updated_at', { ascending: false }).limit(200);
+    }, function (res) {
         if (res.error) {
-          lijst.innerHTML = '<div style="padding:20px;color:var(--rood)">Ophalen mislukt: ' + res.error.message + '</div>';
+          lijst.innerHTML = '<div style="padding:20px;color:var(--rood)">De projecten konden niet opgehaald worden.' +
+            '<br><span style="color:var(--grijs-tekst);font-size:12px">' + veiligeTekst(res.error.message) + '</span>' +
+            '<br><button class="btn btn-secondary btn-sm" style="margin-top:10px" ' +
+            'onclick="cloudProjectenTonen()">Opnieuw proberen</button></div>';
           return;
         }
         var telling = el('cloudTelling');
@@ -764,7 +824,10 @@
                  '<button class="btn btn-ghost btn-sm" onclick="cloudVerwijder(\'' + p.id + '\')" title="Project verwijderen">🗑</button>' +
                  '</div>';
         }).join('');
-      });
+    }, function (poging) {
+      lijst.innerHTML = '<div style="padding:20px;color:var(--grijs-tekst)">' +
+        'De server gaf nog geen antwoord. Nieuwe poging ' + poging + ' van 3…</div>';
+    });
   }
 
   // Is er werk dat nog niet op de server staat? Dan mag je niet zomaar
@@ -801,8 +864,14 @@
     geladen = false;
     localStorage.removeItem(LS_PENDING);
     vuil = false;
-    sb.from('projecten').select('id,data').eq('id', id).single().then(function (res) {
-      if (res.error) { appFout('Openen mislukt: ' + res.error.message); return; }
+    metHerkansing(function () {
+      return sb.from('projecten').select('id,data').eq('id', id).single();
+    }, function (res) {
+      if (res.error || !res.data) {
+        appFout('Openen mislukt: ' + ((res.error && res.error.message) || 'geen gegevens ontvangen') +
+                '. Probeer het zo nog eens.', { kop: 'Niet geopend' });
+        return;
+      }
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
@@ -815,7 +884,7 @@
       el('cloudProjecten').style.display = 'none';
       statusOpgeslagen();
       controleerNaam();
-    });
+    }, function (poging) { status('… Verbinden (' + poging + ')'); });
   };
 
   window.cloudNieuw = async function (voorstel, melding) {
@@ -1077,8 +1146,9 @@
     if (!sb || !gebruiker || !projectId || geladen) return;
     if (!navigator.onLine) { planHerstel(); return; }
     status('… Verbinden');
-    sb.from('projecten').select('id,data,updated_at').eq('id', projectId).maybeSingle()
-      .then(function (res) {
+    metHerkansing(function () {
+      return sb.from('projecten').select('id,data,updated_at').eq('id', projectId).maybeSingle();
+    }, (function (res) {
         if (res.error) {
           // Een sessie die verlopen is geeft dezelfde fout als geen
           // verbinding. getSession() vernieuwt hem als dat nodig is, zodat
@@ -1104,7 +1174,7 @@
         } else {
           statusOpgeslagen();
         }
-      }, function () { herstelPoging++; mislukt('verbinden'); });
+      }));
   }
 
   // Elke vijf minuten even voelen of de verbinding er nog is, maar alleen
@@ -1132,8 +1202,9 @@
     haalData();
     startHartslag();
     if (projectId) {
-      sb.from('projecten').select('id,data,updated_at').eq('id', projectId).maybeSingle()
-        .then(function (res) {
+      metHerkansing(function () {
+        return sb.from('projecten').select('id,data,updated_at').eq('id', projectId).maybeSingle();
+      }, (function (res) {
           // Een fout is iets anders dan een project dat niet bestaat.
           // Eerder werd élke fout — ook 'geen verbinding' — behandeld als
           // 'project weg': de koppeling werd gewist en daarna ging er
@@ -1170,7 +1241,7 @@
             statusOpgeslagen();
             luisterOpProject();
           }
-        });
+        }), function (poging) { status('… Verbinden (' + poging + ')'); });
     } else {
       toonProjecten();
     }

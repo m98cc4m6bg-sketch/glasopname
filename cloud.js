@@ -15,6 +15,7 @@
   var LS_PROJECT = 'glasopname_project';   // id van geopend project
   var LS_DATA    = 'glasopname_glasdata';  // gecachete keuzelijsten
   var LS_PENDING = 'glasopname_pending';   // wacht op verbinding (true/false)
+  var LS_LAATST  = 'glasopname_laatst';    // laatst geopende project (voor het startscherm)
 
   var cfg      = window.GLASOPNAME_CONFIG || {};
   var sb       = null;
@@ -150,6 +151,7 @@
     if (window.merkOpnieuwBeoordelen) merkOpnieuwBeoordelen();
     toonNaamWaarschuwing('');
     toonMelding('');
+    onthoudRuiten();
   }
 
   // 'Opgenomen door' invullen met de naam waarmee je bent ingelogd: alles
@@ -233,6 +235,27 @@
     try { localStorage.setItem(LS_STATE, JSON.stringify(huidigeStaat())); } catch (e) {}
   }
 
+  // Heeft de gebruiker zelf iets gedaan sinds dit project openging? Zo
+  // niet, dan is een verschil met de server niet 'onopgeslagen werk'
+  // maar gewoon de app die zichzelf klaarzet — vijf lege regels
+  // bijvoorbeeld. Zonder dit onderscheid stond de vlag 'nog niet
+  // opgeslagen' al aan vóór je iets had ingevuld, en kreeg je bij het
+  // openen van een project de melding dat je werk verloren ging (v87).
+  var gebruikerDeedIets = false;
+  ['input', 'change', 'keydown', 'pointerdown'].forEach(function (soort) {
+    document.addEventListener(soort, function (e) {
+      if (!projectId) return;
+      // Alleen echte bewerkingen; scrollen of een tab openen telt niet.
+      if (soort === 'pointerdown' || soort === 'keydown') {
+        var t = e.target;
+        if (!t || !t.matches || !t.matches('input, select, textarea, canvas, .inkt-laag, .foto-doek, .foto-mark')) return;
+      }
+      gebruikerDeedIets = true;
+    }, true);
+  });
+  window.glasGebruikerDeedIets = function () { return gebruikerDeedIets; };
+  window.glasMarkeerWerk = function () { if (projectId) gebruikerDeedIets = true; };
+
   window.opslaan = function () {
     // De app roept dit ook elke tien seconden vanzelf aan. Is er niets
     // veranderd, dan hoeft er niets te gebeuren: anders knippert het
@@ -241,6 +264,11 @@
     if (nu === laatsteJson && !vuil) return;
     laatsteJson = nu;
     opslaanLokaal();
+    // Geen project open: er is niets om naartoe te sturen.
+    if (!projectId) { localStorage.removeItem(LS_PENDING); return; }
+    // Stand van de server nog niet binnen en de gebruiker heeft niets
+    // gedaan: dit is de app die zichzelf klaarzet, geen werk.
+    if (!geladen && !gebruikerDeedIets) return;
     vuil = true;
     localStorage.setItem(LS_PENDING, '1');
     plan();
@@ -275,6 +303,12 @@
   }
 
   var standGemeld = false;
+  // Zijn de nieuwe kolommen uit 13_taken_en_geschiedenis.sql er al? Zo
+  // niet, dan slaan we ze over in plaats van te blijven falen (v87).
+  var spoorKolommen = true;
+  // Voor de test: staat op false zodra blijkt dat het SQL-script nog niet
+  // gedraaid is.
+  window.glasSpoorKolommen = function () { return spoorKolommen; };
   // Naar buiten voor test-herstel.js; verder gebruikt niemand dit.
   window.standDeugt = standDeugt;
 
@@ -310,6 +344,7 @@
     // dan veranderen die mee en klopt de vingerafdruk achteraf niet meer
     // met wat er werkelijk verstuurd is (v80 en eerder: valse melding
     // "een collega heeft dit project gewijzigd").
+    var samenvatting = stempelWijzigingen();
     var json = JSON.stringify(huidigeStaat());
     var state = JSON.parse(json);
     state._sessie = SESSIE;
@@ -318,7 +353,7 @@
     var afdruk = vingerafdruk(state);
     eigenSchrijfsels.push(afdruk);
     if (eigenSchrijfsels.length > 8) eigenSchrijfsels.shift();
-    sb.from('projecten').update({
+    var velden = {
       naam: state.project || '(naamloos)',
       datum: state.datum || '',
       data: state,
@@ -327,7 +362,12 @@
       open_taken: openTaken(state),
       status: (state.info && state.info.status) || 'open',
       gewijzigd_door: gebruiker.id
-    }).eq('id', projectId).select('id').then(function (res) {
+    };
+    if (spoorKolommen) {
+      velden.gewijzigd_naam = gebruikersNaam();
+      velden.samenvatting = samenvatting;
+    }
+    sb.from('projecten').update(velden).eq('id', projectId).select('id').then(function (res) {
       bezig = false;
       clearTimeout(wachtKlok);
       // Een update die geen enkele rij raakt geeft géén fout. Zonder deze
@@ -349,6 +389,17 @@
       if (res.error) {
         var i = eigenSchrijfsels.lastIndexOf(afdruk);
         if (i >= 0) eigenSchrijfsels.splice(i, 1);
+        // Kolom bestaat niet: het SQL-script van v87 is nog niet gedraaid.
+        // Dan zonder die velden opslaan; het spoor komt vanzelf zodra het
+        // script wel gedraaid is.
+        var tekst = String(res.error.message || '') + ' ' + String(res.error.code || '');
+        if (spoorKolommen && (/samenvatting|gewijzigd_naam/.test(tekst) || /42703/.test(tekst))) {
+          console.warn('[cloud] kolommen voor het spoor ontbreken; sla ze over tot het SQL-script gedraaid is');
+          spoorKolommen = false;
+          vuil = true;
+          plan();
+          return;
+        }
         if (res.error.code === '23505') {
           status('⚠ Naam al in gebruik', '#a3231a');
           toonNaamWaarschuwing('⚠ Deze projectnaam is al in gebruik. Kies een andere naam; ' +
@@ -433,6 +484,85 @@
 
   function vingerafdruk(d) { return diepCanon(normaliseer(d)); }
 
+  /* ─── spoor: wie wijzigde welke ruit, en wanneer ─────────────── */
+  // Niet op twintig plekken in de code bijhouden, maar één keer vlak
+  // voor het opslaan: wat is er veranderd ten opzichte van de stand die
+  // we het laatst naar de server stuurden? Zo telt elke weg mee —
+  // typen, doorvoeren, importeren, kopiëren (v87).
+  var VELDEN_BUITEN_SPOOR = {
+    glasBreedte: 1, glasHoogte: 1, totaalDikte: 1, kgM2: 1,
+    gewDoor: 1, gewOp: 1
+  };
+  var laatsteRuiten = {};     // id -> vingerafdruk van de ruit
+
+  function ruitAfdruk(r) {
+    var kopie = {};
+    Object.keys(r || {}).forEach(function (k) {
+      if (!VELDEN_BUITEN_SPOOR[k]) kopie[k] = r[k];
+    });
+    return diepCanon(kopie);
+  }
+
+  // Lege regels tellen niet mee: de app zet er zelf een paar klaar, en
+  // het logboek moet niet vol lopen met 'vijf ruiten verwijderd' terwijl
+  // er niets stond.
+  function heeftInhoud(r) {
+    return !!(r && (r.merk || r.breedte || r.hoogte || r.glasType || r.opmerking));
+  }
+
+  function onthoudRuiten() {
+    laatsteRuiten = {};
+    (typeof rijen === 'undefined' ? [] : rijen).forEach(function (r) {
+      if (r && r.id != null && heeftInhoud(r)) laatsteRuiten[r.id] = ruitAfdruk(r);
+    });
+  }
+
+  // Zet het stempel op gewijzigde ruiten en geeft een korte zin terug
+  // over wat er veranderd is, voor in het logboek.
+  function stempelWijzigingen() {
+    if (typeof rijen === 'undefined') return '';
+    var naam = gebruikersNaam();
+    var nu = new Date().toISOString();
+    var gewijzigd = 0, nieuw = 0;
+    var gezien = {};
+
+    rijen.forEach(function (r) {
+      if (!r || r.id == null) return;
+      if (!heeftInhoud(r)) return;          // lege regel: geen wijziging
+      gezien[r.id] = true;
+      var afdruk = ruitAfdruk(r);
+      var oud = laatsteRuiten[r.id];
+      if (oud === afdruk) return;
+      if (oud === undefined) nieuw++; else gewijzigd++;
+      r.gewDoor = naam;
+      r.gewOp = nu;
+      laatsteRuiten[r.id] = afdruk;
+    });
+
+    var weg = 0;
+    Object.keys(laatsteRuiten).forEach(function (id) {
+      if (!gezien[id]) { weg++; delete laatsteRuiten[id]; }
+    });
+
+    var delen = [];
+    if (nieuw) delen.push(nieuw + (nieuw === 1 ? ' ruit toegevoegd' : ' ruiten toegevoegd'));
+    if (gewijzigd) delen.push(gewijzigd + (gewijzigd === 1 ? ' ruit gewijzigd' : ' ruiten gewijzigd'));
+    if (weg) delen.push(weg + (weg === 1 ? ' ruit verwijderd' : ' ruiten verwijderd'));
+    if (!delen.length) delen.push('projectgegevens gewijzigd');
+    return delen.join(', ');
+  }
+
+  // Het logboek ophalen voor dit project.
+  window.glasGeschiedenis = function (id) {
+    if (!sb) return Promise.resolve([]);
+    return sb.from('projectgeschiedenis')
+      .select('id,moment,wie_naam,samenvatting')
+      .eq('project_id', id || projectId)
+      .order('moment', { ascending: false })
+      .limit(20)
+      .then(function (res) { return (res && res.data) || []; }, function () { return []; });
+  };
+
   var kanaal = null;
   // Wat we zelf hebben weggeschreven. De database stuurt elke wijziging
   // terug, ook de onze; die komt aan als jij alweer verder hebt getypt en
@@ -453,6 +583,228 @@
   // van een collega niet meer binnen (v84).
   function kanaalGezond() {
     return !!(kanaal && (kanaal.state === 'joined' || kanaal.state === 'joining'));
+  }
+
+  /* ─── startscherm en stilstand ────────────────────────────── */
+
+  function lijstenVernieuwen() {
+    var scherm = document.getElementById('startScherm');
+    if (scherm && !scherm.hidden && window.glasToonStart) { glasToonStart(); return; }
+    toonProjecten(true);
+  }
+
+  function toonStart() {
+    if (window.glasToonStart) glasToonStart();
+    else toonProjecten();
+  }
+
+  // Het project sluiten en terug naar het startscherm. Alleen als er
+  // niets openstaat; anders vraagt magVerlaten eerst wat de bedoeling is.
+  window.glasNaarStart = async function (reden) {
+    if (projectId) {
+      if (reden !== 'stil' && !await magVerlaten('terug naar het startscherm gaan')) return false;
+      try {
+        localStorage.setItem(LS_LAATST, JSON.stringify({
+          id: projectId, naam: waarde('projectNaam'), op: Date.now()
+        }));
+      } catch (e) {}
+    }
+    if (kanaal) { kanaalZelfWeg = true; try { sb.removeChannel(kanaal); } catch (e) {} kanaal = null; }
+    projectId = null;
+    window.glasProjectId = null;
+    geladen = false;
+    vuil = false;
+    bezig = false;
+    laatsteJson = null;
+    gebruikerDeedIets = false;
+    localStorage.removeItem(LS_PROJECT);
+    localStorage.removeItem(LS_PENDING);
+    zetHash(null);
+    zetStaat({});
+    status('Geen project open', '#6b6862');
+    toonStart();
+    return true;
+  };
+
+  window.glasLaatsteProject = function () {
+    try { return JSON.parse(localStorage.getItem(LS_LAATST) || 'null'); } catch (e) { return null; }
+  };
+
+  // Na twee uur stilstand terug naar het startscherm, zodat niemand
+  // 's middags verder typt in de opname van vanochtend (v87).
+  var STIL_MS = 2 * 60 * 60 * 1000;
+  var stilKlok = null;
+
+  function stilReset() {
+    clearTimeout(stilKlok);
+    stilKlok = setTimeout(stilAfloop, STIL_MS);
+  }
+
+  function stilAfloop() {
+    if (!projectId) return;
+    // Niets kwijtraken: staat er werk open of ben je aan het typen, dan
+    // blijft het project gewoon staan en kijken we later opnieuw.
+    var a = document.activeElement;
+    if (vuil || bezig || localStorage.getItem(LS_PENDING) === '1' ||
+        (a && a.matches && a.matches('input, select, textarea'))) {
+      stilReset();
+      return;
+    }
+    window.glasNaarStart('stil');
+    if (window.appMelding) {
+      appMelding('Het project is gesloten omdat de app twee uur ongebruikt was. ' +
+                 'Alles was opgeslagen; kies hieronder waar je verder wilt.',
+                 { kop: 'Terug naar het startscherm' });
+    }
+  }
+
+  ['pointerdown', 'keydown', 'visibilitychange'].forEach(function (soort) {
+    document.addEventListener(soort, stilReset, true);
+  });
+  window.addEventListener('focus', stilReset);
+  stilReset();
+
+  // De projectenlijst, ook bruikbaar vanaf het startscherm.
+  window.glasProjecten = function (zoek) {
+    if (!sb || !gebruiker) return Promise.resolve({ data: [], error: null });
+    return new Promise(function (klaar) {
+      metHerkansing(function () {
+        var q = sb.from('projecten')
+          .select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at,gewijzigd_naam');
+        var t = String(zoek || '').trim();
+        if (t) {
+          var z = '%' + t.replace(/[%_]/g, '') + '%';
+          q = q.or('naam.ilike.' + z + ',datum.ilike.' + z + ',adres.ilike.' + z);
+        }
+        return q.order('updated_at', { ascending: false }).limit(200);
+      }, function (res) {
+        klaar({ data: (res && res.data) || [], error: res && res.error });
+      });
+    });
+  };
+
+  window.glasGebruiker = function () {
+    return { id: gebruiker ? gebruiker.id : null, naam: gebruikersNaam() };
+  };
+
+  /* ─── taken ───────────────────────────────────────────────── */
+  // Taken stonden in het project zelf. Nu in een eigen tabel, zodat de
+  // app kan laten zien wat er voor jou openstaat zonder elk project in
+  // te laden (v87).
+
+  function taakFout(wat) {
+    return function (e) {
+      console.warn('[taken] ' + wat + ' mislukt', e);
+      if (window.appFout) appFout('De taken konden niet bijgewerkt worden: ' +
+        ((e && e.message) || 'geen verbinding') + '. Probeer het zo nog eens.',
+        { kop: 'Taken' });
+      return null;
+    };
+  }
+
+  var takenTabel = true;
+  window.glasTakenTabel = function () { return takenTabel; };
+
+  function takenTabelCheck(res) {
+    var tekst = String((res && res.error && res.error.message) || '') + ' ' +
+                String((res && res.error && res.error.code) || '');
+    if (/relation .*taken.* does not exist|42P01|PGRST205/.test(tekst)) {
+      takenTabel = false;
+      console.warn('[taken] tabel bestaat nog niet; het SQL-script van v87 is nog niet gedraaid');
+    }
+    return !(res && res.error);
+  }
+
+  window.glasTakenVan = function (pid) {
+    if (!sb || !takenTabel || !(pid || projectId)) return Promise.resolve(null);
+    return sb.from('taken').select('*').eq('project_id', pid || projectId)
+      .order('klaar', { ascending: true }).order('volgorde', { ascending: true })
+      .then(function (res) {
+        if (!takenTabelCheck(res)) return null;
+        return (res && res.data) || [];
+      }, function () { return null; });
+  };
+
+  window.glasMijnTaken = function () {
+    if (!sb || !gebruiker || !takenTabel) return Promise.resolve([]);
+    return sb.from('taken')
+      .select('id,tekst,project_id,aangemaakt_op,eigenaar_naam')
+      .eq('klaar', false).eq('eigenaar', gebruiker.id)
+      .order('aangemaakt_op', { ascending: true }).limit(100)
+      .then(function (res) { return (res && res.data) || []; }, function () { return []; });
+  };
+
+  window.glasTaakNieuw = function (tekst, pid) {
+    if (!sb || !gebruiker || !takenTabel) return Promise.resolve(null);
+    return sb.from('taken').insert({
+      project_id: pid || projectId,
+      tekst: String(tekst || '').trim(),
+      eigenaar: gebruiker.id,
+      eigenaar_naam: gebruikersNaam(),
+      aangemaakt_door: gebruiker.id,
+      volgorde: Date.now() % 100000
+    }).select('*').single()
+      .then(function (res) { return (res && res.data) || null; }, taakFout('toevoegen'));
+  };
+
+  window.glasTaakWijzig = function (id, velden) {
+    if (!sb) return Promise.resolve(null);
+    var v = {};
+    Object.keys(velden || {}).forEach(function (k) { v[k] = velden[k]; });
+    if (v.klaar === true) {
+      v.afgerond_op = new Date().toISOString();
+      v.afgerond_door = gebruiker ? gebruiker.id : null;
+    }
+    if (v.klaar === false) { v.afgerond_op = null; v.afgerond_door = null; }
+    return sb.from('taken').update(v).eq('id', id).select('*').single()
+      .then(function (res) { return (res && res.data) || null; }, taakFout('bijwerken'));
+  };
+
+  window.glasTaakWeg = function (id) {
+    if (!sb) return Promise.resolve(false);
+    return sb.from('taken').delete().eq('id', id)
+      .then(function (res) { return !(res && res.error); }, taakFout('verwijderen'));
+  };
+
+  // Taken die nog in het project zelf staan één keer overzetten.
+  function migreerTaken(pid) {
+    if (!sb || !pid || !Array.isArray(projectTaken) || !projectTaken.length) return;
+    var oud = projectTaken.slice();
+    sb.from('taken').select('id').eq('project_id', pid).limit(1).then(function (res) {
+      if (res.error || (res.data && res.data.length)) return;
+      var rijenUit = oud.filter(function (t) { return t && String(t.tekst || '').trim(); })
+        .map(function (t, i) {
+          return { project_id: pid, tekst: t.tekst, klaar: !!t.klaar, volgorde: i + 1 };
+        });
+      if (!rijenUit.length) return;
+      sb.from('taken').insert(rijenUit).then(function (r2) {
+        if (r2 && r2.error) return;
+        projectTaken = [];
+        if (window.renderProject) renderProject();
+        if (window.takenLaden) takenLaden();
+        window.opslaan();
+      });
+    });
+  }
+
+  /* ─── het project in het webadres ─────────────────────────── */
+  // Zonder dit onthoudt alleen de browser zelf welk project je open had,
+  // en opent dezelfde link in twee browsers twee verschillende projecten
+  // (v87). Met de hash erbij is een link te delen en te bewaren.
+  function hashProject() {
+    var m = String(location.hash || '').match(/project=([0-9a-f-]{36})/i);
+    return m ? m[1] : null;
+  }
+
+  function zetHash(id) {
+    try {
+      var nieuw = id ? '#project=' + id : location.pathname + location.search;
+      if (id) {
+        if (location.hash !== '#project=' + id) history.replaceState(null, '', nieuw);
+      } else if (location.hash) {
+        history.replaceState(null, '', nieuw);
+      }
+    } catch (e) {}
   }
 
   function luisterOpProject() {
@@ -862,6 +1214,7 @@
     wegGemeld = false;
     werkTeRedden = false;
     geladen = false;
+    gebruikerDeedIets = false;
     localStorage.removeItem(LS_PENDING);
     vuil = false;
     metHerkansing(function () {
@@ -875,13 +1228,19 @@
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
+      zetHash(projectId);
       if (window.fotoLinksVergeten) fotoLinksVergeten();
       zetStaat(res.data.data || {});
       opslaanLokaal();
       laatsteJson = JSON.stringify(huidigeStaat());
       vuil = false;
+      geladen = true;
+      migreerTaken(projectId);
+      if (window.takenLaden) takenLaden();
+      if (window.logboekLaden) logboekLaden();
       luisterOpProject();
       el('cloudProjecten').style.display = 'none';
+      if (window.glasToonApp) glasToonApp();
       statusOpgeslagen();
       controleerNaam();
     }, function (poging) { status('… Verbinden (' + poging + ')'); });
@@ -932,6 +1291,7 @@
       projectId = res.data.id;
       window.glasProjectId = projectId;
       localStorage.setItem(LS_PROJECT, projectId);
+      zetHash(projectId);
       luisterOpProject();
       werkTeRedden = false;
       if (meenemen) {
@@ -951,6 +1311,7 @@
       }
       toonNaamWaarschuwing('');
       el('cloudProjecten').style.display = 'none';
+      if (window.glasToonApp) glasToonApp();
       vuil = true;
       window.opslaan();
       synchroniseer();
@@ -1024,7 +1385,7 @@
     if (lijst) lijst.style.opacity = '';
 
     if (!gelukt) {
-      toonProjecten(true);
+      lijstenVernieuwen();
       appFout('Verwijderen mislukt: ' + melding + '. Het project staat er nog.',
               { kop: 'Niet verwijderd' });
       return;
@@ -1046,8 +1407,11 @@
       laatsteJson = null;
       zetStaat({});
       status('Project verwijderd', '#6b6862');
+      zetHash(null);
+      toonStart();
+      return;
     }
-    toonProjecten(true);
+    lijstenVernieuwen();
   };
 
   window.cloudProjectenTonen = function () {
@@ -1201,7 +1565,37 @@
   function start() {
     haalData();
     startHartslag();
+    // Staat er een project in het webadres, dan wint dat: zo opent een
+    // gedeelde link bij iedereen hetzelfde project (v87).
+    var uitHash = hashProject();
+    if (uitHash) {
+      // Let op: dit moet ook kloppen als start() een tweede keer langskomt
+      // (bijvoorbeeld na inloggen op een pagina die al een project in het
+      // webadres had). Stond het project uit de link al open, dan blijft
+      // het open; eerder viel de app dan terug naar het startscherm en ging
+      // er daarna niets meer omhoog (v87).
+      if (uitHash !== projectId) {
+        projectId = uitHash;
+        window.glasProjectId = projectId;
+        localStorage.setItem(LS_PROJECT, projectId);
+        localStorage.removeItem(LS_PENDING);
+        vuil = false;
+      }
+    } else if (projectId && localStorage.getItem(LS_PENDING) !== '1') {
+      // Geen link met een project erin en niets wat nog omhoog moet: dan
+      // begin je op het startscherm en kies je zelf. Het laatst geopende
+      // project staat daar als snelkoppeling (v87).
+      try {
+        localStorage.setItem(LS_LAATST, JSON.stringify({ id: projectId, naam: '', op: Date.now() }));
+      } catch (e) {}
+      projectId = null;
+      window.glasProjectId = null;
+      localStorage.removeItem(LS_PROJECT);
+    }
     if (projectId) {
+      // Staat dit project al binnen, dan niet opnieuw ophalen: dat zou het
+      // werk op het scherm overschrijven met de stand van de server.
+      if (geladen) { if (window.glasToonApp) glasToonApp(); return; }
       metHerkansing(function () {
         return sb.from('projecten').select('id,data,updated_at').eq('id', projectId).maybeSingle();
       }, (function (res) {
@@ -1228,6 +1622,7 @@
             // Openstaand werk wint; zetStaat wordt hier dus niet gedraaid en
             // 'Opgenomen door' moet apart nagelopen worden.
             vulOpnemer();
+            if (window.glasToonApp) glasToonApp();
             herstelOntbrekendeFotos(res.data.data || {});
             vuil = true;
             status('⚠ Nog niet opgeslagen', '#8a5a00');
@@ -1238,12 +1633,16 @@
             zetStaat(res.data.data || {});
             opslaanLokaal();
             laatsteJson = JSON.stringify(huidigeStaat());
+            if (window.glasToonApp) glasToonApp();
             statusOpgeslagen();
+            migreerTaken(projectId);
+            if (window.takenLaden) takenLaden();
+            if (window.logboekLaden) logboekLaden();
             luisterOpProject();
           }
         }), function (poging) { status('… Verbinden (' + poging + ')'); });
     } else {
-      toonProjecten();
+      toonStart();
     }
   }
 

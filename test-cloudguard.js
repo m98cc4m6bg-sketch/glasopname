@@ -68,8 +68,12 @@ if (lokaal) {
   check('met de ruiten erin', Array.isArray(s.rijen) && s.rijen.length === 1);
   check('en met een plek voor de foto\'s', Array.isArray(s.fotos));
 }
-check('de vlag "nog niet verstuurd" staat aan',
-  w.localStorage.getItem('glasopname_pending') === '1');
+// Sinds v87: zonder geopend project is er niets om naartoe te sturen, dus
+// ook geen vlag 'nog niet verstuurd'. Die stond er eerder wél, en daardoor
+// kreeg je bij het kiezen van een project de melding dat werk verloren ging.
+check('zonder geopend project geen vlag "nog niet verstuurd"',
+  w.localStorage.getItem('glasopname_pending') !== '1',
+  String(w.localStorage.getItem('glasopname_pending')));
 
 console.log('\n' + (fouten ? fouten + ' fout(en).' : 'Alles goed.'));
 w.close();

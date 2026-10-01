@@ -106,6 +106,10 @@ w.supabase = {
 
 w.localStorage.setItem('glasopname_project', 'p1');
 w.localStorage.setItem('glasopname_v2', JSON.stringify(stand));
+// Sinds v87 begint de app op het startscherm, tenzij er nog werk klaarstaat
+// of het project in het webadres staat. Hier gaat het om een geopend
+// project, dus zetten we de vlag 'nog niet verstuurd'.
+w.localStorage.setItem('glasopname_pending', '1');
 
 const script = w.document.createElement('script');
 script.textContent = fs.readFileSync('cloud.js', 'utf8');

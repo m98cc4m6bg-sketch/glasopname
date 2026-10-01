@@ -995,10 +995,27 @@
   }
   .taak-tekst:focus { outline: none; background: var(--blauw-licht); border-radius: 3px; }
   .taak.klaar .taak-tekst { text-decoration: line-through; color: var(--grijs-tekst); }
+  .taak-eigenaar {
+    font-size: 11px; color: var(--grijs-tekst); white-space: nowrap;
+    background: var(--grijs-licht); border: 1px solid var(--grijs-rand);
+    border-radius: 999px; padding: 2px 8px;
+  }
+  .taak-eigenaar.ik { color: var(--merk); border-color: var(--merk); background: white; font-weight: 600; }
+  button.taak-eigenaar { cursor: pointer; font-family: inherit; }
+  button.taak-eigenaar:hover { border-color: var(--merk); color: var(--merk); }
   .taak-weg { background: none; border: none; color: var(--grijs-tekst); cursor: pointer; font-size: 13px; padding: 4px 6px; }
   .taak-weg:hover { color: var(--rood); }
   .taken-leeg { font-size: 12px; color: var(--grijs-tekst); padding: 12px 0; line-height: 1.6; }
   .taken-opruimen { margin-top: 12px; }
+  /* Logboek: één regel per wijziging, nuchter en klein. */
+  .log-regel {
+    display: flex; gap: 8px; align-items: baseline;
+    padding: 6px 0; border-bottom: 1px solid var(--grijs-rand); font-size: 12px;
+  }
+  .log-regel:last-child { border-bottom: none; }
+  .log-moment { color: var(--grijs-tekst); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .log-wie { font-weight: 600; white-space: nowrap; }
+  .log-wat { color: var(--grijs-tekst); }
   @media (max-width: 900px) {
     .pi-kolommen { grid-template-columns: 1fr; }
     .pi-veld.breed { grid-column: span 1; }
@@ -1645,6 +1662,124 @@
   .pdf-pagina canvas { max-width: 100%; height: auto; display: block; margin: 0 auto; }
   .pdf-telling { font-size: 12px; color: var(--grijs-tekst); }
 
+  /* ─── GEWIJZIGD NA DE BESTELLIJST (v87) ─── */
+  table.invoer td.rijnr.na-bestelling {
+    background: #fff3d0 !important;
+    border-right: 2px solid var(--geel);
+    color: #5a3a00;
+  }
+  table.invoer td.rijnr.na-bestelling::after {
+    content: '●'; color: var(--geel); font-size: 9px; display: block; line-height: 1;
+  }
+  .bestel-noot {
+    display: flex; gap: 10px; align-items: flex-start;
+    margin-top: 12px; padding: 10px 14px;
+    background: #fff3d0; border-left: 4px solid var(--geel);
+    border-radius: var(--radius); font-size: 12px; line-height: 1.55; color: #5a3a00;
+  }
+  .bestel-balk {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 12px; padding: 8px 12px;
+    background: var(--grijs-licht); border: 1px solid var(--grijs-rand);
+    border-radius: var(--radius); font-size: 12px; color: var(--grijs-tekst);
+  }
+  .bestel-balk b { color: var(--blauw); }
+
+  /* ─── STARTSCHERM (v87) ─── */
+  /* Zolang het startscherm aanstaat is de invoer niet in beeld: je kiest
+     eerst bewust een project. */
+  body.op-start > header,
+  body.op-start > .vaste-kop,
+  body.op-start > .toolbar,
+  body.op-start > .tab-panel,
+  body.op-start > .bulk-balk,
+  body.op-start > .sync-melding,
+  body.op-start > .naam-waarschuwing,
+  body.op-start > .merk-waarschuwing { display: none !important; }
+
+  .start-scherm {
+    position: fixed; inset: 0; z-index: 7500;
+    background: var(--grijs-licht);
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .start-kop {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: white; padding: 14px 24px;
+    padding-top: calc(14px + var(--ios-band) + env(safe-area-inset-top));
+    border-bottom: 3px solid var(--merk);
+  }
+  .start-titel h1 { font-size: 18px; font-weight: 700; color: var(--blauw); }
+  .start-titel .subtitle { font-size: 11px; color: var(--grijs-tekst); }
+  .start-kop .kop-gebruiker { margin-left: auto; }
+  .start-inhoud {
+    max-width: 900px; margin: 0 auto;
+    padding: 18px 16px calc(32px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .start-blok {
+    background: white; border: 1px solid var(--grijs-rand);
+    border-left: 4px solid var(--merk); border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(29,29,27,0.08); overflow: hidden;
+  }
+  .start-blokkop {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 11px 16px; background: var(--grijs-licht);
+    border-bottom: 1px solid var(--grijs-rand);
+  }
+  .start-blokkop h2 { font-size: 14px; font-weight: 700; color: var(--blauw); }
+  .start-blokkop .btn { margin-left: auto; }
+  .start-leeg { padding: 16px; font-size: 13px; color: var(--grijs-tekst); line-height: 1.6; }
+  .start-fout { color: var(--rood); }
+
+  .start-taak { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--grijs-rand); }
+  .start-taak:last-child { border-bottom: none; }
+  .start-taak-klaar {
+    flex: 0 0 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 1px solid var(--grijs-rand); background: white;
+    color: var(--merk); font-size: 15px; line-height: 1;
+  }
+  .start-taak-klaar:hover { background: var(--blauw-licht); }
+  .start-taak-tekst { flex: 1; cursor: pointer; font-size: 14px; color: #1d1d1b; }
+  .start-taak-tekst span { display: block; font-size: 11px; color: var(--grijs-tekst); margin-top: 2px; }
+
+  .start-verder { 
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    padding: 12px 16px; border: none; border-bottom: 1px solid var(--grijs-rand);
+    background: var(--blauw-licht); font-family: inherit; font-size: 13px; color: var(--blauw);
+  }
+  .start-verder:hover { background: #f7e3ea; }
+  .start-project {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 16px; border-bottom: 1px solid var(--grijs-rand);
+  }
+  .start-project-info { flex: 1; cursor: pointer; }
+  .start-project-weg {
+    order: 2; background: none; border: none; cursor: pointer;
+    color: var(--grijs-tekst); font-size: 14px; padding: 4px 6px; border-radius: 4px;
+  }
+  .start-project-weg:hover { color: var(--rood); background: #fee; }
+  .start-project:last-child { border-bottom: none; }
+  .start-project:hover { background: var(--blauw-licht); }
+  .start-project strong { display: block; font-size: 15px; color: var(--blauw); }
+  .start-project span { display: block; font-size: 11px; color: var(--grijs-tekst); margin-top: 3px; }
+  .start-status {
+    font-style: normal; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-left: 8px; padding: 1px 6px; border-radius: 999px;
+  }
+  .start-status.besteld { background: #fff3d0; color: #5a3a00; }
+  .start-status.afgerond { background: #eef7f1; color: #14532b; }
+
+  .kop-project {
+    display: inline-flex; align-items: center; gap: 8px;
+    border-left: 1px solid var(--grijs-rand); padding-left: 12px; margin-left: 4px;
+  }
+  .kop-projectnaam { font-size: 13px; color: var(--blauw); font-weight: 600; }
+  @media (max-width: 820px) {
+    .start-kop { padding: 10px 14px; padding-top: calc(10px + var(--ios-band) + env(safe-area-inset-top)); }
+    .start-inhoud { padding: 12px 10px 32px; }
+    .kop-projectnaam { display: none; }
+  }
+
   /* ─── BEDIENING PER TABEL ─── */
   .blok-bediening {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -1675,6 +1810,48 @@
 </head>
 <body>
 
+<!-- ═══════════════════════ STARTSCHERM ═══════════════════════ -->
+<!-- Wat je na het inloggen ziet: je taken en de projecten. Pas als je
+     hier een project kiest komt de invoer in beeld (v87). -->
+<div id="startScherm" class="start-scherm" hidden>
+  <div class="start-kop">
+    <img src="logo.png" alt="Jelier Bouw" class="merk-logo">
+    <div class="start-titel">
+      <h1>Glasopname</h1>
+      <div class="subtitle">Startscherm · <span class="app-versie"></span></div>
+    </div>
+    <span class="kop-gebruiker" id="startGebruiker"></span>
+    <button class="btn btn-ghost btn-sm" onclick="startVernieuwen()" title="Lijsten opnieuw ophalen">↻</button>
+    <button class="btn btn-ghost btn-sm" onclick="cloudUitloggen()">Uitloggen</button>
+  </div>
+
+  <div class="start-inhoud">
+    <section class="start-blok">
+      <div class="start-blokkop">
+        <h2>Mijn taken</h2>
+        <span class="blok-telling" id="startTakenTelling"></span>
+      </div>
+      <div id="startTaken"></div>
+    </section>
+
+    <section class="start-blok">
+      <div class="start-blokkop">
+        <h2>Projecten</h2>
+        <span class="blok-telling" id="startProjectTelling"></span>
+        <button class="btn btn-primary btn-sm" onclick="cloudNieuw()">+ Nieuw project</button>
+      </div>
+      <div class="cloud-zoek">
+        <span class="cloud-zoek-icoon">🔎</span>
+        <input type="search" id="startZoek" placeholder="Zoek op projectnaam, adres of datum…"
+               autocomplete="off" oninput="startZoeken(this.value)">
+        <button class="cloud-zoek-wis" onclick="startZoekWissen()" title="Zoekterm wissen">✕</button>
+      </div>
+      <div id="startVerder"></div>
+      <div id="startProjecten" class="start-lijst"></div>
+    </section>
+  </div>
+</div>
+
 <header>
   <div>
     <div class="merk-kop">
@@ -1686,12 +1863,15 @@
       <!-- Wie is er ingelogd. Geen kritieke informatie, dus lichtgrijs en
            klein: je wilt het kunnen zien, niet lezen. cloud.js vult het. -->
       <span class="kop-gebruiker" id="ingelogdAls" hidden></span>
+      <!-- Waar zit je, en hoe kom je terug. start.js vult dit zodra er
+           een project open is (v87). -->
+      <span class="kop-project" id="kopProject" hidden></span>
     </div>
   </div>
   <button class="btn btn-ghost btn-sm kop-menu-knop" onclick="kopMenu()" aria-label="Menu">☰</button>
   <div class="header-actions" id="kopActies">
     <span id="cloudStatus">Verbinden…</span>
-    <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="cloudProjectenTonen()">📁 Projecten</button>
+    <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="glasNaarStart()">📁 Projecten</button>
     <button class="btn btn-ghost btn-sm" onclick="appBijwerken()" title="Controleren op een nieuwe versie">↻ Bijwerken</button>
 
   </div>
@@ -1810,6 +1990,17 @@
           </div>
           <div id="takenLijst"></div>
           <button class="btn btn-ghost btn-sm taken-opruimen" onclick="takenOpruimen()">Afgeronde taken opruimen</button>
+        </section>
+
+        <!-- Het spoor van dit project: wie wat wanneer veranderde. De
+             database houdt dit zelf bij (13_taken_en_geschiedenis.sql);
+             hier lezen we het alleen terug. -->
+        <section class="pi-groep">
+          <div class="taken-kop">
+            <h3>Logboek</h3>
+            <button class="btn btn-ghost btn-sm" onclick="logboekLaden()" title="Opnieuw ophalen">↻</button>
+          </div>
+          <div id="logboekLijst"></div>
         </section>
       </div>
     </div>
@@ -2338,7 +2529,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v86';
+const APP_VERSIE = 'v87';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -2400,7 +2591,12 @@ function toon(tabNaam) {
     event.currentTarget.classList.add('active');
   }
   toonMaatinstelling(tabNaam);
-  if (tabNaam === 'project') renderProject();
+  if (tabNaam === 'project') {
+    renderProject();
+    // Het logboek bij het openen van het tabblad verversen; dan zie je ook
+    // wat een collega intussen deed zonder de pagina te herladen.
+    if (window.logboekLaden) logboekLaden();
+  }
   if (tabNaam === 'fotos') renderFotos();
   if (tabNaam === 'samenvatting') renderSamenvatting();
   if (tabNaam === 'naslag') renderNaslag();
@@ -2889,7 +3085,9 @@ function rijHTML(rij, nr) {
 
   const id = rij.id;
   return `
-    <td class="rijnr"><div class="rijnr-wrap"><input type="checkbox" ${bulkIsGeselecteerd(id) ? 'checked' : ''}
+    <td class="rijnr${naBestellingGewijzigd(rij) ? ' na-bestelling' : ''}" title="${esc(
+         (naBestellingGewijzigd(rij) ? 'Gewijzigd ná de bestellijst van ' + bestelMoment() + '. ' : '') +
+         ruitSpoor(rij))}"><div class="rijnr-wrap"><input type="checkbox" ${bulkIsGeselecteerd(id) ? 'checked' : ''}
        onchange="bulkToggle(${id}, this.checked)" title="Selecteren"><span>${nr}</span></div></td>
     <td><input type="number" inputmode="numeric" class="aantal-input" value="${rij.aantal}" min="1" max="999"
        onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>
@@ -3110,6 +3308,61 @@ function renderSamenvatting() {
 }
 
 // ═══════════════ BESTELLIJST ═══════════════
+// ═══════════════ SPOOR: WIE WIJZIGDE WAT (v87) ═══════════════
+// Een kort kenmerk van alles wat voor de leverancier uitmaakt. Daarmee
+// kan de app zien of een ruit veranderd is sinds de bestellijst gemaakt
+// werd, zonder de hele oude lijst te bewaren.
+const KENMERK_VELDEN = ['aantal', 'merk', 'maatsoort', 'breedte', 'hoogte', 'correctie',
+  'glasType', 'opbouw', 'rooster', 'ducoType', 'ralKleur', 'glasbewerking',
+  'opmerking', 'roedenverdeling', 'roedenbreedte', 'roedenopmerking'];
+
+function ruitKenmerk(rij) {
+  const tekst = KENMERK_VELDEN.map(v => String(rij[v] === undefined ? '' : rij[v])).join('|');
+  let h = 5381;
+  for (let i = 0; i < tekst.length; i++) h = ((h * 33) ^ tekst.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+window.ruitKenmerk = ruitKenmerk;
+
+function bestelling() {
+  return (typeof projectInfo !== 'undefined' && projectInfo && projectInfo.besteld) || null;
+}
+
+// Is deze ruit veranderd nadat de bestellijst gemaakt is?
+function naBestellingGewijzigd(rij) {
+  const b = bestelling();
+  if (!b || !b.ruiten) return false;
+  if (!(rij.merk || rij.breedte || rij.hoogte || rij.glasType)) return false;
+  const oud = b.ruiten[rij.id];
+  if (oud === undefined) return true;              // na de bestelling erbij gekomen
+  return oud !== ruitKenmerk(rij);
+}
+window.naBestellingGewijzigd = naBestellingGewijzigd;
+
+function bestelMoment() {
+  const b = bestelling();
+  if (!b || !b.op) return '';
+  const d = new Date(b.op);
+  if (isNaN(d.getTime())) return '';
+  return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+         ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') +
+         (b.door ? ' door ' + b.door : '');
+}
+window.bestelMoment = bestelMoment;
+
+// 'Laatst gewijzigd door …' voor in het aanwijsvakje bij een regel.
+function ruitSpoor(rij) {
+  if (!rij.gewOp && !rij.gewDoor) return '';
+  const d = rij.gewOp ? new Date(rij.gewOp) : null;
+  const wanneer = d && !isNaN(d.getTime())
+    ? String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+      ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+    : '';
+  return 'Laatst gewijzigd' + (rij.gewDoor ? ' door ' + rij.gewDoor : '') +
+         (wanneer ? ' op ' + wanneer : '');
+}
+window.ruitSpoor = ruitSpoor;
+
 // Een regel telt mee op de bestellijst als hij compleet is. Eén plek,
 // zodat het scherm, de pdf en de csv niet elk hun eigen idee hebben van
 // wat 'ingevuld' betekent (v83).
@@ -3155,8 +3408,10 @@ function renderBestellijst() {
   // kunnen wat niet in de showroom staat — maar wel gemarkeerd.
   const strijdig = ingevuld.filter(r => isStrijdig(r)).length;
 
+  const naBestelling = ingevuld.filter(naBestellingGewijzigd);
+
   let rows = ingevuld.map((r, i) => `<tr class="${isStrijdig(r) ? 'strijdig' : ''}">
-    <td class="rijnr">${i+1}</td>
+    <td class="rijnr${naBestellingGewijzigd(r) ? ' na-bestelling' : ''}" title="${esc(ruitSpoor(r))}">${i+1}</td>
     <td class="num highlight">${parseInt(r.aantal)||1}</td>
     <td>${esc(r.merk)}</td>
     <td class="num highlight">${r.glasBreedte}</td>
@@ -3176,6 +3431,10 @@ function renderBestellijst() {
     <div style="margin-bottom:10px;font-size:12px;color:var(--grijs-tekst)">
       <strong>Project:</strong> ${esc(project)} &nbsp;|&nbsp; <strong>Datum:</strong> ${esc(datum)}
     </div>
+    ${bestelling() ? `<div class="bestel-balk">📦 Bestellijst gemaakt op <b>${esc(bestelMoment())}</b>.
+      ${naBestelling.length
+        ? `Daarna ${naBestelling.length === 1 ? 'is er 1 ruit' : 'zijn er ' + naBestelling.length + ' ruiten'} gewijzigd.`
+        : 'Sindsdien is er niets gewijzigd.'}</div>` : ''}
     <div style="overflow-x:auto">
     <table class="samenvatting">
       <thead><tr>
@@ -3200,7 +3459,14 @@ function renderBestellijst() {
       ${strijdig === 1 ? 'Eén regel staat' : strijdig + ' regels staan'} met een bewerking die volgens de
       catalogus niet in de gekozen bladdikte bestaat.</div>
     </div>` : ''}
-    ${onvolledig.length ? onvolledigTekst(onvolledig) : ''}`;
+    ${onvolledig.length ? onvolledigTekst(onvolledig) : ''}
+    ${naBestelling.length ? `<div class="bestel-noot">
+      <span>●</span>
+      <div><strong>Let op — ${naBestelling.length === 1 ? 'één ruit is' : naBestelling.length + ' ruiten zijn'}
+      gewijzigd nadat de bestellijst gemaakt was</strong> (${esc(bestelMoment())}).
+      Het gaat om: ${esc(naBestelling.map(r => r.merk || '(zonder merk)').slice(0, 12).join(', '))}${naBestelling.length > 12 ? ' …' : ''}.
+      Geef de wijziging door aan de leverancier, of maak een nieuwe bestellijst.</div>
+    </div>` : ''}`;
 }
 
 // ═══════════════ OPSLAAN / LADEN ═══════════════
@@ -3348,6 +3614,7 @@ async function exportCSV() {
   }
 </script>
 <script src="cloud.js"></script>
+<script src="start.js"></script>
 <script src="import.js"></script>
 <script src="bulk.js"></script>
 <script src="project.js"></script>

@@ -405,16 +405,53 @@
   };
 
   /* ─── takenlijst ───────────────────────────────────────────── */
+  // Taken staan sinds v87 in hun eigen tabel, met een eigenaar erbij.
+  // Daardoor kan het startscherm laten zien wat er voor jou openstaat
+  // zonder elk project in te laden. Ze hebben wel verbinding nodig; dat
+  // zeggen we er eerlijk bij als die er niet is.
+
+  var taakLijst = null;       // uit de tabel; null = nog niet opgehaald
+  var taakFoutmelding = '';
+
+  // Alleen als de tabel er is; anders valt alles terug op de oude lijst in
+  // het project zelf, zodat de app blijft werken als het SQL-script nog
+  // niet gedraaid is (v87).
+  function cloudTaken() {
+    return !!(window.glasTakenVan && window.glasProjectId &&
+              (!window.glasTakenTabel || glasTakenTabel()));
+  }
+
+  function mijnNaam() {
+    return (window.glasGebruiker ? glasGebruiker().naam : '') || '';
+  }
+
+  window.takenLaden = function () {
+    if (!cloudTaken()) { taakLijst = null; renderTaken(); return; }
+    taakFoutmelding = '';
+    glasTakenVan().then(function (lijst) {
+      // null betekent: de tabel is er niet (of het ophalen lukte niet);
+      // dan de taken uit het project zelf tonen.
+      if (lijst === null) { taakLijst = null; renderTaken(); return; }
+      taakLijst = lijst;
+      renderTaken();
+    }, function () {
+      taakLijst = [];
+      taakFoutmelding = 'De taken konden niet opgehaald worden.';
+      renderTaken();
+    });
+  };
 
   function taken() {
     if (!Array.isArray(projectTaken)) projectTaken = [];
     return projectTaken;
   }
 
+  function lijstNu() { return cloudTaken() && taakLijst ? taakLijst : taken(); }
+
   window.renderTaken = function () {
     var houder = document.getElementById('takenLijst');
     if (!houder) return;
-    var lijst = taken();
+    var lijst = lijstNu();
     var open = lijst.filter(function (t) { return !t.klaar; }).length;
 
     var teller = document.getElementById('takenTeller');
@@ -424,67 +461,164 @@
         : '';
     }
 
+    if (taakFoutmelding) {
+      houder.innerHTML = '<div class="taken-leeg">' + esc(taakFoutmelding) +
+        ' <button class="btn btn-secondary btn-sm" onclick="takenLaden()">Opnieuw proberen</button></div>';
+      return;
+    }
+
     if (!lijst.length) {
       houder.innerHTML = '<div class="taken-leeg">Nog geen taken. Denk aan: rooster nameten, ' +
         'sleutel ophalen, kozijn opmeten na sloop.</div>';
       return;
     }
 
+    var ik = mijnNaam();
     houder.innerHTML = lijst.map(function (t, i) {
+      var sleutel = t.id != null ? "'" + String(t.id).replace(/'/g, '') + "'" : i;
+      var eigenaar = t.eigenaar_naam || '';
       return '<div class="taak' + (t.klaar ? ' klaar' : '') + '">' +
         '<input type="checkbox"' + (t.klaar ? ' checked' : '') +
-          ' onchange="taakKlaar(' + i + ', this.checked)">' +
+          ' onchange="taakKlaar(' + sleutel + ', this.checked)">' +
         '<input type="text" class="taak-tekst" value="' + esc(t.tekst) + '" ' +
-          'oninput="taakTekst(' + i + ', this.value)" placeholder="omschrijving…">' +
-        '<button class="taak-weg" onclick="taakWeg(' + i + ')" title="Taak verwijderen">✕</button>' +
+          'onchange="taakTekst(' + sleutel + ', this.value)" placeholder="omschrijving…">' +
+        (eigenaar
+          ? '<span class="taak-eigenaar' + (eigenaar === ik ? ' ik' : '') + '" title="Eigenaar">' +
+            esc(eigenaar) + '</span>'
+          : (cloudTaken() ? '<button class="taak-eigenaar leeg" title="Deze taak op mijn naam zetten" ' +
+              'onclick="taakVoorMij(' + sleutel + ')">+ mij</button>' : '')) +
+        '<button class="taak-weg" onclick="taakWeg(' + sleutel + ')" title="Taak verwijderen">✕</button>' +
       '</div>';
     }).join('');
   };
+
+  function vindTaak(sleutel) {
+    var lijst = lijstNu();
+    if (typeof sleutel === 'number') return lijst[sleutel];
+    return lijst.find(function (t) { return String(t.id) === String(sleutel); });
+  }
 
   window.taakToevoegen = function () {
     var veld = document.getElementById('taakNieuw');
     var tekst = veld ? veld.value.trim() : '';
     if (!tekst) { if (veld) veld.focus(); return; }
-    if (window.bewaarStap) bewaarStap('Taak toegevoegd');
-    taken().push({ tekst: tekst, klaar: false });
     if (veld) { veld.value = ''; veld.focus(); }
+
+    if (!cloudTaken()) {
+      if (window.bewaarStap) bewaarStap('Taak toegevoegd');
+      taken().push({ tekst: tekst, klaar: false });
+      renderTaken();
+      opslaan();
+      return;
+    }
+    // Meteen tonen; de tabel volgt. Zo voelt het niet traag.
+    taakLijst = (taakLijst || []).concat([{ id: 'nieuw-' + Date.now(), tekst: tekst, klaar: false,
+                                            eigenaar_naam: mijnNaam() }]);
     renderTaken();
-    opslaan();
+    glasTaakNieuw(tekst).then(function () { takenLaden(); });
   };
 
-  window.taakKlaar = function (i, aan) {
-    var t = taken()[i];
+  window.taakKlaar = function (sleutel, aan) {
+    var t = vindTaak(sleutel);
     if (!t) return;
     t.klaar = !!aan;
     renderTaken();
-    opslaan();
+    if (!cloudTaken()) { opslaan(); return; }
+    glasTaakWijzig(t.id, { klaar: !!aan }).then(function () { takenLaden(); });
   };
 
-  window.taakTekst = function (i, tekst) {
-    var t = taken()[i];
+  window.taakTekst = function (sleutel, tekst) {
+    var t = vindTaak(sleutel);
     if (!t) return;
     t.tekst = tekst;
-    opslaan();
+    if (!cloudTaken()) { opslaan(); return; }
+    glasTaakWijzig(t.id, { tekst: tekst });
   };
 
-  window.taakWeg = function (i) {
-    if (window.bewaarStap) bewaarStap('Taak verwijderd');
-    taken().splice(i, 1);
+  window.taakVoorMij = function (sleutel) {
+    var t = vindTaak(sleutel);
+    if (!t || !cloudTaken()) return;
+    var ik = window.glasGebruiker ? glasGebruiker() : { id: null, naam: '' };
+    glasTaakWijzig(t.id, { eigenaar: ik.id, eigenaar_naam: ik.naam })
+      .then(function () { takenLaden(); });
+  };
+
+  window.taakWeg = function (sleutel) {
+    var t = vindTaak(sleutel);
+    if (!t) return;
+    if (!cloudTaken()) {
+      if (window.bewaarStap) bewaarStap('Taak verwijderd');
+      var i = taken().indexOf(t);
+      if (i >= 0) taken().splice(i, 1);
+      renderTaken();
+      opslaan();
+      return;
+    }
+    taakLijst = (taakLijst || []).filter(function (x) { return x !== t; });
     renderTaken();
-    opslaan();
+    glasTaakWeg(t.id).then(function () { takenLaden(); });
   };
 
   window.takenOpruimen = async function () {
-    var lijst = taken();
-    var klaar = lijst.filter(function (t) { return t.klaar; }).length;
-    if (!klaar) return;
-    if (!await appVraag(klaar + ' afgeronde ' + (klaar === 1 ? 'taak' : 'taken') + ' verwijderen?',
+    var lijst = lijstNu();
+    var klaarLijst = lijst.filter(function (t) { return t.klaar; });
+    if (!klaarLijst.length) return;
+    if (!await appVraag(klaarLijst.length + ' afgeronde ' +
+        (klaarLijst.length === 1 ? 'taak' : 'taken') + ' verwijderen?',
         { kop: 'Taken opruimen', ja: 'Opruimen' })) return;
-    lijst = taken();
-    if (window.bewaarStap) bewaarStap('Afgeronde taken opgeruimd');
-    projectTaken = lijst.filter(function (t) { return !t.klaar; });
+
+    if (!cloudTaken()) {
+      if (window.bewaarStap) bewaarStap('Afgeronde taken opgeruimd');
+      projectTaken = taken().filter(function (t) { return !t.klaar; });
+      renderTaken();
+      opslaan();
+      return;
+    }
+    taakLijst = (taakLijst || []).filter(function (t) { return !t.klaar; });
     renderTaken();
-    opslaan();
+    Promise.all(klaarLijst.map(function (t) { return glasTaakWeg(t.id); }))
+      .then(function () { takenLaden(); });
+  };
+
+  /* ─── logboek ─────────────────────────────────────────────────
+     Wie veranderde wanneer wat. De database schrijft dit zelf bij elke
+     opslag weg (zie 13_taken_en_geschiedenis.sql); hier lezen we de
+     laatste twintig regels terug. Is het script nog niet gedraaid, dan
+     is de lijst gewoon leeg en staat er een regel die dat uitlegt. */
+
+  function logMoment(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var tijd = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    if (d.toDateString() === new Date().toDateString()) return 'vandaag ' + tijd;
+    return String(d.getDate()).padStart(2, '0') + '-' +
+           String(d.getMonth() + 1).padStart(2, '0') + ' ' + tijd;
+  }
+
+  window.logboekLaden = function () {
+    var houder = document.getElementById('logboekLijst');
+    if (!houder) return;
+    if (!window.glasProjectId || !window.glasGeschiedenis) {
+      houder.innerHTML = '<div class="taken-leeg">Het logboek vult zich zodra dit project ' +
+        'in de cloud staat.</div>';
+      return;
+    }
+    houder.innerHTML = '<div class="taken-leeg">Logboek ophalen…</div>';
+    glasGeschiedenis(window.glasProjectId).then(function (lijst) {
+      if (!lijst || !lijst.length) {
+        houder.innerHTML = '<div class="taken-leeg">Nog geen wijzigingen vastgelegd. ' +
+          'Het logboek houdt de laatste twintig wijzigingen bij, met wie ze deed.</div>';
+        return;
+      }
+      houder.innerHTML = lijst.map(function (r) {
+        return '<div class="log-regel">' +
+          '<span class="log-moment">' + esc(logMoment(r.moment)) + '</span>' +
+          '<span class="log-wie">' + esc(r.wie_naam || 'onbekend') + '</span>' +
+          '<span class="log-wat">' + esc(r.samenvatting || 'wijziging') + '</span>' +
+        '</div>';
+      }).join('');
+    });
   };
 
   document.addEventListener('DOMContentLoaded', function () {

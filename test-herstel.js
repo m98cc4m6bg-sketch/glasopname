@@ -162,6 +162,41 @@ if (knopMaat) {
   check('⤓ bij Maatsoort gevonden', false);
 }
 
+/* ── 7b. Gewijzigd na de bestellijst (v87) ─────────────────────── */
+console.log('\n7b. Markering na de bestellijst');
+
+g("rijen = [{ id: 1, aantal: 1, merk: 'A', maatsoort: 'Sponningmaat', breedte: 1000, hoogte: 2000," +
+  " glasType: 'HR++ glas', opbouw: '4-15-4', rooster: 'Nee', glasbewerking: 'Helder (standaard)'," +
+  " roedenverdeling: 'Geen roedenverdeling' }," +
+  "{ id: 2, aantal: 1, merk: 'B', maatsoort: 'Sponningmaat', breedte: 900, hoogte: 1800," +
+  " glasType: 'HR++ glas', opbouw: '4-15-4', rooster: 'Nee', glasbewerking: 'Helder (standaard)'," +
+  " roedenverdeling: 'Geen roedenverdeling' }]");
+g('herbereken()');
+// Doen alsof de bestellijst net gemaakt is.
+g("projectInfo = { besteld: { op: new Date().toISOString(), door: 'julian'," +
+  " ruiten: { 1: ruitKenmerk(rijen[0]), 2: ruitKenmerk(rijen[1]) } } }");
+g('renderBestellijst()');
+check('de bestelbalk staat er',
+  d.getElementById('bestellijstInhoud').innerHTML.indexOf('Bestellijst gemaakt op') >= 0);
+check('zonder wijzigingen geen waarschuwing',
+  d.getElementById('bestellijstInhoud').innerHTML.indexOf('nadat de bestellijst') < 0);
+
+g("rijen[0].breedte = 1010");
+g('herbereken()');
+check('een gewijzigde ruit wordt herkend', g('naBestellingGewijzigd(rijen[0])') === true);
+check('een ongewijzigde ruit niet', g('naBestellingGewijzigd(rijen[1])') === false);
+g('renderBestellijst()');
+check('en de bestellijst waarschuwt erover',
+  d.getElementById('bestellijstInhoud').innerHTML.indexOf('nadat de bestellijst gemaakt was') >= 0);
+g('renderTabel()');
+check('de regel is in de invoertabel gemarkeerd',
+  d.querySelectorAll('#invoerBody td.rijnr.na-bestelling').length === 1,
+  d.querySelectorAll('#invoerBody td.rijnr.na-bestelling').length + ' gemarkeerd');
+
+g("rijen[0].gewDoor = 'bart'; rijen[0].gewOp = new Date().toISOString();");
+check('het spoor leest als een zin', /Laatst gewijzigd door bart op \d/.test(g('ruitSpoor(rijen[0])')),
+  g('ruitSpoor(rijen[0])'));
+
 /* ── 8. Alles wissen laat niets achter ─────────────────────────── */
 console.log('\n8. Alles wissen');
 

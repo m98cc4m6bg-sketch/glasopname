@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v86';
+  var PDF_VERSIE = 'v87';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -425,6 +425,7 @@
           tekenTabel(doc, los, MARGE + 9, 'Zonder foto');
         }
 
+        spoorregel(doc);
         voetteksten(doc, project, datum);
 
         return { doc: doc, naam: naam };
@@ -433,6 +434,41 @@
       if (knop) knop.disabled = false;
       return res;
     });
+  }
+
+  // Wie de opname gedaan heeft en wie er het laatst aan gewerkt heeft.
+  // Staat onderaan de laatste pagina van het archiefoverzicht (v87).
+  function spoorregel(doc) {
+    var i = (typeof projectInfo !== 'undefined' && projectInfo) || {};
+    var laatste = null;
+    (typeof rijen === 'undefined' ? [] : rijen).forEach(function (r) {
+      if (!r || !r.gewOp) return;
+      if (!laatste || r.gewOp > laatste.gewOp) laatste = r;
+    });
+    var delen = [];
+    if (i.opnemer) delen.push('Opgenomen door ' + i.opnemer);
+    if (laatste && laatste.gewDoor) {
+      var d = new Date(laatste.gewOp);
+      var wanneer = isNaN(d.getTime()) ? '' :
+        String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+        '-' + d.getFullYear() + ' ' + String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0');
+      delen.push('laatst gewijzigd door ' + laatste.gewDoor + (wanneer ? ' op ' + wanneer : ''));
+    }
+    if (i.besteld && i.besteld.op) {
+      var b = new Date(i.besteld.op);
+      if (!isNaN(b.getTime())) {
+        delen.push('bestellijst gemaakt op ' +
+          String(b.getDate()).padStart(2, '0') + '-' + String(b.getMonth() + 1).padStart(2, '0') +
+          '-' + b.getFullYear() + (i.besteld.door ? ' door ' + i.besteld.door : ''));
+      }
+    }
+    if (!delen.length) return;
+    doc.setPage(doc.internal.getNumberOfPages());
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 128, 140);
+    doc.text(schoon(delen.join('  ·  ')), MARGE, HOOGTE - 12);
   }
 
   /* ═══════════════ BESTELLIJST ═══════════════ */
@@ -760,12 +796,38 @@
 
       return leverPagina(doc, project, datum).then(function () {
         voetteksten(doc, project, datum);
+        legBestellingVast(lijst);
         return { doc: doc, naam: naam };
       });
     }).then(function (res) {
       if (knop) knop.disabled = false;
       return res;
     });
+  }
+
+  /* ═══════════════ HET BESTELMOMENT VASTLEGGEN ═══════════════ */
+  // Zodra de bestellijst gemaakt is onthouden we hoe elke ruit er op dat
+  // moment uitzag. Wijzigt er daarna iets, dan valt dat op in de app —
+  // niets gaat op slot, maar je ziet het wel (v87).
+  function legBestellingVast(lijst) {
+    if (typeof projectInfo === 'undefined' || !projectInfo) return;
+    if (!window.ruitKenmerk || typeof rijen === 'undefined') return;
+    var ruiten = {};
+    rijen.forEach(function (r) {
+      if (r && r.id != null) ruiten[r.id] = ruitKenmerk(r);
+    });
+    projectInfo.besteld = {
+      op: new Date().toISOString(),
+      door: (window.glasGebruiker ? glasGebruiker().naam : '') || projectInfo.opnemer || '',
+      aantal: (lijst || []).length,
+      ruiten: ruiten
+    };
+    if (!projectInfo.status || projectInfo.status === 'open') projectInfo.status = 'besteld';
+    if (window.glasMarkeerWerk) glasMarkeerWerk();
+    if (window.opslaan) opslaan();
+    if (window.renderProject) renderProject();
+    if (window.renderBestellijst) renderBestellijst();
+    if (window.renderTabel) renderTabel();
   }
 
   /* ═══════════════ Cmd+P / Ctrl+P ═══════════════ */

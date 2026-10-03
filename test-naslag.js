@@ -78,11 +78,16 @@ w.renderNaslag();
 const html = w.document.getElementById('naslagInhoud');
 check('paneel is gevuld', html.innerHTML.length > 1000, html.innerHTML.length + ' tekens');
 const figuurAantal = (mod.CATALOGUS.find(g => g.groep === 'Figuurglas') || { items: [] }).items.length;
-check('figuurglas staat open', html.querySelectorAll('.nsl-kaart').length === figuurAantal,
-  html.querySelectorAll('.nsl-kaart').length + ' van ' + figuurAantal + ' kaarten zichtbaar');
+// Sinds v88 begint alles dicht: je ziet de koppen, geen foto's.
+check('alle secties beginnen dicht', html.querySelectorAll('.nsl-kaart').length === 0,
+  html.querySelectorAll('.nsl-kaart').length + ' kaarten zichtbaar');
 check('negen catalogusgroepen plus vier tabellen',
   html.querySelectorAll('.nsl-sectie').length === 13,
   html.querySelectorAll('.nsl-sectie').length + ' secties');
+w.naslagKlap('Figuurglas');
+check('figuurglas opengeklapt toont alle soorten',
+  html.querySelectorAll('.nsl-kaart').length === figuurAantal,
+  html.querySelectorAll('.nsl-kaart').length + ' van ' + figuurAantal + ' kaarten zichtbaar');
 check('foto-pad klopt',
   (html.querySelector('.nsl-kaart img') || {}).getAttribute &&
   html.querySelector('.nsl-kaart img').getAttribute('src') === 'catalogus/byzanthijn-fijn-blank.jpg',

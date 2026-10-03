@@ -101,7 +101,57 @@ const server = http.createServer(function (req, res) {
   check('met een plek voor foto\'s, info en taken',
     Array.isArray(staat.fotos) && !!staat.info && Array.isArray(staat.taken));
 
-  console.log('\n5. Herstart met openstaand werk');
+  console.log('\n5. De bestelmail met de bestellijst als bijlage (v88)');
+  // Hier draait echte jsPDF, dus dit is de plek om na te gaan dat er
+  // werkelijk een pdf in de mail belandt. De mailfunctie zelf wordt
+  // onderschept; er gaat niets de deur uit.
+  // De pdf-bibliotheek komt normaal van een CDN, en dat is hier geblokkeerd.
+  // In plaats van blokkeren geven we de plaatselijke kopie terug; zo maakt
+  // de app een échte pdf, ook zonder internet. (Een later toegevoegde route
+  // gaat in Playwright vóór de eerdere.)
+  await page.route('**/jspdf.umd.min.js', function (route) {
+    route.fulfill({ path: '/home/claude/node_modules/jspdf/dist/jspdf.umd.min.js',
+                    contentType: 'text/javascript' });
+  });
+  await page.route('**/jspdf.plugin.autotable.min.js', function (route) {
+    route.fulfill({ path: '/home/claude/node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.min.js',
+                    contentType: 'text/javascript' });
+  });
+  await page.evaluate(function () {
+    window.__mail = null;
+    window.glasProjectId = 'rook-1234';
+    window.glasMailAdressen = function () {
+      return Promise.resolve([{ id: 'm1', soort: 'leverancier', naam: 'Test',
+                                adres: 'verkoop@test.invalid', standaard: true, actief: true }]);
+    };
+    window.glasGebruiker = function () { return { id: 'u1', naam: 'tester', email: 't@test.invalid' }; };
+    window.glasMail = function (bericht) {
+      window.__mail = bericht;
+      return Promise.resolve({ ok: true, id: 'test' });
+    };
+    bestelmailVenster();
+  });
+  await page.waitForSelector('#mailVerstuur', { timeout: 5000 });
+  check('het bestelmailvenster opent', await page.locator('#mailVerstuur').isVisible());
+  check('het vaste adres staat aangevinkt',
+    await page.locator('.mail-adres input[value="verkoop@test.invalid"]').isChecked());
+  await page.click('#mailVerstuur');
+  await page.waitForFunction(function () { return !!window.__mail; }, null, { timeout: 20000 });
+  const post = await page.evaluate(function () {
+    var m = window.__mail;
+    return { soort: m.soort, aan: m.aan, naam: m.bijlage && m.bijlage.naam,
+             lengte: (m.bijlage && m.bijlage.inhoud || '').length,
+             begin: (m.bijlage && m.bijlage.inhoud || '').slice(0, 8),
+             tekst: (m.tekst || '').slice(0, 40) };
+  });
+  check('de mail gaat naar het gekozen adres', (post.aan || [])[0] === 'verkoop@test.invalid');
+  check('er zit een pdf bij', /\.pdf$/.test(post.naam || ''), post.naam);
+  check('en die pdf heeft inhoud', post.lengte > 20000, post.lengte + ' tekens base64');
+  check('het is echt een pdf (JVBERi0 = %PDF-)', (post.begin || '').indexOf('JVBERi0') === 0, post.begin);
+  check('het bestelmoment is vastgelegd',
+    await page.evaluate(function () { return !!(projectInfo.besteld && projectInfo.besteld.op); }));
+
+  console.log('\n6. Herstart met openstaand werk');
   await page.evaluate(function () { localStorage.setItem('glasopname_pending', '1'); });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(600);

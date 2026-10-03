@@ -27,8 +27,12 @@
     ]},
     { groep: 'Uitvoering', velden: [
       { id: 'referentie', label: 'Referentie of opdrachtnummer' },
+      // 'aangemaakt' en 'bezig met inmeten/verwerken' gaan vanzelf (zie
+      // statusBijwerken in cloud.js); 'besteld' zet de bestelmail. Met de
+      // hand kiezen blijft mogelijk — wie het deed staat in het logboek.
       { id: 'status',     label: 'Status', keuze:
-        ['open', 'ingemeten', 'besteld', 'geleverd', 'gemonteerd', 'afgerond'] },
+        ['aangemaakt', 'bezig met inmeten/verwerken', 'besteld',
+         'geleverd', 'gemonteerd', 'afgerond'] },
       { id: 'opnemer',    label: 'Opgenomen door' },
       { id: 'bereikbaar', label: 'Bereikbaarheid / sleutel', breed: 2 }
     ]}
@@ -165,7 +169,16 @@
   };
 
   window.projectVeld = function (id, waarde) {
+    var oud = info()[id];
     info()[id] = waarde;
+    if (id === 'status' && waarde !== oud) {
+      // Met de hand een status kiezen mag, maar het hoort wel in het
+      // logboek te staan — vooral de stap naar of van 'besteld' (v88).
+      if (window.glasSpoorNotitie) glasSpoorNotitie('status met de hand op "' + waarde + '"');
+      if (window.glasMarkeerWerk) glasMarkeerWerk();
+      if (waarde !== 'besteld') info().slot = null;
+      if (window.renderTabel) renderTabel();
+    }
     opslaan();
     if (id === 'straat' || id === 'postcode' || id === 'plaats') toonKaartknop();
   };
@@ -425,7 +438,37 @@
     return (window.glasGebruiker ? glasGebruiker().naam : '') || '';
   }
 
+  // De collega's uit wie je kunt kiezen. Komt uit de tabel `gebruikers`
+  // (v88); is die er nog niet, dan blijft het bij "+ mij" zoals in v87.
+  var collegas = [];
+
+  function collegasLaden() {
+    if (!window.glasGebruikers) return Promise.resolve([]);
+    return glasGebruikers().then(function (lijst) {
+      collegas = lijst || [];
+      return collegas;
+    });
+  }
+
+  function collegaVan(id) {
+    return collegas.find(function (g) { return g.id === id; }) || null;
+  }
+
+  function eigenaarKeuzeHTML(huidigId, huidigeNaam, sleutel) {
+    if (!collegas.length) return '';
+    var ik = (window.glasGebruiker ? glasGebruiker().id : null);
+    var opties = ['<option value="">— niemand —</option>'].concat(collegas.map(function (g) {
+      var gekozen = g.id === huidigId ||
+        (!huidigId && huidigeNaam && g.naam === huidigeNaam);
+      return '<option value="' + esc(g.id) + '"' + (gekozen ? ' selected' : '') + '>' +
+        esc(g.naam || g.email) + (g.id === ik ? ' (ik)' : '') + '</option>';
+    }));
+    return '<select class="taak-eigenaar-keuze" title="Op wiens naam staat deze taak?" ' +
+      'onchange="taakEigenaar(' + sleutel + ', this.value)">' + opties.join('') + '</select>';
+  }
+
   window.takenLaden = function () {
+    collegasLaden().then(function () { if (taakLijst !== undefined) renderTaken(); });
     if (!cloudTaken()) { taakLijst = null; renderTaken(); return; }
     taakFoutmelding = '';
     glasTakenVan().then(function (lijst) {
@@ -461,6 +504,8 @@
         : '';
     }
 
+    vulNieuweTaakKeuze();
+
     if (taakFoutmelding) {
       houder.innerHTML = '<div class="taken-leeg">' + esc(taakFoutmelding) +
         ' <button class="btn btn-secondary btn-sm" onclick="takenLaden()">Opnieuw proberen</button></div>';
@@ -477,20 +522,69 @@
     houder.innerHTML = lijst.map(function (t, i) {
       var sleutel = t.id != null ? "'" + String(t.id).replace(/'/g, '') + "'" : i;
       var eigenaar = t.eigenaar_naam || '';
+      var keuze = cloudTaken() ? eigenaarKeuzeHTML(t.eigenaar, eigenaar, sleutel) : '';
       return '<div class="taak' + (t.klaar ? ' klaar' : '') + '">' +
         '<input type="checkbox"' + (t.klaar ? ' checked' : '') +
           ' onchange="taakKlaar(' + sleutel + ', this.checked)">' +
         '<input type="text" class="taak-tekst" value="' + esc(t.tekst) + '" ' +
           'onchange="taakTekst(' + sleutel + ', this.value)" placeholder="omschrijving…">' +
-        (eigenaar
-          ? '<span class="taak-eigenaar' + (eigenaar === ik ? ' ik' : '') + '" title="Eigenaar">' +
-            esc(eigenaar) + '</span>'
-          : (cloudTaken() ? '<button class="taak-eigenaar leeg" title="Deze taak op mijn naam zetten" ' +
-              'onclick="taakVoorMij(' + sleutel + ')">+ mij</button>' : '')) +
+        (keuze ||
+          (eigenaar
+            ? '<span class="taak-eigenaar' + (eigenaar === ik ? ' ik' : '') + '" title="Eigenaar">' +
+              esc(eigenaar) + '</span>'
+            : (cloudTaken() ? '<button class="taak-eigenaar leeg" title="Deze taak op mijn naam zetten" ' +
+                'onclick="taakVoorMij(' + sleutel + ')">+ mij</button>' : ''))) +
         '<button class="taak-weg" onclick="taakWeg(' + sleutel + ')" title="Taak verwijderen">✕</button>' +
       '</div>';
     }).join('');
   };
+
+  // De keuzelijst bij het veld voor een nieuwe taak: op wiens naam komt hij.
+  function vulNieuweTaakKeuze() {
+    var vak = document.getElementById('taakNieuwVoor');
+    if (!vak) return;
+    if (!collegas.length || !cloudTaken()) { vak.innerHTML = ''; vak.hidden = true; return; }
+    vak.hidden = false;
+    var ik = (window.glasGebruiker ? glasGebruiker().id : null);
+    var vorige = vak.value;
+    vak.innerHTML = collegas.map(function (g) {
+      return '<option value="' + esc(g.id) + '"' +
+        ((vorige ? g.id === vorige : g.id === ik) ? ' selected' : '') + '>' +
+        esc(g.naam || g.email) + (g.id === ik ? ' (ik)' : '') + '</option>';
+    }).join('');
+  }
+
+  // Een taak op naam van een collega zetten, en hem dat laten weten.
+  window.taakEigenaar = async function (sleutel, id) {
+    var t = vindTaak(sleutel);
+    if (!t) return;
+    var g = collegaVan(id);
+    if (!cloudTaken()) {
+      t.eigenaar_naam = g ? (g.naam || '') : '';
+      renderTaken();
+      opslaan();
+      return;
+    }
+    await glasTaakWijzig(t.id, { eigenaar: g ? g.id : null, eigenaar_naam: g ? (g.naam || '') : '' });
+    takenLaden();
+    await mailAanbieden(t, g);
+  };
+
+  async function mailAanbieden(taak, g) {
+    if (!g || !g.email || !window.glasTaakMail) return;
+    var ik = (window.glasGebruiker ? glasGebruiker().id : null);
+    if (g.id === ik) return;                       // jezelf hoef je niet te mailen
+    if (!await appVraag((g.naam || g.email) + ' een mailtje sturen over deze taak?',
+        { kop: 'Taak doorgeven', ja: 'Mailen', nee: 'Niet mailen' })) return;
+    var uit = await glasTaakMail(taak, g);
+    if (uit && uit.ok) {
+      if (window.appMelding) appMelding('Bericht verstuurd naar ' + g.email + '.', { kop: 'Taak doorgeven' });
+    } else if (window.appFout) {
+      appFout('Het mailtje is niet verstuurd: ' + ((uit && uit.fout) || 'onbekende fout') +
+              '. De taak staat er wél: ' + (g.naam || g.email) + ' ziet hem op het startscherm.',
+              { kop: 'Taak doorgeven' });
+    }
+  }
 
   function vindTaak(sleutel) {
     var lijst = lijstNu();
@@ -511,11 +605,20 @@
       opslaan();
       return;
     }
+    // Op wiens naam? Standaard op de jouwe; kies je een collega, dan
+    // krijgt die er een mailtje over aangeboden (v88).
+    var kiesVak = document.getElementById('taakNieuwVoor');
+    var voor = collegaVan(kiesVak && kiesVak.value) ||
+               { id: (window.glasGebruiker ? glasGebruiker().id : null), naam: mijnNaam() };
+
     // Meteen tonen; de tabel volgt. Zo voelt het niet traag.
     taakLijst = (taakLijst || []).concat([{ id: 'nieuw-' + Date.now(), tekst: tekst, klaar: false,
-                                            eigenaar_naam: mijnNaam() }]);
+                                            eigenaar: voor.id, eigenaar_naam: voor.naam || mijnNaam() }]);
     renderTaken();
-    glasTaakNieuw(tekst).then(function () { takenLaden(); });
+    glasTaakNieuw(tekst, null, voor).then(function (nieuw) {
+      takenLaden();
+      if (nieuw) mailAanbieden(nieuw, collegaVan(voor.id));
+    });
   };
 
   window.taakKlaar = function (sleutel, aan) {
@@ -605,10 +708,25 @@
       return;
     }
     houder.innerHTML = '<div class="taken-leeg">Logboek ophalen…</div>';
-    glasGeschiedenis(window.glasProjectId).then(function (lijst) {
+    Promise.all([
+      glasGeschiedenis(window.glasProjectId),
+      window.glasMailLog ? glasMailLog(window.glasProjectId) : Promise.resolve([])
+    ]).then(function (uit) {
+      // De verstuurde mail hoort in hetzelfde rijtje: dat is immers het
+      // moment waarop de leverancier iets kreeg (v88).
+      var lijst = (uit[0] || []).concat((uit[1] || []).map(function (m) {
+        return {
+          moment: m.moment,
+          wie_naam: m.wie_naam,
+          samenvatting: (m.gelukt ? '✉ ' : '✉ MISLUKT — ') +
+            (m.soort === 'taak' ? 'taakbericht' : 'bestelmail') + ' naar ' + (m.aan || '') +
+            (m.gelukt ? '' : ' (' + (m.fout || 'onbekende fout') + ')')
+        };
+      })).sort(function (a, b) { return String(b.moment).localeCompare(String(a.moment)); });
+
       if (!lijst || !lijst.length) {
         houder.innerHTML = '<div class="taken-leeg">Nog geen wijzigingen vastgelegd. ' +
-          'Het logboek houdt de laatste twintig wijzigingen bij, met wie ze deed.</div>';
+          'Het logboek houdt elke wijziging bij, met wie hem deed.</div>';
         return;
       }
       houder.innerHTML = lijst.map(function (r) {

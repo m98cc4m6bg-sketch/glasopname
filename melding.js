@@ -64,10 +64,13 @@
              'aria-label="' + esc(o.kop || soort.kop) + '" style="border-top-color:' + soort.kleur + '">' +
           '<h3 style="color:' + soort.kleur + '">' + esc(o.kop || soort.kop) + '</h3>' +
           '<div class="melding-tekst">' + alineas(tekst) + '</div>' +
-          (o.invoer ? '<input type="text" class="melding-invoer" ' +
+          (o.invoer ? '<input type="' + (o.invoer.soort === 'wachtwoord' ? 'password' : 'text') + '" ' +
+             'class="melding-invoer" ' +
              'value="' + esc(o.invoer.waarde || '') + '" ' +
              'placeholder="' + esc(o.invoer.plaatshouder || '') + '" ' +
-             'autocomplete="off" autocapitalize="sentences" spellcheck="false">' : '') +
+             'autocomplete="' + (o.invoer.soort === 'wachtwoord' ? 'current-password' : 'off') + '" ' +
+             'autocapitalize="' + (o.invoer.soort === 'wachtwoord' ? 'none' : 'sentences') + '" ' +
+             'spellcheck="false">' : '') +
           '<div class="melding-knoppen"></div>' +
         '</div>';
 
@@ -167,10 +170,26 @@
       kop: o.kop,
       soort: o.soort || 'vraag',
       annuleer: null,
-      invoer: { waarde: o.waarde || '', plaatshouder: o.plaatshouder || '' },
+      invoer: { waarde: o.waarde || '', plaatshouder: o.plaatshouder || '', soort: o.soort2 },
       knoppen: [
         { tekst: o.nee || 'Annuleren', waarde: null },
         { tekst: o.ja || 'Opslaan', primair: true }
+      ]
+    });
+  };
+
+  // Een wachtwoord laten intypen; de tekens blijven onzichtbaar. Geeft
+  // het wachtwoord terug, of null bij annuleren (v88).
+  window.appWachtwoord = function (tekst, opties) {
+    var o = opties || {};
+    return venster(tekst, {
+      kop: o.kop || 'Wachtwoord',
+      soort: 'vraag',
+      annuleer: null,
+      invoer: { waarde: '', plaatshouder: o.plaatshouder || 'Je wachtwoord', soort: 'wachtwoord' },
+      knoppen: [
+        { tekst: o.nee || 'Annuleren', waarde: null },
+        { tekst: o.ja || 'Ontgrendelen', primair: true }
       ]
     });
   };

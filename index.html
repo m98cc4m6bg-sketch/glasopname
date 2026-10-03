@@ -987,6 +987,12 @@
     flex: 1; padding: 7px 9px; font-size: 13px; font-family: inherit;
     border: 1px solid var(--grijs-rand); border-radius: var(--radius);
   }
+  .taak-nieuw select, .taak-eigenaar-keuze {
+    padding: 6px 7px; font-size: 12px; font-family: inherit; max-width: 120px;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); background: var(--wit);
+    color: var(--blauw);
+  }
+  .taak-eigenaar-keuze { flex: 0 0 auto; }
   .taak { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--grijs-rand); }
   .taak input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--merk); flex: 0 0 17px; }
   .taak-tekst {
@@ -1007,6 +1013,44 @@
   .taak-weg:hover { color: var(--rood); }
   .taken-leeg { font-size: 12px; color: var(--grijs-tekst); padding: 12px 0; line-height: 1.6; }
   .taken-opruimen { margin-top: 12px; }
+  /* Slot na bestellen: één balk bovenaan Invoer, met de weg eruit. */
+  .slot-balk {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; margin-bottom: 12px; border-radius: var(--radius);
+    font-size: 13px; line-height: 1.5; border: 1px solid var(--grijs-rand);
+  }
+  .slot-balk.dicht { background: #fff3d0; border-color: #e0bb63; color: #4a3200; }
+  .slot-balk.open  { background: var(--grijs-licht); color: var(--grijs-tekst); }
+  .slot-balk .slot-teken { font-size: 16px; line-height: 1.3; }
+  .slot-balk div { flex: 1; }
+  .slot-balk strong { color: inherit; }
+  /* Vastgezette velden: zichtbaar, maar duidelijk niet te bewerken. */
+  body.op-slot table.invoer input:disabled,
+  body.op-slot table.invoer select:disabled,
+  body.op-slot table.invoer textarea:disabled {
+    background: var(--grijs-licht); color: var(--blauw); opacity: 1; cursor: not-allowed;
+  }
+  /* Bestelmailvenster: hetzelfde jasje als de meldingen (melding.js),
+     met ruimte voor de adressen, het onderwerp en de tekst. */
+  .mail-venster { max-width: 560px; width: 100%; text-align: left; }
+  .mail-venster h3 { color: var(--blauw); margin-bottom: 10px; }
+  .mail-vak { margin-bottom: 12px; }
+  .mail-kop {
+    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--grijs-tekst); margin-bottom: 4px;
+  }
+  .mail-venster input[type="text"], .mail-venster textarea {
+    width: 100%; padding: 8px 10px; font: inherit; font-size: 14px;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); background: var(--wit);
+  }
+  .mail-venster textarea { resize: vertical; line-height: 1.5; }
+  .mail-adres {
+    display: flex; gap: 7px; align-items: baseline; font-size: 13px;
+    padding: 4px 0; cursor: pointer;
+  }
+  .mail-adres span { color: var(--grijs-tekst); font-size: 12px; }
+  .mail-leeg { font-size: 12px; color: var(--grijs-tekst); line-height: 1.5; margin-bottom: 6px; }
+  .mail-melding { font-size: 12px; color: var(--rood); min-height: 16px; margin: 6px 0; }
   /* Logboek: één regel per wijziging, nuchter en klein. */
   .log-regel {
     display: flex; gap: 8px; align-items: baseline;
@@ -1768,6 +1812,7 @@
   }
   .start-status.besteld { background: #fff3d0; color: #5a3a00; }
   .start-status.afgerond { background: #eef7f1; color: #14532b; }
+  .start-status.bezig { background: #eaf1fb; color: #1b3b6f; }
 
   .kop-project {
     display: inline-flex; align-items: center; gap: 8px;
@@ -1986,6 +2031,9 @@
           </div>
           <div class="taak-nieuw">
             <input type="text" id="taakNieuw" placeholder="Nieuwe taak…">
+            <!-- Op wiens naam de taak komt. Gevuld uit de tabel gebruikers
+                 (v88); staat die er nog niet, dan blijft dit vakje leeg. -->
+            <select id="taakNieuwVoor" title="Op wiens naam komt deze taak?" hidden></select>
             <button class="btn btn-primary btn-sm" onclick="taakToevoegen()">Toevoegen</button>
           </div>
           <div id="takenLijst"></div>
@@ -2011,6 +2059,11 @@
 <!-- ═══════════════════════ INVOER ═══════════════════════ -->
 <div id="panel-invoer" class="tab-panel active">
 <div class="container">
+
+  <!-- Staat er een slot op de maten (project is besteld), dan vertelt deze
+       balk dat, en zit hier de weg eruit. slotToepassen() in het script
+       onderaan vult hem. -->
+  <div id="slotBalk" class="slot-balk" hidden></div>
 
   <div id="fotoHouder"></div>
 
@@ -2100,7 +2153,14 @@
 <div id="panel-bestellijst" class="tab-panel">
 <div class="container">
   <div class="card">
-    <h2>Bestellijst</h2>
+    <div class="pi-kop">
+      <div>
+        <h2>Bestellijst</h2>
+        <div class="pi-sub">Wat de leverancier krijgt. Versturen zet het project op besteld.</div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="bestelmailKnop" onclick="bestelmailVenster()">
+        ✉️ Bestelmail versturen</button>
+    </div>
     <div id="bestellijstInhoud"><em style="color:var(--grijs-tekst)">Vul regels in op het Invoer tabblad.</em></div>
   </div>
 </div>
@@ -2529,7 +2589,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v87';
+const APP_VERSIE = 'v88';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -3004,7 +3064,101 @@ function renderTabel() {
   // die bij een ander project hoorde.
   if (window.merkBalkBijwerken) merkBalkBijwerken();
   if (window.renderFotoTabellen && document.getElementById('fotoHouder')) renderFotoTabellen();
+  slotToepassen();
 }
+
+// ═══════════════ SLOT NA BESTELLEN ═══════════════
+// Is er besteld, dan staan de maten op alleen-lezen. Niet omdat we
+// elkaar niet vertrouwen, maar omdat een maat die na de bestelling
+// verandert in de werkplaats niemand meer bereikt. Ontgrendelen kan
+// iedereen die is ingelogd, met zijn eigen wachtwoord — en dat komt
+// met naam en tijdstip in het logboek te staan (v88).
+//
+// Let op: dit is een slot in de app, geen slot in de database. Wie met
+// de sleutel uit config.js rechtstreeks met Supabase praat, komt er
+// langs. Voor onderling werk is dat genoeg; een echt slot vraagt een
+// RLS-regel (zie BEHEER.md / de handover).
+
+function invoerOpSlot() {
+  const i = (typeof projectInfo === 'object' && projectInfo) || {};
+  if (String(i.status || '') !== 'besteld') return false;
+  return !(i.slot && i.slot.open);
+}
+window.invoerOpSlot = invoerOpSlot;
+
+function slotToepassen() {
+  const opSlot = invoerOpSlot();
+  const paneel = document.getElementById('panel-invoer');
+  if (paneel) {
+    paneel.querySelectorAll('input, select, textarea, button').forEach(e => {
+      if (e.classList.contains('vrij-bij-slot')) return;
+      e.disabled = opSlot;
+    });
+  }
+  document.body.classList.toggle('op-slot', opSlot);
+
+  const balk = document.getElementById('slotBalk');
+  if (!balk) return;
+  const i = (typeof projectInfo === 'object' && projectInfo) || {};
+  const besteldOp = i.besteld && i.besteld.op
+    ? new Date(i.besteld.op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '';
+  if (opSlot) {
+    balk.hidden = false;
+    balk.className = 'slot-balk dicht';
+    balk.innerHTML = '<span class="slot-teken">🔒</span><div><strong>Dit project is besteld' +
+      (besteldOp ? ' (' + esc(besteldOp) + ')' : '') + ' — de maten staan vast.</strong> ' +
+      'Moet er toch iets veranderen, ontgrendel dan eerst; dat wordt vastgelegd in het logboek, ' +
+      'en geef de wijziging daarna door aan de leverancier.</div>' +
+      '<button class="btn btn-secondary btn-sm vrij-bij-slot" onclick="slotOntgrendel()">Ontgrendelen</button>';
+  } else if (i.slot && i.slot.open) {
+    balk.hidden = false;
+    balk.className = 'slot-balk open';
+    balk.innerHTML = '<span class="slot-teken">🔓</span><div><strong>Ontgrendeld door ' +
+      esc(i.slot.door || 'onbekend') + '.</strong> Wat je nu wijzigt staat niet op de bestellijst ' +
+      'die de leverancier heeft.</div>' +
+      '<button class="btn btn-secondary btn-sm vrij-bij-slot" onclick="slotSluit()">Weer vastzetten</button>';
+  } else {
+    balk.hidden = true;
+    balk.innerHTML = '';
+  }
+}
+window.slotToepassen = slotToepassen;
+
+window.slotOntgrendel = async function () {
+  if (!window.glasWachtwoordKlopt) {
+    await appFout('Ontgrendelen kan alleen als je ingelogd bent in de cloud.', { kop: 'Ontgrendelen' });
+    return;
+  }
+  const wie = (window.glasGebruiker ? glasGebruiker() : {}) || {};
+  const pw = await appWachtwoord(
+    'Dit project is besteld. Typ je eigen wachtwoord om de maten weer vrij te geven.\n' +
+    'Je naam (' + (wie.naam || '') + ') en het tijdstip komen in het logboek te staan.',
+    { kop: 'Invoer ontgrendelen' });
+  if (pw === null) return;
+  const goed = await glasWachtwoordKlopt(pw);
+  if (!goed) {
+    await appFout('Dat wachtwoord klopt niet. De maten blijven vastgezet.', { kop: 'Ontgrendelen' });
+    return;
+  }
+  projectInfo.slot = { open: true, door: wie.naam || '', op: new Date().toISOString() };
+  if (window.glasSpoorNotitie) glasSpoorNotitie('slot geopend door ' + (wie.naam || 'onbekend'));
+  if (window.glasMarkeerWerk) glasMarkeerWerk();
+  opslaan();
+  renderTabel();
+  if (window.renderProject) renderProject();
+  if (window.logboekLaden) logboekLaden();
+};
+
+window.slotSluit = function () {
+  if (typeof projectInfo !== 'object' || !projectInfo) return;
+  projectInfo.slot = null;
+  if (window.glasSpoorNotitie) glasSpoorNotitie('slot weer gesloten');
+  if (window.glasMarkeerWerk) glasMarkeerWerk();
+  opslaan();
+  renderTabel();
+  if (window.renderProject) renderProject();
+};
 
 function rijHTML(rij, nr) {
   // Alleen nog de terugval voor als naslag.js niet geladen is.

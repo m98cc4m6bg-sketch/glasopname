@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v87';
+  var PDF_VERSIE = 'v88';
   var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 
@@ -822,13 +822,181 @@
       aantal: (lijst || []).length,
       ruiten: ruiten
     };
-    if (!projectInfo.status || projectInfo.status === 'open') projectInfo.status = 'besteld';
+    // De status gaat hier bewust níet op 'besteld' (v88). Een gemaakte pdf
+    // betekent nog niet dat de leverancier hem heeft; dat weet je pas als
+    // de bestelmail eruit is. Die zet de status, in de mailfunctie.
+    if (window.glasSpoorNotitie) glasSpoorNotitie('bestellijst gemaakt');
     if (window.glasMarkeerWerk) glasMarkeerWerk();
     if (window.opslaan) opslaan();
     if (window.renderProject) renderProject();
     if (window.renderBestellijst) renderBestellijst();
     if (window.renderTabel) renderTabel();
   }
+
+  /* ═══════════════ BESTELMAIL ═══════════════ */
+  // De bestellijst gaat als pdf mee in een mail naar de leverancier. Dat
+  // versturen gebeurt door de Edge Function `mail` in Supabase (de sleutel
+  // van de maildienst hoort niet in de app), en die functie zet daarna het
+  // project op 'besteld'. Zo betekent die status één ding: de mail is er
+  // echt uit (v88).
+
+  function mailTekst(project, datum, aantal) {
+    var i = (typeof projectInfo === 'object' && projectInfo) || {};
+    var regels = [
+      'Beste,',
+      '',
+      'Bijgaand de bestellijst voor ' + (project || 'dit project') + '.',
+      ''
+    ];
+    if (i.referentie) regels.push('Referentie: ' + i.referentie);
+    regels.push('Aantal posities: ' + aantal);
+    regels.push('Afleveren: ' + leverAdres());
+    regels.push('Gewenste levering: ' + leverWanneer());
+    if (datum) regels.push('Opgenomen op: ' + datum);
+    if (String(i.leverInstructie || '').trim()) {
+      regels.push('');
+      regels.push('Instructies bij aflevering:');
+      regels.push(String(i.leverInstructie).trim());
+    }
+    regels.push('');
+    regels.push('De maten in de bijlage zijn glasmaten.');
+    regels.push('');
+    regels.push('Met vriendelijke groet,');
+    regels.push((window.glasGebruiker ? glasGebruiker().naam : '') || i.opnemer || '');
+    regels.push('Jelier Bouw B.V.');
+    return regels.join('\n');
+  }
+
+  function sluitVenster(laag) { if (laag && laag.parentNode) laag.parentNode.removeChild(laag); }
+
+  window.bestelmailVenster = function () {
+    if (!window.glasMail || !window.glasProjectId) {
+      if (window.appFout) {
+        appFout('Een bestelmail kan alleen vanuit een project dat in de cloud staat. ' +
+                'Open eerst een project, of maak er een aan.', { kop: 'Bestelmail' });
+      }
+      return;
+    }
+    var lijst = (typeof rijen === 'undefined' ? [] : rijen).filter(function (r) {
+      return r && (r.breedte || r.hoogte);
+    });
+    if (!lijst.length) {
+      if (window.appFout) appFout('Er staan nog geen maten in dit project.', { kop: 'Bestelmail' });
+      return;
+    }
+
+    var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
+    var datum = (document.getElementById('projectDatum') || {}).value || '';
+
+    Promise.resolve(window.glasMailAdressen ? glasMailAdressen() : []).then(function (adressen) {
+      var laag = document.createElement('div');
+      laag.className = 'melding-laag';
+      var vinkjes = (adressen || []).map(function (a, n) {
+        return '<label class="mail-adres"><input type="checkbox" value="' + esc(a.adres) + '"' +
+          (a.standaard ? ' checked' : '') + '> <b>' + esc(a.naam || a.adres) + '</b>' +
+          (a.naam ? ' <span>' + esc(a.adres) + '</span>' : '') + '</label>';
+      }).join('');
+      if (!vinkjes) {
+        vinkjes = '<p class="mail-leeg">Er staan nog geen vaste adressen. Zet ze erbij in Supabase ' +
+          '(tabel <code>mailadressen</code>), of vul hieronder een adres in.</p>';
+      }
+
+      laag.innerHTML =
+        '<div class="melding-venster mail-venster" role="dialog" aria-modal="true" aria-label="Bestelmail">' +
+          '<h3>Bestelmail versturen</h3>' +
+          '<div class="mail-vak"><label class="mail-kop">Aan</label>' + vinkjes +
+            '<input type="text" id="mailExtra" placeholder="nog een adres, bijvoorbeeld inkoop@…">' +
+          '</div>' +
+          '<div class="mail-vak"><label class="mail-kop" for="mailOnderwerp">Onderwerp</label>' +
+            '<input type="text" id="mailOnderwerp" value="' +
+              esc('Bestelling glas — ' + project + (datum ? ' (' + datum + ')' : '')) + '">' +
+          '</div>' +
+          '<div class="mail-vak"><label class="mail-kop" for="mailTekst">Bericht</label>' +
+            '<textarea id="mailTekst" rows="12">' + esc(mailTekst(project, datum, lijst.length)) + '</textarea>' +
+          '</div>' +
+          '<label class="mail-adres"><input type="checkbox" id="mailBijlage" checked> ' +
+            'Bestellijst als pdf meesturen</label>' +
+          '<div class="mail-melding" id="mailMelding"></div>' +
+          '<div class="melding-knoppen">' +
+            '<button class="btn btn-secondary" id="mailAf">Annuleren</button>' +
+            '<button class="btn btn-primary" id="mailVerstuur">Versturen</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(laag);
+
+      var melding = laag.querySelector('#mailMelding');
+      laag.querySelector('#mailAf').onclick = function () { sluitVenster(laag); };
+      laag.addEventListener('click', function (e) { if (e.target === laag) sluitVenster(laag); });
+
+      var knop = laag.querySelector('#mailVerstuur');
+      knop.onclick = function () {
+        var aan = Array.prototype.slice
+          .call(laag.querySelectorAll('.mail-adres input[type=checkbox][value]'))
+          .filter(function (c) { return c.checked; })
+          .map(function (c) { return c.value; });
+        var extra = String((laag.querySelector('#mailExtra') || {}).value || '').trim();
+        if (extra) aan.push(extra);
+        var onderwerp = String((laag.querySelector('#mailOnderwerp') || {}).value || '').trim();
+        var tekst = String((laag.querySelector('#mailTekst') || {}).value || '').trim();
+        var metBijlage = !!(laag.querySelector('#mailBijlage') || {}).checked;
+
+        if (!aan.length) { melding.textContent = 'Kies minstens één adres.'; return; }
+        if (!tekst) { melding.textContent = 'Er moet wel iets in de mail staan.'; return; }
+
+        knop.disabled = true;
+        melding.textContent = metBijlage ? 'Bestellijst maken…' : 'Versturen…';
+        var bijlageGemaakt = false;
+
+        Promise.resolve()
+          .then(function () {
+            if (!metBijlage) return null;
+            // Dezelfde bouwer als de knop Bestellijst, dus de mail bevat
+            // precies wat je op papier zou krijgen. Het bestelmoment wordt
+            // hierbij ook vastgelegd (legBestellingVast).
+            return bouwBestellijst().then(function (res) {
+              var uri = res.doc.output('datauristring');
+              bijlageGemaakt = true;
+              return { naam: res.naam, inhoud: String(uri).split(',')[1] || '' };
+            });
+          })
+          .then(function (bijlage) {
+            melding.textContent = 'Versturen…';
+            return glasMail({
+              soort: 'bestelling',
+              aan: aan,
+              onderwerp: onderwerp || ('Bestelling glas — ' + project),
+              tekst: tekst,
+              bijlage: bijlage || undefined
+            });
+          })
+          .then(function (uit) {
+            knop.disabled = false;
+            if (!uit || !uit.ok) {
+              melding.textContent = 'Niet verstuurd: ' + ((uit && uit.fout) || 'onbekende fout') +
+                '  — het project blijft dus op de oude status staan.';
+              return;
+            }
+            // Verstuurd zonder pdf? Dan is het bestelmoment nog niet
+            // vastgelegd (dat doet de pdf-bouwer). De mail is de
+            // bestelling, dus hier alsnog (v88).
+            if (!bijlageGemaakt) legBestellingVast(lijst);
+            sluitVenster(laag);
+            if (window.renderProject) renderProject();
+            if (window.renderTabel) renderTabel();
+            if (window.renderBestellijst) renderBestellijst();
+            if (window.logboekLaden) logboekLaden();
+            if (window.appMelding) {
+              appMelding('De bestelmail is verstuurd naar ' + aan.join(', ') + '.\n' +
+                         'Het project staat nu op "besteld" en de maten zijn vastgezet.',
+                         { kop: 'Verstuurd' });
+            }
+          }, function (e) {
+            knop.disabled = false;
+            melding.textContent = 'Niet verstuurd: ' + ((e && e.message) || 'onbekende fout');
+          });
+      };
+    });
+  };
 
   /* ═══════════════ Cmd+P / Ctrl+P ═══════════════ */
   // De sneltoets maakt voortaan onze eigen pdf in plaats van het

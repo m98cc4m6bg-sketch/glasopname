@@ -126,10 +126,18 @@
 
   /* ─── projecten ───────────────────────────────────────────── */
 
+  // 'aangemaakt' krijgt geen plaatje: dat is de gewone toestand. De lange
+  // status 'bezig met inmeten/verwerken' wordt hier kort "inmeten" (v88).
   function statusLabel(p) {
-    var s = String(p.status || 'open');
+    var s = String(p.status || 'aangemaakt');
     if (s === 'besteld') return '<em class="start-status besteld">besteld</em>';
     if (s === 'afgerond') return '<em class="start-status afgerond">afgerond</em>';
+    if (s === 'geleverd' || s === 'gemonteerd') {
+      return '<em class="start-status afgerond">' + esc2(s) + '</em>';
+    }
+    if (/inmeten|verwerken|ingemeten/.test(s)) {
+      return '<em class="start-status bezig">inmeten</em>';
+    }
     return '';
   }
 

@@ -909,8 +909,10 @@ function naslagCss() {
 }
 
 // ═══════════════ WEERGAVE ═══════════════
-// Dicht beginnen, behalve figuurglas — daar is het om begonnen.
-const naslagOpen = { 'Figuurglas': true };
+// Alles dicht beginnen (v88). Figuurglas stond eerst open, maar dan moet je
+// bij elk nieuw project eerst een lap foto's wegklappen voor je bij de rest
+// komt. Zoeken klapt de secties met treffers wel open.
+const naslagOpen = {};
 let naslagZoek = '';
 
 function naslagPast(item, groep) {

@@ -344,6 +344,7 @@
     // dan veranderen die mee en klopt de vingerafdruk achteraf niet meer
     // met wat er werkelijk verstuurd is (v80 en eerder: valse melding
     // "een collega heeft dit project gewijzigd").
+    statusBijwerken();
     var samenvatting = stempelWijzigingen();
     var json = JSON.stringify(huidigeStaat());
     var state = JSON.parse(json);
@@ -360,12 +361,16 @@
       aantal_ruiten: ingevuldeRijen(state),
       adres: adresVan(state),
       open_taken: openTaken(state),
-      status: (state.info && state.info.status) || 'open',
+      status: (state.info && state.info.status) || 'aangemaakt',
       gewijzigd_door: gebruiker.id
     };
     if (spoorKolommen) {
       velden.gewijzigd_naam = gebruikersNaam();
       velden.samenvatting = samenvatting;
+      // Vertelt de database of deze opslag bij dezelfde werkgang hoort als
+      // de vorige; zo ja, dan werkt hij de laatste logboekregel bij in
+      // plaats van er een nieuwe bij te zetten (v88).
+      velden.spoor_vervolg = spoorVervolg;
     }
     sb.from('projecten').update(velden).eq('id', projectId).select('id').then(function (res) {
       bezig = false;
@@ -512,19 +517,52 @@
 
   function onthoudRuiten() {
     laatsteRuiten = {};
+    // Een net geopend project begint met een schone werkgang: wat je nu
+    // doet hoort niet bij de regel van gisteren.
+    werkgangMoment = 0;
+    werkgangBijzonder = false;
+    nieuweWerkgang();
     (typeof rijen === 'undefined' ? [] : rijen).forEach(function (r) {
       if (r && r.id != null && heeftInhoud(r)) laatsteRuiten[r.id] = ruitAfdruk(r);
     });
   }
 
+  /* ─── het spoor per werkgang ──────────────────────────────── */
+  // Tijdens het typen slaat de app elke paar seconden op. Zou elke opslag
+  // een logboekregel geven, dan stond er binnen een uur niets bruikbaars
+  // meer in. En zou de database binnen twee minuten alleen de eerste
+  // bewaren (zo was het in v87), dan klopt het aantal niet: drie ruiten
+  // één voor één weggooien gaf "1 ruit verwijderd".
+  //
+  // Daarom houdt de app bij wélke ruiten er in déze werkgang zijn
+  // toegevoegd, gewijzigd en verwijderd, en vertelt hij de database of
+  // dit nog dezelfde werkgang is. De regel in het logboek groeit dan mee
+  // (v88).
+  var WERKGANG_MS = 25 * 60 * 1000;    // ruim binnen het half uur van de trigger
+  var werkgang = { nieuw: {}, gewijzigd: {}, weg: {} };
+  var werkgangMoment = 0;
+  var werkgangBijzonder = false;        // de laatste regel had een aantekening
+  var spoorVervolg = false;
+  window.glasSpoorVervolg = function () { return spoorVervolg; };
+
+  function nieuweWerkgang() {
+    werkgang = { nieuw: {}, gewijzigd: {}, weg: {} };
+  }
+
+  function aantal(vak) { return Object.keys(vak).length; }
+
   // Zet het stempel op gewijzigde ruiten en geeft een korte zin terug
-  // over wat er veranderd is, voor in het logboek.
+  // over wat er in deze werkgang veranderd is, voor in het logboek.
   function stempelWijzigingen() {
     if (typeof rijen === 'undefined') return '';
     var naam = gebruikersNaam();
     var nu = new Date().toISOString();
-    var gewijzigd = 0, nieuw = 0;
     var gezien = {};
+
+    // Hoort dit nog bij de vorige regel, of begint er een nieuwe?
+    spoorVervolg = !!werkgangMoment && (Date.now() - werkgangMoment) < WERKGANG_MS &&
+                   !werkgangBijzonder && !notities.length;
+    if (!spoorVervolg) nieuweWerkgang();
 
     rijen.forEach(function (r) {
       if (!r || r.id == null) return;
@@ -533,24 +571,86 @@
       var afdruk = ruitAfdruk(r);
       var oud = laatsteRuiten[r.id];
       if (oud === afdruk) return;
-      if (oud === undefined) nieuw++; else gewijzigd++;
+      // Stond hij in deze werkgang als verwijderd? Dan is hij terug.
+      delete werkgang.weg[r.id];
+      if (oud === undefined) werkgang.nieuw[r.id] = 1;
+      else if (!werkgang.nieuw[r.id]) werkgang.gewijzigd[r.id] = 1;
       r.gewDoor = naam;
       r.gewOp = nu;
       laatsteRuiten[r.id] = afdruk;
     });
 
-    var weg = 0;
     Object.keys(laatsteRuiten).forEach(function (id) {
-      if (!gezien[id]) { weg++; delete laatsteRuiten[id]; }
+      if (gezien[id]) return;
+      delete laatsteRuiten[id];
+      // In dezelfde werkgang toegevoegd én weer weggegooid: netto niets.
+      if (werkgang.nieuw[id]) { delete werkgang.nieuw[id]; return; }
+      delete werkgang.gewijzigd[id];
+      werkgang.weg[id] = 1;
     });
 
+    var nieuw = aantal(werkgang.nieuw);
+    var gewijzigd = aantal(werkgang.gewijzigd);
+    var weg = aantal(werkgang.weg);
+    werkgangBijzonder = notities.length > 0;
+    werkgangMoment = Date.now();
+
+    var naBestelling = (nieuw || gewijzigd || weg) && naBestellingNu();
     var delen = [];
+    // Losse aantekeningen voorop: "slot geopend", "bestelmail verstuurd".
+    // Die zijn belangrijker dan het aantal ruiten erachter.
+    if (notities.length) { delen = delen.concat(notities); notities = []; }
     if (nieuw) delen.push(nieuw + (nieuw === 1 ? ' ruit toegevoegd' : ' ruiten toegevoegd'));
     if (gewijzigd) delen.push(gewijzigd + (gewijzigd === 1 ? ' ruit gewijzigd' : ' ruiten gewijzigd'));
     if (weg) delen.push(weg + (weg === 1 ? ' ruit verwijderd' : ' ruiten verwijderd'));
+    if (naBestelling) delen.push('ná de bestelling');
     if (!delen.length) delen.push('projectgegevens gewijzigd');
     return delen.join(', ');
   }
+
+  /* ─── losse aantekeningen voor het logboek ────────────────── */
+  // Niet alles is te zien aan de ruiten. Een ontgrendeling of een
+  // verstuurde bestelmail hoort met zoveel woorden in het logboek; die
+  // tekst gaat mee met de eerstvolgende opslag (v88).
+  var notities = [];
+
+  function spoorNotitie(tekst) {
+    var t = String(tekst || '').trim();
+    if (t && notities.indexOf(t) < 0) notities.push(t);
+  }
+  window.glasSpoorNotitie = spoorNotitie;
+
+  // Is dit een wijziging ná de bestellijst? Dan hoort dat in het logboek
+  // te staan, niet alleen als bolletje op het scherm.
+  function naBestellingNu() {
+    if (typeof projectInfo === 'undefined' || !projectInfo || !projectInfo.besteld) return false;
+    if (typeof rijen === 'undefined' || !window.naBestellingGewijzigd) return false;
+    return rijen.some(function (r) { return r && naBestellingGewijzigd(r); });
+  }
+
+  /* ─── de status bijhouden ─────────────────────────────────── */
+  // Aangemaakt → bezig met inmeten/verwerken gaat vanzelf, zodra er een
+  // eerste ruit met inhoud staat; compleet hoeft die niet te zijn. De
+  // stap naar 'besteld' zet alleen de mailfunctie (of jij met de hand);
+  // verder komt niemand er automatisch (v88).
+  var STATUS_START = 'aangemaakt';
+  var STATUS_BEZIG = 'bezig met inmeten/verwerken';
+
+  function statusBijwerken() {
+    if (typeof projectInfo === 'undefined' || !projectInfo) return;
+    var nu = String(projectInfo.status || '');
+    if (nu && nu !== STATUS_START && nu !== 'open') return;
+    var ietsIngevuld = (typeof rijen === 'undefined' ? [] : rijen)
+      .some(function (r) { return heeftInhoud(r); });
+    if (!ietsIngevuld) {
+      if (!nu) { projectInfo.status = STATUS_START; if (window.renderProject) renderProject(); }
+      return;
+    }
+    projectInfo.status = STATUS_BEZIG;
+    spoorNotitie('status op "' + STATUS_BEZIG + '"');
+    if (window.renderProject) renderProject();
+  }
+  window.glasStatusBijwerken = statusBijwerken;
 
   // Het logboek ophalen voor dit project.
   window.glasGeschiedenis = function (id) {
@@ -559,7 +659,7 @@
       .select('id,moment,wie_naam,samenvatting')
       .eq('project_id', id || projectId)
       .order('moment', { ascending: false })
-      .limit(20)
+      .limit(30)
       .then(function (res) { return (res && res.data) || []; }, function () { return []; });
   };
 
@@ -684,7 +784,188 @@
   };
 
   window.glasGebruiker = function () {
-    return { id: gebruiker ? gebruiker.id : null, naam: gebruikersNaam() };
+    return { id: gebruiker ? gebruiker.id : null, naam: gebruikersNaam(),
+             email: (gebruiker && gebruiker.email) || '' };
+  };
+
+  /* ─── de namen van de collega's ───────────────────────────── */
+  // `auth.users` mag de app niet lezen, en dat hoort ook zo. De tabel
+  // `gebruikers` is de leesbare kopie: alleen naam en mailadres. Hij
+  // wordt gevuld zodra Jan iemand in Supabase aanmaakt (v88).
+
+  var gebruikersCache = null;
+  var gebruikersTabel = true;
+
+  window.glasGebruikers = function (opnieuw) {
+    if (!sb || !gebruikersTabel) return Promise.resolve([]);
+    if (gebruikersCache && !opnieuw) return Promise.resolve(gebruikersCache);
+    return sb.from('gebruikers').select('id,naam,email,actief')
+      .order('naam', { ascending: true })
+      .then(function (res) {
+        if (res && res.error) {
+          var t = String(res.error.message || '') + ' ' + String(res.error.code || '');
+          if (/42P01|PGRST205|does not exist/.test(t)) {
+            gebruikersTabel = false;
+            console.warn('[gebruikers] tabel bestaat nog niet; het SQL-script van v88 is nog niet gedraaid');
+          }
+          return [];
+        }
+        gebruikersCache = ((res && res.data) || []).filter(function (g) { return g.actief !== false; });
+        return gebruikersCache;
+      }, function () { return []; });
+  };
+
+  window.glasGebruikersTabel = function () { return gebruikersTabel; };
+
+  /* ─── mail ────────────────────────────────────────────────── */
+  // De sleutel van de maildienst staat niet in de app maar als geheim
+  // bij de Edge Function `mail`; die verstuurt en legt vast. Lukt een
+  // bestelmail, dan zet diezelfde functie het project op 'besteld' —
+  // zo betekent die status altijd "de mail is er echt uit" (v88).
+
+  window.glasMailAdressen = function () {
+    if (!sb) return Promise.resolve([]);
+    return sb.from('mailadressen').select('id,soort,naam,adres,standaard,actief')
+      .order('soort', { ascending: true }).order('naam', { ascending: true })
+      .then(function (res) {
+        if (res && res.error) return [];
+        return ((res && res.data) || []).filter(function (a) { return a.actief !== false; });
+      }, function () { return []; });
+  };
+
+  window.glasMailAdresNieuw = function (naam, adres, soort) {
+    if (!sb) return Promise.resolve(null);
+    return sb.from('mailadressen').insert({
+      naam: String(naam || '').trim(),
+      adres: String(adres || '').trim(),
+      soort: soort || 'leverancier'
+    }).select('*').single()
+      .then(function (res) { return (res && res.data) || null; }, function () { return null; });
+  };
+
+  window.glasMailLog = function (pid) {
+    if (!sb) return Promise.resolve([]);
+    return sb.from('mailverzonden').select('moment,soort,aan,onderwerp,gelukt,fout,wie_naam')
+      .eq('project_id', pid || projectId)
+      .order('moment', { ascending: false }).limit(10)
+      .then(function (res) { return (res && res.data) || []; }, function () { return []; });
+  };
+
+  // Een collega die een taak krijgt, krijgt er een kort mailtje over.
+  // Geeft { ok } terug; mislukt het, dan staat de taak er nog steeds —
+  // de mail is een bericht, niet de taak zelf (v88).
+  window.glasTaakMail = function (taak, wie) {
+    if (!wie || !wie.email) return Promise.resolve({ ok: false, fout: 'Geen mailadres bekend' });
+    if (gebruiker && wie.id === gebruiker.id) return Promise.resolve({ ok: false, fout: 'eigen taak' });
+    var projectNaam = (el('projectNaam') || {}).value || '(naamloos)';
+    var link = location.href.split('#')[0] + '#project=' + (projectId || '');
+    return glasMail({
+      soort: 'taak',
+      aan: [wie.email],
+      onderwerp: 'Taak voor je bij ' + projectNaam + ': ' + String(taak.tekst || '').slice(0, 60),
+      tekst: 'Hoi ' + (wie.naam || '') + ',\n\n' +
+             gebruikersNaam() + ' heeft een taak op jouw naam gezet bij het project ' +
+             projectNaam + ':\n\n' + String(taak.tekst || '') + '\n\n' +
+             'Je vindt de taak in de app, op het startscherm onder "Mijn taken", of ' +
+             'rechtstreeks bij het project:\n' + link + '\n\n' +
+             '— Glasopname, Jelier Bouw'
+    });
+  };
+
+  // Versturen. Geeft { ok: true } of { ok: false, fout: '…' } terug; de
+  // app hoeft dus niets te weten over de maildienst.
+  window.glasMail = function (bericht) {
+    if (!sb || !gebruiker) {
+      return Promise.resolve({ ok: false, fout: 'Je bent niet ingelogd.' });
+    }
+    var lading = {
+      soort: bericht.soort || 'bestelling',
+      projectId: bericht.projectId || projectId,
+      aan: bericht.aan || [],
+      cc: bericht.cc || [],
+      onderwerp: bericht.onderwerp || '',
+      tekst: bericht.tekst || '',
+      wieNaam: gebruikersNaam()
+    };
+    if (bericht.bijlage) lading.bijlage = bericht.bijlage;
+
+    return Promise.resolve()
+      .then(function () {
+        if (sb.functions && sb.functions.invoke) {
+          return sb.functions.invoke('mail', { body: lading }).then(function (res) {
+            if (res && res.error) {
+              // De functie geeft bij een fout ook een leesbare tekst terug;
+              // die zit in het antwoord, niet in de foutmelding zelf.
+              return leesFoutLichaam(res).then(function (tekst) {
+                return { ok: false, fout: tekst || res.error.message || 'Versturen mislukt' };
+              });
+            }
+            return (res && res.data) || { ok: false, fout: 'Geen antwoord van de mailfunctie' };
+          });
+        }
+        // Oudere supabase-js: zelf aanroepen, met het eigen token erbij.
+        return sb.auth.getSession().then(function (s) {
+          var token = s && s.data && s.data.session && s.data.session.access_token;
+          return fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/mail', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: cfg.anonKey,
+              Authorization: 'Bearer ' + (token || cfg.anonKey)
+            },
+            body: JSON.stringify(lading)
+          }).then(function (r) { return r.json().catch(function () { return {}; }); });
+        });
+      })
+      .then(function (uit) {
+        if (uit && uit.ok && lading.soort === 'bestelling') naBestelmail(lading.aan);
+        return uit || { ok: false, fout: 'Geen antwoord' };
+      })
+      .catch(function (e) {
+        return { ok: false, fout: (e && e.message) || 'De mailfunctie is niet bereikbaar. ' +
+                 'Staat hij in Supabase onder Edge Functions?' };
+      });
+  };
+
+  function leesFoutLichaam(res) {
+    try {
+      if (res.error && res.error.context && typeof res.error.context.json === 'function') {
+        return res.error.context.json().then(function (j) { return j && j.fout; },
+                                            function () { return ''; });
+      }
+    } catch (e) {}
+    return Promise.resolve('');
+  }
+
+  // De functie heeft de status in de database al op 'besteld' gezet. De
+  // app stuurt bij elke opslag zijn eigen status mee, dus die moet hier
+  // meteen mee — anders zet de volgende opslag het gewoon weer terug.
+  function naBestelmail(aan) {
+    if (typeof projectInfo === 'undefined' || !projectInfo) return;
+    projectInfo.status = 'besteld';
+    projectInfo.bestelmail = { op: new Date().toISOString(), door: gebruikersNaam(),
+                               aan: (aan || []).join(', ') };
+    spoorNotitie('bestelmail verstuurd naar ' + (aan || []).join(', '));
+    if (window.glasMarkeerWerk) glasMarkeerWerk();
+    if (window.renderProject) renderProject();
+    if (window.renderTabel) renderTabel();
+    if (window.renderBestellijst) renderBestellijst();
+    window.opslaan();
+  }
+
+  /* ─── wachtwoord opnieuw vragen ───────────────────────────── */
+  // Voor het ontgrendelen van een besteld project. Supabase controleert
+  // het wachtwoord; het antwoord is een verse sessie voor dezelfde
+  // gebruiker, dus er verandert niets aan wie er ingelogd is (v88).
+  window.glasWachtwoordKlopt = function (wachtwoord) {
+    if (!sb || !gebruiker || !gebruiker.email) return Promise.resolve(false);
+    if (!wachtwoord) return Promise.resolve(false);
+    return sb.auth.signInWithPassword({ email: gebruiker.email, password: wachtwoord })
+      .then(function (res) {
+        if (res && res.error) return false;
+        if (res && res.data && res.data.user) gebruiker = res.data.user;
+        return true;
+      }, function () { return false; });
   };
 
   /* ─── taken ───────────────────────────────────────────────── */
@@ -734,13 +1015,15 @@
       .then(function (res) { return (res && res.data) || []; }, function () { return []; });
   };
 
-  window.glasTaakNieuw = function (tekst, pid) {
+  // `wie` is { id, naam } van de collega die de taak krijgt; laat je het
+  // weg, dan komt de taak op je eigen naam (v88).
+  window.glasTaakNieuw = function (tekst, pid, wie) {
     if (!sb || !gebruiker || !takenTabel) return Promise.resolve(null);
     return sb.from('taken').insert({
       project_id: pid || projectId,
       tekst: String(tekst || '').trim(),
-      eigenaar: gebruiker.id,
-      eigenaar_naam: gebruikersNaam(),
+      eigenaar: (wie && wie.id) || gebruiker.id,
+      eigenaar_naam: (wie && wie.naam) || gebruikersNaam(),
       aangemaakt_door: gebruiker.id,
       volgorde: Date.now() % 100000
     }).select('*').single()
@@ -1164,7 +1447,7 @@
           return '<div class="cloud-project' + (p.id === projectId ? ' actief' : '') + '">' +
                  '<div class="cloud-project-info" onclick="cloudOpen(\'' + p.id + '\')">' +
                  '<strong>' + markeer(p.naam || '(naamloos)', zoekTerm) + '</strong>' +
-                 '<span>' + (p.status && p.status !== 'open'
+                 '<span>' + (p.status && p.status !== 'open' && p.status !== 'aangemaakt'
                      ? '<em class="pl-status">' + esc(p.status) + '</em> · ' : '') +
                  (p.adres ? markeer(p.adres, zoekTerm) + ' · ' : '') +
                  n + ' ruiten' +

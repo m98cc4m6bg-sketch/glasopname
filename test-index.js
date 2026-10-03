@@ -111,8 +111,13 @@ console.log('\n8. Tabblad Naslag');
 w.toon('naslag');
 const paneel = d.getElementById('naslagInhoud');
 check('paneel is gevuld', paneel.innerHTML.length > 1000, paneel.innerHTML.length + ' tekens');
-check('figuurglaskaarten open', paneel.querySelectorAll('.nsl-kaart').length === figuur,
+// Sinds v88 begint elke sectie dicht; openklappen moet de kaarten geven.
+check('alle secties dicht bij openen', paneel.querySelectorAll('.nsl-kaart').length === 0,
   paneel.querySelectorAll('.nsl-kaart').length + ' kaarten');
+w.naslagKlap('Figuurglas');
+check('figuurglas opengeklapt', paneel.querySelectorAll('.nsl-kaart').length === figuur,
+  paneel.querySelectorAll('.nsl-kaart').length + ' van ' + figuur + ' kaarten');
+w.naslagKlap('Figuurglas');
 check('13 secties', paneel.querySelectorAll('.nsl-sectie').length === 13);
 // De tabellen zitten in dichtgeklapte secties; openen en dan kijken.
 w.naslagKlap('Duco ventilatieroosters op glas');

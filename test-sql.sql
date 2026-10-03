@@ -200,3 +200,36 @@ select '9. opschonen' as test,
 \i 13_taken_en_geschiedenis.sql
 \i 14_gebruikers_mail_en_statussen.sql
 select '10. opnieuw draaien' as test, 'gelukt' as uitkomst;
+
+-- 11. Het aantal ruiten per project opnieuw tellen (v89).
+--     verwacht: Tellen A = 8 (4 + 1 + 1 + 2), Tellen leeg = 0
+insert into public.projecten (naam, data) values
+ ('Tellen A', '{"rijen":[{"breedte":"1000","hoogte":"2000","aantal":"4"},
+                         {"breedte":"500","hoogte":"500"},
+                         {"breedte":"","hoogte":""},
+                         {"breedte":"700","hoogte":"700","aantal":""},
+                         {"breedte":"800","hoogte":"800","aantal":"2 stuks"}]}'::jsonb),
+ ('Tellen leeg', '{"rijen":[]}'::jsonb);
+\i 15_ruiten_tellen.sql
+select '11. ruiten tellen' as test, naam, aantal_ruiten
+  from public.projecten where naam like 'Tellen%' order by naam;
+
+-- 12. Een vertrokken medewerker kunnen verwijderen (v89).
+--     verwacht: gebruiker 0, in_lijst 0, taak_los t, naam_bewaard weg, project_los t
+\i 16_gebruikers_verwijderen.sql
+insert into auth.users (id, email) values
+  ('00000000-0000-4000-8000-00000000f001', 'weg@jelierbouw.nl');
+insert into public.projecten (id, naam, gewijzigd_door)
+  values ('00000000-0000-4000-8000-00000000f0aa', 'Project van iemand',
+          '00000000-0000-4000-8000-00000000f001');
+insert into public.taken (project_id, tekst, eigenaar, eigenaar_naam, aangemaakt_door)
+  values ('00000000-0000-4000-8000-00000000f0aa', 'Taak van weg',
+          '00000000-0000-4000-8000-00000000f001', 'weg',
+          '00000000-0000-4000-8000-00000000f001');
+delete from auth.users where id = '00000000-0000-4000-8000-00000000f001';
+select '12. medewerker weg' as test,
+  (select count(*) from auth.users where id = '00000000-0000-4000-8000-00000000f001') as gebruiker,
+  (select count(*) from public.gebruikers where id = '00000000-0000-4000-8000-00000000f001') as in_lijst,
+  (select eigenaar is null from public.taken where tekst = 'Taak van weg') as taak_los,
+  (select eigenaar_naam from public.taken where tekst = 'Taak van weg') as naam_bewaard,
+  (select gewijzigd_door is null from public.projecten where naam = 'Project van iemand') as project_los;

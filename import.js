@@ -39,6 +39,11 @@
 
   var tabel = null;    // { kop: [..], rijen: [[..]] }
   var mapping = [];    // per kolom een veldnaam of ''
+  // Waar komt dit vandaan, en hoe is het gelezen? Alleen om te melden en om
+  // in het logboek te zetten (v89).
+  var bron = { naam: '', soort: '', scheiding: '', blad: '' };
+  var bladen = null;   // de tabbladen van een werkblad, als er meer zijn
+  var beoordeeld = null;  // uitkomst van beoordeel(): { goed: [], fout: [] }
 
   /* ─── bibliotheken pas laden als ze nodig zijn ─────────────── */
 
@@ -80,36 +85,95 @@
   }
 
   /* ─── inlezen: geplakte tekst / CSV ────────────────────────── */
+  // Vanaf v89 met aanhalingstekens. Daarvoor werd er plat gesplitst, en dan
+  // schoof een regel als
+  //     A;"let op; buitenzijde";800;1400
+  // één kolom op: 800 belandde in de hoogte en de breedte bleef leeg. Dat
+  // zag niemand. Een CSV-lezer die aanhalingstekens kent is de enige manier
+  // om dat uit te sluiten.
+
+  function csvLees(tekst, scheiding) {
+    var rijen = [], rij = [], cel = '', inAanhaling = false;
+    var t = String(tekst).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    for (var i = 0; i < t.length; i++) {
+      var c = t[i];
+      if (inAanhaling) {
+        if (c === '"') {
+          if (t[i + 1] === '"') { cel += '"'; i++; }   // "" is één aanhalingsteken
+          else inAanhaling = false;
+        } else cel += c;
+        continue;
+      }
+      if (c === '"' && cel.trim() === '') { inAanhaling = true; cel = ''; continue; }
+      if (c === scheiding) { rij.push(cel); cel = ''; continue; }
+      if (c === '\n') { rij.push(cel); rijen.push(rij); rij = []; cel = ''; continue; }
+      cel += c;
+    }
+    if (cel !== '' || rij.length) { rij.push(cel); rijen.push(rij); }
+    return rijen.map(function (r) { return r.map(function (x) { return String(x).trim(); }); })
+                .filter(function (r) { return r.join('').trim() !== ''; });
+  }
+
+  // Welk scheidingsteken? Niet naar de eerste regel kijken (die kan een
+  // titelregel zijn), maar naar welk teken de regels het meest gelijk
+  // verdeelt: een echte tabel heeft in bijna elke regel evenveel cellen.
+  function kiesScheiding(tekst) {
+    var beste = null, besteScore = 0, besteKolommen = 1;
+    [';', '\t', ',', '|'].forEach(function (sch) {
+      var rijen = csvLees(tekst, sch).slice(0, 40);
+      if (!rijen.length) return;
+      var telling = {};
+      rijen.forEach(function (r) { telling[r.length] = (telling[r.length] || 0) + 1; });
+      var vaakste = 1, aantal = 0;
+      Object.keys(telling).forEach(function (n) {
+        if (telling[n] > aantal || (telling[n] === aantal && +n > vaakste)) {
+          aantal = telling[n]; vaakste = +n;
+        }
+      });
+      if (vaakste < 2) return;
+      // Score: hoeveel regels passen bij het gewone aantal kolommen, en
+      // hoeveel kolommen levert dat op.
+      var score = (aantal / rijen.length) * 100 + vaakste;
+      if (score > besteScore) { besteScore = score; beste = sch; besteKolommen = vaakste; }
+    });
+    return beste;
+  }
 
   function uitTekst(tekst) {
-    var regels = tekst.split(/\r?\n/).filter(function (r) { return r.trim() !== ''; });
-    if (!regels.length) return null;
-    // scheidingsteken kiezen: tab, puntkomma of komma — wat het vaakst voorkomt
-    var kandidaten = ['\t', ';', ','];
-    var beste = '\t', hoogste = 0;
-    kandidaten.forEach(function (c) {
-      var n = regels[0].split(c).length;
-      if (n > hoogste) { hoogste = n; beste = c; }
-    });
-    if (hoogste < 2) beste = /\s{2,}/;   // uitgelijnde kolommen met spaties
+    if (!String(tekst || '').trim()) return null;
+    var sch = kiesScheiding(tekst);
+    if (sch) return { rijen: csvLees(tekst, sch), scheiding: sch };
+    // Geen scheidingsteken te vinden: uitgelijnde kolommen met spaties.
+    // Aanhalingstekens spelen dan geen rol.
+    var regels = String(tekst).split(/\r?\n/).filter(function (r) { return r.trim() !== ''; });
     return { rijen: regels.map(function (r) {
-      return (typeof beste === 'string' ? r.split(beste) : r.split(beste))
-        .map(function (c) { return c.trim(); });
-    }) };
+      return r.split(/\s{2,}/).map(function (c) { return c.trim(); });
+    }), scheiding: 'spaties' };
   }
 
   /* ─── inlezen: XLSX / XLS / CSV-bestand ────────────────────── */
 
+  // Alle tabbladen inlezen, niet alleen het eerste. Zet de leverancier er
+  // een voorblad voor, dan las de app tot v88 stilzwijgend het verkeerde
+  // tabblad; nu kies je het zelf (v89).
   function uitWerkblad(file) {
     return laadScript(XLSX_URL).then(function () {
       return file.arrayBuffer();
     }).then(function (buf) {
       var wb = XLSX.read(buf, { type: 'array' });
-      var ws = wb.Sheets[wb.SheetNames[0]];
-      var rijen = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' });
-      return { rijen: rijen.map(function (r) {
-        return r.map(function (c) { return String(c === null || c === undefined ? '' : c).trim(); });
-      }).filter(function (r) { return r.join('').trim() !== ''; }) };
+      var bladen = [];
+      wb.SheetNames.forEach(function (naam) {
+        var ws = wb.Sheets[naam];
+        if (!ws) return;
+        var rijen = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' })
+          .map(function (r) {
+            return r.map(function (c) { return String(c === null || c === undefined ? '' : c).trim(); });
+          })
+          .filter(function (r) { return r.join('').trim() !== ''; });
+        if (rijen.length) bladen.push({ naam: naam, rijen: rijen });
+      });
+      if (!bladen.length) return { rijen: [] };
+      return { rijen: bladen[0].rijen, bladen: bladen, blad: bladen[0].naam };
     });
   }
 
@@ -206,8 +270,12 @@
   window.impSluit = function () { document.getElementById('impVenster').style.display = 'none'; };
   window.impOpen = function () {
     tabel = null;
+    beoordeeld = null;
+    bladen = null;
+    bron = { naam: '', soort: '', scheiding: '', blad: '' };
     document.getElementById('impStap1').style.display = 'block';
     document.getElementById('impStap2').style.display = 'none';
+    if (document.getElementById('impStap3')) document.getElementById('impStap3').style.display = 'none';
     document.getElementById('impPlak').value = '';
     document.getElementById('impMelding').textContent = '';
     document.getElementById('impBestand').value = '';
@@ -225,6 +293,7 @@
     if (!file) return;
     var naam = file.name.toLowerCase();
     melding('Bezig met lezen van ' + file.name + '…');
+    bron = { naam: file.name, soort: naam.replace(/^.*\./, ''), scheiding: '', blad: '' };
     var lezer;
     if (naam.endsWith('.pdf')) lezer = uitPdf(file);
     else if (naam.endsWith('.xlsx') || naam.endsWith('.xls')) lezer = uitWerkblad(file);
@@ -233,6 +302,9 @@
 
     lezer.then(function (res) {
       if (!res || !res.rijen.length) { melding('Geen tekst gevonden. Is het een gescande PDF?', true); return; }
+      bladen = res.bladen || null;
+      bron.blad = res.blad || '';
+      bron.scheiding = res.scheiding || '';
       naarStap2(res.rijen);
     }).catch(function (e) {
       melding('Lezen mislukt: ' + e.message, true);
@@ -242,7 +314,18 @@
   window.impPlakVerwerken = function () {
     var res = uitTekst(document.getElementById('impPlak').value);
     if (!res || !res.rijen.length) { melding('Niets te lezen — plak eerst de tabel.', true); return; }
+    bron = { naam: 'geplakte tekst', soort: 'tekst', scheiding: res.scheiding || '', blad: '' };
+    bladen = null;
     naarStap2(res.rijen);
+  };
+
+  // Een ander tabblad van hetzelfde werkblad kiezen.
+  window.impBladKiezen = function (naam) {
+    if (!bladen) return;
+    var blad = bladen.find(function (b) { return b.naam === naam; });
+    if (!blad) return;
+    bron.blad = naam;
+    naarStap2(blad.rijen);
   };
 
   function naarStap2(rijen) {
@@ -279,32 +362,116 @@
     tekenStap2();
   };
 
-  function gemapteRijen() {
-    return tabel.rijen.map(function (r) {
-      var o = {};
-      mapping.forEach(function (veld, i) {
-        if (!veld) return;
-        var v = (r[i] === undefined ? '' : String(r[i])).trim();
-        // Staat er '1200 x 600' in één cel, dan zijn dat twee maten. Eerder
-        // werd alleen 1200 overgenomen en bleef de hoogte leeg, waarna de
-        // ruit stilzwijgend van de bestellijst viel (v83).
-        var paar = (veld === 'breedte' || veld === 'hoogte') &&
-                   v.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*[x×*]\s*(-?\d+(?:[.,]\d+)?)\s*(?:mm)?\s*$/i);
-        if (paar) {
-          if (veld === 'breedte') {
-            o.breedte = getal(paar[1]);
-            // De hoogte alleen overnemen als er geen eigen hoogtekolom is.
-            if (mapping.indexOf('hoogte') < 0) o.hoogte = getal(paar[2]);
-          } else {
-            o.hoogte = getal(paar[2]);
-          }
+  /* ─── per rij beoordelen ───────────────────────────────────── */
+  // Niets gaat stilzwijgend. Een maat die niet precies over te nemen is,
+  // of een regel die niet bij de kop past, wordt niet geïmporteerd maar
+  // apart gemeld — met de oorspronkelijke tekst erbij (v89). Er wordt
+  // níet beoordeeld of een maat "logisch" is: het bestand is de waarheid.
+
+  function maatLees(ruw) {
+    var s = String(ruw === undefined || ruw === null ? '' : ruw).trim();
+    if (s === '') return { leeg: true };
+    var t = s.replace(/\s+/g, '').replace(/mm\.?$/i, '');
+    // Duizendtalscheiding: precies drie cijfers achter de punt of komma.
+    var duizend = /^(-?\d{1,3})[.,](\d{3})$/.exec(t);
+    if (duizend) t = duizend[1] + duizend[2];
+    if (!/^-?\d+([.,]\d+)?$/.test(t)) return { fout: '«' + s + '» is geen maat' };
+    var n = parseFloat(t.replace(',', '.'));
+    if (!isFinite(n)) return { fout: '«' + s + '» is geen maat' };
+    if (Math.round(n) !== n) return { fout: '«' + s + '» is geen heel aantal millimeters' };
+    if (n <= 0) return { fout: '«' + s + '» is niet groter dan nul' };
+    return { waarde: String(n), ruw: s };
+  }
+
+  function aantalLees(ruw) {
+    var s = String(ruw === undefined || ruw === null ? '' : ruw).trim();
+    if (s === '') return { leeg: true };
+    var m = /^(\d+)\s*(x|st|stk|stuk|stuks)?\.?$/i.exec(s.replace(/\s+/g, ' '));
+    if (!m) return { fout: 'aantal «' + s + '» is niet te lezen' };
+    var n = parseInt(m[1], 10);
+    if (!(n > 0)) return { fout: 'aantal «' + s + '» is niet groter dan nul' };
+    return { waarde: String(n), ruw: s };
+  }
+
+  function cel(r, i) { return i < 0 || r[i] === undefined ? '' : String(r[i]).trim(); }
+  function kolomVan(veld) { return mapping.indexOf(veld); }
+
+  // Eén cel kan '1200 x 600' bevatten; dan zitten er twee maten in.
+  function paarLees(tekst) {
+    var m = String(tekst).match(/^\s*(.+?)\s*[x×*]\s*(.+?)\s*$/);
+    if (!m) return null;
+    var a = maatLees(m[1]), b = maatLees(m[2]);
+    if (a.waarde && b.waarde) return { breedte: a, hoogte: b };
+    return null;
+  }
+
+  function beoordeel() {
+    var uit = { goed: [], fout: [], leeg: 0, kopAantal: tabel.kop.length };
+    var iB = kolomVan('breedte'), iH = kolomVan('hoogte');
+
+    tabel.rijen.forEach(function (r, n) {
+      var regel = { nr: n + 1, ruw: r, redenen: [], waarden: {}, tekst: {} };
+
+      // Meer cellen dan de kop: hier is iets verschoven. Dat is precies de
+      // fout die een aanhalingsteken met een scheidingsteken erin maakte.
+      if (r.length > tabel.kop.length) {
+        regel.redenen.push('deze regel heeft ' + r.length + ' cellen, de kop ' +
+                           tabel.kop.length + ' — mogelijk verschoven');
+      }
+
+      var breedteTekst = cel(r, iB), hoogteTekst = cel(r, iH);
+      var b = maatLees(breedteTekst), h = maatLees(hoogteTekst);
+
+      // '1200 x 600' in de breedtekolom, zonder eigen hoogtekolom.
+      if (b.fout || b.leeg) {
+        var paar = breedteTekst ? paarLees(breedteTekst) : null;
+        if (paar && (iH < 0 || !hoogteTekst)) { b = paar.breedte; h = paar.hoogte; }
+      }
+      if ((h.fout || h.leeg) && hoogteTekst) {
+        var paarH = paarLees(hoogteTekst);
+        if (paarH) h = paarH.hoogte;
+      }
+
+      // Een regel zonder enige maat is een tussenkop of een totaalregel.
+      if (b.leeg && h.leeg && !regel.redenen.length) { uit.leeg++; return; }
+
+      if (b.fout) regel.redenen.push('breedte: ' + b.fout);
+      else if (b.leeg) regel.redenen.push('geen breedte');
+      if (h.fout) regel.redenen.push('hoogte: ' + h.fout);
+      else if (h.leeg) regel.redenen.push('geen hoogte');
+
+      var a = aantalLees(cel(r, kolomVan('aantal')));
+      if (a.fout) regel.redenen.push(a.fout);
+
+      if (regel.redenen.length) { uit.fout.push(regel); return; }
+
+      regel.waarden.breedte = b.waarde;
+      regel.waarden.hoogte = h.waarde;
+      regel.waarden.aantal = a.waarde || '1';
+      regel.tekst.breedte = b.ruw;
+      regel.tekst.hoogte = h.ruw;
+      regel.tekst.aantal = a.ruw || '';
+      ['merk', 'glasType', 'opbouw', 'maxPakket', 'opmerking'].forEach(function (veld) {
+        var v = cel(r, kolomVan(veld));
+        if (!v) return;
+        if (veld === 'maxPakket') {
+          var mp = maatLees(v);
+          if (mp.waarde) regel.waarden.maxPakket = mp.waarde;
+          else regel.tekst.maxPakketOnbekend = v;
           return;
         }
-        if (veld === 'breedte' || veld === 'hoogte' || veld === 'aantal' || veld === 'maxPakket') v = getal(v);
-        if (v !== '') o[veld] = v;
+        regel.waarden[veld] = v;
       });
-      return o;
-    }).filter(function (o) { return o.breedte || o.hoogte; });
+      uit.goed.push(regel);
+    });
+
+    return uit;
+  }
+
+  // De waardenlijst zoals de rest van de module hem verwacht.
+  function gemapteRijen() {
+    if (!tabel) return [];
+    return beoordeel().goed.map(function (regel) { return regel.waarden; });
   }
 
   function tekenStap2() {
@@ -326,20 +493,203 @@
     document.getElementById('impVoorbeeld').innerHTML =
       '<table class="imp-tabel"><thead><tr>' + kopHtml + '</tr></thead><tbody>' + voorbeeld + '</tbody></table>';
 
-    var n = gemapteRijen().length;
+    // Tabbladkeuze bij een werkblad met meer dan één blad.
+    var bladVak = document.getElementById('impBladen');
+    if (bladVak) {
+      if (bladen && bladen.length > 1) {
+        bladVak.hidden = false;
+        bladVak.innerHTML = '<label for="impBlad">Tabblad:</label>' +
+          '<select id="impBlad" onchange="impBladKiezen(this.value)">' +
+          bladen.map(function (b) {
+            return '<option value="' + b.naam.replace(/"/g, '&quot;') + '"' +
+              (b.naam === bron.blad ? ' selected' : '') + '>' + b.naam +
+              ' (' + b.rijen.length + ' regels)</option>';
+          }).join('') + '</select>';
+      } else { bladVak.hidden = true; bladVak.innerHTML = ''; }
+    }
+
+    var oordeel = beoordeel();
+    beoordeeld = null;                 // pas na Controleren geldig
     toonMerkInfo();
     var mistBreedte = mapping.indexOf('breedte') < 0;
-    var mistHoogte = mapping.indexOf('hoogte') < 0;
+    // Hoogte mag ontbreken als de breedtekolom maatparen bevat ('1200 x 600');
+    // dan komt de hoogte daaruit. Levert dat niets op, dan is er wél een
+    // hoogtekolom nodig.
+    var mistHoogte = mapping.indexOf('hoogte') < 0 && oordeel.goed.length === 0;
     var waarschuwing = '';
-    if (mistBreedte || mistHoogte) {
-      waarschuwing = 'Koppel eerst een kolom aan ' +
-        (mistBreedte && mistHoogte ? 'Breedte en Hoogte' : (mistBreedte ? 'Breedte' : 'Hoogte')) + '.';
+    if (mistBreedte && mistHoogte) {
+      waarschuwing = 'Koppel eerst een kolom aan Breedte en aan Hoogte.';
+    } else if (mistBreedte) {
+      waarschuwing = 'Koppel eerst een kolom aan Breedte.';
+    } else if (mistHoogte) {
+      waarschuwing = 'Koppel ook een kolom aan Hoogte — of koppel een kolom met ' +
+                     'maten als «1200 x 600» aan Breedte.';
     }
-    document.getElementById('impTelling').textContent = waarschuwing ||
-      (n + ' rij' + (n === 1 ? '' : 'en') + ' klaar om over te nemen' +
-       (tabel.rijen.length > n ? ' (' + (tabel.rijen.length - n) + ' overgeslagen: geen maat)' : ''));
-    document.getElementById('impToevoegen').disabled = !!waarschuwing || n === 0;
-    document.getElementById('impVervangen').disabled = !!waarschuwing || n === 0;
+    // Kruiscontrole: zegt de kop iets anders dan waar je hem aan koppelt?
+    // Een kolom «Hoogte (mm)» aan Breedte knopen is bijna altijd een
+    // vergissing, en zou lijnrecht ingaan tegen "nooit foute maten" (v89).
+    var kruis = kruisControle();
+    if (!waarschuwing && kruis) waarschuwing = kruis;
+
+    var tel = document.getElementById('impTelling');
+    if (waarschuwing) {
+      tel.innerHTML = '<span class="imp-fout-tekst">' + waarschuwing + '</span>';
+    } else {
+      tel.innerHTML = oordeel.goed.length + ' rij' + (oordeel.goed.length === 1 ? '' : 'en') +
+        ' te controleren' +
+        (oordeel.fout.length ? ' · <span class="imp-fout-tekst">' + oordeel.fout.length +
+           ' rij' + (oordeel.fout.length === 1 ? '' : 'en') + ' met een probleem</span>' : '') +
+        (oordeel.leeg ? ' · ' + oordeel.leeg + ' zonder maten overgeslagen' : '');
+    }
+    var knop = document.getElementById('impControleren');
+    if (knop) knop.disabled = !!waarschuwing || (oordeel.goed.length === 0 && oordeel.fout.length === 0);
+  }
+
+  // Een kop die het tegenovergestelde zegt van het veld waaraan hij hangt.
+  function kruisControle() {
+    var woorden = { breedte: HERKEN[2][1], hoogte: HERKEN[3][1] };
+    var melding = '';
+    mapping.forEach(function (veld, i) {
+      if (melding) return;
+      if (veld !== 'breedte' && veld !== 'hoogte') return;
+      var ander = veld === 'breedte' ? 'hoogte' : 'breedte';
+      var s2 = schoon(tabel.kop[i]);
+      if (!s2) return;
+      var zegtAnder = woorden[ander].some(function (w) { return s2 === w || s2.indexOf(w) >= 0; });
+      var zegtZelf = woorden[veld].some(function (w) { return s2 === w || s2.indexOf(w) >= 0; });
+      if (zegtAnder && !zegtZelf) {
+        melding = 'De kolom «' + tabel.kop[i] + '» is gekoppeld aan ' +
+          (veld === 'breedte' ? 'Breedte' : 'Hoogte') + ', maar de kop zegt ' +
+          (ander === 'breedte' ? 'breedte' : 'hoogte') + '. Kijk dat na voordat je verdergaat.';
+      }
+    });
+    return melding;
+  }
+
+  /* ─── stap 3: controleren voordat er iets in de lijst komt ──── */
+
+  window.impControleren = function () {
+    beoordeeld = beoordeel();
+    tekenStap3();
+    document.getElementById('impStap2').style.display = 'none';
+    document.getElementById('impStap3').style.display = 'block';
+  };
+
+  window.impTerug2 = function () {
+    document.getElementById('impStap3').style.display = 'none';
+    document.getElementById('impStap2').style.display = 'block';
+    tekenStap2();
+  };
+
+  function esc2(t) {
+    return String(t === undefined || t === null ? '' : t)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  }
+
+  // Kolommen die er wél naar uitzien maar niet gekoppeld zijn. Bij twee
+  // breedtekolommen (sponning én glas) moet zichtbaar zijn welke je laat
+  // liggen (v89).
+  function nietGebruikt() {
+    var uit = [];
+    tabel.kop.forEach(function (k, i) {
+      if (mapping[i]) return;
+      var s2 = schoon(k);
+      if (!s2) return;
+      HERKEN.forEach(function (h) {
+        if (h[1].some(function (w) { return s2 === w || (w.length > 3 && s2.indexOf(w) >= 0); })) {
+          if (uit.indexOf(k) < 0) uit.push(k);
+        }
+      });
+    });
+    return uit;
+  }
+
+  function herkomst() {
+    var uit = [];
+    [['breedte', 'Breedte'], ['hoogte', 'Hoogte'], ['aantal', 'Aantal'],
+     ['merk', 'Merk'], ['glasType', 'Glas type'], ['opbouw', 'Opbouw'],
+     ['maxPakket', 'Max pakket'], ['opmerking', 'Opmerking']].forEach(function (v) {
+      var i = mapping.indexOf(v[0]);
+      if (i < 0) return;
+      uit.push('<li><b>' + v[1] + '</b> ← kolom ' + (i + 1) + ': «' +
+               esc2(tabel.kop[i] || '—') + '»</li>');
+    });
+    return uit.join('');
+  }
+
+  function tekenStap3() {
+    var o = beoordeeld;
+    var maatsoort = document.getElementById('impMaatsoort').value;
+    var splits = document.getElementById('impSplits') && document.getElementById('impSplits').checked;
+
+    // Totalen, om tegen de lijst van de leverancier te houden.
+    var posities = o.goed.length;
+    var ruiten = o.goed.reduce(function (n, r) { return n + (parseInt(r.waarden.aantal, 10) || 1); }, 0);
+    var breedtes = o.goed.map(function (r) { return +r.waarden.breedte; });
+    var hoogtes = o.goed.map(function (r) { return +r.waarden.hoogte; });
+    var reeks = function (lijst) {
+      if (!lijst.length) return '—';
+      var min = Math.min.apply(null, lijst), max = Math.max.apply(null, lijst);
+      return min === max ? min + ' mm' : min + ' – ' + max + ' mm';
+    };
+
+    var kop = '<div class="imp-herkomst"><div><b>Uit:</b> ' + esc2(bron.naam || 'onbekend') +
+      (bron.blad ? ', tabblad «' + esc2(bron.blad) + '»' : '') +
+      (bron.scheiding && bron.scheiding !== 'spaties'
+        ? ', gescheiden door «' + esc2(bron.scheiding === '\t' ? 'tab' : bron.scheiding) + '»' : '') +
+      '</div><ul>' + herkomst() + '</ul>' +
+      (nietGebruikt().length
+        ? '<div class="imp-niet-gebruikt">Niet overgenomen: ' +
+          nietGebruikt().map(function (k) { return '«' + esc2(k) + '»'; }).join(', ') +
+          ' — die kolom' + (nietGebruikt().length === 1 ? ' lijkt' : 'men lijken') +
+          ' wel maten of gegevens te bevatten.</div>'
+        : '') +
+      '<div class="imp-totalen"><b>' + posities + ' regels</b> · <b>' + ruiten + ' ruiten</b>' +
+      ' · breedte ' + reeks(breedtes) + ' · hoogte ' + reeks(hoogtes) +
+      ' · als <b>' + esc2(maatsoort) + '</b>' +
+      (splits ? ' · regels met een aantal worden opgesplitst' : '') + '</div></div>';
+
+    var rijenHtml = o.goed.map(function (r, i) {
+      var w = r.waarden;
+      var anders = function (veld) {
+        var ruw = r.tekst[veld];
+        return (ruw && String(ruw) !== String(w[veld]))
+          ? ' <span class="imp-ruw">(stond er als «' + esc2(ruw) + '»)</span>' : '';
+      };
+      return '<tr><td>' + (i + 1) + '</td>' +
+        '<td>' + esc2(w.merk || '') + '</td>' +
+        '<td class="imp-maat">' + esc2(w.breedte) + anders('breedte') + '</td>' +
+        '<td class="imp-maat">' + esc2(w.hoogte) + anders('hoogte') + '</td>' +
+        '<td>' + esc2(w.aantal) + anders('aantal') + '</td>' +
+        '<td>' + esc2([w.glasType, w.opbouw].filter(Boolean).join(' ')) + '</td>' +
+        '<td>' + esc2(w.opmerking || '') + '</td></tr>';
+    }).join('');
+
+    var foutHtml = '';
+    if (o.fout.length) {
+      foutHtml = '<div class="imp-geweigerd"><h4>' + o.fout.length + ' regel' +
+        (o.fout.length === 1 ? '' : 's') + ' wordt NIET overgenomen</h4>' +
+        '<p>Deze regels kon de app niet zonder twijfel lezen. Verbeter ze in het ' +
+        'bestand en lees het opnieuw in, of typ ze met de hand bij.</p><ul>' +
+        o.fout.map(function (r) {
+          return '<li><b>regel ' + r.nr + ':</b> ' + esc2(r.redenen.join('; ')) +
+                 '<br><span class="imp-ruw">' + esc2(r.ruw.join(' | ')) + '</span></li>';
+        }).join('') + '</ul></div>';
+    }
+
+    document.getElementById('impControle').innerHTML = kop +
+      (o.goed.length
+        ? '<div class="imp-scroll"><table class="imp-tabel imp-controle"><thead><tr>' +
+          '<th>#</th><th>Merk</th><th>Breedte</th><th>Hoogte</th><th>Aantal</th>' +
+          '<th>Glas</th><th>Opmerking</th></tr></thead><tbody>' + rijenHtml +
+          '</tbody></table></div>'
+        : '<div class="imp-geen">Er blijft geen enkele regel over om over te nemen.</div>') +
+      foutHtml +
+      (o.leeg ? '<div class="imp-ruw">' + o.leeg + ' regel(s) zonder maten overgeslagen ' +
+                '(tussenkopjes of totaalregels).</div>' : '');
+
+    document.getElementById('impToevoegen').disabled = o.goed.length === 0;
+    document.getElementById('impVervangen').disabled = o.goed.length === 0;
   }
 
   function toonMerkInfo() {
@@ -377,7 +727,9 @@
   /* ─── overnemen in de opname ───────────────────────────────── */
 
   function bouwRijen() {
-    return gemapteRijen().map(function (o) {
+    var bronLijst = beoordeeld ? beoordeeld.goed.map(function (r) { return r.waarden; })
+                              : gemapteRijen();
+    return bronLijst.map(function (o) {
       var r = nieuweRij();
       r.maatsoort = document.getElementById('impMaatsoort').value;
       if (o.aantal)    r.aantal = o.aantal;
@@ -484,7 +836,7 @@
       rijen.pop();
     }
     rijen = rijen.concat(nieuw);
-    afronden(nieuw.length + ' rijen toegevoegd');
+    afronden(nieuw.length + ' regels toegevoegd');
   };
 
   window.impVervangen = async function () {
@@ -492,7 +844,7 @@
         { kop: 'Rijen vervangen', ja: 'Vervangen', gevaarlijk: true })) return;
     var nieuw = verwerkMerken(bouwRijen());
     rijen = nieuw;
-    afronden(nieuw.length + ' rijen ingelezen');
+    afronden(nieuw.length + ' regels ingelezen (lijst vervangen)');
   };
 
   function verwerkMerken(nieuw) {
@@ -508,6 +860,21 @@
   }
 
   function afronden(tekst) {
+    // In het logboek van het project: waar kwam dit vandaan, en hoe is het
+    // gelezen. Zonder dat is later niet na te gaan waarom een maat zo in de
+    // lijst staat (v89).
+    if (window.glasSpoorNotitie) {
+      var velden = ['breedte', 'hoogte'].map(function (v) {
+        var i = mapping.indexOf(v);
+        return i < 0 ? '' : v + ' uit «' + (tabel.kop[i] || ('kolom ' + (i + 1))) + '»';
+      }).filter(Boolean).join(', ');
+      var fout = beoordeeld && beoordeeld.fout.length ? ', ' + beoordeeld.fout.length + ' geweigerd' : '';
+      var leeg = beoordeeld && beoordeeld.leeg ? ', ' + beoordeeld.leeg + ' zonder maten' : '';
+      glasSpoorNotitie('import uit ' + (bron.naam || 'onbekend') +
+        (bron.blad ? ' (tabblad ' + bron.blad + ')' : '') + ': ' + tekst +
+        (velden ? ', ' + velden : '') + fout + leeg);
+    }
+    if (window.glasMarkeerWerk) glasMarkeerWerk();
     renderTabel();
     herbereken();
     opslaan();

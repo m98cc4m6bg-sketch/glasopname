@@ -196,10 +196,18 @@
     return t.filter(function (x) { return !x.klaar; }).length;
   }
 
+  // Hoeveel ruiten staan er in dit project? Niet het aantal regels, maar de
+  // som van de kolom Aantal: één regel met aantal 4 is vier ruiten. Tot v88
+  // telde dit regels, en dan zei de projectenlijst "1 ruit" bij een project
+  // van vier (v89).
   function ingevuldeRijen(state) {
-    return (state.rijen || []).filter(function (r) {
-      return r.glasType || r.breedte || r.hoogte;
-    }).length;
+    var n = 0;
+    (state.rijen || []).forEach(function (r) {
+      if (!r || !(r.glasType || r.breedte || r.hoogte)) return;
+      var a = parseInt(r.aantal, 10);
+      n += (isFinite(a) && a > 0) ? a : 1;
+    });
+    return n;
   }
 
   /* ─── statusbalkje rechtsboven ─────────────────────────────── */

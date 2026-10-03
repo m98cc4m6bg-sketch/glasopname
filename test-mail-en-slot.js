@@ -213,6 +213,15 @@ function laatsteSpoor() {
     (w.document.getElementById('pi-status') || {}).value === 'bezig met inmeten/verwerken',
     (w.document.getElementById('pi-status') || {}).value);
 
+  // v89: één regel met Aantal 4 is vier ruiten, geen één.
+  w.eval("rijen[0].aantal = 4; glasMarkeerWerk(); herbereken(); opslaan();");
+  await wachtTot(() => (db.projecten.find(p => p.id === PROJECT) || {}).aantal_ruiten === 4, 12000);
+  check('een regel met Aantal 4 telt als vier ruiten',
+    (db.projecten.find(p => p.id === PROJECT) || {}).aantal_ruiten === 4,
+    String((db.projecten.find(p => p.id === PROJECT) || {}).aantal_ruiten));
+  w.eval("rijen[0].aantal = 1; glasMarkeerWerk(); herbereken(); opslaan();");
+  await wachtTot(() => (db.projecten.find(p => p.id === PROJECT) || {}).aantal_ruiten === 1, 12000);
+
   console.log('\n2. Het bestelmailvenster');
   w.bestelmailVenster();
   await wachtTot(() => !!w.document.getElementById('mailVerstuur'));

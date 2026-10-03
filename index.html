@@ -629,6 +629,33 @@
   table.imp-tabel td { padding: 5px 6px; border: 1px solid var(--grijs-rand); color: var(--grijs-tekst); white-space: nowrap; }
   table.imp-tabel td.imp-actief { color: #1a2a3a; background: white; font-weight: 600; }
   .imp-telling { font-size: 12px; font-weight: 600; color: var(--blauw); margin: 12px 0; }
+  /* ─── importcontrole (stap 3, v89) ─── */
+  .imp-fout-tekst { color: var(--rood); }
+  .imp-bladen { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 10px; }
+  .imp-bladen select {
+    font: inherit; font-size: 13px; padding: 5px 7px;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); background: var(--wit);
+  }
+  .imp-herkomst {
+    background: var(--grijs-licht); border: 1px solid var(--grijs-rand);
+    border-radius: var(--radius); padding: 10px 12px; font-size: 12px;
+    line-height: 1.6; margin-bottom: 10px;
+  }
+  .imp-herkomst ul { margin: 6px 0 6px 18px; }
+  .imp-herkomst li { list-style: disc; }
+  .imp-totalen { border-top: 1px solid var(--grijs-rand); padding-top: 6px; margin-top: 4px; }
+  table.imp-controle td { color: var(--blauw); white-space: normal; }
+  table.imp-controle td.imp-maat { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .imp-ruw { color: var(--grijs-tekst); font-weight: 400; font-size: 11px; }
+  .imp-geweigerd {
+    margin-top: 12px; padding: 10px 12px; border-radius: var(--radius);
+    background: #fdecea; border: 1px solid #e2a9a1; font-size: 12px; line-height: 1.6;
+  }
+  .imp-geweigerd h4 { color: var(--rood); font-size: 13px; margin-bottom: 4px; }
+  .imp-geweigerd ul { margin: 6px 0 0 18px; }
+  .imp-geweigerd li { list-style: disc; margin-bottom: 5px; }
+  .imp-geen { padding: 14px; font-size: 13px; color: var(--rood); }
+  .imp-niet-gebruikt { color: #8a5a00; margin-top: 4px; }
   .imp-maatsoort { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 12px; }
   .imp-maatsoort select { padding: 5px 8px; font-size: 12px; border: 1px solid var(--grijs-rand); border-radius: var(--radius); }
 
@@ -2204,6 +2231,9 @@
         grijze niet. Breedte en hoogte zijn verplicht.
       </div>
       <div class="imp-merkinfo" id="impMerkInfo"></div>
+      <!-- Heeft een werkblad meer dan één tabblad, dan kies je hier welk.
+           Tot v88 las de app stilzwijgend het eerste (v89). -->
+      <div class="imp-bladen" id="impBladen" hidden></div>
       <div class="imp-maatsoort">
         <label for="impMaatsoort">Deze maten zijn:</label>
         <select id="impMaatsoort">
@@ -2218,6 +2248,22 @@
       <div class="imp-telling" id="impTelling"></div>
       <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
         <button class="btn btn-secondary btn-sm" onclick="impOpen()">← Ander bestand</button>
+        <button class="btn btn-primary btn-sm" id="impControleren" onclick="impControleren()">Controleren →</button>
+      </div>
+    </div>
+
+    <!-- Stap 3: wat er werkelijk in de lijst komt, regel voor regel, met de
+         herkomst van elke kolom en de geweigerde regels erbij. Hier — en
+         alleen hier — komt er iets in de opname (v89). -->
+    <div class="cloud-body" id="impStap3" style="display:none;">
+      <div class="imp-uitleg">
+        Dit komt er in de lijst. Houd de aantallen en de maten naast de lijst van de
+        leverancier; staat er iets anders dan in het bestand, dan zie je dat hieronder
+        achter de maat staan.
+      </div>
+      <div id="impControle"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="impTerug2()">← Kolommen aanpassen</button>
         <button class="btn btn-ghost btn-sm" id="impVervangen" onclick="impVervangen()">Alles vervangen</button>
         <button class="btn btn-primary btn-sm" id="impToevoegen" onclick="impToevoegen()">Toevoegen aan lijst</button>
       </div>
@@ -2589,7 +2635,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v88';
+const APP_VERSIE = 'v89';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

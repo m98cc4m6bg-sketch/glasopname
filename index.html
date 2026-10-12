@@ -2635,7 +2635,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v89';
+const APP_VERSIE = 'v90';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -2650,6 +2650,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTabel();
   herbereken();
   setInterval(opslaan, 10000);
+  slotBewaking();
 });
 
 // ═══════════════ INFO-BALLONNEN ═══════════════
@@ -2751,6 +2752,9 @@ function isLeegLos(r) {
 let groeitAl = false;
 function groeiIndienNodig() {
   if (groeitAl) return;
+  // Staat het project op slot, dan heeft een verse lege regel geen zin:
+  // je kunt er toch niet in typen (v90).
+  if (invoerOpSlot()) return;
   var leeg = losseRijen().filter(isLeegLos).length;
   if (leeg >= MIN_LEEG) return;
   groeitAl = true;
@@ -2761,11 +2765,15 @@ function groeiIndienNodig() {
 
 function voegRijToe() { voegRijenToe(1); }
 function voegRijenToe(n) {
+  // Bij het opstarten zet de app zelf lege regels klaar; dat is geen
+  // bewerking. Alleen regels bijzetten in een gevulde lijst is dat wel.
+  if (rijen.length && slotWeigert()) return;
   for (let i = 0; i < n; i++) rijen.push(nieuweRij());
   renderTabel();
 }
 
 function verwijderRij(id) {
+  if (slotWeigert()) return;
   rijen = rijen.filter(r => r.id !== id);
   renderTabel();
   herbereken();
@@ -3012,6 +3020,7 @@ function updateStrijdigeRegels() {
 // niet bij het nieuwe stelsel hoort wordt losgelaten — hem laten staan zou
 // betekenen dat er iets besteld wordt wat niet bestaat.
 function wijzigRoedenverdeling(id, waarde) {
+  if (slotWeigert()) return;
   const rij = getRij(id);
   if (!rij) return;
   rij.roedenverdeling = waarde;
@@ -3025,6 +3034,7 @@ function wijzigRoedenverdeling(id, waarde) {
 }
 
 function wijzigOpbouw(id, waarde) {
+  if (slotWeigert()) return;
   const rij = getRij(id);
   if (!rij) return;
   rij.opbouw = waarde;
@@ -3038,6 +3048,7 @@ function wijzigOpbouw(id, waarde) {
 // je bewust eerst de bewerking en daarna de opbouw. Er wordt wel eerst
 // gevraagd wat de bedoeling is.
 function kiesBewerking(id, sel) {
+  if (slotWeigert()) return;
   const rij = getRij(id);
   if (!rij) return;
   const nieuw = sel.value;
@@ -3132,6 +3143,39 @@ function invoerOpSlot() {
 }
 window.invoerOpSlot = invoerOpSlot;
 
+// Het slot zit op twee plekken, en dat is met opzet (v90).
+//
+// 1. Op de gegevens. Elke weg waarlangs een maat verandert komt langs
+//    slotWeigert(); staat het slot erop, dan gebeurt er niets en springt
+//    het scherm terug naar wat er opgeslagen staat. Dit is het echte slot.
+// 2. Op het scherm: de velden gaan op alleen-lezen. Dat is alleen om te
+//    laten zien dat er niet gewerkt kan worden.
+//
+// In v88 zat alleen 2, en dat ging mis: de invoertabellen onder een foto
+// worden na renderTabel() nog eens opnieuw opgebouwd door renderFotos().
+// Die verse velden stonden niet op alleen-lezen, dus in elk project mét
+// een foto — bijna allemaal dus — kon je gewoon doortypen.
+
+let slotGemeld = 0;
+
+function slotWeigert() {
+  if (!invoerOpSlot()) return false;
+  // Niet bij elke aanslag een venster: één melding, daarna drie seconden
+  // stil. Het terugzetten van het scherm gebeurt wél elke keer.
+  if (Date.now() - slotGemeld > 3000) {
+    slotGemeld = Date.now();
+    if (window.appFout) {
+      appFout('Dit project is besteld, dus de maten staan vast. Moet er toch iets ' +
+              'veranderen, gebruik dan ‹Ontgrendelen› in de balk bovenaan Invoer — ' +
+              'dat komt met je naam in het logboek te staan.',
+              { kop: 'Op slot' });
+    }
+  }
+  if (window.renderTabel) renderTabel();
+  return true;
+}
+window.slotWeigert = slotWeigert;
+
 function slotToepassen() {
   const opSlot = invoerOpSlot();
   const paneel = document.getElementById('panel-invoer');
@@ -3170,6 +3214,46 @@ function slotToepassen() {
   }
 }
 window.slotToepassen = slotToepassen;
+
+// Alles wat buiten index.html om aan de maten kan komen, gaat door
+// hetzelfde slot. Deze functies staan in andere bestanden en bestaan pas
+// als de pagina klaar is met laden, vandaar het omhullen achteraf (v90).
+// Staat er een nieuwe functie bij die regels verandert? Zet hem hier erbij.
+const SLOT_FUNCTIES = [
+  'bulkPasToe', 'bulkVerwijderSelectie',          // bulk.js — doorvoeren, selectie weg
+  'blokLeeg', 'blokSpeling', 'blokOngedaan', 'blokOpnieuw',   // blokbalk.js
+  'ongedaan', 'opnieuw',                          // undo.js
+  'kopieerRegel', 'kopieerSelectie', 'gelijktrekken', 'kopieerNaar',  // kopie.js
+  'merkAutoOplossen', 'merkTerugdraaien',         // merken.js
+  'impToevoegen', 'impVervangen',                 // import.js
+  'groepVerwijder'                                // fotos.js — neemt ruiten mee
+];
+
+function slotBewaking() {
+  SLOT_FUNCTIES.forEach(naam => {
+    const oorspronkelijk = window[naam];
+    if (typeof oorspronkelijk !== 'function' || oorspronkelijk.__slot) return;
+    const omhuld = function () {
+      if (slotWeigert()) return;
+      return oorspronkelijk.apply(this, arguments);
+    };
+    omhuld.__slot = true;
+    window[naam] = omhuld;
+  });
+
+  // Het scherm: elke keer dat er velden bijkomen — en dat gebeurt op meer
+  // plekken dan je denkt, onder andere als renderFotos() de tabellen onder
+  // de foto's opnieuw opbouwt — gaan ze meteen weer op alleen-lezen. Zo
+  // hoeft niet elke nieuwe weergavefunctie dit zelf te onthouden.
+  const paneel = document.getElementById('panel-invoer');
+  if (!paneel || typeof MutationObserver !== 'function') return;
+  let gepland = false;
+  new MutationObserver(() => {
+    if (!invoerOpSlot() || gepland) return;
+    gepland = true;
+    setTimeout(() => { gepland = false; slotToepassen(); }, 0);
+  }).observe(paneel, { childList: true, subtree: true });
+}
 
 window.slotOntgrendel = async function () {
   if (!window.glasWachtwoordKlopt) {
@@ -3388,12 +3472,16 @@ function updateStatusBar() {
 // ═══════════════ HELPERS ═══════════════
 function getRij(id) { return rijen.find(r => r.id === id); }
 function setVal(id, veld, waarde) {
+  // Hier komt elke wijziging in een veld langs, waar hij ook getypt is:
+  // op Invoer, in de tabel onder een foto, of via doorvoeren (v90).
+  if (slotWeigert()) return;
   const r = getRij(id);
   if (r) r[veld] = waarde;
 }
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 function wijzigGlasType(id, type) {
+  if (slotWeigert()) return;
   const rij = getRij(id);
   if (!rij) return;
   rij.glasType = type;

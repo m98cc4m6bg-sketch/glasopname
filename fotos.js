@@ -625,6 +625,9 @@
       });
       tekenTabel(f.id);
     });
+    // Zie renderFotoTabellen: ook hier komen er verse invoervelden bij, en
+    // die moeten dicht blijven als het project besteld is (v90).
+    if (window.slotToepassen) slotToepassen();
   };
 
   window.fotoLaadFout = function (fotoId) {
@@ -665,6 +668,9 @@
       telBlok(f.id);
     });
     tekenAanwijsbalk();
+    // Verse invoervelden staan standaard open; is het project besteld, dan
+    // moeten ze meteen weer dicht (v90).
+    if (window.slotToepassen) slotToepassen();
   };
 
   window.fotoLabelsBijwerken = function () {

@@ -33,7 +33,17 @@
     rijen = s.rijen || [];
     volgendId = s.volgendId || rijen.length + 1;
     fotos = s.fotos || [];
+    // De bestelling is een gebeurtenis, geen bewerking: die draai je niet
+    // terug met Cmd+Z. Een momentopname van vóór de bestelmail zette status,
+    // bestelmoment en slot terug — en daarmee ging het project in de
+    // database terug naar 'bezig' terwijl de leverancier de bestelling al
+    // had (v91).
+    var nuInfo = (typeof projectInfo === 'object' && projectInfo) || {};
     projectInfo = s.info || {};
+    ['status', 'besteld', 'bestelmail', 'slot'].forEach(function (k) {
+      if (nuInfo[k] === undefined) delete projectInfo[k];
+      else projectInfo[k] = nuInfo[k];
+    });
     projectTaken = s.taken || [];
     var z = function (id, v) { var e = document.getElementById(id); if (e) e.value = v; };
     z('projectNaam', s.project);
@@ -56,6 +66,23 @@
     tekenKnoppen();
   }
   window.bewaarStap = bewaar;
+
+  // Alles vergeten. Aangeroepen door cloud.js zodra er een andere inhoud
+  // binnenkomt: een ander project, een nieuw project, terug naar het
+  // startscherm, of de versie van een collega (v91).
+  //
+  // Zonder dit bleven de momentopnames van het vórige project staan. Wie
+  // project A bewerkte, project B opende en Cmd+Z deed, kreeg de inhoud
+  // van A in B — en die ging naar de database van B. De momentopnames van
+  // vóór een wijziging van een collega horen om dezelfde reden weg: één
+  // keer ongedaan maken zou zijn werk stilzwijgend terugdraaien.
+  window.undoLeeg = function () {
+    terug.length = 0;
+    vooruit.length = 0;
+    bijBetreden = null;
+    tekenKnoppen();
+    if (window.blokVooruitLeeg) blokVooruitLeeg();
+  };
   // De bedieningsbalk per tabel leest hier de momentopnames uit, om er
   // alleen de regels van één tabel uit terug te halen.
   window.undoStapels = function () { return { terug: terug, vooruit: vooruit }; };
@@ -105,7 +132,9 @@
     if (typeof orig !== 'function') return;
     window[naam] = function () {
       var l = typeof label === 'function' ? label.apply(null, arguments) : label;
-      bewaar(l);
+      // Op slot weigert de functie zelf; dan ook geen lege stap maken. Die
+      // wiste anders 'opnieuw' en gaf een ↶ die niets deed (v91).
+      if (!(window.invoerOpSlot && invoerOpSlot())) bewaar(l);
       var buitenste = !inBewerking;
       inBewerking = true;
       try {

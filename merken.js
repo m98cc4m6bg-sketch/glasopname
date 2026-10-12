@@ -62,7 +62,7 @@
     balk.style.display = 'flex';
     balk.innerHTML =
       '<span>⚠ ' + (c.length === 1 ? 'De merkletter ' : 'Dubbele merkletters: ') +
-      c.map(function (x) { return '‹' + x.letter + '›'; }).join(', ') +
+      c.map(function (x) { return '‹' + esc(x.letter) + '›'; }).join(', ') +
       (c.length === 1 ? ' hoort bij meer dan één ruit.' : '') + '</span>' +
       '<button onclick="merkDialoog()">Oplossen</button>';
   };

@@ -8,9 +8,10 @@
 (function () {
   'use strict';
 
-  var XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-  var PDF_URL  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
-  var PDF_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  // Uit de repo (v91), zodat ze in de cache van de service worker staan.
+  var XLSX_URL = 'lib/xlsx-0.18.5/xlsx.full.min.js';
+  var PDF_URL  = 'lib/pdfjs-3.11.174/pdf.min.js';
+  var PDF_WORKER = 'lib/pdfjs-3.11.174/pdf.worker.min.js';
 
   // Velden waar een kolom naartoe kan. Volgorde = volgorde in de keuzelijst.
   var VELDEN = [
@@ -47,16 +48,28 @@
 
   /* ─── bibliotheken pas laden als ze nodig zijn ─────────────── */
 
+  // Eén belofte per bibliotheek; een mislukte poging wordt opgeruimd. Tot
+  // v90 bleef na één mislukte keer het importeren kapot tot je herlaadde
+  // ("Cannot read properties of undefined"), en kon een tweede aanroep
+  // tijdens het laden al doorgaan voordat de bibliotheek er was (v91).
+  var geladen = {};
   function laadScript(url) {
-    return new Promise(function (ok, fout) {
-      if (document.querySelector('script[data-lazy="' + url + '"]')) { ok(); return; }
+    // Al aanwezig (eerder geladen, of door een testreeks klaargezet).
+    if ((url === XLSX_URL && window.XLSX) || (url === PDF_URL && window.pdfjsLib)) return Promise.resolve();
+    if (geladen[url]) return geladen[url];
+    geladen[url] = new Promise(function (ok, fout) {
       var s = document.createElement('script');
       s.src = url;
       s.setAttribute('data-lazy', url);
-      s.onload = ok;
-      s.onerror = function () { fout(new Error('Kon ' + url + ' niet laden — is er internet?')); };
+      s.onload = function () { ok(); };
+      s.onerror = function () {
+        delete geladen[url];
+        if (s.parentNode) s.parentNode.removeChild(s);
+        fout(new Error('Kon ' + url + ' niet laden — probeer het nog eens'));
+      };
       document.head.appendChild(s);
     });
+    return geladen[url];
   }
 
   /* ─── tekst → getallen ─────────────────────────────────────── */
@@ -92,8 +105,14 @@
   // zag niemand. Een CSV-lezer die aanhalingstekens kent is de enige manier
   // om dat uit te sluiten.
 
-  function csvLees(tekst, scheiding) {
-    var rijen = [], rij = [], cel = '', inAanhaling = false;
+  // Een aanhalingsteken dat nooit gesloten wordt — een ditto-teken " voor
+  // 'idem', of een maat als 12" — slokte tot v90 de rest van het bestand
+  // op: alle regels erna verdwenen in één cel, zonder als geweigerd te
+  // tellen (v91). Gebeurt dat, dan lezen we opnieuw en behandelen we dát
+  // teken als gewone tekst. De regel komt dan gewoon in het controlescherm.
+  function csvLees(tekst, scheiding, letterlijk) {
+    letterlijk = letterlijk || {};
+    var rijen = [], rij = [], cel = '', inAanhaling = false, begin = -1;
     var t = String(tekst).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     for (var i = 0; i < t.length; i++) {
       var c = t[i];
@@ -104,10 +123,14 @@
         } else cel += c;
         continue;
       }
-      if (c === '"' && cel.trim() === '') { inAanhaling = true; cel = ''; continue; }
+      if (c === '"' && cel.trim() === '' && !letterlijk[i]) { inAanhaling = true; begin = i; cel = ''; continue; }
       if (c === scheiding) { rij.push(cel); cel = ''; continue; }
       if (c === '\n') { rij.push(cel); rijen.push(rij); rij = []; cel = ''; continue; }
       cel += c;
+    }
+    if (inAanhaling && begin >= 0 && !letterlijk[begin]) {
+      letterlijk[begin] = true;
+      return csvLees(tekst, scheiding, letterlijk);
     }
     if (cel !== '' || rij.length) { rij.push(cel); rijen.push(rij); }
     return rijen.map(function (r) { return r.map(function (x) { return String(x).trim(); }); })
@@ -183,6 +206,9 @@
 
   // Ook de fotomodule gebruikt de pdf-lezer, om een kozijntekening om te
   // zetten naar een afbeelding.
+  // isEvalSupported: false bij elke getDocument (v91): pdf.js 3.11 kan een
+  // kwaadaardig pdf-bestand anders code laten uitvoeren (CVE-2024-4367).
+  // Kozijntekeningen en lijsten komen van buiten, dus dit hoort aan.
   window.pdfBibliotheek = function () {
     return laadScript(PDF_URL).then(function () {
       var lib = window.pdfjsLib;
@@ -196,7 +222,7 @@
       var lib = window.pdfjsLib;
       lib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
       return file.arrayBuffer().then(function (buf) {
-        return lib.getDocument({ data: buf }).promise;
+        return lib.getDocument({ data: buf, isEvalSupported: false }).promise;
       });
     }).then(function (pdf) {
       var paginas = [];
@@ -477,7 +503,10 @@
   function tekenStap2() {
     var opties = VELDEN.map(function (v) { return v; });
     var kopHtml = tabel.kop.map(function (cel, i) {
-      return '<th><div class="imp-kolomnaam">' + (cel || '—') + '</div>' +
+      // Alles uit het bestand gaat ge-escapet het scherm op: een cel met
+      // '<…>' brak anders de weergave, of draaide zelfs code in een
+      // ingelogde sessie (v91). Stap 3 deed dit al.
+      return '<th><div class="imp-kolomnaam">' + esc2(cel || '—') + '</div>' +
              '<select onchange="impMapWijzig(' + i + ', this.value)">' +
              opties.map(function (v) {
                return '<option value="' + v[0] + '"' + (mapping[i] === v[0] ? ' selected' : '') + '>' + v[1] + '</option>';
@@ -486,7 +515,7 @@
 
     var voorbeeld = tabel.rijen.slice(0, 8).map(function (r) {
       return '<tr>' + tabel.kop.map(function (_, i) {
-        return '<td' + (mapping[i] ? ' class="imp-actief"' : '') + '>' + ((r[i] === undefined ? '' : r[i])) + '</td>';
+        return '<td' + (mapping[i] ? ' class="imp-actief"' : '') + '>' + esc2(r[i] === undefined ? '' : r[i]) + '</td>';
       }).join('') + '</tr>';
     }).join('');
 
@@ -501,8 +530,8 @@
         bladVak.innerHTML = '<label for="impBlad">Tabblad:</label>' +
           '<select id="impBlad" onchange="impBladKiezen(this.value)">' +
           bladen.map(function (b) {
-            return '<option value="' + b.naam.replace(/"/g, '&quot;') + '"' +
-              (b.naam === bron.blad ? ' selected' : '') + '>' + b.naam +
+            return '<option value="' + esc2(b.naam) + '"' +
+              (b.naam === bron.blad ? ' selected' : '') + '>' + esc2(b.naam) +
               ' (' + b.rijen.length + ' regels)</option>';
           }).join('') + '</select>';
       } else { bladVak.hidden = true; bladVak.innerHTML = ''; }
@@ -712,12 +741,12 @@
     if (dubbel.length) {
       regels.push('<span class="imp-goed">✓ ' + dubbel.length +
         ' kozijn' + (dubbel.length === 1 ? '' : 'en') + ' met meerdere maten (' +
-        dubbel.slice(0, 6).join(', ') + (dubbel.length > 6 ? '…' : '') +
+        dubbel.slice(0, 6).map(esc2).join(', ') + (dubbel.length > 6 ? '…' : '') +
         ') ' + (dubbel.length === 1 ? 'krijgt' : 'krijgen') +
         ' een nummer achter de letter.</span>');
     }
     if (bestaat.length) {
-      regels.push('<span class="imp-let-op">⚠ De merken ' + bestaat.slice(0, 6).join(', ') +
+      regels.push('<span class="imp-let-op">⚠ De merken ' + bestaat.slice(0, 6).map(esc2).join(', ') +
         (bestaat.length > 6 ? '…' : '') + ' komen al voor in dit project. ' +
         'Bij toevoegen wordt doorgeteld; wil je ze vervangen, gebruik dan \u2039Alles vervangen\u203a.</span>');
     }

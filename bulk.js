@@ -45,6 +45,14 @@
 
   window.bulkSelectieWissen = function () { bulkAlles(false); };
 
+  // Bij het wisselen van project (v91). Ruit-id's tellen per project vanaf
+  // 1, dus een selectie {3, 5} uit project A wees in project B naar andere
+  // ruiten — en 'Geselecteerde verwijderen' raakte die dan.
+  window.bulkSelectieLeeg = function () {
+    selectie.clear();
+    tekenBalk();
+  };
+
   window.bulkVerwijderSelectie = async function () {
     if (!selectie.size) return;
     if (!await appVraag(selectie.size + ' ruit' + (selectie.size === 1 ? '' : 'en') +

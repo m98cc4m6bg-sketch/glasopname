@@ -119,7 +119,13 @@
       document.body.appendChild(laag);
       // Aandacht naar het invoerveld, anders naar de hoofdknop: op een
       // telefoon komt het toetsenbord dan meteen op.
-      var eerst = veld || hoofdKnop || venst.querySelector('.btn');
+      // Bij een gevaarlijke keuze (rode knop) niet de rode knop de aandacht
+      // geven maar de eerste, veilige: anders bevestigt een Enter of spatie
+      // die nog onderweg was meteen het verwijderen (v91).
+      var gevaar = knoppen.some(function (k) {
+        return k.soort === 'btn-danger' || (k.primair && o.gevaarlijk);
+      });
+      var eerst = veld || (gevaar ? rij.querySelector('.btn') : hoofdKnop) || venst.querySelector('.btn');
       if (eerst) {
         try { eerst.focus(); } catch (err) {}
         if (veld && veld.setSelectionRange) {
@@ -155,6 +161,7 @@
       kop: o.kop,
       soort: o.soort || 'vraag',
       annuleer: false,
+      gevaarlijk: !!o.gevaarlijk,
       knoppen: [
         { tekst: o.nee || 'Annuleren', waarde: false },
         { tekst: o.ja || 'Doorgaan', waarde: true, primair: true,

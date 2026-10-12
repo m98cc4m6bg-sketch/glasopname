@@ -10,6 +10,18 @@ function check(naam, ok, extra) {
   console.log((ok ? '  ok   ' : '  FOUT ') + naam + (extra ? '  → ' + extra : ''));
   if (!ok) fouten++;
 }
+// Zie test-mail-en-slot.js: een nagekomen aanroep in een al gesloten
+// testvenster (hier vulPrullenbak, v91) is een eigenaardigheid van het
+// harnas, niet van de app. Alleen díe fout, vlak na een sluiting.
+let laatsteSluiting = 0;
+process.on('uncaughtException', function (e) {
+  if (Date.now() - laatsteSluiting < 5000 && /reading 'getElementById'/.test(String(e && e.message))) {
+    console.log('   (nagekomen aanroep in een al gesloten testvenster genegeerd)');
+    return;
+  }
+  console.error(e);
+  process.exit(1);
+});
 const wacht = ms => new Promise(r => setTimeout(r, ms));
 async function wachtTot(voorwaarde, maximaal) {
   const eind = Date.now() + (maximaal || 8000);
@@ -57,11 +69,17 @@ function bouwer(tabel) {
   b.or = function () { return b; };
   b.order = function () { return b; };
   b.limit = function () { return b; };
+  // .is(k, null) en .not(k, 'is', null): de prullenbak (v91).
+  st.leeg = []; st.gevuld = [];
+  b.is = function (k) { st.leeg.push(k); return b; };
+  b.not = function (k) { st.gevuld.push(k); return b; };
 
   function rijen() {
     if (takenTabelWeg && tabel === 'taken') return [];
     return (db[tabel] || []).filter(function (r) {
-      return Object.keys(st.filters).every(function (k) { return r[k] === st.filters[k]; });
+      return Object.keys(st.filters).every(function (k) { return r[k] === st.filters[k]; }) &&
+        st.leeg.every(function (k) { return r[k] == null; }) &&
+        st.gevuld.every(function (k) { return r[k] != null; });
     });
   }
   function antwoord(enkel) {
@@ -226,10 +244,10 @@ function maakApp(url, lsProject) {
   await wachtTot(() => db.taken.filter(t => !t.klaar).length < open1);
   check('de taak staat op afgerond', db.taken[0].klaar === true);
   check('met een afrondmoment erbij', !!db.taken[0].afgerond_op, String(db.taken[0].afgerond_op));
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
 
   console.log('\n6. Het spoor: wie wijzigde wat');
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
   w = maakApp('https://jelierbouw.test/');
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
   await wachtTot(() => !w.document.getElementById('startScherm').hidden);
@@ -262,7 +280,7 @@ function maakApp(url, lsProject) {
     w.document.getElementById('logboekLijst').textContent.indexOf('julian') >= 0);
 
   console.log('\n7. Een onthouden project opent niet meer vanzelf');
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
   w = maakApp('https://jelierbouw.test/', '11111111-1111-4111-8111-111111111111');
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
   await wachtTot(() => !w.document.getElementById('startScherm').hidden);
@@ -281,11 +299,13 @@ function maakApp(url, lsProject) {
             datum: '', speling: '4', bijtelling: '11' } });
   w.glasToonStart();
   await wachtTot(() => w.document.getElementById('startProjecten').textContent.indexOf('Weg hiermee') >= 0);
-  const voorAantal = db.projecten.length;
   w.appVraag = function () { return Promise.resolve(true); };
   await w.cloudVerwijder('33333333-3333-4333-8333-333333333333');
-  await wachtTot(() => db.projecten.length < voorAantal);
-  check('het project is uit de database', db.projecten.length === voorAantal - 1);
+  // Sinds v91 gaat het naar de prullenbak; definitief verwijderen staat in
+  // test-verwijderen.js en test-v91.js.
+  const weg = db.projecten.find(p => p.id === '33333333-3333-4333-8333-333333333333');
+  check('het project staat in de prullenbak (nog in de database)', !!(weg && weg.verwijderd_op),
+    weg ? String(weg.verwijderd_op) : 'weg');
   await wachtTot(() => w.document.getElementById('startProjecten').textContent.indexOf('Weg hiermee') < 0);
   check('en meteen uit het startscherm',
     w.document.getElementById('startProjecten').textContent.indexOf('Weg hiermee') < 0,
@@ -294,7 +314,7 @@ function maakApp(url, lsProject) {
   console.log('\n9. Het SQL-script is nog niet gedraaid');
   // Dan bestaan de nieuwe kolommen en de takentabel nog niet. De app hoort
   // gewoon door te werken: opslaan zonder het spoor, taken uit het project.
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
   kolomOntbreekt = true;
   takenTabelWeg = true;
   w = maakApp('https://jelierbouw.test/#project=11111111-1111-4111-8111-111111111111');
@@ -339,6 +359,6 @@ function maakApp(url, lsProject) {
     w.glasProjectId === '22222222-2222-4222-8222-222222222222', String(w.glasProjectId));
 
   console.log('\n' + (fouten ? fouten + ' fout(en).' : 'Alles goed.'));
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
   process.exit(fouten ? 1 : 0);
 })();

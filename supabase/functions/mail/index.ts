@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════
-//  Glasopname v88 – mail versturen (Supabase Edge Function)
+//  Glasopname v88 – mail versturen (Supabase Edge Function), bijgewerkt in v91
 //
 //  Waarom een functie en niet rechtstreeks uit de app: de sleutel van
 //  de maildienst mag niet in de browser staan. Die staat hier als
@@ -181,6 +181,12 @@ Deno.serve(async (verzoek) => {
         gewijzigd_door: wie.id,
         gewijzigd_naam: wieNaam,
         samenvatting: 'bestelmail verstuurd naar ' + aan.join(', '),
+        // Altijd een eigen regel in het logboek. Zonder dit gold de waarde
+        // van de laatste opslag door de app (meestal true), en dan werkte de
+        // trigger de vórige regel bij: "2 ruiten toegevoegd" werd
+        // "bestelmail verstuurd …" en de wijzigingen vóór de bestelling
+        // verdwenen uit het logboek (v91).
+        spoor_vervolg: false,
       }),
     }).catch(() => {});
   }

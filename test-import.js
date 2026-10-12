@@ -230,6 +230,31 @@ function maakApp() {
   check('en staat ook op het controlescherm',
     /Glasmaat/.test(u.totalen), u.totalen.trim());
 
+  console.log('\n17. Een aanhalingsteken dat nooit sluit (v91)');
+  // Een ditto-teken " voor 'idem'. Tot v90 slokte dat alle regels erna op.
+  u = await lees('Merk;Breedte;Hoogte;Opmerking\nA;800;1400;buiten\nB;900;1500;"\nC;700;1200;binnen\n');
+  check('alle drie de regels komen erin', u.rijen.length === 3,
+    JSON.stringify(u.rijen.map(r => r.merk + ':' + r.b + 'x' + r.h)));
+  check('C heeft zijn eigen maat', u.rijen[2] && u.rijen[2].b === '700' && u.rijen[2].h === '1200',
+    JSON.stringify(u.rijen[2]));
+  check('en het teken blijft gewoon staan als opmerking', u.rijen[1] && u.rijen[1].o === '"',
+    JSON.stringify(u.rijen[1]));
+  u = await lees('Merk;Opmerking;Breedte;Hoogte\nA;"mat, 2 lagen";1200;600\n');
+  check('een gewoon aanhalingsteken werkt nog zoals in v89',
+    u.rijen.length === 1 && u.rijen[0].o === 'mat, 2 lagen' && u.rijen[0].b === '1200',
+    JSON.stringify(u.rijen));
+
+  console.log('\n18. HTML in het bestand komt als tekst op het scherm (v91)');
+  w.__xss = 0;
+  u = await lees('Merk;Breedte;<img src=x onerror="window.__xss++">\n' +
+                 '<b>A</b>;1200;600\nB;800;<img src=x onerror="window.__xss++">\n');
+  check('geen enkel element uit het bestand in de kolomkoppen of het voorbeeld',
+    !w.document.querySelector('#impVoorbeeld img, #impVoorbeeld b'),
+    w.document.getElementById('impVoorbeeld').innerHTML.slice(0, 120));
+  check('de tekst zelf staat er wel', u.kop.some(k => /<img/.test(k)), JSON.stringify(u.kop));
+  await wacht(200);
+  check('en er is niets uitgevoerd', w.__xss === 0, String(w.__xss));
+
   w.close();
   console.log('\n' + (fouten ? fouten + ' fout(en).' : 'Alles goed.'));
   process.exit(fouten ? 1 : 0);

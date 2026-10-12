@@ -2,7 +2,10 @@
    Supabase wordt nagebootst met een echte projectenlijst en een
    fotomap, zodat het verwijderen van een project helemaal nagelopen kan
    worden: met en zonder foto's, het geopende project en een ander, en de
-   gevallen waarin het misgaat.                                          */
+   gevallen waarin het misgaat.
+   Sinds v91 gaat 🗑 eerst naar de prullenbak; deze reeks toetst het
+   definitieve verwijderen (glasNuDefinitief, vanuit de prullenbak en bij
+   het opruimen na 30 dagen). De prullenbak zelf staat in test-v91.js.  */
 const fs = require('fs');
 const { JSDOM } = require('/home/claude/node_modules/jsdom');
 
@@ -74,6 +77,8 @@ function bouwer(tabel) {
   b.or = function () { return b; };
   b.order = function () { return b; };
   b.limit = function () { return b; };
+  b.is = function () { return b; };
+  b.not = function () { return b; };
 
   function antwoord(enkel) {
     if (!netwerk) return { data: null, error: { message: 'Failed to fetch' } };
@@ -176,7 +181,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
   check('de lijst toont drie projecten', lijstTekst().indexOf('Alexander') >= 0 &&
     lijstTekst().indexOf('Verhoef') >= 0 && lijstTekst().indexOf('Bruins') >= 0);
 
-  await w.cloudVerwijder('p1');
+  await w.glasNuDefinitief('p1');
   await wacht(400);
   check('het project is uit de lijst verdwenen', lijstTekst().indexOf('Alexander') < 0, lijstTekst().slice(0, 60));
   check('de andere projecten staan er nog', lijstTekst().indexOf('Verhoef') >= 0 && lijstTekst().indexOf('Bruins') >= 0);
@@ -191,7 +196,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
 
   console.log('\n2. Een project mét foto\'s verwijderen, dat niet openstaat');
   gedaan.fouten = [];
-  await w.cloudVerwijder('p3');
+  await w.glasNuDefinitief('p3');
   await wacht(400);
   check('Bruins is weg', lijstTekst().indexOf('Bruins') < 0, lijstTekst().slice(0, 60));
   check('de foto\'s zijn opgeruimd', gedaan.verwijderdeBestanden.length === 2,
@@ -202,7 +207,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
   console.log('\n3. De database weigert: er mag niets verdwijnen');
   gedaan.fouten = [];
   faalDelete = 'new row violates row-level security policy';
-  await w.cloudVerwijder('p2');
+  await w.glasNuDefinitief('p2');
   await wacht(400);
   check('het project staat er nog', lijstTekst().indexOf('Verhoef') >= 0);
   check('en staat ook nog in de database', db.projecten.some(function (p) { return p.id === 'p2'; }));
@@ -214,7 +219,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
   console.log('\n4. Geen rechten: de opdracht raakt niets');
   gedaan.fouten = [];
   geenRechten = true;
-  await w.cloudVerwijder('p2');
+  await w.glasNuDefinitief('p2');
   await wacht(400);
   check('het project blijft staan', db.projecten.some(function (p) { return p.id === 'p2'; }));
   check('de melding gaat over rechten', gedaan.fouten.length === 1 &&
@@ -225,7 +230,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
   console.log('\n5. Geen verbinding tijdens het verwijderen');
   gedaan.fouten = [];
   netwerk = false;
-  await w.cloudVerwijder('p2');
+  await w.glasNuDefinitief('p2');
   await wacht(400);
   check('het project blijft staan', db.projecten.some(function (p) { return p.id === 'p2'; }));
   check('de lijst is niet grijs blijven staan', doorzichtig() === '');
@@ -255,7 +260,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
             datum: '', speling: '4', bijtelling: '11' } });
   w.cloudProjectenTonen();
   await wacht(200);
-  await Promise.all([w.cloudVerwijder('p4'), w.cloudVerwijder('p4')]);
+  await Promise.all([w.glasNuDefinitief('p4'), w.glasNuDefinitief('p4')]);
   await wacht(400);
   check('het project is weg', !db.projecten.some(function (p) { return p.id === 'p4'; }));
   check('de tweede keer geeft geen foutmelding', gedaan.fouten.length === 0, gedaan.fouten.join(' | '));
@@ -270,7 +275,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
   var aantalVoor = db.projecten.length;
   var vraagOud = w.appVraag;
   w.appVraag = function () { return Promise.resolve(false); };
-  await w.cloudVerwijder('p6');
+  await w.glasNuDefinitief('p6');
   await wacht(200);
   check('er is niets verwijderd', db.projecten.length === aantalVoor,
     db.projecten.length + ' van ' + aantalVoor);
@@ -286,7 +291,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
             datum: '', speling: '4', bijtelling: '11' } });
   await w.cloudOpen('p5');
   await wacht(300);
-  await w.cloudVerwijder('p5');
+  await w.glasNuDefinitief('p5');
   await wacht(300);
   w.rijen = [{ id: 1, merk: 'A', breedte: 1000, hoogte: 2000 }];
   w.opslaan();
@@ -302,7 +307,7 @@ const pil = () => w.document.getElementById('cloudStatus').textContent;
   var laatste = db.projecten[0].id;
   w.cloudProjectenTonen();
   await wacht(200);
-  await w.cloudVerwijder(laatste);
+  await w.glasNuDefinitief(laatste);
   await wacht(400);
   check('de lijst meldt netjes dat er niets meer is',
     lijstTekst().length > 0 && lijstTekst().indexOf('Blijft staan') < 0, lijstTekst().slice(0, 80));

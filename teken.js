@@ -824,6 +824,10 @@
 
     svg.addEventListener('pointerdown', function (e) {
       if (actief !== fotoId) return;
+      // Besteld: ook tekenen staat vast (v91, keuze van Jan). Dit vangt
+      // het geval dat de tekenstand al aanstond toen het slot erop ging,
+      // bijvoorbeeld doordat een collega op dat moment bestelde.
+      if (window.invoerOpSlot && invoerOpSlot()) { if (window.slotWeigert) slotWeigert(); return; }
       metPen = (e.pointerType === 'pen' || e.pointerType === 'mouse');
       if (!magTekenen(e)) { metPen = false; return; }
       e.preventDefault();

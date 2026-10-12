@@ -233,3 +233,89 @@ select '12. medewerker weg' as test,
   (select eigenaar is null from public.taken where tekst = 'Taak van weg') as taak_los,
   (select eigenaar_naam from public.taken where tekst = 'Taak van weg') as naam_bewaard,
   (select gewijzigd_door is null from public.projecten where naam = 'Project van iemand') as project_los;
+
+-- ══════════════ v91 ══════════════
+
+-- 13. VSG 10.10.x krijgt 20 mm en 50 kg/m²; de rest van glas_data blijft.
+--     verwacht: 20 | 50 | 20 | 50 | 20 | 50 | 4 (Enkel glas 4 mm ongemoeid)
+insert into public.app_data (key, waarde) values ('glas_data', '{"lookup": {
+  "Gelaagd glas (VSG)|1010.2": {"glasOnly": 2, "totaal": 2, "kg_m2": 5},
+  "Gehard gelaagd (ESG+VSG)|1010.2 ESG": {"glasOnly": 2, "totaal": 2, "kg_m2": 5},
+  "Gehard gelaagd (ESG+VSG)|1010.4 ESG": {"glasOnly": 2, "totaal": 2, "kg_m2": 5},
+  "Enkel glas|4 mm": {"glasOnly": 4, "totaal": 4, "kg_m2": 10}}, "ral_kleuren": ["RAL 9010"]}'::jsonb);
+\i 17_vsg_1010.sql
+\i 17_vsg_1010.sql
+select '13. vsg 1010' as test,
+  waarde->'lookup'->'Gelaagd glas (VSG)|1010.2'->>'totaal' as vsg_mm,
+  waarde->'lookup'->'Gelaagd glas (VSG)|1010.2'->>'kg_m2' as vsg_kg,
+  waarde->'lookup'->'Gehard gelaagd (ESG+VSG)|1010.2 ESG'->>'totaal' as esg2_mm,
+  waarde->'lookup'->'Gehard gelaagd (ESG+VSG)|1010.2 ESG'->>'kg_m2' as esg2_kg,
+  waarde->'lookup'->'Gehard gelaagd (ESG+VSG)|1010.4 ESG'->>'totaal' as esg4_mm,
+  waarde->'lookup'->'Gehard gelaagd (ESG+VSG)|1010.4 ESG'->>'kg_m2' as esg4_kg,
+  waarde->'lookup'->'Enkel glas|4 mm'->>'totaal' as enkel_mm,
+  jsonb_array_length(waarde->'ral_kleuren') as ral_blijft
+  from public.app_data where key = 'glas_data';
+
+-- 14. Prullenbak: weggooien en terugzetten komen elk met naam in het logboek,
+--     de inhoud blijft, en het script mag twee keer.
+--     verwacht: na_weggooien t | 1 | julian ; na_terugzetten f | 1 | bart ; inhoud_blijft 3
+\i 18_prullenbak.sql
+\i 18_prullenbak.sql
+insert into public.projecten (id, naam, data, gewijzigd_door, gewijzigd_naam)
+  values ('00000000-0000-4000-8000-0000000000dd', 'Prullenbaktest',
+          '{"rijen":[{"id":1},{"id":2},{"id":3}]}'::jsonb,
+          '00000000-0000-4000-8000-000000000001', 'julian');
+update public.projecten
+   set verwijderd_op = now(), verwijderd_door = '00000000-0000-4000-8000-000000000001',
+       verwijderd_naam = 'julian',
+       gewijzigd_door = '00000000-0000-4000-8000-000000000001', gewijzigd_naam = 'julian'
+ where id = '00000000-0000-4000-8000-0000000000dd';
+select '14a. naar de prullenbak' as test,
+  (select verwijderd_op is not null from public.projecten where naam = 'Prullenbaktest') as weg,
+  (select count(*) from public.projectgeschiedenis
+    where project_id = '00000000-0000-4000-8000-0000000000dd' and samenvatting = 'project naar de prullenbak') as regels,
+  (select wie_naam from public.projectgeschiedenis
+    where project_id = '00000000-0000-4000-8000-0000000000dd' and samenvatting = 'project naar de prullenbak') as wie;
+update public.projecten
+   set verwijderd_op = null, verwijderd_door = null, verwijderd_naam = null,
+       gewijzigd_door = '00000000-0000-4000-8000-000000000002', gewijzigd_naam = 'bart'
+ where id = '00000000-0000-4000-8000-0000000000dd';
+select '14b. teruggezet' as test,
+  (select verwijderd_op is not null from public.projecten where naam = 'Prullenbaktest') as weg,
+  (select count(*) from public.projectgeschiedenis
+    where project_id = '00000000-0000-4000-8000-0000000000dd' and samenvatting like 'project teruggezet%') as regels,
+  (select wie_naam from public.projectgeschiedenis
+    where project_id = '00000000-0000-4000-8000-0000000000dd' and samenvatting like 'project teruggezet%') as wie,
+  (select jsonb_array_length(data->'rijen') from public.projecten where naam = 'Prullenbaktest') as inhoud_blijft;
+
+-- 15. De bestelmail (Edge Function, v91) stuurt spoor_vervolg = false mee:
+--     dan krijgt hij een eigen regel en blijft de regel ervoor staan.
+--     verwacht: 2 ruiten gewijzigd | bestelmail verstuurd naar x@y.nl
+update public.projecten
+   set data = '{"rijen":[{"id":1,"b":1},{"id":2,"b":1},{"id":3}]}'::jsonb,
+       samenvatting = '2 ruiten gewijzigd', spoor_vervolg = false,
+       gewijzigd_door = '00000000-0000-4000-8000-000000000001', gewijzigd_naam = 'julian'
+ where id = '00000000-0000-4000-8000-0000000000dd';
+update public.projecten
+   set status = 'besteld', besteld_op = now(), samenvatting = 'bestelmail verstuurd naar x@y.nl',
+       spoor_vervolg = false,
+       gewijzigd_door = '00000000-0000-4000-8000-000000000001', gewijzigd_naam = 'julian'
+ where id = '00000000-0000-4000-8000-0000000000dd';
+select '15. bestelmail eigen regel' as test, samenvatting
+  from public.projectgeschiedenis
+ where project_id = '00000000-0000-4000-8000-0000000000dd'
+   and samenvatting in ('2 ruiten gewijzigd', 'bestelmail verstuurd naar x@y.nl')
+ order by moment, id;
+
+-- 15b. Daarna slaat de app op met spoor_vervolg = true (zelfde persoon, zelfde
+--      tekst): dat werkt de regel van de mailfunctie bij, er komt er geen bij.
+--      verwacht: 1
+update public.projecten
+   set data = jsonb_set(data, '{info}', '{"status":"besteld"}'::jsonb),
+       samenvatting = 'bestelmail verstuurd naar x@y.nl', spoor_vervolg = true,
+       gewijzigd_door = '00000000-0000-4000-8000-000000000001', gewijzigd_naam = 'julian'
+ where id = '00000000-0000-4000-8000-0000000000dd';
+select '15b. geen dubbele regel' as test, count(*) as regels_bestelmail
+  from public.projectgeschiedenis
+ where project_id = '00000000-0000-4000-8000-0000000000dd'
+   and samenvatting = 'bestelmail verstuurd naar x@y.nl';

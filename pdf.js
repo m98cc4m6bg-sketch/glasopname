@@ -14,9 +14,11 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v90';
-  var JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
-  var TABEL_URL = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
+  var PDF_VERSIE = 'v91';
+  // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
+  // service worker en werkt de eerste pdf na een update ook zonder bereik.
+  var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
+  var TABEL_URL = 'lib/jspdf-autotable-3.8.4/jspdf.plugin.autotable.min.js';
 
   var MARGE = 12;          // mm
   var BREEDTE = 210;       // wordt per export gezet (staand of liggend)
@@ -90,16 +92,35 @@
 
   /* ─── bibliotheken ─────────────────────────────────────────── */
 
+  // Eén belofte per bibliotheek. Tot v90 telde een <script>-regel van een
+  // mislukte poging bij de volgende keer als 'geladen', en bleef de pdf
+  // daarna kapot tot je de app herlaadde. Nu wordt een mislukte poging
+  // opgeruimd, en wacht een tweede aanroep op dezelfde lading (v91).
+  var geladen = {};
+  // Staat de bibliotheek er al (eerder geladen, of door een testreeks
+  // klaargezet), dan niets laden.
+  function alAanwezig(url) {
+    var j = window.jspdf && window.jspdf.jsPDF;
+    if (url === JSPDF_URL) return !!j;
+    if (url === TABEL_URL) return !!(j && j.API && j.API.autoTable);
+    return false;
+  }
   function laad(url) {
-    return new Promise(function (ok, fout) {
-      if (document.querySelector('script[data-pdf="' + url + '"]')) { ok(); return; }
+    if (alAanwezig(url)) return Promise.resolve();
+    if (geladen[url]) return geladen[url];
+    geladen[url] = new Promise(function (ok, fout) {
       var s = document.createElement('script');
       s.src = url;
       s.setAttribute('data-pdf', url);
-      s.onload = ok;
-      s.onerror = function () { fout(new Error('kon de pdf-bibliotheek niet laden — is er internet?')); };
+      s.onload = function () { ok(); };
+      s.onerror = function () {
+        delete geladen[url];
+        if (s.parentNode) s.parentNode.removeChild(s);
+        fout(new Error('kon de pdf-bibliotheek niet laden — probeer het nog eens'));
+      };
       document.head.appendChild(s);
     });
+    return geladen[url];
   }
 
   /* ─── afbeelding ophalen als gegevens ──────────────────────── */
@@ -319,16 +340,23 @@
     return doc.lastAutoTable.finalY;
   }
 
+  // De maat van elke pagina zelf gebruiken, niet BREEDTE/HOOGTE. Een
+  // bestellijst is liggend, maar de leverpagina erachter staand; die zet
+  // zetFormaat(false), en daarna kwam de voettekst van álle pagina's op
+  // 290 mm — op een liggende pagina van 210 mm hoog dus van het blad (v91).
   function voetteksten(doc, project, datum) {
     var n = doc.internal.getNumberOfPages();
     for (var i = 1; i <= n; i++) {
       doc.setPage(i);
+      var maat = doc.internal.pageSize;
+      var b = maat.getWidth ? maat.getWidth() : BREEDTE;
+      var h = maat.getHeight ? maat.getHeight() : HOOGTE;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(120, 128, 140);
       doc.text(schoon('Jelier Bouw B.V.  |  ' + (project || 'Glasopname') +
-               (datum ? '  |  ' + datum : '')), MARGE, HOOGTE - 7);
-      doc.text('pagina ' + i + ' van ' + n, BREEDTE - MARGE, HOOGTE - 7, { align: 'right' });
+               (datum ? '  |  ' + datum : '')), MARGE, h - 7);
+      doc.text('pagina ' + i + ' van ' + n, b - MARGE, h - 7, { align: 'right' });
     }
   }
 
@@ -867,9 +895,37 @@
     return regels.join('\n');
   }
 
-  function sluitVenster(laag) { if (laag && laag.parentNode) laag.parentNode.removeChild(laag); }
+  var mailVensterOpen = false;
+  function sluitVenster(laag) {
+    mailVensterOpen = false;
+    if (laag && laag.parentNode) laag.parentNode.removeChild(laag);
+  }
+
+  function datumTijd(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+           d.getFullYear() + ' ' + String(d.getHours()).padStart(2, '0') + ':' +
+           String(d.getMinutes()).padStart(2, '0');
+  }
+
+  // Is er voor dit project al een bestelmail de deur uit? Eerst in het
+  // maillogboek van de database kijken (dat weet het ook als een collega
+  // of een ander apparaat hem verstuurde), anders in de opname zelf (v91).
+  function eerdereBestelling() {
+    var i = (typeof projectInfo === 'object' && projectInfo) || {};
+    var lokaal = i.bestelmail && i.bestelmail.op
+      ? { op: i.bestelmail.op, aan: i.bestelmail.aan || '', wie: i.bestelmail.door || '' } : null;
+    if (!window.glasMailLog) return Promise.resolve(lokaal);
+    return Promise.resolve(glasMailLog()).then(function (log) {
+      var m = (log || []).find(function (x) { return x && x.soort === 'bestelling' && x.gelukt; });
+      return m ? { op: m.moment, aan: m.aan || '', wie: m.wie_naam || '' } : lokaal;
+    }, function () { return lokaal; });
+  }
 
   window.bestelmailVenster = function () {
+    // Twee keer tikken op een iPad gaf twee vensters op elkaar (v91).
+    if (mailVensterOpen) return;
     if (!window.glasMail || !window.glasProjectId) {
       if (window.appFout) {
         appFout('Een bestelmail kan alleen vanuit een project dat in de cloud staat. ' +
@@ -888,7 +944,12 @@
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
 
-    Promise.resolve(window.glasMailAdressen ? glasMailAdressen() : []).then(function (adressen) {
+    mailVensterOpen = true;
+    Promise.all([
+      Promise.resolve(window.glasMailAdressen ? glasMailAdressen() : []),
+      eerdereBestelling()
+    ]).then(function (uit) {
+      var adressen = uit[0], eerder = uit[1];
       var laag = document.createElement('div');
       laag.className = 'melding-laag';
       var vinkjes = (adressen || []).map(function (a, n) {
@@ -904,6 +965,10 @@
       laag.innerHTML =
         '<div class="melding-venster mail-venster" role="dialog" aria-modal="true" aria-label="Bestelmail">' +
           '<h3>Bestelmail versturen</h3>' +
+          (eerder ? '<div class="mail-al-besteld"><b>Dit project is al besteld</b> op ' +
+            esc(datumTijd(eerder.op)) + (eerder.wie ? ' door ' + esc(eerder.wie) : '') +
+            (eerder.aan ? ', naar ' + esc(eerder.aan) : '') + '. Nog een keer versturen geeft ' +
+            'de leverancier een tweede bestelling. Is er iets gewijzigd, zeg dat dan in het bericht.</div>' : '') +
           '<div class="mail-vak"><label class="mail-kop">Aan</label>' + vinkjes +
             '<input type="text" id="mailExtra" placeholder="nog een adres, bijvoorbeeld inkoop@…">' +
           '</div>' +
@@ -919,7 +984,7 @@
           '<div class="mail-melding" id="mailMelding"></div>' +
           '<div class="melding-knoppen">' +
             '<button class="btn btn-secondary" id="mailAf">Annuleren</button>' +
-            '<button class="btn btn-primary" id="mailVerstuur">Versturen</button>' +
+            '<button class="btn btn-primary" id="mailVerstuur">' + (eerder ? 'Toch opnieuw versturen' : 'Versturen') + '</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(laag);
@@ -972,10 +1037,13 @@
           .then(function (uit) {
             knop.disabled = false;
             if (!uit || !uit.ok) {
+              // De app heeft bij de database nagekeken of de functie hem
+              // toch verstuurde (cloud.js); dit is dus echt niet gelukt.
               melding.textContent = 'Niet verstuurd: ' + ((uit && uit.fout) || 'onbekende fout') +
                 '  — het project blijft dus op de oude status staan.';
               return;
             }
+            var echtAan = (uit.aan && uit.aan.length) ? uit.aan : aan;
             // Verstuurd zonder pdf? Dan is het bestelmoment nog niet
             // vastgelegd (dat doet de pdf-bouwer). De mail is de
             // bestelling, dus hier alsnog (v88).
@@ -986,16 +1054,19 @@
             if (window.renderBestellijst) renderBestellijst();
             if (window.logboekLaden) logboekLaden();
             if (window.appMelding) {
-              appMelding('De bestelmail is verstuurd naar ' + aan.join(', ') + '.\n' +
-                         'Het project staat nu op "besteld" en de maten zijn vastgezet.',
-                         { kop: 'Verstuurd' });
+              appMelding((uit.nagekeken
+                ? 'Het antwoord van de mailfunctie kwam niet aan, maar de database laat zien dat de ' +
+                  'bestelmail wél verstuurd is, naar ' + echtAan.join(', ') + '. Niet opnieuw versturen.\n'
+                : 'De bestelmail is verstuurd naar ' + echtAan.join(', ') + '.\n') +
+                'Het project staat nu op "besteld" en de maten zijn vastgezet.',
+                { kop: 'Verstuurd' });
             }
           }, function (e) {
             knop.disabled = false;
             melding.textContent = 'Niet verstuurd: ' + ((e && e.message) || 'onbekende fout');
           });
       };
-    });
+    }, function () { mailVensterOpen = false; });
   };
 
   /* ═══════════════ Cmd+P / Ctrl+P ═══════════════ */

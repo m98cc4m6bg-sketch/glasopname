@@ -117,6 +117,10 @@
   // zetten alleen de regels van deze tabel terug. De rest blijft staan.
 
   var vooruitPerBlok = {};
+  // Leeg bij het wisselen van project, samen met de stapels in undo.js
+  // (v91). Anders zette ↷ in de tabel 'Zonder foto' regels van het vorige
+  // project terug in het project dat nu openstaat.
+  window.blokVooruitLeeg = function () { vooruitPerBlok = {}; };
 
   function zelfdeRegels(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 

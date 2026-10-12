@@ -43,8 +43,14 @@
     var wie = el('startGebruiker');
     if (wie) wie.innerHTML = naam ? 'Ingelogd als <b>' + esc2(naam) + '</b>' : '';
     vulVerder();
-    vulTaken();
+    // Eerst opruimen wat langer dan 30 dagen in de prullenbak staat, dan
+    // pas de prullenbak tonen. De taken van projecten in de prullenbak
+    // horen niet onder 'Mijn taken' (v91).
+    var prul = (window.glasPrullenbakOpruimen ? glasPrullenbakOpruimen() : Promise.resolve())
+      .then(function () { return window.glasPrullenbak ? glasPrullenbak() : []; }, function () { return []; });
+    vulTaken(prul);
     vulProjecten(el('startZoek') ? el('startZoek').value : '');
+    prul.then(vulPrullenbak);
   };
 
   window.glasToonApp = function () {
@@ -87,15 +93,18 @@
 
   /* ─── mijn taken ──────────────────────────────────────────── */
 
-  function vulTaken() {
+  function vulTaken(prul) {
     var vak = el('startTaken');
     var teller = el('startTakenTelling');
     if (!vak || !window.glasMijnTaken) return;
     vak.innerHTML = '<div class="start-leeg">Taken ophalen…</div>';
 
-    Promise.all([glasMijnTaken(), window.glasProjecten ? glasProjecten('') : Promise.resolve({ data: [] })])
+    Promise.all([glasMijnTaken(), window.glasProjecten ? glasProjecten('') : Promise.resolve({ data: [] }),
+                 Promise.resolve(prul || [])])
       .then(function (uit) {
-        var taken = uit[0] || [];
+        var weg = {};
+        (uit[2] || []).forEach(function (p) { weg[p.id] = true; });
+        var taken = (uit[0] || []).filter(function (t) { return !weg[t.project_id]; });
         var projecten = (uit[1] && uit[1].data) || [];
         var naamVan = {};
         projecten.forEach(function (p) { naamVan[p.id] = p.naam; });
@@ -179,6 +188,66 @@
       }).join('');
     });
   }
+
+  /* ─── prullenbak (v91) ───────────────────────────────────── */
+
+  var prullenbakOpen = false;
+
+  function dagenOver(iso) {
+    var t = new Date(iso).getTime();
+    if (!isFinite(t)) return '';
+    var dagen = window.glasPrullenbakDagen || 30;
+    var over = Math.ceil((t + dagen * 864e5 - Date.now()) / 864e5);
+    if (over <= 0) return 'wordt bij de volgende start opgeruimd';
+    return 'nog ' + over + (over === 1 ? ' dag' : ' dagen');
+  }
+
+  function vulPrullenbak(lijst) {
+    var blok = el('startPrullenbakBlok');
+    var vak = el('startPrullenbak');
+    if (!blok || !vak) return;
+    lijst = lijst || [];
+    blok.hidden = !lijst.length;
+    var teller = el('startPrullenbakTelling');
+    if (teller) teller.textContent = lijst.length ? String(lijst.length) : '';
+    vak.hidden = !prullenbakOpen;
+    var pijl = el('startPrullenbakPijl');
+    if (pijl) pijl.textContent = prullenbakOpen ? '▾' : '▸';
+    vak.innerHTML = '<div class="prul-uitleg">Verwijderde projecten blijven hier ' +
+      (window.glasPrullenbakDagen || 30) + ' dagen staan, met foto\'s en logboek. Daarna worden ze ' +
+      'opgeruimd. Terugzetten kan iedereen.</div>' +
+      lijst.map(function (p) {
+        return '<div class="prul-item">' +
+          '<div class="prul-info"><strong>' + esc2(p.naam || '(naamloos)') + '</strong>' +
+          '<span>' + (p.adres ? esc2(p.adres) + ' · ' : '') + (p.aantal_ruiten || 0) + ' ruiten · ' +
+          'verwijderd ' + datumKort(p.verwijderd_op) +
+          (p.verwijderd_naam ? ' door ' + esc2(p.verwijderd_naam) : '') + ' · ' + dagenOver(p.verwijderd_op) +
+          '</span></div>' +
+          '<div class="prul-knoppen">' +
+            '<button class="btn btn-secondary btn-sm" onclick="startTerugzetten(\'' + esc2(p.id) + '\')">Terugzetten</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="startDefinitief(\'' + esc2(p.id) + '\')">Nu definitief verwijderen</button>' +
+          '</div></div>';
+      }).join('');
+    vak.__lijst = lijst;
+  }
+
+  window.startPrullenbakKlap = function () {
+    prullenbakOpen = !prullenbakOpen;
+    var vak = el('startPrullenbak');
+    vulPrullenbak(vak ? vak.__lijst : []);
+  };
+
+  window.startTerugzetten = function (id) {
+    if (!window.glasTerugzetten) return;
+    glasTerugzetten(id);          // ververst zelf de lijsten
+  };
+
+  window.startDefinitief = function (id) {
+    if (!window.glasNuDefinitief) return;
+    var vak = el('startPrullenbak');
+    var p = ((vak && vak.__lijst) || []).find(function (x) { return x.id === id; }) || {};
+    glasNuDefinitief(id, p.naam); // ververst zelf de lijsten
+  };
 
   window.startZoeken = function (waarde) {
     clearTimeout(zoekTimer);

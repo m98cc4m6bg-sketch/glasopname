@@ -170,14 +170,34 @@
 
   window.projectVeld = function (id, waarde) {
     var oud = info()[id];
-    info()[id] = waarde;
     if (id === 'status' && waarde !== oud) {
+      var rang = window.statusRang || function () { return 0; };
+      // Terug naar vóór 'besteld' gaat alleen na ontgrendelen, met je eigen
+      // wachtwoord (v91, keuze van Jan). Tot v90 kon je zo om het slot heen:
+      // status op 'geleverd' of 'aangemaakt', maten wijzigen, terug.
+      if (rang(oud) >= 2 && rang(waarde) < 2 && window.invoerOpSlot && invoerOpSlot()) {
+        if (window.appFout) {
+          appFout('Dit project is besteld. De status terugzetten naar "' + waarde + '" kan pas ' +
+                  'na ‹Ontgrendelen› in de balk bovenaan Invoer — dat komt met je naam in het logboek.',
+                  { kop: 'Op slot' });
+        }
+        if (window.renderProject) renderProject();   // keuzelijst terug op de oude waarde
+        return;
+      }
+      info()[id] = waarde;
       // Met de hand een status kiezen mag, maar het hoort wel in het
       // logboek te staan — vooral de stap naar of van 'besteld' (v88).
       if (window.glasSpoorNotitie) glasSpoorNotitie('status met de hand op "' + waarde + '"');
       if (window.glasMarkeerWerk) glasMarkeerWerk();
-      if (waarde !== 'besteld') info().slot = null;
+      // Het slot (en de ontgrendeling) hoort bij 'besteld en later'; tussen
+      // die statussen blijft het zoals het was (v91).
+      if (rang(waarde) < 2) info().slot = null;
+      // Een bewuste stap terug: cloud.js mag die dan ook versturen, in
+      // plaats van de status van de server over te nemen (v91).
+      if (rang(waarde) < rang(oud) && window.glasStatusHandmatig) glasStatusHandmatig();
       if (window.renderTabel) renderTabel();
+    } else {
+      info()[id] = waarde;
     }
     opslaan();
     if (id === 'straat' || id === 'postcode' || id === 'plaats') toonKaartknop();

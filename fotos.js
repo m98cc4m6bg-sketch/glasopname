@@ -187,7 +187,7 @@
 
     window.pdfBibliotheek().then(function (lib) {
       return file.arrayBuffer().then(function (buf) {
-        return lib.getDocument({ data: buf }).promise;
+        return lib.getDocument({ data: buf, isEvalSupported: false }).promise;
       });
     }).then(function (pdf) {
       tekeningPdf = pdf;
@@ -1193,6 +1193,9 @@
       bol.classList.remove('sleept');
       try { bol.releasePointerCapture(e.pointerId); } catch (err) {}
       var foto = fotoVan(fotoId);
+      // In een besteld project staat de foto vast (v91). slotWeigert tekent
+      // het scherm opnieuw, dus het bolletje springt terug.
+      if (gesleept && window.invoerOpSlot && invoerOpSlot()) { slotWeigert(); return; }
       if (gesleept && positie && foto && foto.markeringen[index]) {
         if (window.bewaarStap) bewaarStap('Markering verplaatst');
         foto.markeringen[index].x = positie.x;
@@ -1334,6 +1337,10 @@
 
   var origVerwijder = window.verwijderRij;
   window.verwijderRij = function (id) {
+    // Op slot: de oorspronkelijke functie weigert, en dan horen de
+    // bolletjes ook te blijven staan. Tot v90 waren ze dan al weggehaald,
+    // en de volgende opslag nam dat mee (v91).
+    if (window.invoerOpSlot && invoerOpSlot()) return origVerwijder(id);
     fotos.forEach(function (f) {
       f.markeringen = f.markeringen.filter(function (m) { return m.rijId !== id; });
     });

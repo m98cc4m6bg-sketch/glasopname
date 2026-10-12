@@ -10,6 +10,21 @@ function check(naam, ok, extra) {
   console.log((ok ? '  ok   ' : '  FOUT ') + naam + (extra ? '  → ' + extra : ''));
   if (!ok) fouten++;
 }
+// Een testvenster dat gesloten is, kan nog een nagekomen aanroep hebben
+// lopen (de nagebootste database antwoordt met beloftes van buiten het
+// venster, en die lopen na close() gewoon door). In een echte browser
+// bestaat dat niet: een pagina wordt daar niet halverwege 'gesloten'. Zo'n
+// aanroep crashte de reeks bij de overgang 9 → 10 (gezien bij v91). Alleen
+// díe fout, en alleen vlak na een sluiting, wordt hier genegeerd.
+let laatsteSluiting = 0;
+process.on('uncaughtException', function (e) {
+  if (Date.now() - laatsteSluiting < 5000 && /reading 'getElementById'/.test(String(e && e.message))) {
+    console.log('   (nagekomen aanroep in een al gesloten testvenster genegeerd)');
+    return;
+  }
+  console.error(e);
+  process.exit(1);
+});
 const wacht = ms => new Promise(r => setTimeout(r, ms));
 async function wachtTot(voorwaarde, maximaal) {
   const eind = Date.now() + (maximaal || 8000);
@@ -61,10 +76,15 @@ function bouwer(tabel) {
   b.delete = function () { st.op = 'delete'; return b; };
   b.eq = function (k, v) { st.filters[k] = v; return b; };
   b.or = b.order = b.limit = function () { return b; };
+  // .is(k, null) en .not(k, 'is', null): de prullenbak (v91).
+  st.leeg = []; st.gevuld = [];
+  b.is = function (k) { st.leeg.push(k); return b; };
+  b.not = function (k) { st.gevuld.push(k); return b; };
 
   function rijen() {
     return (db[tabel] || []).filter(r =>
-      Object.keys(st.filters).every(k => r[k] === st.filters[k]));
+      Object.keys(st.filters).every(k => r[k] === st.filters[k]) &&
+      st.leeg.every(k => r[k] == null) && st.gevuld.every(k => r[k] != null));
   }
   function antwoord(enkel) {
     if (gebruikersWeg && tabel === 'gebruikers') {
@@ -115,7 +135,10 @@ function mailFunctie(lading) {
     onderwerp: lading.onderwerp, gelukt: !stuk, fout: stuk ? 'adres bestaat niet' : null,
     wie_naam: lading.wieNaam, moment: new Date().toISOString()
   });
-  if (stuk) return { data: null, error: { message: 'adres bestaat niet' } };
+  // Zoals supabase-js een fout van de functie teruggeeft: een algemene
+  // melding, met het antwoord van de functie in context (v91).
+  if (stuk) return { data: null, error: { message: 'Edge Function returned a non-2xx status code',
+    context: { json: function () { return Promise.resolve({ ok: false, fout: 'adres bestaat niet' }); } } } };
   if (lading.soort === 'bestelling' && lading.projectId) {
     const p = db.projecten.find(x => x.id === lading.projectId);
     if (p) { p.status = 'besteld'; p.besteld_op = new Date().toISOString(); }
@@ -330,7 +353,7 @@ function laatsteSpoor() {
   check('als soort taak', m.soort === 'taak', m.soort);
   check('met de taak en een link naar het project in de tekst',
     /Rooster nameten/.test(m.tekst) && m.tekst.indexOf('#project=' + PROJECT) >= 0);
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
 
   console.log('\n8. Een adres dat niet bestaat: geen status besteld');
   resetDb();
@@ -357,7 +380,7 @@ function laatsteSpoor() {
   check('en de mislukte poging is vastgelegd',
     db.mailverzonden.length === 1 && db.mailverzonden[0].gelukt === false);
   check('de maten zijn niet op slot gegaan', w.invoerOpSlot() === false);
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
 
   console.log('\n9. Het SQL-script van v88 is nog niet gedraaid');
   resetDb();
@@ -382,7 +405,7 @@ function laatsteSpoor() {
   console.log('\n10. Drie ruiten één voor één weg geeft één kloppende regel');
   // Dit was de klacht: drie losse regels weggooien kwam in het logboek
   // terecht als "1 ruit verwijderd".
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
   resetDb();
   const p0 = db.projecten.find(p => p.id === PROJECT);
   // Al in bedrijf, zodat de statusovergang niet tussendoor komt.
@@ -416,6 +439,6 @@ function laatsteSpoor() {
     JSON.stringify(vervolgen));
 
   console.log('\n' + (fouten ? fouten + ' fout(en).' : 'Alles goed.'));
-  w.close();
+  laatsteSluiting = Date.now(); w.close();
   process.exit(fouten ? 1 : 0);
 })();

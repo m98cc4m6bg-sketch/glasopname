@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v90';
+const VERSIE = 'v91';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -29,7 +29,17 @@ const SHELL = [
   './favicon.png',
   './apple-touch-icon.png',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  // De bibliotheken staan sinds v91 in de repo, op een vaste versie. Tot
+  // v90 kwamen ze van de CDN en werden ze pas bij het eerste gebruik
+  // bewaard — in de cache van díe versie, die bij elke update weggegooid
+  // wordt. Na een update kon de eerste pdf of import dus alleen online.
+  './lib/supabase-js-2.117.2/supabase.js',
+  './lib/jspdf-2.5.2/jspdf.umd.min.js',
+  './lib/jspdf-autotable-3.8.4/jspdf.plugin.autotable.min.js',
+  './lib/xlsx-0.18.5/xlsx.full.min.js',
+  './lib/pdfjs-3.11.174/pdf.min.js',
+  './lib/pdfjs-3.11.174/pdf.worker.min.js'
 ];
 
 // De foto's van de glascatalogus. Ze staan apart omdat ze samen een paar
@@ -164,7 +174,10 @@ self.addEventListener('fetch', e => {
 
   // De catalogusfoto's veranderen niet binnen een versie: eerst de cache.
   // Scheelt op locatie een hoop wachten en verkeer.
-  if (url.pathname.indexOf('/catalogus/') >= 0 || url.pathname.indexOf('/roosters/') >= 0) {
+  // Zelfde voor de bibliotheken in lib/: het versienummer staat in de
+  // mapnaam, dus binnen een map verandert er nooit iets (v91).
+  if (url.pathname.indexOf('/catalogus/') >= 0 || url.pathname.indexOf('/roosters/') >= 0 ||
+      url.pathname.indexOf('/lib/') >= 0) {
     e.respondWith(
       caches.open(CACHE).then(c => c.match(e.request).then(hit => hit || fetch(e.request)
         .then(res => { if (res && res.ok) c.put(e.request, res.clone()); return res; })

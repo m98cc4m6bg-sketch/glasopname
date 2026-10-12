@@ -153,5 +153,22 @@ const inSw = (sw.match(/\.\/catalogus\/[a-z0-9-]+\.jpg/g) || []).length;
 check('sw.js cachet alle catalogusfoto\'s', inSw === opSchijf,
   inSw + ' in sw.js, ' + opSchijf + ' op schijf');
 
+// v91: de bibliotheken staan in lib/. Elk pad dat de app gebruikt moet op
+// schijf staan én in de SHELL-lijst van sw.js — anders werkt het offline
+// niet, en dat merk je pas op een dak (handover §6.3).
+console.log('\nBibliotheken in lib/ (v91)');
+{
+  const bronnen = ['index.html', 'pdf.js', 'import.js'].map(f => fs.readFileSync(f, 'utf8')).join('\n');
+  const paden = Array.from(new Set((bronnen.match(/lib\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+\.js/g) || [])));
+  const sw = fs.readFileSync('sw.js', 'utf8');
+  check('de app verwijst naar zes bibliotheken in lib/', paden.length === 6, paden.join(', '));
+  paden.forEach(p => {
+    check(p + ' staat op schijf', fs.existsSync(p));
+    check(p + ' staat in de SHELL van sw.js', sw.indexOf("'./" + p + "'") >= 0);
+  });
+  check('geen bibliotheek meer van de CDN',
+    !/cdn\.jsdelivr\.net/.test(['index.html', 'pdf.js', 'import.js'].map(f => fs.readFileSync(f, 'utf8')).join('')));
+}
+
 console.log('\n' + (fouten === 0 ? 'Alles goed.' : fouten + ' fout(en).'));
 process.exit(fouten === 0 ? 0 : 1);

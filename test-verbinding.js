@@ -65,7 +65,7 @@ let jwtFouten = 0;     // aantal keren dat de server 'JWT issued at future' geef
 
 function bouwer(tabel) {
   const b = {};
-  ['select', 'eq', 'order', 'limit', 'update', 'insert', 'delete'].forEach(function (naam) {
+  ['select', 'eq', 'order', 'limit', 'update', 'insert', 'delete', 'is', 'not', 'or'].forEach(function (naam) {
     b[naam] = function () {
       if (naam === 'select') teller.select++;
       if (naam === 'update') teller.update++;

@@ -78,5 +78,21 @@ check('nieuwe figuurglasnaam leesbaar in de tabel', 'Crepi blank' in eerste,
 check('het kastlijntje is niet verhaspeld', 'Figuurglas' in eerste,
       [r for r in eerste.split('\n') if 'Figuurglas' in r][:1])
 
+print('\n5. De voettekst staat op elke pagina binnen het blad (v91)')
+# Tot v90 viel hij van de liggende bestellijstpagina's af: de leverpagina
+# erachter is staand, en de voettekst rekende met de hoogte daarvan.
+with pdfplumber.open('uit-vol.pdf') as pdf:
+    n = len(pdf.pages)
+    for i, p in enumerate(pdf.pages, 1):
+        woorden = p.extract_words()
+        voet = [w for w in woorden if w['text'] == 'pagina']
+        liggend = p.width > p.height
+        binnen = bool(voet) and all(0 <= w['bottom'] <= p.height and 0 <= w['x1'] <= p.width for w in voet)
+        tekst = p.extract_text() or ''
+        check('pagina %d (%s): "pagina %d van %d" staat erop' % (i, 'liggend' if liggend else 'staand', i, n),
+              binnen and ('pagina %d van %d' % (i, n)) in tekst,
+              [round(w['bottom']) for w in voet] + [round(p.height)])
+        check('pagina %d: projectregel in de voettekst' % i, 'Jelier Bouw B.V.' in tekst)
+
 print('\n' + ('Alles goed.' if fouten == 0 else str(fouten) + ' fout(en).'))
 sys.exit(0 if fouten == 0 else 1)

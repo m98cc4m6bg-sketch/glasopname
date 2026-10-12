@@ -21,6 +21,9 @@ fs.readdirSync('.').forEach(function (naam) {
   if (fs.statSync(naam).isDirectory()) return;
   fs.copyFileSync(naam, path.join(map, naam));
 });
+// De bibliotheken staan sinds v91 in lib/; die horen mee, zodat deze test
+// ook nagaat dat de app ze daar werkelijk vindt.
+if (fs.existsSync('lib')) fs.cpSync('lib', path.join(map, 'lib'), { recursive: true });
 fs.writeFileSync(path.join(map, 'config.js'),
   'window.GLASOPNAME_CONFIG = { url: "VUL_IN", anonKey: "VUL_IN" };\n');
 
@@ -66,6 +69,17 @@ const server = http.createServer(function (req, res) {
   check('de invoertabel is opgebouwd', await page.locator('#invoerBody tr').count() >= 5,
     (await page.locator('#invoerBody tr').count()) + ' regels');
   check('geen fouten in de console', consoleFouten.length === 0, consoleFouten.slice(0, 3).join(' | '));
+  check('Supabase komt uit lib/ (v91), niet van de CDN',
+    await page.evaluate(() => !!(window.supabase && window.supabase.createClient)));
+  const libs = await page.evaluate(async function () {
+    const paden = ['lib/xlsx-0.18.5/xlsx.full.min.js', 'lib/pdfjs-3.11.174/pdf.min.js',
+                   'lib/pdfjs-3.11.174/pdf.worker.min.js', 'lib/jspdf-2.5.2/jspdf.umd.min.js',
+                   'lib/jspdf-autotable-3.8.4/jspdf.plugin.autotable.min.js'];
+    const uit = [];
+    for (const p of paden) uit.push((await fetch(p)).status);
+    return uit;
+  });
+  check('de andere bibliotheken staan op hun plek in lib/', libs.every(s => s === 200), libs.join(','));
 
   console.log('\n2. Een ruit invullen en narekenen');
   await page.fill('#invoerBody tr:first-child .merk-input', 'A');

@@ -589,8 +589,14 @@
           '<div class="foto-aanwijsbalk" id="aanwijs-' + f.id + '"></div>' +
           '<div class="foto-hint">Tik op de foto om een ruit toe te voegen. Sleep een bolletje om het te verplaatsen, ' +
           'of tik erop voor meer keuzes.</div>'
-        : '<div class="foto-geenfoto">Deze groep heeft geen foto (meer). De ruiten hieronder blijven ' +
-          'gewoon bestaan, en zijn toegevoegd aan de sectie \u201czonder foto of tekening\u201d.' +
+        // Tot v91 stond hier dat de ruiten naar "zonder foto of tekening"
+        // verhuisd waren. Dat klopte niet: ze blijven in deze groep staan.
+        // Alleen bij '🗑 Groep' met 'Ruiten bewaren' gaan ze daarheen (v92).
+        : '<div class="foto-geenfoto">' + (rijenVan(f.id).length
+            ? 'Deze groep heeft geen foto (meer). De ruiten hieronder blijven gewoon in deze groep ' +
+              'staan. Zet er een nieuwe foto in om ze opnieuw aan te wijzen.'
+            : 'Deze groep heeft geen foto en geen ruiten. Zet er een foto in, of verwijder de groep met ' +
+              '\u2039\ud83d\uddd1 Groep\u203a.') +
           '<button class="btn btn-primary btn-sm" onclick="fotoAanGroep(\'' + f.id + '\')">+ Foto toevoegen</button></div>';
 
       var aantal = rijenVan(f.id).length;
@@ -964,12 +970,27 @@
     var f = fotoVan(id);
     if (!f || !f.pad) return;
     var aantal = rijenVan(id).length;
+    // Zonder ruiten heeft een groep zonder foto geen enkele functie meer;
+    // dan gaat de hele groep weg. Tot v91 bleef er een lege groep staan met
+    // een melding over ruiten die er niet waren (gemeld door Jan, v92).
     if (!await appVraag('De ' + soortNaam(f) + ' verwijderen?' + (aantal
-        ? '\nDe ' + aantal + ' ruiten eronder blijven staan. Je kunt er daarna een nieuwe ' +
+        ? '\nDe ' + aantal + (aantal === 1 ? ' ruit eronder blijft' : ' ruiten eronder blijven') +
+          ' in deze groep staan. Je kunt er daarna een nieuwe ' +
           soortNaam(f) + ' in zetten en dezelfde merkletters opnieuw aanwijzen.'
-        : ''), { kop: 'Afbeelding verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
+        : '\nEr staan geen ruiten in deze groep, dus de groep gaat ook weg.'),
+        { kop: 'Afbeelding verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
     f = fotoVan(id);
     if (!f || !f.pad) return;
+    if (!rijenVan(id).length) {
+      if (window.bewaarStap) bewaarStap('Foto en lege groep verwijderd');
+      // Het bestand blijft in Storage staan, net als hieronder (ongedaan maken).
+      fotos = fotos.filter(function (x) { return x.id !== id; });
+      aanwijzen = null;
+      opslaan();
+      renderTabel();
+      renderFotos();
+      return;
+    }
     if (window.bewaarStap) bewaarStap('Foto verwijderd');
     // Het bestand blijft in Storage staan: anders is ongedaan maken een
     // lege huls en krijg je de melding dat de foto 'er wel staat maar niet

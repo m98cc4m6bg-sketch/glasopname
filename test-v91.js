@@ -1,4 +1,4 @@
-/* Testreeks v91 — node test-v91.js
+/* Testreeks v91 (+ v92 in §7) — node test-v91.js
    De punten uit de doorlichting van v90. Elk scenario toetst de belofte
    op de gegevens (wat staat er in de opname en in de nagebootste
    database), niet op de knoppen — de les van v90.
@@ -466,6 +466,44 @@ async function open(url) {
   check('staat de oude waarde nog in de database, dan zet de app hem goed',
     w.eval("DATA.lookup['Gelaagd glas (VSG)|1010.2'].totaal") === 20,
     String(w.eval("DATA.lookup['Gelaagd glas (VSG)|1010.2'].totaal")));
+  laatsteSluiting = Date.now(); w.close();
+
+
+  console.log('\n7. Leegmaken en dan de foto weg: alles weg (v92, melding van Jan)');
+  zetProject('bezig met inmeten/verwerken');
+  w = await open('https://jelierbouw.test/#project=' + PROJECT);
+  w.__antwoord = true;
+  await w.blokLeeg('f1');
+  await wacht(200);
+  check('na leegmaken staan er geen ruiten meer onder de foto',
+    w.eval("rijen.filter(function(r){return r.fotoId==='f1';}).length") === 0);
+  await w.fotoVerwijder('f1');
+  await wacht(300);
+  check('de foto weg uit een lege groep haalt de hele groep weg', w.eval('fotos.length') === 0,
+    String(w.eval('fotos.length')));
+  check('er staat geen melding over verhuisde ruiten',
+    !/zonder foto of tekening”/.test(w.document.getElementById('fotoHouder').textContent) &&
+    !w.document.querySelector('.foto-geenfoto'),
+    w.document.getElementById('fotoHouder').textContent.replace(/\s+/g, ' ').slice(0, 120));
+  check('de losse ruit C staat er nog gewoon', w.eval("rijen.some(function(r){return r.merk==='C';})"));
+  w.ongedaan();
+  await wacht(300);
+  check('Cmd+Z zet foto en groep terug', w.eval('fotos.length') === 1);
+  laatsteSluiting = Date.now(); w.close();
+
+  zetProject('bezig met inmeten/verwerken');
+  w = await open('https://jelierbouw.test/#project=' + PROJECT);
+  w.__antwoord = true;
+  await w.fotoVerwijder('f1');
+  await wacht(300);
+  check('met ruiten blijft de groep staan, zonder foto',
+    w.eval('fotos.length') === 1 && w.eval('fotos[0].pad') === null);
+  check('en de ruit blijft in die groep (niet bij de losse maten)',
+    w.eval("rijen.filter(function(r){return r.fotoId==='f1';}).length") === 1 &&
+    !w.eval("losseRijen().some(function(r){return r.merk==='A';})"));
+  const tekst = (w.document.querySelector('.foto-geenfoto') || {}).textContent || '';
+  check('de melding zegt dat de ruiten in deze groep blijven',
+    /in deze groep/.test(tekst) && !/toegevoegd aan de sectie/.test(tekst), tekst.slice(0, 120));
   laatsteSluiting = Date.now(); w.close();
 
   console.log('\n' + (fouten ? fouten + ' fout(en).' : 'Alles goed.'));

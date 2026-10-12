@@ -45,6 +45,24 @@ De volledige achtergrond staat in de projectkennis op claude.ai
 * Een nieuwe functie die regels, bolletjes of tekeningen verandert? In
   `SLOT_FUNCTIES` zetten, of laten lopen via `setVal`.
 * Toets in testen de belofte op de gegevens, niet de knoppen (de les van v90).
+  **Én** klik minstens één keer echt op de knop, in Chromium (`test-v93.js`):
+  de knop ‹Ontgrendelen› werkte van v90 t/m v92 niet, terwijl alle tests
+  groen waren, omdat ze `slotOntgrendel()` rechtstreeks aanriepen (v93).
+* Iets dat telkens opnieuw tekent (`innerHTML`) binnen een stuk scherm dat
+  een `MutationObserver` bewaakt, geeft een eindeloze lus. Alleen opnieuw
+  tekenen als er iets veranderd is (zie `slotToepassen`, v93).
+* Foto's gaan altijd via `bewaarBestand()` in fotos.js: eerst in de
+  wachtrij op het apparaat (`wachtrij.js`, IndexedDB), dan op de
+  achtergrond naar Storage. Nooit meer rechtstreeks `storage.upload`. Een
+  foto ophalen gaat via `fotoBlob(pad)` (wachtrij eerst, dan cloud).
+* Originele foto's staan in `<project>/origineel/`; opruimen moet die
+  submap meenemen (`fotosOpruimen` in cloud.js).
+* 'Opgenomen door' staat vast na de eerste ruit en verandert alleen via
+  `opnemerWijzig()` (wachtwoord + logboek). `projectVeld('opnemer')` weigert.
+* **De Edge Function `mail` is nog niet uitgerold** (stand oktober 2026): de
+  code staat in `supabase/functions/mail/`, maar in Supabase staat geen
+  functie, geen Resend en geen geheimen. Jan stelt dat later in (handover
+  §11e). Schrijf installatie-instructies dus niet alsof hij bestaat.
 
 ## Testen
 
@@ -52,12 +70,13 @@ De volledige achtergrond staat in de projectkennis op claude.ai
 node test-index.js && node test-naslag.js && node test-cloudguard.js
 node test-herstel.js && node test-verbinding.js && node test-verwijderen.js
 node test-start.js && node test-mail-en-slot.js && node test-import.js
-node test-slot.js && node test-v91.js && node test-offline.js && node test-rook.js
+node test-slot.js && node test-v91.js && node test-v93.js && node test-offline.js
+node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
 bun test-mailfunctie.ts
 ```
 
 De reeksen verwachten jsdom, jspdf, jspdf-autotable en playwright in
-`/home/claude/node_modules`. `test-sql.sql` draait tegen een lokale
+`/home/claude/node_modules`, en Chromium in `/opt/pw-browsers/chromium`. `test-sql.sql` draait tegen een lokale
 PostgreSQL (zie de handover) en begint met het weggooien van het schema:
 **nooit in Supabase draaien.**

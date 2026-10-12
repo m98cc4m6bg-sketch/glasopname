@@ -123,7 +123,8 @@
     volgendId = state.volgendId || (rijen.length + 1);
     fotos = state.fotos || [];
     projectInfo = state.info || {};
-    vulOpnemer();
+    // Hier niet meer 'Opgenomen door' invullen (v93): openen is geen
+    // inmeten. Zie vulOpnemer().
     projectTaken = state.taken || [];
     if (el('projectNaam'))   el('projectNaam').value   = state.project || '';
     if (el('projectDatum'))  el('projectDatum').value  = state.datum || '';
@@ -161,20 +162,41 @@
     if (window.undoLeeg) undoLeeg();
   }
 
-  // 'Opgenomen door' invullen met de naam waarmee je bent ingelogd: alles
-  // vóór de @ uit het e-mailadres, dus jan@jelierbouw.nl wordt 'jan'.
-  // Alleen als het veld nog leeg is — anders zou je de collega overschrijven
-  // die de opname werkelijk gedaan heeft zodra jij zijn project opent.
-  // Het veld blijft gewoon met de hand aan te passen.
+  // De naam waarmee je bent ingelogd: alles vóór de @ uit het
+  // e-mailadres, dus jan@jelierbouw.nl wordt 'jan'.
   function gebruikersNaam() {
     if (!gebruiker || !gebruiker.email) return '';
     return String(gebruiker.email).split('@')[0].trim();
   }
 
+  // 'Opgenomen door' (v93, keuze van Jan). Tot v92 vulde de app hier de
+  // naam in van wie het project als eerste ópende, en daarna kon iedereen
+  // het veld gewoon overtypen. Nu:
+  //  * het wordt de naam van wie de eerste ruit met inhoud invult (op dit
+  //    apparaat, in deze sessie, of met werk dat nog van eerder openstond);
+  //  * daarna staat het vast. Wijzigen kan alleen via de knop naast het
+  //    veld, met je eigen wachtwoord, en dat komt in het logboek
+  //    (project.js, opnemerWijzig).
+  var werkVanEerder = false;   // openstaand werk van dit apparaat bij het laden
+
   function vulOpnemer() {
+    if (typeof projectInfo !== 'object' || !projectInfo) return;
     if (String(projectInfo.opnemer || '').trim()) return;
+    if (!projectId || !(gebruikerDeedIets || werkVanEerder)) return;
+    var ietsIngevuld = (typeof rijen === 'undefined' ? [] : rijen)
+      .some(function (r) { return heeftInhoud(r); });
+    if (!ietsIngevuld) return;
     var naam = gebruikersNaam();
-    if (naam) projectInfo.opnemer = naam;
+    if (!naam) return;
+    projectInfo.opnemer = naam;
+    // Geen aparte logboekregel: wie de eerste ruit opsloeg, staat daar al.
+    // Een notitie hier brak de werkgang in het logboek in tweeën. Alleen
+    // het wíjzigen (met wachtwoord) krijgt een eigen regel.
+    // Alleen dit ene veld bijwerken, niet het hele tabblad: renderProject()
+    // bouwt alle velden opnieuw op, en wie daar net aan het typen was,
+    // raakte zijn cursor kwijt.
+    var vak = el('pi-opnemer');
+    if (vak) vak.value = naam;
   }
 
   // 'Ingelogd als …' in de kopbalk. Handig op een gedeeld apparaat: je ziet
@@ -275,6 +297,8 @@
     // De app roept dit ook elke tien seconden vanzelf aan. Is er niets
     // veranderd, dan hoeft er niets te gebeuren: anders knippert het
     // statuspilletje elke tien seconden en verspringt de pagina.
+    // De eerste ruit met inhoud bepaalt wie het project opneemt (v93).
+    vulOpnemer();
     var nu = JSON.stringify(huidigeStaat());
     if (nu === laatsteJson && !vuil) return;
     laatsteJson = nu;
@@ -360,6 +384,7 @@
     // met wat er werkelijk verstuurd is (v80 en eerder: valse melding
     // "een collega heeft dit project gewijzigd").
     statusBijwerken();
+    vulOpnemer();
     statusNietTerug();
     var samenvatting = stempelWijzigingen();
     var json = JSON.stringify(huidigeStaat());
@@ -796,6 +821,7 @@
     bezig = false;
     laatsteJson = null;
     gebruikerDeedIets = false;
+    werkVanEerder = false;
     serverStatus = null;
     statusHandmatig = false;
     localStorage.removeItem(LS_PROJECT);
@@ -1517,6 +1543,14 @@
 
   async function uitloggen() {
     if (!await magVerlaten('uitloggen')) return;
+    // Foto's die nog alleen op dit apparaat staan, blijven daar bewaard en
+    // gaan omhoog zodra er weer iemand inlogt. Wel even zeggen (v93).
+    var wacht = window.glasWachtrij ? glasWachtrij.telling().totaal : 0;
+    if (wacht && !await appVraag('Er ' + (wacht === 1 ? 'staat nog 1 foto' : 'staan nog ' + wacht + ' foto\'s') +
+        ' op dit apparaat die nog niet in de cloud ' + (wacht === 1 ? 'staat' : 'staan') + '. ' +
+        'Ze blijven bewaard en gaan vanzelf mee zodra er weer iemand op dit apparaat inlogt ' +
+        'en er bereik is. Wis de websitegegevens dus niet.',
+        { kop: 'Uitloggen', ja: 'Toch uitloggen' })) return;
     localStorage.removeItem(LS_PENDING);
     sb.auth.signOut().then(function () {
       gebruiker = null;
@@ -1701,6 +1735,7 @@
     werkTeRedden = false;
     geladen = false;
     gebruikerDeedIets = false;
+    werkVanEerder = false;
     localStorage.removeItem(LS_PENDING);
     vuil = false;
     metHerkansing(function () {
@@ -1822,16 +1857,30 @@
   // De lijst komt per 500 bestanden binnen; bij een groot project bleef de
   // rest anders achter. Doorgaan tot de map leeg is, met een harde grens
   // zodat dit nooit blijft rondjes draaien (v85).
-  function fotosOpruimen(id, ronde) {
+  //
+  // Sinds v93 staan de originele foto's in een submap (<project>/origineel/).
+  // `list` geeft een submap terug als een regel zonder id; die wordt apart
+  // leeggemaakt. Zonder dit bleven alle originelen van een verwijderd
+  // project in Storage staan — en die zijn het grootst.
+  function fotosOpruimen(id, ronde, diepte) {
     if (!sb) return Promise.resolve();
     ronde = ronde || 1;
+    diepte = diepte || 0;
     return sb.storage.from('projectfotos').list(id, { limit: 500 })
       .then(function (res) {
         if (res.error || !res.data || !res.data.length) return null;
-        var paden = res.data.map(function (f) { return id + '/' + f.name; });
-        return sb.storage.from('projectfotos').remove(paden).then(function (weg) {
-          if (paden.length === 500 && ronde < 20) return fotosOpruimen(id, ronde + 1);
-          return weg;
+        var bestanden = res.data.filter(function (f) { return f && f.id !== null; });
+        var mappen = res.data.filter(function (f) { return f && f.id === null && f.name; });
+        var paden = bestanden.map(function (f) { return id + '/' + f.name; });
+        var weg = paden.length ? sb.storage.from('projectfotos').remove(paden) : Promise.resolve(null);
+        return weg.then(function (uit) {
+          if (diepte >= 3) return uit;
+          return mappen.reduce(function (keten, m) {
+            return keten.then(function () { return fotosOpruimen(id + '/' + m.name, 1, diepte + 1); });
+          }, Promise.resolve()).then(function () { return uit; });
+        }).then(function (uit) {
+          if (paden.length === 500 && ronde < 20) return fotosOpruimen(id, ronde + 1, diepte);
+          return uit;
         });
       })
       .catch(function (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); });
@@ -1882,6 +1931,9 @@
     // niemand kan er nog bij.
     if (gelukt) {
       try { await fotosOpruimen(id); } catch (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); }
+      // Wat van dit project nog op dit apparaat wachtte, hoeft niet meer
+      // omhoog (v93).
+      if (window.glasWachtrij) { try { await glasWachtrij.vergeetProject(id); } catch (e) {} }
     }
 
     if (lijst) lijst.style.opacity = '';
@@ -2277,8 +2329,10 @@
           if (!res.data) { projectId = null; localStorage.removeItem(LS_PROJECT); toonProjecten(); return; }
           // Lokale, nog niet gesynchroniseerde wijzigingen winnen.
           if (localStorage.getItem(LS_PENDING) === '1') {
-            // Openstaand werk wint; zetStaat wordt hier dus niet gedraaid en
-            // 'Opgenomen door' moet apart nagelopen worden.
+            // Openstaand werk wint; zetStaat wordt hier dus niet gedraaid.
+            // Dat werk is van dit apparaat, dus telt het voor 'Opgenomen
+            // door' als eigen werk (v93).
+            werkVanEerder = true;
             vulOpnemer();
             if (window.glasToonApp) glasToonApp();
             statusVanServer(res.data);

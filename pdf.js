@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v92';
+  var PDF_VERSIE = 'v93';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
   // service worker en werkt de eerste pdf na een update ook zonder bereik.
   var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
@@ -137,6 +137,35 @@
         lezer.readAsDataURL(blob);
       });
     });
+  }
+
+  // Een foto uit het project als gegevens voor de pdf. Via fotoBlob
+  // (fotos.js): uit de wachtrij op dit apparaat als hij nog niet geüpload
+  // is, anders uit de cloud. Tot v92 alleen uit de cloud, en dan ontbrak
+  // een net gemaakte foto zonder bereik in de pdf (v93).
+  function fotoData(pad) {
+    if (!pad) return Promise.resolve(null);
+    var blobBelofte;
+    if (window.fotoBlob) blobBelofte = window.fotoBlob(pad);
+    else if (window.glasSupabase) {
+      blobBelofte = window.glasSupabase.storage.from('projectfotos').createSignedUrl(pad, 3600)
+        .then(function (res) {
+          if (res.error || !res.data) return null;
+          return fetch(res.data.signedUrl).then(function (r) {
+            if (!r.ok) throw new Error('foto ophalen mislukt (' + r.status + ')');
+            return r.blob();
+          });
+        });
+    } else return Promise.resolve(null);
+    return Promise.resolve(blobBelofte).then(function (blob) {
+      if (!blob) return null;
+      return new Promise(function (ok, fout) {
+        var lezer = new FileReader();
+        lezer.onload = function () { ok(lezer.result); };
+        lezer.onerror = function () { fout(new Error('foto lezen mislukt')); };
+        lezer.readAsDataURL(blob);
+      });
+    }).catch(function (e) { console.warn('[pdf] foto overslaan', pad, e); return null; });
   }
 
   /* ─── opbouw van de pdf ────────────────────────────────────── */
@@ -398,14 +427,7 @@
 
       // Foto's ophalen vóór het tekenen: addImage werkt niet met beloftes.
       var taken = fotos.filter(function (f) { return f.soort !== 'lever'; }).map(function (f) {
-        if (!f.pad || !window.glasSupabase) return Promise.resolve(null);
-        return window.glasSupabase.storage.from('projectfotos')
-          .createSignedUrl(f.pad, 3600)
-          .then(function (res) {
-            if (res.error || !res.data) return null;
-            return haalAfbeelding(res.data.signedUrl);
-          })
-          .catch(function (e) { console.warn('[pdf] foto overslaan', f.pad, e); return null; });
+        return fotoData(f.pad);
       });
 
       return Promise.all(taken).then(function (plaatjes) {
@@ -573,13 +595,7 @@
       ? fotos.find(function (f) { return f.soort === 'lever'; }) : null;
     var instructie = (projectInfo && projectInfo.leverInstructie) || '';
 
-    var plaatje = (foto && foto.pad && window.glasSupabase)
-      ? window.glasSupabase.storage.from('projectfotos').createSignedUrl(foto.pad, 3600)
-          .then(function (res) {
-            if (res.error || !res.data) return null;
-            return haalAfbeelding(res.data.signedUrl);
-          }).catch(function () { return null; })
-      : Promise.resolve(null);
+    var plaatje = foto && foto.pad ? fotoData(foto.pad) : Promise.resolve(null);
 
     return plaatje.then(function (data) {
       zetFormaat(false);                     // staand: past beter bij een foto

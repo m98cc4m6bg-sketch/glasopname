@@ -76,8 +76,9 @@ server.on('connection', function (s) { sockets.add(s); s.on('close', function ()
     return { cache: namen.join(','), lib: sleutels.filter(p => p.indexOf('/lib/') >= 0) };
   });
   check('de cache heet naar de versie', /glasopname-v\d+/.test(inCache.cache), inCache.cache);
-  check('alle zes de bibliotheken staan er meteen in, ook zonder ze te gebruiken',
-    inCache.lib.length === 6, inCache.lib.length + ': ' + inCache.lib.join(', '));
+  // Zeven sinds v93: JSZip, voor het exporteren van de originele foto's.
+  check('alle zeven de bibliotheken staan er meteen in, ook zonder ze te gebruiken',
+    inCache.lib.length === 7, inCache.lib.length + ': ' + inCache.lib.join(', '));
 
   console.log('\n2. Zonder bereik opnieuw openen');
   // Echt geen net: de server gaat uit. (Het offline-knopje van de browser
@@ -103,6 +104,19 @@ server.on('connection', function (s) { sockets.add(s); s.on('close', function ()
     });
   });
   check('jsPDF laadt zonder bereik (de pdf\'s)', jspdf === true, String(jspdf));
+  // v93: de wachtrij en het exporteren van de originelen horen ook offline.
+  const v93 = await page.evaluate(async function () {
+    const zip = await new Promise(function (ok) {
+      const s = document.createElement('script');
+      s.src = 'lib/jszip-3.10.1/jszip.min.js';
+      s.onload = function () { ok(typeof window.JSZip === 'function'); };
+      s.onerror = function () { ok('kon niet laden'); };
+      document.head.appendChild(s);
+    });
+    return { zip: zip, wachtrij: !!window.glasWachtrij, originelen: typeof window.exportOriginelen === 'function' };
+  });
+  check('JSZip laadt zonder bereik (originele foto\'s, v93)', v93.zip === true, String(v93.zip));
+  check('wachtrij.js en originelen.js komen uit de cache (v93)', v93.wachtrij && v93.originelen, JSON.stringify(v93));
   check('en de server kreeg niets binnen (hij stond uit)', verzoeken.length === 0, verzoeken.join(', '));
 
   await browser.close();

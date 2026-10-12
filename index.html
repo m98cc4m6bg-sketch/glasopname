@@ -607,6 +607,15 @@
     width: 132px; text-align: center; flex: 0 0 132px;
     overflow: hidden; text-overflow: ellipsis;
   }
+  /* Foto's die nog op het apparaat wachten op uploaden (v93). Oranje:
+     niets mis, maar nog niet klaar. Rood als de opslag ze weigert. */
+  .wachtrij-teller {
+    font-size: 11px; padding: 5px 10px; border-radius: 20px; white-space: nowrap;
+    background: #fff4e0; color: #8a5a00; border: 1px solid #e8c88a; cursor: pointer;
+    font-family: inherit; font-weight: 600;
+  }
+  .wachtrij-teller.probleem { background: #fdeceb; color: var(--rood); border-color: var(--rood); }
+  .wachtrij-teller[hidden] { display: none; }
   @media print { .cloud-overlay { display: none !important; } }
 
   /* ─── IMPORTEREN ─── */
@@ -990,6 +999,10 @@
     padding: 7px 9px; font-size: 13px; font-family: inherit;
     border: 1px solid var(--grijs-rand); border-radius: var(--radius); background: white;
   }
+  /* 'Opgenomen door' staat vast; de knop ernaast vraagt het wachtwoord (v93). */
+  .pi-vast-rij { display: flex; gap: 6px; align-items: stretch; }
+  .pi-vast-rij input { flex: 1; min-width: 0; background: var(--grijs-licht, #f4f3f0); color: var(--grijs-tekst); }
+  .pi-vast-rij .btn { white-space: nowrap; }
   .pi-veld input:focus, .pi-veld select:focus,
   #projectNotitie:focus, #taakNieuw:focus {
     outline: 2px solid var(--merk); outline-offset: -1px;
@@ -1970,6 +1983,8 @@
   <button class="btn btn-ghost btn-sm kop-menu-knop" onclick="kopMenu()" aria-label="Menu">☰</button>
   <div class="header-actions" id="kopActies">
     <span id="cloudStatus">Verbinden…</span>
+    <!-- Foto's die nog alleen op dit apparaat staan (wachtrij.js, v93). -->
+    <button type="button" id="wachtrijTeller" class="wachtrij-teller" hidden onclick="wachtrijUitleg()"></button>
     <button class="btn btn-ghost btn-sm" id="cloudProjectKnop" onclick="glasNaarStart()">📁 Projecten</button>
     <button class="btn btn-ghost btn-sm" onclick="appBijwerken()" title="Controleren op een nieuwe versie">↻ Bijwerken</button>
 
@@ -2461,7 +2476,10 @@ function exportMenu(e) {
     '<button onclick="exportKies(\'csv\')"><b>📥 CSV-bestand</b>' +
       '<span>Om in Excel te openen</span></button>' +
     '<button onclick="exportKies(\'alles\')"><b>📦📄 Alles exporteren</b>' +
-      '<span>Bestellijst én PDF invoer, als twee losse bestanden</span></button>');
+      '<span>Bestellijst én PDF invoer, als twee losse bestanden</span></button>' +
+    // De foto's zoals ze van de camera kwamen, voor het archief (v93).
+    '<button onclick="exportKies(\'originelen\')"><b>🗂 Originele foto\'s (zip)</b>' +
+      '<span>Onbewerkt en op volle grootte, voor het archief</span></button>');
 }
 
 function exportBuiten(ev) {
@@ -2486,6 +2504,7 @@ function exportKies(wat) {
   }
   else if (wat === 'alles') startExport('alles');
   else if (wat === 'bestellijst') exportBestellijstPdf();
+  else if (wat === 'originelen') exportOriginelen();
   else exportFotoPdf();
 }
 
@@ -2668,7 +2687,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v92';
+const APP_VERSIE = 'v93';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -3256,6 +3275,16 @@ function slotToepassen() {
   const besteldOp = i.besteld && i.besteld.op
     ? new Date(i.besteld.op).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '';
+  // De balk alleen opnieuw opbouwen als er iets aan veranderd is (v93).
+  // Tot v92 schreef deze functie de balk bij elke aanroep opnieuw. De
+  // MutationObserver uit slotBewaking() zag dat als 'er komen velden bij'
+  // en riep slotToepassen() weer aan: een eindeloze lus, zo'n 200 keer per
+  // seconde. De knop ‹Ontgrendelen› werd dus steeds vervangen door een
+  // nieuwe, en een tik kwam vrijwel nooit aan op de knop die er stond.
+  const sleutel = [opSlot ? 'dicht' : (i.slot && i.slot.open ? 'open' : 'weg'),
+    besteldOp, i.status || '', (i.slot && i.slot.door) || ''].join('|');
+  if (balk.dataset.sleutel === sleutel) return;
+  balk.dataset.sleutel = sleutel;
   if (opSlot) {
     balk.hidden = false;
     balk.className = 'slot-balk dicht';
@@ -3320,8 +3349,14 @@ function slotBewaking() {
   const paneel = document.getElementById('panel-invoer');
   if (!paneel || typeof MutationObserver !== 'function') return;
   let gepland = false;
-  new MutationObserver(() => {
+  const balk = document.getElementById('slotBalk');
+  new MutationObserver(lijst => {
     if (!invoerOpSlot() || gepland) return;
+    // Wijzigingen in de slotbalk zelf tellen niet: die komen van
+    // slotToepassen(), en daarop reageren gaf tot v92 een eindeloze lus
+    // (zie slotToepassen). Dubbel afgedekt, want precies deze lus maakte
+    // de knop ‹Ontgrendelen› onbruikbaar (v93).
+    if (balk && lijst.every(m => balk === m.target || balk.contains(m.target))) return;
     gepland = true;
     setTimeout(() => { gepland = false; slotToepassen(); }, 0);
   }).observe(paneel, { childList: true, subtree: true });
@@ -3976,6 +4011,7 @@ async function exportCSV() {
   }
 </script>
 <script src="cloud.js"></script>
+<script src="wachtrij.js"></script>
 <script src="start.js"></script>
 <script src="import.js"></script>
 <script src="bulk.js"></script>
@@ -3987,6 +4023,7 @@ async function exportCSV() {
 <script src="merken.js"></script>
 <script src="naslag.js"></script>
 <script src="pdf.js"></script>
+<script src="originelen.js"></script>
 <script src="undo.js"></script>
 </body>
 </html>

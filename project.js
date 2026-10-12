@@ -33,7 +33,9 @@
       { id: 'status',     label: 'Status', keuze:
         ['aangemaakt', 'bezig met inmeten/verwerken', 'besteld',
          'geleverd', 'gemonteerd', 'afgerond'] },
-      { id: 'opnemer',    label: 'Opgenomen door' },
+      // Staat vast zodra de eerste ruit is ingevuld; wijzigen alleen met
+      // je eigen wachtwoord (v93, zie opnemerWijzig hieronder).
+      { id: 'opnemer',    label: 'Opgenomen door', vast: true },
       { id: 'bereikbaar', label: 'Bereikbaarheid / sleutel', breed: 2 }
     ]}
   ];
@@ -145,6 +147,15 @@
       return '<section class="pi-groep"><h3>' + g.groep + '</h3>' + zoek + '<div class="pi-raster">' +
         g.velden.map(function (v) {
           var waarde = d[v.id] || '';
+          if (v.vast) {
+            return '<div class="pi-veld pi-vast' + (v.breed ? ' breed' : '') + '">' +
+              '<span>' + esc(v.label) + '</span><div class="pi-vast-rij">' +
+              '<input type="text" id="pi-' + v.id + '" value="' + esc(waarde) + '" readonly ' +
+              'placeholder="Volgt bij de eerste ingevulde ruit" ' +
+              'title="Vastgezet. Wijzigen kan met de knop ernaast, met je eigen wachtwoord.">' +
+              '<button type="button" class="btn btn-secondary btn-sm" onclick="opnemerWijzig()">Wijzigen…</button>' +
+              '</div></div>';
+          }
           var invoer = v.keuze
             ? '<select id="pi-' + v.id + '" onchange="projectVeld(\'' + v.id + '\', this.value)">' +
               v.keuze.map(function (k) {
@@ -196,11 +207,69 @@
       // plaats van de status van de server over te nemen (v91).
       if (rang(waarde) < rang(oud) && window.glasStatusHandmatig) glasStatusHandmatig();
       if (window.renderTabel) renderTabel();
+    } else if (id === 'opnemer') {
+      // Niet via een gewoon veld (v93). Tot v92 kon iedereen hier een andere
+      // naam overheen typen. Wijzigen gaat alleen via opnemerWijzig().
+      if (window.renderProject) renderProject();
+      return;
     } else {
       info()[id] = waarde;
     }
     opslaan();
     if (id === 'straat' || id === 'postcode' || id === 'plaats') toonKaartknop();
+  };
+
+  // 'Opgenomen door' wijzigen (v93, keuze van Jan). Het veld vult zich
+  // vanzelf met wie de eerste ruit invult (cloud.js, vulOpnemer) en staat
+  // daarna vast. Een andere naam kan alleen met je eigen wachtwoord —
+  // hetzelfde als bij het inloggen en bij ‹Ontgrendelen› — en wie dat deed
+  // komt met de oude en de nieuwe naam in het logboek.
+  // Net als het slot is dit een slot in de app, niet in de database.
+  var opnemerBezig = false;
+  window.opnemerWijzig = async function () {
+    if (opnemerBezig) return;
+    opnemerBezig = true;
+    try {
+      if (!window.glasWachtwoordKlopt || !window.glasGebruiker || !glasGebruiker().id) {
+        await appFout('"Opgenomen door" wijzigen kan alleen als je ingelogd bent in de cloud.',
+                      { kop: 'Opgenomen door' });
+        return;
+      }
+      var wie = glasGebruiker() || {};
+      var oud = String(info().opnemer || '').trim();
+      var pw = await appWachtwoord(
+        (oud ? 'Dit project is opgenomen door ' + oud + '. '
+             : 'Er staat nog niemand bij "Opgenomen door". ') +
+        'Typ je eigen wachtwoord om dit te wijzigen.\n' +
+        'Je naam (' + (wie.naam || '') + ') en het tijdstip komen in het logboek te staan.',
+        { kop: 'Opgenomen door wijzigen', ja: 'Verder' });
+      if (pw === null) return;
+      if (!await glasWachtwoordKlopt(pw)) {
+        await appFout('Dat wachtwoord klopt niet. "Opgenomen door" blijft ' +
+                      (oud ? oud : 'leeg') + '.', { kop: 'Opgenomen door' });
+        return;
+      }
+      var nieuw = await appInvoer('Wie heeft dit project opgenomen?',
+        { kop: 'Opgenomen door', waarde: oud || wie.naam || '', ja: 'Opslaan' });
+      if (nieuw === null) return;
+      nieuw = String(nieuw).trim();
+      if (!nieuw) {
+        await appFout('Laat het veld niet leeg; vul de naam in van wie de opname deed.',
+                      { kop: 'Opgenomen door' });
+        return;
+      }
+      if (nieuw === oud) return;
+      info().opnemer = nieuw;
+      if (window.glasSpoorNotitie) {
+        glasSpoorNotitie('"opgenomen door" gewijzigd van ' + (oud || '(leeg)') + ' naar ' + nieuw +
+                         ' door ' + (wie.naam || 'onbekend'));
+      }
+      if (window.glasMarkeerWerk) glasMarkeerWerk();
+      opslaan();
+      renderProject();
+    } finally {
+      opnemerBezig = false;
+    }
   };
 
   window.projectNotitie = function (waarde) {

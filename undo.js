@@ -38,9 +38,11 @@
     // bestelmoment en slot terug — en daarmee ging het project in de
     // database terug naar 'bezig' terwijl de leverancier de bestelling al
     // had (v91).
+    // 'Opgenomen door' hoort daar ook bij: die staat vast en verandert
+    // alleen met een wachtwoord (v93), dus Cmd+Z mag hem niet leegmaken.
     var nuInfo = (typeof projectInfo === 'object' && projectInfo) || {};
     projectInfo = s.info || {};
-    ['status', 'besteld', 'bestelmail', 'slot'].forEach(function (k) {
+    ['status', 'besteld', 'bestelmail', 'slot', 'opnemer'].forEach(function (k) {
       if (nuInfo[k] === undefined) delete projectInfo[k];
       else projectInfo[k] = nuInfo[k];
     });

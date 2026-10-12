@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v92';
+const VERSIE = 'v93';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -24,6 +24,11 @@ const SHELL = [
   './merken.js',
   './naslag.js',
   './pdf.js',
+  // De wachtrij voor foto's zonder bereik en het exporteren van de
+  // originelen (v93). Zonder deze regels werkt juist het offline bewaren
+  // van foto's niet offline.
+  './wachtrij.js',
+  './originelen.js',
   './manifest.webmanifest',
   './favicon.ico',
   './favicon.png',
@@ -39,7 +44,8 @@ const SHELL = [
   './lib/jspdf-autotable-3.8.4/jspdf.plugin.autotable.min.js',
   './lib/xlsx-0.18.5/xlsx.full.min.js',
   './lib/pdfjs-3.11.174/pdf.min.js',
-  './lib/pdfjs-3.11.174/pdf.worker.min.js'
+  './lib/pdfjs-3.11.174/pdf.worker.min.js',
+  './lib/jszip-3.10.1/jszip.min.js'
 ];
 
 // De foto's van de glascatalogus. Ze staan apart omdat ze samen een paar

@@ -151,6 +151,121 @@
     });
   }
 
+  /* ─── bewaren: eerst op het apparaat, dan naar de cloud (v93) ── */
+  // Tot v92 ging een foto pas in het project als de upload meteen lukte.
+  // Zonder bereik was hij weg. Nu gaat hij eerst in de wachtrij op het
+  // apparaat (wachtrij.js) en meteen in het project; het uploaden gebeurt
+  // op de achtergrond zodra het kan.
+  //
+  // Werkt de wachtrij op dit apparaat niet (Safari privé, opslag vol), dan
+  // uploaden we zoals vroeger: meteen, met een tijdslimiet.
+
+  function nieuwPad(voorvoegsel, extensie) {
+    return window.glasProjectId + '/' + (voorvoegsel || '') + Date.now() + '-' +
+           Math.random().toString(36).slice(2, 8) + '.' + (extensie || 'jpg');
+  }
+
+  function rechtstreeks(pad, blob, type) {
+    var sb = sbClient();
+    if (!sb) return Promise.reject(new Error('geen verbinding met de cloud'));
+    var klaar = sb.storage.from(BUCKET).upload(pad, blob, { contentType: type || 'image/jpeg' });
+    var ms = 45000 + Math.ceil((blob.size || 0) / 1048576) * 15000;
+    var klok;
+    var grens = new Promise(function (_, fout) {
+      // Zonder tijdslimiet blijft een verzoek dat nooit antwoordt eeuwig
+      // hangen en zie je alleen 'Uploaden…' staan.
+      klok = setTimeout(function () {
+        fout(new Error('geen antwoord van Supabase binnen ' + Math.round(ms / 1000) + ' seconden — ' +
+                       'wordt de verbinding geblokkeerd (VPN, contentblocker, firewall)?'));
+      }, ms);
+    });
+    return Promise.race([klaar, grens]).then(function (up) {
+      clearTimeout(klok);
+      if (up && up.error) {
+        throw new Error(up.error.message + (up.error.statusCode ? ' (code ' + up.error.statusCode + ')' : ''));
+      }
+      return pad;
+    }, function (e) { clearTimeout(klok); throw e; });
+  }
+
+  // Geeft het pad terug zodra het bestand veilig is: in de wachtrij, of
+  // (zonder wachtrij) in de cloud.
+  function bewaarBestand(pad, blob, opties) {
+    var o = opties || {};
+    var type = o.type || blob.type || 'image/jpeg';
+    if (!window.glasWachtrij) return rechtstreeks(pad, blob, type);
+    return glasWachtrij.zet(pad, blob, { soort: o.soort, type: type, naam: o.naam,
+                                         projectId: window.glasProjectId })
+      .catch(function (e) {
+        console.warn('[foto] wachtrij niet bruikbaar, dan meteen uploaden', e);
+        return rechtstreeks(pad, blob, type);
+      });
+  }
+
+  // Kan er nu een foto bij? Met de wachtrij is alleen een open project
+  // nodig; zonder wachtrij ook verbinding.
+  function kanBewaren() {
+    if (!window.glasProjectId) return 'Open eerst een project.';
+    if (!window.glasWachtrij && !sbClient()) return 'Open eerst een project en zorg dat je online bent.';
+    return '';
+  }
+
+  /* ─── het origineel (v93, keuze van Jan) ───────────────────── */
+  // Naast de verkleinde foto (1600 px, voor het scherm en de pdf) gaat het
+  // bestand zoals het van de camera of uit de fotobibliotheek kwam
+  // ongewijzigd mee, in de map <project>/origineel/. Alleen voor foto's en
+  // de leverlocatie; een tekening komt uit een pdf en heeft geen origineel.
+  // Exporteren gaat via ‹Exporteren → Originele foto's› (originelen.js).
+  var TYPE_VAN = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+                   heic: 'image/heic', heif: 'image/heif', avif: 'image/avif', gif: 'image/gif',
+                   tif: 'image/tiff', tiff: 'image/tiff' };
+  function extensieVan(file) {
+    var m = /\.([a-z0-9]{2,5})$/i.exec(file.name || '');
+    var e = m ? m[1].toLowerCase() : '';
+    if (!e && file.type) e = String(file.type).split('/')[1] || '';
+    e = e.replace('jpeg', 'jpg');
+    return e || 'jpg';
+  }
+
+  function bewaarOrigineel(file) {
+    var ext = extensieVan(file);
+    var type = file.type || TYPE_VAN[ext] || 'image/jpeg';
+    var pad = nieuwPad('origineel/', ext);
+    return bewaarBestand(pad, file, { soort: 'origineel', type: type, naam: file.name || '' })
+      .then(function () {
+        return {
+          pad: pad,
+          naam: file.name || '',
+          type: type,
+          grootte: file.size || 0,
+          datum: file.lastModified ? new Date(file.lastModified).toISOString() : new Date().toISOString()
+        };
+      }, function (e) {
+        // Het origineel is een extra; de foto zelf staat er al. Wel melden.
+        console.warn('[foto] origineel bewaren mislukt', e);
+        return null;
+      });
+  }
+
+  // Het origineel na de foto zelf: de foto staat dan al in beeld. Met de
+  // wachtrij is dat een fractie van een seconde later; zonder wachtrij
+  // (rechtstreeks uploaden) kan een groot origineel even duren, en daar
+  // hoeft niemand op te wachten. Is de foto intussen vervangen, dan hoort
+  // dit origineel er niet meer bij.
+  function origineelErbij(file, fotoId, pad, opnieuwTonen) {
+    return bewaarOrigineel(file).then(function (o) {
+      var f = fotos.find(function (x) { return x.id === fotoId; });
+      if (!f || f.pad !== pad) return;
+      if (!o) {
+        (opnieuwTonen === renderLeverFoto ? leverMelding : melding)(
+          'De foto staat erin, maar het origineel kon niet bewaard worden.', true);
+        return;
+      }
+      f.origineel = o;
+      opslaan();
+    });
+  }
+
   var doelGroep = null;   // groep waar de volgende upload in hoort
 
   window.fotoAanGroep = function (fotoId) {
@@ -173,11 +288,8 @@
     doelGroep = null;
     input.value = '';
     if (!file) return;
-    var sb = sbClient();
-    if (!sb || !window.glasProjectId) {
-      melding('Open eerst een project en zorg dat je online bent.', true);
-      return;
-    }
+    var nietKlaar = kanBewaren();
+    if (nietKlaar) { melding(nietKlaar, true); return; }
     if (!/\.pdf$/i.test(file.name)) { verwerkAfbeelding(file, groep, file.name); return; }
     if (!window.pdfBibliotheek) { melding('De pdf-lezer is niet beschikbaar.', true); return; }
 
@@ -328,14 +440,11 @@
   }
   window.soortNaam = soortNaam;
 
-  function zetWeg(res, groep, titel, bron) {
-    var sb = sbClient();
-    var pad = window.glasProjectId + '/' + Date.now() + '-' +
-              Math.random().toString(36).slice(2, 8) + '.jpg';
+  function zetWeg(res, groep, titel, bron, origineel) {
+    var pad = nieuwPad('', 'jpg');
     melding('Opslaan… (' + Math.round(res.blob.size / 1024) + ' kB)');
-    return sb.storage.from(BUCKET).upload(pad, res.blob, { contentType: 'image/jpeg' })
-      .then(function (up) {
-        if (up.error) throw new Error(up.error.message);
+    return bewaarBestand(pad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
+      .then(function () {
         var bestaand = groep ? fotoVan(groep) : null;
         if (bestaand) {
           bestaand.pad = pad;
@@ -348,12 +457,17 @@
           bestaand.inkt = [];
           bestaand.bron = bron || bestaand.bron || 'foto';
           if (titel && !bestaand.titel) bestaand.titel = titel;
+          // Het origineel hoort bij déze afbeelding; een tekening heeft er
+          // geen, en dan ook niet dat van de vorige foto houden (v93).
+          if (origineel) bestaand.origineel = origineel; else delete bestaand.origineel;
         } else {
-          fotos.push({
+          var nieuw = {
             id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
             pad: pad, titel: titel || '', bron: bron || 'foto',
             breedte: res.breedte, hoogte: res.hoogte, markeringen: []
-          });
+          };
+          if (origineel) nieuw.origineel = origineel;
+          fotos.push(nieuw);
         }
         opslaan();
         renderFotos();
@@ -370,32 +484,31 @@
     var file = input.files && input.files[0];
     input.value = '';
     if (!file) return;
-    var sb = sbClient();
-    if (!sb || !window.glasProjectId) {
-      leverMelding('Open eerst een project en zorg dat je online bent.', true);
-      return;
-    }
+    var nietKlaar = kanBewaren();
+    if (nietKlaar) { leverMelding(nietKlaar, true); return; }
     leverMelding('Foto verkleinen…');
     verklein(file).then(function (res) {
-      var pad = window.glasProjectId + '/lever-' + Date.now() + '.jpg';
-      leverMelding('Uploaden…');
-      return sb.storage.from(BUCKET).upload(pad, res.blob, { contentType: 'image/jpeg' })
-        .then(function (up) {
-          if (up.error) throw new Error(up.error.message);
+      var pad = nieuwPad('lever-', 'jpg');
+      leverMelding('Opslaan…');
+      return bewaarBestand(pad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
+        .then(function () {
           var bestaand = window.leverFoto();
           if (bestaand) {
             bestaand.pad = pad; bestaand.breedte = res.breedte; bestaand.hoogte = res.hoogte;
             bestaand.markeringen = []; bestaand.inkt = [];
+            delete bestaand.origineel;     // dat van de vorige foto
           } else {
-            fotos.push({
+            bestaand = {
               id: 'lever' + Date.now().toString(36),
               soort: 'lever', pad: pad, titel: 'Leverlocatie',
               breedte: res.breedte, hoogte: res.hoogte, markeringen: [], inkt: []
-            });
+            };
+            fotos.push(bestaand);
           }
           opslaan();
           renderLeverFoto();
           leverMelding('');
+          return origineelErbij(file, bestaand.id, pad, renderLeverFoto);
         });
     }).catch(function (e) {
       console.error('[leverfoto]', e);
@@ -417,7 +530,11 @@
         { kop: 'Foto verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
     if (!window.leverFoto()) return;
     var sb = sbClient();
-    if (sb && f.pad) sb.storage.from(BUCKET).remove([f.pad]);
+    // Het origineel gaat mee weg, en wat nog in de wachtrij stond ook:
+    // hier is geen ongedaan maken (v93).
+    var paden = [f.pad, f.origineel && f.origineel.pad].filter(Boolean);
+    if (sb && paden.length) sb.storage.from(BUCKET).remove(paden);
+    if (window.glasWachtrij) paden.forEach(function (p) { glasWachtrij.vergeetPad(p); });
     fotos = fotos.filter(function (x) { return x.soort !== 'lever'; });
     opslaan();
     renderLeverFoto();
@@ -454,7 +571,7 @@
     link(f.pad).then(function (url) {
       var doek = el('doek-' + f.id);
       if (!doek) return;
-      if (!url) { doek.innerHTML = '<div class="foto-leeg">Foto niet beschikbaar — ben je offline?</div>'; return; }
+      if (!url) { doek.innerHTML = '<div class="foto-leeg">' + nietBeschikbaar(f.pad) + '</div>'; return; }
       doek.innerHTML = '<img src="' + url + '" alt="" id="img-' + f.id + '">';
       if (window.tekenInit) tekenInit(f.id);
     });
@@ -466,30 +583,14 @@
     doelGroep = null;
     input.value = '';
     if (!file) return;
-    var sb = sbClient();
-    if (!sb || !window.glasProjectId) {
-      melding('Open eerst een project en zorg dat je online bent.', true);
-      return;
-    }
+    var nietKlaar = kanBewaren();
+    if (nietKlaar) { melding(nietKlaar, true); return; }
     melding('Foto verkleinen…');
     verklein(file).then(function (res) {
-      var pad = window.glasProjectId + '/' + Date.now() + '-' +
-                Math.random().toString(36).slice(2, 8) + '.jpg';
-      melding('Uploaden… (' + Math.round(res.blob.size / 1024) + ' kB)');
-      console.log('[foto] uploaden naar', pad, res.blob.size, 'bytes');
-      // Zonder tijdslimiet blijft een verzoek dat nooit antwoordt eeuwig
-      // hangen en zie je alleen 'Uploaden…' staan.
-      var klaar = sb.storage.from(BUCKET).upload(pad, res.blob, { contentType: 'image/jpeg' });
-      var klok = new Promise(function (_, fout) {
-        setTimeout(function () {
-          fout(new Error('geen antwoord van Supabase binnen 45 seconden — ' +
-                         'wordt de verbinding geblokkeerd (VPN, contentblocker, firewall)?'));
-        }, 45000);
-      });
-      return Promise.race([klaar, klok])
-        .then(function (up) {
-          console.log('[foto] antwoord', up);
-          if (up.error) throw new Error(up.error.message + (up.error.statusCode ? ' (code ' + up.error.statusCode + ')' : ''));
+      var pad = nieuwPad('', 'jpg');
+      melding('Opslaan… (' + Math.round(res.blob.size / 1024) + ' kB)');
+      return bewaarBestand(pad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
+        .then(function () {
           var bestaand = groep ? fotoVan(groep) : null;
           if (bestaand) {
             // Nieuwe foto in een groep die zijn foto kwijt was: de ruiten
@@ -499,18 +600,20 @@
             bestaand.hoogte = res.hoogte;
             bestaand.markeringen = [];
             bestaand.inkt = [];
-          } else {
-            fotos.push({
-              id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-              pad: pad, titel: '', breedte: res.breedte, hoogte: res.hoogte, markeringen: []
-            });
+            delete bestaand.origineel;     // dat van de vorige foto
           }
+          var doel = bestaand || {
+            id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            pad: pad, titel: '', breedte: res.breedte, hoogte: res.hoogte, markeringen: []
+          };
+          if (!bestaand) fotos.push(doel);
           opslaan();
           renderFotos();
           melding('');
           if (bestaand && rijenVan(bestaand.id).length) {
             setTimeout(function () { fotoAanwijzen(bestaand.id); }, 300);
           }
+          return origineelErbij(file, doel.id, pad, renderFotos);
         });
     }).catch(function (e) {
       console.error('[foto] uploaden mislukt', e);
@@ -525,27 +628,77 @@
     m.style.color = fout ? 'var(--rood)' : 'var(--grijs-tekst)';
   }
 
+  // Waarom er geen link kwam, per pad; renderFotos gebruikt dat voor de
+  // melding (v93).
+  var linkFout = {};
+
   function link(pad) {
     if (linkCache[pad]) return Promise.resolve(linkCache[pad]);
+    // Eerst de wachtrij: een foto die nog niet geüpload is, staat alleen
+    // op dit apparaat (v93).
+    var lokaal = window.glasWachtrij ? glasWachtrij.url(pad) : Promise.resolve(null);
+    return lokaal.then(function (u) {
+      if (u) { linkCache[pad] = u; delete linkFout[pad]; return u; }
+      return linkUitCloud(pad);
+    });
+  }
+
+  function linkUitCloud(pad) {
     var sb = sbClient();
-    if (!sb) return Promise.resolve(null);
+    if (!sb) { linkFout[pad] = 'offline'; return Promise.resolve(null); }
     return sb.storage.from(BUCKET).createSignedUrl(pad, LINK_GELDIG).then(function (res) {
       if (res.error || !res.data) {
         console.error('[foto] geen link voor', pad, res.error);
+        var t = String((res.error && (res.error.message || res.error.error)) || '') + ' ' +
+                String((res.error && (res.error.statusCode || res.error.status)) || '');
+        linkFout[pad] = /not.?found|404/i.test(t) ? 'ontbreekt' : 'offline';
         return null;
       }
+      delete linkFout[pad];
       linkCache[pad] = res.data.signedUrl;
       return res.data.signedUrl;
     }).catch(function (e) {
       console.error('[foto] link ophalen mislukt', pad, e);
+      linkFout[pad] = 'offline';
       return null;
     });
+  }
+
+  // De afbeelding zelf, als bestand: uit de wachtrij als hij daar nog
+  // staat, anders uit de cloud. Voor de pdf, het draaien en het
+  // exporteren van de originelen (v93).
+  window.fotoBlob = function (pad) {
+    if (!pad) return Promise.resolve(null);
+    var lokaal = window.glasWachtrij ? glasWachtrij.blob(pad) : Promise.resolve(null);
+    return lokaal.then(function (b) {
+      if (b) return b;
+      return linkUitCloud(pad).then(function (url) {
+        if (!url) return null;
+        return fetch(url).then(function (r) {
+          if (!r.ok) throw new Error('ophalen mislukt (' + r.status + ')');
+          return r.blob();
+        });
+      });
+    });
+  };
+
+  // De tekst als een afbeelding er niet is.
+  function nietBeschikbaar(pad) {
+    if (linkFout[pad] === 'ontbreekt') {
+      return 'Deze foto staat nog niet in de cloud.<br>Hij wacht waarschijnlijk nog op het apparaat ' +
+             'waarmee hij gemaakt is, tot dat weer bereik heeft. Daarna verschijnt hij hier vanzelf.';
+    }
+    return 'Foto niet beschikbaar — ben je offline?';
   }
 
   /* ─── tekenen ──────────────────────────────────────────────── */
 
   // Tijdelijke links verlopen en horen bij één project.
-  window.fotoLinksVergeten = function () { linkCache = {}; };
+  window.fotoLinksVergeten = function () {
+    linkCache = {};
+    linkFout = {};
+    if (window.glasWachtrij) glasWachtrij.vergeetUrls();
+  };
 
   window.renderFotos = function () {
     var houder = el('fotoHouder');
@@ -618,7 +771,12 @@
       link(f.pad).then(function (url) {
         var doek = el('doek-' + f.id);
         if (!doek) return;
-        if (!url) { doek.innerHTML = '<div class="foto-leeg">Foto niet beschikbaar — ben je offline?</div>'; return; }
+        if (!url) {
+          doek.innerHTML = '<div class="foto-leeg">' + nietBeschikbaar(f.pad) +
+            '<br><button class="btn btn-secondary btn-sm" style="margin-top:10px" ' +
+            'onclick="fotoOpnieuw(\'' + f.id + '\')">Opnieuw proberen</button></div>';
+          return;
+        }
         doek.innerHTML = '<img src="' + url + '" alt="" id="img-' + f.id + '" ' +
                          'onclick="fotoTik(event, \'' + f.id + '\')" ' +
                          'onerror="fotoLaadFout(\'' + f.id + '\')">';
@@ -874,18 +1032,15 @@
 
   window.fotoDraaien = function (fotoId) {
     var foto = fotoVan(fotoId);
-    var sb = sbClient();
     if (!foto || !foto.pad) return;
-    if (!sb) { melding('Draaien kan alleen met internet.', true); return; }
+    if (!window.glasWachtrij && !sbClient()) { melding('Draaien kan alleen met internet.', true); return; }
 
     melding('Foto draaien…');
-    link(foto.pad).then(function (url) {
-      if (!url) throw new Error('foto niet beschikbaar');
-      return fetch(url);
-    }).then(function (res) {
-      if (!res.ok) throw new Error('ophalen mislukt (' + res.status + ')');
-      return res.blob();
-    }).then(function (blob) {
+    // Uit de wachtrij of uit de cloud: ook een foto die nog niet geüpload
+    // is, kan nu gedraaid worden (v93). Het origineel draait niet mee; dat
+    // blijft zoals het van de camera kwam.
+    window.fotoBlob(foto.pad).then(function (blob) {
+      if (!blob) throw new Error('foto niet beschikbaar');
       return new Promise(function (ok, fout) {
         var img = new Image();
         var tijdelijk = URL.createObjectURL(blob);
@@ -909,15 +1064,13 @@
       });
     }).then(function (res) {
       var oudPad = foto.pad;
-      var nieuwPad = window.glasProjectId + '/' + Date.now() + '-' +
-                     Math.random().toString(36).slice(2, 8) + '.jpg';
+      var draaiPad = nieuwPad('', 'jpg');
       melding('Opslaan…');
-      return sb.storage.from(BUCKET).upload(nieuwPad, res.blob, { contentType: 'image/jpeg' })
-        .then(function (up) {
-          if (up.error) throw new Error(up.error.message);
+      return bewaarBestand(draaiPad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
+        .then(function () {
           if (window.bewaarStap) bewaarStap('Foto gedraaid');
           draaiCoordinaten(foto);
-          foto.pad = nieuwPad;
+          foto.pad = draaiPad;
           foto.breedte = res.breedte;
           foto.hoogte = res.hoogte;
           delete linkCache[oudPad];
@@ -927,6 +1080,9 @@
           // toch in één keer weg.
           opslaan();
           renderFotos();
+          // De foto van de leverlocatie staat op het tabblad Project; die
+          // werd tot v92 na het draaien niet opnieuw getoond (v93).
+          if (foto.soort === 'lever' && window.renderLeverFoto) renderLeverFoto();
           melding('');
         });
     }).catch(function (e) {

@@ -158,14 +158,25 @@ check('sw.js cachet alle catalogusfoto\'s', inSw === opSchijf,
 // niet, en dat merk je pas op een dak (handover §6.3).
 console.log('\nBibliotheken in lib/ (v91)');
 {
-  const bronnen = ['index.html', 'pdf.js', 'import.js'].map(f => fs.readFileSync(f, 'utf8')).join('\n');
+  // Alle bestanden van de app, niet een vaste lijst: originelen.js (v93)
+  // laadt zelf JSZip, en zo'n nieuwe plek viel anders buiten de controle.
+  const appBestanden = ['index.html'].concat(fs.readdirSync('.').filter(n => /\.js$/.test(n) &&
+    !/^test-/.test(n) && n !== 'sw.js' && n !== 'config.js'));
+  const bronnen = appBestanden.map(f => fs.readFileSync(f, 'utf8')).join('\n');
   const paden = Array.from(new Set((bronnen.match(/lib\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+\.js/g) || [])));
   const sw = fs.readFileSync('sw.js', 'utf8');
-  check('de app verwijst naar zes bibliotheken in lib/', paden.length === 6, paden.join(', '));
+  check('de app verwijst naar zeven bibliotheken in lib/ (v93: + JSZip)', paden.length === 7, paden.join(', '));
   paden.forEach(p => {
     check(p + ' staat op schijf', fs.existsSync(p));
     check(p + ' staat in de SHELL van sw.js', sw.indexOf("'./" + p + "'") >= 0);
   });
+  // Elk eigen script uit index.html hoort in de SHELL (v93: wachtrij.js en
+  // originelen.js zijn nieuw; zonder SHELL werkt juist de wachtrij offline niet).
+  const html = fs.readFileSync('index.html', 'utf8');
+  const eigen = (html.match(/<script src="(?!lib\/)([a-z0-9-]+\.js)"/g) || []).map(t => t.replace(/^<script src="|"$/g, ''));
+  check('index.html laadt wachtrij.js en originelen.js (v93)',
+    eigen.indexOf('wachtrij.js') >= 0 && eigen.indexOf('originelen.js') >= 0, eigen.join(', '));
+  eigen.forEach(n => check(n + ' staat in de SHELL van sw.js', sw.indexOf("'./" + n + "'") >= 0));
   check('geen bibliotheek meer van de CDN',
     !/cdn\.jsdelivr\.net/.test(['index.html', 'pdf.js', 'import.js'].map(f => fs.readFileSync(f, 'utf8')).join('')));
 }

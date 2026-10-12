@@ -319,3 +319,27 @@ select '15b. geen dubbele regel' as test, count(*) as regels_bestelmail
   from public.projectgeschiedenis
  where project_id = '00000000-0000-4000-8000-0000000000dd'
    and samenvatting = 'bestelmail verstuurd naar x@y.nl';
+
+-- 16. Originele foto's (v93): de opslagmap gaat naar 50 MB en neemt ook HEIC
+--     aan; de rest (privé) blijft. Het script mag twee keer.
+--     Supabase brengt storage.buckets zelf mee; hier een namaak met dezelfde
+--     kolommen, gevuld zoals 04_projectfotos.sql dat deed.
+--     verwacht: f | 52428800 | 8 | t | t
+drop schema if exists storage cascade;
+create schema storage;
+create table storage.buckets (
+  id text primary key, name text, public boolean,
+  file_size_limit bigint, allowed_mime_types text[]
+);
+insert into storage.buckets values ('projectfotos', 'projectfotos', false, 8388608,
+  array['image/jpeg', 'image/png', 'image/webp']);
+insert into storage.buckets values ('anders', 'anders', true, 1000, array['text/plain']);
+\i 19_originelen.sql
+\i 19_originelen.sql
+select '16. originelen' as test, public, file_size_limit,
+       array_length(allowed_mime_types, 1) as soorten,
+       'image/heic' = any(allowed_mime_types) as heic,
+       'image/jpeg' = any(allowed_mime_types) as jpeg
+  from storage.buckets where id = 'projectfotos';
+select '16b. andere map ongemoeid' as test, file_size_limit, allowed_mime_types
+  from storage.buckets where id = 'anders';

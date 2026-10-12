@@ -74,7 +74,8 @@ const server = http.createServer(function (req, res) {
   const libs = await page.evaluate(async function () {
     const paden = ['lib/xlsx-0.18.5/xlsx.full.min.js', 'lib/pdfjs-3.11.174/pdf.min.js',
                    'lib/pdfjs-3.11.174/pdf.worker.min.js', 'lib/jspdf-2.5.2/jspdf.umd.min.js',
-                   'lib/jspdf-autotable-3.8.4/jspdf.plugin.autotable.min.js'];
+                   'lib/jspdf-autotable-3.8.4/jspdf.plugin.autotable.min.js',
+                   'lib/jszip-3.10.1/jszip.min.js'];    // v93: originele foto's
     const uit = [];
     for (const p of paden) uit.push((await fetch(p)).status);
     return uit;

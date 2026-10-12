@@ -18,6 +18,10 @@ foto's (gekozen in een andere sessie).*
      `19_originelen.sql`
    * testreeksen: `test-v93.js` (nieuw), `test-index.js`, `test-offline.js`,
      `test-rook.js`, `test-sql.sql`
+   * van v92 (als die niet geplaatst is): `test-v91.js` en
+     `WIJZIGINGEN-v92.md`. De app-bestanden van v92 (`index.html`, `fotos.js`,
+     `pdf.js`, `sw.js`) zitten al in deze zip, met v93 erbovenop. **Deze zip
+     past dus op v91 én op v92.**
 3. **Op élk apparaat ↻ Bijwerken**; linksboven moet **v93** staan. Dat is
    deze keer belangrijker dan anders: op een apparaat dat nog v92 draait, kan
    iemand 'Opgenomen door' gewoon overtypen, en daar gaat een foto zonder

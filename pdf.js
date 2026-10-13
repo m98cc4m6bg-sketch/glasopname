@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v93';
+  var PDF_VERSIE = 'v94';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
   // service worker en werkt de eerste pdf na een update ook zonder bereik.
   var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
@@ -656,7 +656,9 @@
         doc.setDrawColor(180, 186, 196);
         doc.rect(x, y, b, h);
         tekenInkt(doc, foto, x, y, b, h);
-      } else {
+      } else if (foto || (projectInfo && projectInfo.leverAdres === 'werk')) {
+        // Bij de werkplaats zonder foto: geen vak met "geen foto", want daar
+        // ontbreekt niets (v94).
         // Geen foto, of er is wel een foto maar hij kwam niet binnen. Dat
         // tweede gebeurt zonder bereik, en dan moet er niet staan dat er
         // geen foto is — anders gaat iemand er een tweede maken.
@@ -1145,7 +1147,12 @@
     }
     var heeftFoto = (typeof fotos !== 'undefined') &&
       fotos.some(function (f) { return f.soort === 'lever' && f.pad; });
-    if (!heeftFoto) mist.push({ wat: 'een foto van de leverlocatie', plek: 'lever' });
+    // Alleen bij levering op het werkadres. De werkplaats kent de chauffeur;
+    // daar is een foto van de plek geen ontbrekend gegeven (v94, gevraagd
+    // door Jan). Niets gekozen geldt als werkplaats, net als op het scherm.
+    if (!heeftFoto && i.leverAdres === 'werk') {
+      mist.push({ wat: 'een foto van de leverlocatie', plek: 'lever' });
+    }
     // Niets gekozen betekent 'eerste levermogelijkheid', en dat is een
     // geldige opdracht — geen ontbrekend gegeven. Alleen klagen als er wél
     // een datum of week gekozen is maar de waarde zelf leeg bleef.

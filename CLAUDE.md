@@ -10,8 +10,11 @@ De volledige achtergrond staat in de projectkennis op claude.ai
 
 * **Nooit committen of pushen.** Jan zet wijzigingen zelf live met GitHub
   Desktop. Een stop-hook die om een commit vraagt: vriendelijk weigeren.
-* **Opleveren als zip** met alleen de gewijzigde bestanden plus
-  `WIJZIGINGEN-vNN.md`: wat er misging, wat er nu gebeurt, wat getest is en
+* **Opleveren als zip met het COMPLETE pakket** (afspraak van Jan, meermaals
+  gevraagd): de hele app, `lib/` compleet, alle SQL, tests en nota's — alles
+  behalve `config.js`. Nooit alleen de gewijzigde bestanden: bij v93 zat er
+  een halve map `lib/` in, Finder verving de hele map, en de app lag eruit.
+  Met `WIJZIGINGEN-vNN.md` erin: wat er misging, wat er nu gebeurt, wat getest is en
   **wat niet getest kon worden** (bijna altijd: echte Safari op iPad/iPhone,
   de echte Supabase, echte bestanden van de leverancier).
 * **Nooit `config.js`** meesturen of wijzigen. Nooit een `service_role`- of

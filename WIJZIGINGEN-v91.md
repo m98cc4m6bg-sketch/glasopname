@@ -15,9 +15,12 @@ per punt wat er misging en wat er nu gebeurt, en wat er wel en niet getest is.*
      geven: `verwijderd_door`, `verwijderd_naam`, `verwijderd_op`.
 
    Allebei mogen ze vaker gedraaid worden.
-2. **De mailfunctie opnieuw uitrollen.** Ga in Supabase naar *Edge Functions*
-   → `mail`, plak de inhoud van `supabase/functions/mail/index.ts` erin en
-   kies *Deploy*. Er is één regel bijgekomen. *Verify JWT* blijft aan.
+2. **De mailfunctie: bij jou nu niets te doen.** De functie `mail` is in
+   Supabase nooit uitgerold (de bestelmail is nog niet ingesteld; dat pak je
+   later op, zie de handover §11e). Rol hem pas uit als je de mail instelt,
+   en neem dan deze versie van `supabase/functions/mail/index.ts`. Bestaat
+   hij wél, dan: *Edge Functions → `mail` → Code*, de inhoud vervangen,
+   *Deploy*; *Verify JWT* blijft aan.
 3. **De bestanden** in de map van de repo zetten (bestaande overschrijven),
    committen en pushen met GitHub Desktop:
    * de **nieuwe map `lib/`**, met submappen. Die moet er helemaal bij, anders

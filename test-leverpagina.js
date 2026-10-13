@@ -173,6 +173,39 @@ function pdfViaExport(w, bestandsnaam) {
   await pdfViaExport(w, 'uit-fotomist.pdf');
   check('uit-fotomist.pdf gemaakt', fs.existsSync('uit-fotomist.pdf'));
 
+  console.log('\n7. Werkplaats zonder foto: geen melding over de foto (v94)');
+  w = maakOmgeving();
+  w.eval(`
+    projectInfo.leverAdres = 'werkplaats';
+    projectInfo.leverSoort = 'zsm';
+    projectInfo.leverInstructie = 'Achter de loods neerzetten.';
+  `);
+  const bestandWp = pdfViaExport(w, 'uit-werkplaats.pdf');
+  await new Promise(r => setTimeout(r, 60));
+  check('geen melding: bij de werkplaats is een foto niet nodig', !w.document.querySelector('.cloud-overlay'));
+  await bestandWp;
+  check('uit-werkplaats.pdf gemaakt', fs.existsSync('uit-werkplaats.pdf'));
+
+  console.log('\n8. Niets gekozen geldt als werkplaats (zo staat het ook op het scherm)');
+  w = maakOmgeving();
+  w.eval("projectInfo.leverInstructie = 'Bellen.';");
+  w.exportBestellijstPdf();
+  await new Promise(r => setTimeout(r, 60));
+  check('geen melding', !w.document.querySelector('.cloud-overlay'));
+
+  console.log('\n9. Werkadres zonder foto: de melding blijft');
+  w = maakOmgeving();
+  w.eval(`
+    projectInfo.leverAdres = 'werk';
+    projectInfo.straat = 'Voorstraat 1'; projectInfo.plaats = 'Dordrecht';
+    projectInfo.leverInstructie = 'Bellen.';
+  `);
+  w.exportBestellijstPdf();
+  await new Promise(r => setTimeout(r, 60));
+  const v9 = w.document.querySelector('.cloud-overlay');
+  const p9 = v9 ? [...v9.querySelectorAll('li')].map(l => l.textContent) : [];
+  check('alleen de foto ontbreekt', p9.length === 1 && /foto van de leverlocatie/.test(p9[0]), p9.join(' · '));
+
   console.log('\n' + (fouten === 0 ? 'Node-deel goed. Nu: python3 test-leverpagina.py'
                                    : fouten + ' fout(en).'));
   process.exit(fouten === 0 ? 0 : 1);

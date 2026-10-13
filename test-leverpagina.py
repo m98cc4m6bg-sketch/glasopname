@@ -29,7 +29,7 @@ def lees(pad):
     return paginas, beelden
 
 
-for bestand in ('uit-leeg.pdf', 'uit-vol.pdf', 'uit-fotomist.pdf'):
+for bestand in ('uit-leeg.pdf', 'uit-vol.pdf', 'uit-fotomist.pdf', 'uit-werkplaats.pdf'):
     if not os.path.exists(bestand):
         print('Ontbreekt: ' + bestand + ' — draai eerst node test-leverpagina.js')
         sys.exit(1)
@@ -67,6 +67,14 @@ check('meldt dat de foto niet opgehaald kon worden',
 check('zegt níet dat er geen foto is', 'Geen foto van de leverlocatie' not in lever)
 check('instructie staat er wel', 'Bellen bij aankomst' in lever)
 check('geen afbeelding', beelden[-1] == 0, str(beelden[-1]))
+
+print('\n3b. Werkplaats zonder foto (v94)')
+paginas, beelden = lees('uit-werkplaats.pdf')
+lever = paginas[-1]
+check('werkplaatsadres', 'Vissersdijk' in lever)
+check('zegt níets over een ontbrekende foto', 'Geen foto' not in lever and 'foto' not in lever.lower(),
+      [r for r in lever.split('\n') if 'oto' in r][:1])
+check('instructie staat er wel', 'Achter de loods' in lever)
 
 print('\n4. De bestellijst zelf is niet stuk')
 paginas, _ = lees('uit-vol.pdf')

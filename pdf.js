@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v96';
+  var PDF_VERSIE = 'v98';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
   // service worker en werkt de eerste pdf na een update ook zonder bereik.
   var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
@@ -429,9 +429,23 @@
       var taken = fotos.filter(function (f) { return f.soort !== 'lever'; }).map(function (f) {
         return fotoData(f.pad);
       });
+      // Voor de pagina met projectgegevens (v98): taken en logboek uit de
+      // cloud, en de foto van de leverlocatie met de tekening erop.
+      var leverFoto = fotos.find(function (f) { return f.soort === 'lever' && f.pad; }) || null;
+      var extra = Promise.all([
+        window.projectOverzichtVoorPdf
+          ? window.projectOverzichtVoorPdf().catch(function () { return null; })
+          : Promise.resolve(null),
+        leverFoto ? fotoData(leverFoto.pad) : Promise.resolve(null)
+      ]);
 
-      return Promise.all(taken).then(function (plaatjes) {
-        var eerste = true;
+      return Promise.all([Promise.all(taken), extra]).then(function (alles) {
+        var plaatjes = alles[0];
+        // De projectgegevens als eerste pagina (v98, gevraagd door Jan): alles
+        // wat op Project info staat, zodat de pdf als archief op zichzelf
+        // te lezen is.
+        projectPagina(doc, project, datum, alles[1][0], leverFoto, alles[1][1]);
+        var eerste = false;
 
         var kozijnFotos = fotos.filter(function (f) { return f.soort !== 'lever'; });
         kozijnFotos.forEach(function (f, i) {
@@ -484,6 +498,185 @@
       if (knop) knop.disabled = false;
       return res;
     });
+  }
+
+  /* ─── projectgegevens (v98) ─────────────────────────────────
+     Eerste pagina van de pdf invoer: klant en werkadres, uitvoering,
+     levering, notities, taken, logboek en de foto van de leverlocatie met
+     de tekening erop (keuze van Jan). Wat leeg is staat er met een streepje,
+     zodat je ziet dat het niet vergeten is in de pdf. */
+
+  // De ingebouwde letters kennen geen emoji en weinig tekens buiten
+  // West-Europa. Het logboek zet ✉ voor een mail; dat wordt een woord.
+  function pdfTekst(v) {
+    return schoon(v)
+      .replace(/✉️?/g, 'mail')
+      .replace(/[^\x00-\xFF–—‘-„•…€]/g, '')
+      .trim();
+  }
+
+  function projectPagina(doc, project, datum, ov, leverFoto, leverData) {
+    var i = (typeof projectInfo !== 'undefined' && projectInfo) || {};
+    ov = ov || {};
+    var titel = 'Projectgegevens';
+    var ONDER = HOOGTE - MARGE - 8;     // ruimte voor de voettekst
+    kopregel(doc, titel);
+    var y = MARGE + 12;
+
+    function nieuwePagina() {
+      doc.addPage('a4', 'portrait');
+      kopregel(doc, titel + ' (vervolg)');
+      y = MARGE + 12;
+    }
+    function ruimte(nodig) { if (y + nodig > ONDER) nieuwePagina(); }
+    function kopje(tekst) {
+      ruimte(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(208, 2, 67);
+      doc.text(tekst, MARGE, y);
+      doc.setDrawColor(225, 225, 225);
+      doc.setLineWidth(0.3);
+      doc.line(MARGE, y + 1.8, BREEDTE - MARGE, y + 1.8);
+      y += 5;
+    }
+    function tabel(opties) {
+      doc.autoTable(Object.assign({
+        startY: y,
+        margin: { left: MARGE, right: MARGE, top: MARGE + 9, bottom: MARGE + 8 },
+        styles: { fontSize: 9, cellPadding: 1.2, overflow: 'linebreak', textColor: [29, 29, 27],
+                  lineColor: [215, 219, 226], lineWidth: 0.15 },
+        didDrawPage: function (data) {
+          if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)');
+        }
+      }, opties));
+      y = doc.lastAutoTable.finalY + 7;
+    }
+    function paren(lijst) {
+      tabel({
+        theme: 'plain',
+        body: lijst.map(function (p) { return [p[0], pdfTekst(p[1]) || '-']; }),
+        styles: { fontSize: 9.5, cellPadding: { top: 1, bottom: 1, left: 0, right: 2 },
+                  overflow: 'linebreak', textColor: [29, 29, 27] },
+        columnStyles: { 0: { cellWidth: 46, textColor: [100, 108, 120] } }
+      });
+    }
+    function leeg(tekst) {
+      ruimte(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(120, 128, 140);
+      doc.text(pdfTekst(tekst), MARGE, y + 1);
+      y += 8;
+    }
+
+    // Naam van het project groot bovenaan.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(29, 29, 27);
+    doc.text(pdfTekst(project), MARGE, y);
+    y += 5.5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(100, 108, 120);
+    doc.text(pdfTekst(datum ? 'Datum opname: ' + datum : 'Datum opname: -'), MARGE, y);
+    y += 9;
+
+    var adres = ov.adres || [i.straat, [i.postcode, i.plaats].filter(Boolean).join(' ')]
+      .filter(Boolean).join(', ');
+    var klant = [['Klantnaam', i.klant], ['Contactpersoon', i.contact],
+                 ['Telefoon', i.telefoon], ['Werkadres', adres]];
+    // Vervallen velden (v98) alleen als er in dit project nog iets in staat.
+    if (String(i.email || '').trim()) klant.push(['E-mail', i.email]);
+    if (String(i.soortKlant || '').trim()) klant.push(['Soort opdrachtgever', i.soortKlant]);
+    kopje('Klant en werkadres');
+    paren(klant);
+
+    kopje('Uitvoering');
+    paren([['Referentie', i.referentie], ['Status', i.status], ['Opgenomen door', i.opnemer],
+           ['Bereikbaarheid / sleutel', i.bereikbaar]]);
+
+    kopje('Levering');
+    paren([['Afleveren op', ov.leverAdres || leverAdres()],
+           ['Gewenste levering', ov.leverWanneer || leverWanneer()],
+           ['Instructie chauffeur', i.leverInstructie]]);
+
+    kopje('Notities');
+    if (String(i.notities || '').trim()) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      var regels = doc.splitTextToSize(pdfTekst(i.notities), INHOUD);
+      regels.forEach(function (r) {
+        ruimte(5);
+        // Na een nieuwe pagina staat de letter van de kopregel nog aan
+        // (vet, 11 pt); dus per regel opnieuw zetten.
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(29, 29, 27);
+        doc.text(r, MARGE, y + 1);
+        y += 4.4;
+      });
+      y += 4;
+    } else {
+      leeg('Geen notities.');
+    }
+
+    kopje('Taken');
+    var takenLijst = ov.taken || [];
+    if (takenLijst.length) {
+      tabel({
+        head: [['Taak', 'Op naam van', 'Status']],
+        body: takenLijst.map(function (t) {
+          return [pdfTekst(t.tekst) || '-', pdfTekst(t.wie) || '-', t.klaar ? 'afgerond' : 'open'];
+        }),
+        headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold' },
+        columnStyles: { 1: { cellWidth: 38 }, 2: { cellWidth: 22 } }
+      });
+    } else {
+      leeg('Geen taken.');
+    }
+
+    kopje('Logboek' + ((ov.logboek || []).length >= 30 ? ' (laatste 30)' : ''));
+    var log = ov.logboek || [];
+    if (log.length) {
+      tabel({
+        head: [['Moment', 'Wie', 'Wat']],
+        body: log.map(function (r) { return [r.moment || '', pdfTekst(r.wie), pdfTekst(r.wat)]; }),
+        headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak', textColor: [29, 29, 27],
+                  lineColor: [215, 219, 226], lineWidth: 0.15 },
+        columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 24 } }
+      });
+    } else {
+      leeg(window.glasProjectId ? 'Nog geen wijzigingen vastgelegd.'
+                                : 'Het logboek vult zich zodra dit project in de cloud staat.');
+    }
+
+    if (leverData && leverFoto) {
+      var verh = (leverFoto.hoogte || 3) / (leverFoto.breedte || 4);
+      var b = INHOUD, h = b * verh;
+      if (h > FOTO_MAX_H) { h = FOTO_MAX_H; b = h / verh; }
+      // Past er minder dan zes centimeter foto onder het kopje, dan kopje en
+      // foto samen op een nieuwe pagina: een postzegel helpt de chauffeur
+      // niet, en een kopje onderaan zonder foto ook niet.
+      if (y + 5 + Math.min(h, 60) > ONDER) nieuwePagina();
+      kopje('Foto leverlocatie');
+      var past = ONDER - y;
+      if (h > past) { h = past; b = h / verh; }
+      var x = MARGE + (INHOUD - b) / 2;
+      doc.addImage(leverData, 'JPEG', x, y, b, h);
+      doc.setDrawColor(180, 186, 196);
+      doc.rect(x, y, b, h);
+      tekenInkt(doc, leverFoto, x, y, b, h);
+      y += h + 6;
+    } else if (leverFoto) {
+      kopje('Foto leverlocatie');
+      leeg('Er hoort een foto bij, maar die kon niet worden opgehaald. Maak de pdf opnieuw met verbinding.');
+    } else {
+      kopje('Foto leverlocatie');
+      leeg(i.leverAdres === 'werk' ? 'Geen foto van de leverlocatie toegevoegd.'
+                                   : 'Geen foto (levering op de werkplaats).');
+    }
   }
 
   // Wie de opname gedaan heeft en wie er het laatst aan gewerkt heeft.
@@ -1222,14 +1415,12 @@
     });
   }
 
+  // Klant, adres en levering worden sinds v98 op Invoer ingevuld, niet meer
+  // op Project info. 'Aanvullen' springt daarom naar het blok op Invoer:
+  // het werkadres staat in het klantblok bovenaan, de rest onderaan.
   function naarLeverblok(plek) {
-    if (window.gaNaarTab) gaNaarTab('project');
-    // Even wachten tot het tabblad staat; anders is het blok nog verborgen
-    // en doet scrollIntoView niets.
-    setTimeout(function () {
-      var doel = document.getElementById(plek === 'adres' ? 'projectVelden' : 'leverBlok');
-      if (doel && doel.scrollIntoView) doel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 80);
+    if (window.naarInvoerBlok) { naarInvoerBlok(plek === 'adres' ? 'klant' : 'lever'); return; }
+    if (window.gaNaarTab) gaNaarTab('invoer');
   }
 
   // Ook gebruikt door de CSV-export in index.html.

@@ -66,6 +66,17 @@ De volledige achtergrond staat in de projectkennis op claude.ai
   Iets nieuws in die soort? Zelfde patroon.
 * 'Opgenomen door' staat vast na de eerste ruit en verandert alleen via
   `opnemerWijzig()` (wachtwoord + logboek). `projectVeld('opnemer')` weigert.
+* Klant, werkadres en levering worden sinds v98 ingevuld op **Invoer**
+  (klantblok bovenaan, levering onderaan); Project info toont ze alleen.
+  Ze gaan mee op slot: elke functie die ze wijzigt begint met `opSlot()`
+  in project.js. Een nieuwe functie in die soort? Zelfde regel.
+* `hidden` wint niet van een `display` uit de opmaak. Een element met een
+  klasse die `display:flex` zet, blijft met `hidden` gewoon in beeld (zo
+  stond de lege slotbalk er van v90 t/m v97). Zet er een regel
+  `.klasse[hidden] { display: none; }` bij; `test-v98.js` controleert de
+  hele pagina.
+* Er is één naslag (`#naslagInhoud`); op het startscherm wordt hij
+  verplaatst, niet gekopieerd (start.js, v98). Twee kopieën geven dubbele ids.
 * **De Edge Function `mail` is nog niet uitgerold** (stand oktober 2026): de
   code staat in `supabase/functions/mail/`, maar in Supabase staat geen
   functie, geen Resend en geen geheimen. Jan stelt dat later in (handover
@@ -80,6 +91,7 @@ node test-start.js && node test-mail-en-slot.js && node test-import.js
 node test-slot.js && node test-v91.js && node test-v93.js && node test-offline.js
 node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
+node test-v98.js && python3 test-v98.py
 bun test-mailfunctie.ts
 ```
 

@@ -39,6 +39,8 @@
     if (!scherm) return;
     scherm.hidden = false;
     document.body.classList.add('op-start');
+    // Altijd op Start beginnen; de naslag terug naar zijn eigen tabblad.
+    window.startTab('start');
     var naam = (window.glasGebruiker ? glasGebruiker().naam : '') || '';
     var wie = el('startGebruiker');
     if (wie) wie.innerHTML = naam ? 'Ingelogd als <b>' + esc2(naam) + '</b>' : '';
@@ -53,10 +55,47 @@
     prul.then(vulPrullenbak);
   };
 
+  /* ─── naslag op het startscherm (v98) ──────────────────────────
+     Jan wil de naslag kunnen bekijken zonder eerst een project te openen.
+     Er is maar één naslag: het blok #naslagInhoud verhuist tussen het
+     tabblad Naslag in de app en het startscherm. Twee kopieën gaven dubbele
+     ids (het zoekveld, het grote fotovenster), en dan zoekt de ene in de
+     andere. */
+  function naslagNaar(doel) {
+    var inhoud = el('naslagInhoud');
+    if (inhoud && doel && inhoud.parentNode !== doel) doel.appendChild(inhoud);
+  }
+
+  window.naslagTerugInApp = function () {
+    naslagNaar(el('panel-naslag'));
+  };
+
+  window.startTab = function (welk) {
+    var naslag = welk === 'naslag';
+    var tabs = { start: el('startTabStart'), naslag: el('startTabNaslag') };
+    Object.keys(tabs).forEach(function (k) {
+      if (!tabs[k]) return;
+      tabs[k].classList.toggle('aan', k === welk);
+      tabs[k].setAttribute('aria-selected', k === welk ? 'true' : 'false');
+    });
+    var inhoud = el('startInhoud'), plek = el('startNaslag');
+    if (inhoud) inhoud.hidden = naslag;
+    if (plek) plek.hidden = !naslag;
+    if (naslag) {
+      naslagNaar(plek);
+      if (window.renderNaslag) renderNaslag();
+    } else {
+      window.naslagTerugInApp();
+    }
+    var scherm = el('startScherm');
+    if (scherm) scherm.scrollTop = 0;
+  };
+
   window.glasToonApp = function () {
     var scherm = el('startScherm');
     if (scherm) scherm.hidden = true;
     document.body.classList.remove('op-start');
+    window.naslagTerugInApp();
     zetProjectKop();
   };
 

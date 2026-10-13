@@ -10,21 +10,24 @@
   // Het eigen adres van de werkplaats. Via config.js te overschrijven.
   var WERKPLAATS = 'Werkplaats — Vissersdijk Beneden 44, Dordrecht';
 
-  var VELDEN = [
-    { groep: 'Opdrachtgever', velden: [
-      { id: 'klant',        label: 'Bedrijf of naam',   breed: 2 },
-      { id: 'contact',      label: 'Contactpersoon' },
-      { id: 'telefoon',     label: 'Telefoon', type: 'tel' },
-      { id: 'email',        label: 'E-mail', type: 'email', breed: 2 },
-      { id: 'soortKlant',   label: 'Soort opdrachtgever', keuze:
-        ['', 'Particulier', 'Aannemer', 'VvE', 'Woningcorporatie', 'Bedrijf', 'Anders'] }
-    ]},
-    { groep: 'Werkadres', velden: [
-      { id: 'straat',    label: 'Straat en huisnummer', breed: 2 },
-      { id: 'postcode',  label: 'Postcode' },
-      { id: 'plaats',    label: 'Plaats' }
+  // Klant en werkadres worden sinds v98 ingevuld bovenaan Invoer, in één
+  // blok (keuze van Jan: "invoer gebeurt in principe op het glas
+  // invoertabblad"). Project info laat ze alleen nog zien.
+  // 'Bedrijf of naam' heet nu 'Klantnaam'; de sleutel blijft `klant`, zodat
+  // bestaande projecten en de bestellijst niets merken. E-mail en soort
+  // opdrachtgever zijn als invoerveld vervallen (v98); wat er al in een
+  // project stond blijft in de gegevens staan en gaat niet verloren.
+  var KLANT_VELDEN = [
+    { id: 'klant',     label: 'Klantnaam',       breed: 2 },
+    { id: 'contact',   label: 'Contactpersoon' },
+    { id: 'telefoon',  label: 'Telefoon', type: 'tel' },
+    { id: 'straat',    label: 'Straat en huisnummer', breed: 2 },
+    { id: 'postcode',  label: 'Postcode' },
+    { id: 'plaats',    label: 'Plaats' }
+  ];
+  var KLANT_IDS = KLANT_VELDEN.map(function (v) { return v.id; });
 
-    ]},
+  var VELDEN = [
     { groep: 'Uitvoering', velden: [
       { id: 'referentie', label: 'Referentie of opdrachtnummer' },
       // 'aangemaakt' en 'bezig met inmeten/verwerken' gaan vanzelf (zie
@@ -89,6 +92,7 @@
 
   window.adresKies = function (id) {
     sluitAdresMenu();
+    if (opSlot()) return;
     fetch(PDOK + 'lookup?id=' + encodeURIComponent(id) + '&fl=straatnaam,huis_nlt,postcode,woonplaatsnaam')
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -133,41 +137,208 @@
 
   /* ─── tekenen ──────────────────────────────────────────────── */
 
-  window.renderProject = function () {
-    var houder = document.getElementById('projectVelden');
-    if (!houder) return;
-    var d = info();
+  // Eén veld als invoer. Gedeeld door het klantblok op Invoer en de
+  // uitvoering op Project info.
+  function veldHTML(v, d) {
+    var waarde = d[v.id] || '';
+    if (v.vast) {
+      return '<div class="pi-veld pi-vast' + (v.breed ? ' breed' : '') + '">' +
+        '<span>' + esc(v.label) + '</span><div class="pi-vast-rij">' +
+        '<input type="text" id="pi-' + v.id + '" value="' + esc(waarde) + '" readonly ' +
+        'placeholder="Volgt bij de eerste ingevulde ruit" ' +
+        'title="Vastgezet. Wijzigen kan met de knop ernaast, met je eigen wachtwoord.">' +
+        '<button type="button" class="btn btn-secondary btn-sm" onclick="opnemerWijzig()">Wijzigen…</button>' +
+        '</div></div>';
+    }
+    var invoer = v.keuze
+      ? '<select id="pi-' + v.id + '" onchange="projectVeld(\'' + v.id + '\', this.value)">' +
+        v.keuze.map(function (k) {
+          return '<option value="' + esc(k) + '"' + (k === waarde ? ' selected' : '') + '>' +
+                 esc(k || '—') + '</option>';
+        }).join('') + '</select>'
+      : '<input type="' + (v.type || 'text') + '" id="pi-' + v.id + '" value="' + esc(waarde) + '" ' +
+        'oninput="projectVeld(\'' + v.id + '\', this.value)">';
+    return '<label class="pi-veld' + (v.breed ? ' breed' : '') + '">' +
+           '<span>' + esc(v.label) + '</span>' + invoer + '</label>';
+  }
 
-    houder.innerHTML = VELDEN.map(function (g) {
-      var zoek = g.groep !== 'Werkadres' ? '' :
+  // Een stuk scherm opnieuw vullen zonder dat wie daar aan het typen is zijn
+  // cursor kwijtraakt (v98). Het klantblok staat nu op Invoer, en een
+  // wijziging van een collega (cloud.js) tekent het opnieuw; zonder dit
+  // sprong de cursor midden in een woord uit het veld.
+  function vulBehoudFocus(houder, html) {
+    if (houder.__html === html) return;
+    var actief = document.activeElement;
+    var binnen = actief && actief.id && houder.contains(actief) ? actief : null;
+    var id = binnen ? binnen.id : null;
+    var waarde = binnen ? binnen.value : null;
+    var van = null, tot = null;
+    try { if (binnen) { van = binnen.selectionStart; tot = binnen.selectionEnd; } } catch (e) { /* select */ }
+    houder.innerHTML = html;
+    houder.__html = html;
+    if (!id) return;
+    var nieuw = document.getElementById(id);
+    if (!nieuw) return;
+    if (nieuw.value !== waarde && nieuw.tagName === 'INPUT') nieuw.value = waarde;
+    try {
+      nieuw.focus();
+      if (van != null) nieuw.setSelectionRange(van, tot);
+    } catch (e) { /* niet elk veld kent een selectie */ }
+  }
+
+  /* ─── klantblok bovenaan Invoer (v98) ─────────────────────────
+     Inklapbaar; dicht zodra klantnaam én een adres er staan (keuze van
+     Jan). Dicht toont het één regel met de klantnaam en het adres; een tik
+     klapt het open. De stand wordt bepaald bij het openen van een project
+     en elke keer dat je naar Invoer gaat — niet tijdens het typen, want
+     dan schoof de tabel eronder weg terwijl je erop tikte. */
+  var klantDicht = false;
+  var klantStandVoor;          // voor welk project de stand bepaald is
+
+  function klantIngevuld(d) {
+    return !!(String(d.klant || '').trim() &&
+              (String(d.straat || '').trim() || String(d.plaats || '').trim()));
+  }
+
+  function adresRegel(d) {
+    return [d.straat, [d.postcode, d.plaats].filter(Boolean).join(' ')]
+      .map(function (x) { return String(x || '').trim(); }).filter(Boolean).join(', ');
+  }
+
+  function klantRegel(d) {
+    var delen = [String(d.klant || '').trim(), adresRegel(d)].filter(Boolean);
+    return delen.length ? delen.join(' · ') : 'Nog niet ingevuld';
+  }
+
+  function zetKlantBlok() {
+    var inhoud = document.getElementById('inhoud-klant');
+    var pijl = document.getElementById('pijl-klant');
+    var kaart = document.getElementById('blok-klant');
+    if (inhoud) inhoud.style.display = klantDicht ? 'none' : '';
+    if (pijl) pijl.textContent = klantDicht ? '▸' : '▾';
+    if (kaart) kaart.classList.toggle('dicht', klantDicht);
+  }
+
+  window.klantKlap = function () {
+    klantDicht = !klantDicht;
+    zetKlantBlok();
+  };
+  window.klantBlokOpen = function () {
+    klantDicht = false;
+    zetKlantBlok();
+  };
+  // Aangeroepen door toon('invoer') in index.html.
+  window.klantBlokBijTonen = function () {
+    klantDicht = klantIngevuld(info());
+    zetKlantBlok();
+  };
+
+  function renderKlantBlok(d) {
+    var pid = window.glasProjectId || null;
+    var houder = document.getElementById('klantVelden');
+    if (houder) {
+      vulBehoudFocus(houder,
         '<div class="adres-zoek">' +
           '<input type="text" id="adresZoek" placeholder="Zoek op postcode + huisnummer, of op straat…" ' +
             'autocomplete="off" oninput="adresZoek(this.value)">' +
-        '</div>';
-      return '<section class="pi-groep"><h3>' + g.groep + '</h3>' + zoek + '<div class="pi-raster">' +
-        g.velden.map(function (v) {
-          var waarde = d[v.id] || '';
-          if (v.vast) {
-            return '<div class="pi-veld pi-vast' + (v.breed ? ' breed' : '') + '">' +
-              '<span>' + esc(v.label) + '</span><div class="pi-vast-rij">' +
-              '<input type="text" id="pi-' + v.id + '" value="' + esc(waarde) + '" readonly ' +
-              'placeholder="Volgt bij de eerste ingevulde ruit" ' +
-              'title="Vastgezet. Wijzigen kan met de knop ernaast, met je eigen wachtwoord.">' +
-              '<button type="button" class="btn btn-secondary btn-sm" onclick="opnemerWijzig()">Wijzigen…</button>' +
-              '</div></div>';
-          }
-          var invoer = v.keuze
-            ? '<select id="pi-' + v.id + '" onchange="projectVeld(\'' + v.id + '\', this.value)">' +
-              v.keuze.map(function (k) {
-                return '<option value="' + esc(k) + '"' + (k === waarde ? ' selected' : '') + '>' +
-                       esc(k || '—') + '</option>';
-              }).join('') + '</select>'
-            : '<input type="' + (v.type || 'text') + '" id="pi-' + v.id + '" value="' + esc(waarde) + '" ' +
-              'oninput="projectVeld(\'' + v.id + '\', this.value)">';
-          return '<label class="pi-veld' + (v.breed ? ' breed' : '') + '">' +
-                 '<span>' + esc(v.label) + '</span>' + invoer + '</label>';
-        }).join('') + '</div></section>';
-    }).join('');
+        '</div>' +
+        '<div class="pi-raster">' + KLANT_VELDEN.map(function (v) { return veldHTML(v, d); }).join('') +
+        '</div>' +
+        '<div class="klant-voet">' +
+          '<button type="button" class="btn btn-ghost btn-sm vrij-bij-slot" id="klantKaart" hidden>' +
+          '📍 Adres in kaarten</button>' +
+        '</div>');
+    }
+    if (klantStandVoor !== pid) {
+      klantStandVoor = pid;
+      klantDicht = klantIngevuld(d);
+    }
+    zetKlantRegel(d);
+    zetKlantBlok();
+  }
+
+  function zetKlantRegel(d) {
+    var regel = document.getElementById('klantRegel');
+    if (!regel) return;
+    regel.textContent = klantRegel(d);
+    regel.classList.toggle('leeg', !klantIngevuld(d));
+  }
+
+  /* ─── alleen-lezen op Project info (v98) ───────────────────── */
+
+  function leesRij(label, waarde, extra) {
+    var w = String(waarde == null ? '' : waarde).trim();
+    return '<div class="pi-lees-rij' + (extra ? ' ' + extra : '') + '"><dt>' + esc(label) + '</dt>' +
+      '<dd' + (w ? '' : ' class="leeg"') + '>' + (w ? esc(w) : '—') + '</dd></div>';
+  }
+
+  function naarKnop(welk) {
+    var dicht = window.invoerOpSlot && invoerOpSlot();
+    return '<button type="button" class="btn btn-secondary btn-sm pi-naar" onclick="naarInvoerBlok(\'' +
+      welk + '\')">' + (dicht ? '🔒 Bekijken op Invoer' : '✏️ Invullen op Invoer') + '</button>';
+  }
+
+  function renderKlantOverzicht(d) {
+    var houder = document.getElementById('projectKlant');
+    if (!houder) return;
+    var rijen = leesRij('Klantnaam', d.klant) +
+      leesRij('Contactpersoon', d.contact) +
+      leesRij('Telefoon', d.telefoon) +
+      leesRij('Werkadres', adresRegel(d));
+    // Deze twee velden zijn in v98 vervallen. Staat er in een ouder project
+    // nog iets in, dan blijft dat hier te zien, zodat het niet stil verdwijnt.
+    if (String(d.email || '').trim()) rijen += leesRij('E-mail (oud veld)', d.email, 'oud');
+    if (String(d.soortKlant || '').trim()) rijen += leesRij('Soort opdrachtgever (oud veld)', d.soortKlant, 'oud');
+    houder.innerHTML = '<section class="pi-groep">' +
+      '<div class="taken-kop"><h3>Klant en werkadres</h3>' + naarKnop('klant') + '</div>' +
+      '<dl class="pi-lees">' + rijen + '</dl></section>';
+  }
+
+  function renderLeverOverzicht(d) {
+    var houder = document.getElementById('projectLever');
+    if (!houder) return;
+    var foto = window.leverFoto ? window.leverFoto() : null;
+    var fotoTekst = foto && foto.pad
+      ? 'Toegevoegd' + ((foto.inkt && foto.inkt.length) ? ', met tekening' : '')
+      : (d.leverAdres === 'werk' ? 'Nog geen foto' : 'Geen (niet nodig bij de werkplaats)');
+    houder.innerHTML =
+      '<div class="taken-kop"><h3>Levering</h3>' + naarKnop('lever') + '</div>' +
+      '<dl class="pi-lees">' +
+        leesRij('Afleveren op', leverAdresTekst()) +
+        leesRij('Gewenste levering', leverDatumTekst()) +
+        leesRij('Foto leverlocatie', fotoTekst) +
+        leesRij('Instructie chauffeur', d.leverInstructie, 'tekst') +
+      '</dl>';
+  }
+
+  // Van Project info naar het blok op Invoer waar het ingevuld wordt.
+  // Ook gebruikt door de exportcontrole in pdf.js ('Aanvullen').
+  window.naarInvoerBlok = function (welk) {
+    if (window.gaNaarTab) gaNaarTab('invoer');
+    if (welk === 'klant') window.klantBlokOpen();
+    // Even wachten tot het tabblad staat; anders is het blok nog verborgen
+    // en doet scrollIntoView niets.
+    setTimeout(function () {
+      var doel = document.getElementById(welk === 'klant' ? 'blok-klant' : 'blok-lever');
+      if (doel && doel.scrollIntoView) doel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
+  /* ─── tekenen ──────────────────────────────────────────────── */
+
+  window.renderProject = function () {
+    var d = info();
+
+    renderKlantBlok(d);
+    renderKlantOverzicht(d);
+
+    var houder = document.getElementById('projectVelden');
+    if (houder) {
+      houder.innerHTML = VELDEN.map(function (g) {
+        return '<section class="pi-groep"><h3>' + g.groep + '</h3><div class="pi-raster">' +
+          g.velden.map(function (v) { return veldHTML(v, d); }).join('') + '</div></section>';
+      }).join('');
+    }
 
     var notitie = document.getElementById('projectNotitie');
     if (notitie && notitie.value !== (d.notities || '')) notitie.value = d.notities || '';
@@ -175,6 +346,7 @@
     if (instr && instr.value !== (d.leverInstructie || '')) instr.value = d.leverInstructie || '';
     renderLevering();
     if (window.renderLeverFoto) renderLeverFoto();
+    renderLeverOverzicht(d);
     // Taken en logboek horen bij één project. Tot v94 werden ze alleen
     // opnieuw opgehaald bij het openen van een bestaand project, niet bij
     // een nieuw project: dan bleven taken en logboek van het vorige project
@@ -187,7 +359,18 @@
     toonKaartknop();
   };
 
+  // Klant, adres en levering staan sinds v98 op Invoer en gaan mee op slot
+  // na bestellen (keuze van Jan). Net als bij de maten zit het echte slot
+  // op de gegevens: elke functie die ze wijzigt vraagt het eerst na. Het
+  // scherm terugzetten gebeurt met renderProject().
+  function opSlot() {
+    if (!window.slotWeigert || !slotWeigert()) return false;
+    if (window.renderProject) renderProject();
+    return true;
+  }
+
   window.projectVeld = function (id, waarde) {
+    if (KLANT_IDS.indexOf(id) >= 0 && opSlot()) return;
     var oud = info()[id];
     if (id === 'status' && waarde !== oud) {
       var rang = window.statusRang || function () { return 0; };
@@ -225,6 +408,7 @@
     }
     opslaan();
     if (id === 'straat' || id === 'postcode' || id === 'plaats') toonKaartknop();
+    if (KLANT_IDS.indexOf(id) >= 0) zetKlantRegel(info());
   };
 
   // 'Opgenomen door' wijzigen (v93, keuze van Jan). Het veld vult zich
@@ -287,25 +471,36 @@
 
   // Adres opzoeken in kaarten — scheelt overtypen op de telefoon.
   function toonKaartknop() {
-    var knop = document.getElementById('pi-kaart');
-    if (!knop) return;
     var d = info();
     var adres = [d.straat, d.postcode, d.plaats].filter(Boolean).join(', ');
-    knop.style.display = adres ? '' : 'none';
-    knop.onclick = function () {
-      window.open('https://maps.apple.com/?q=' + encodeURIComponent(adres), '_blank');
-    };
+    // Op Project info én in het klantblok op Invoer (v98). Die op Invoer
+    // blijft bruikbaar als het project op slot staat: hij wijzigt niets.
+    ['pi-kaart', 'klantKaart'].forEach(function (id) {
+      var knop = document.getElementById(id);
+      if (!knop) return;
+      if (id === 'pi-kaart') knop.style.display = adres ? '' : 'none';
+      else {
+        knop.hidden = !adres;
+        // Geen lege strook onder de velden als er nog geen adres is.
+        if (knop.parentNode) knop.parentNode.style.display = adres ? '' : 'none';
+      }
+      knop.onclick = function () {
+        window.open('https://maps.apple.com/?q=' + encodeURIComponent(adres), '_blank');
+      };
+    });
   }
 
   /* ─── levering ─────────────────────────────────────────────── */
 
   window.leverAdresWijzig = function (waarde) {
+    if (opSlot()) return;
     info().leverAdres = waarde;
     opslaan();
     renderLevering();
   };
 
   window.leverDatumSoort = function (waarde) {
+    if (opSlot()) return;
     var d = info();
     d.leverSoort = waarde;
     if (waarde !== 'datum') d.leverDatum = '';
@@ -340,6 +535,7 @@
   };
 
   window.leverKalender = function (knop, perWeek, weken) {
+    if (window.invoerOpSlot && invoerOpSlot()) { opSlot(); return; }
     if (document.querySelector('.kalender')) { sluitKalender(); return; }
     kalenderKnop = knop;
     var aantal = weken || KALENDER_WEKEN;
@@ -439,6 +635,7 @@
   }
 
   window.leverWeekZet = function (nummer, tekst) {
+    if (opSlot()) return;
     var d = info();
     d.leverSoort = 'week';
     d.leverWeek = nummer;
@@ -449,6 +646,7 @@
   };
 
   window.leverDatumZet = function (tekst) {
+    if (opSlot()) return;
     var d = info();
     d.leverSoort = 'datum';
     d.leverDatum = tekst;
@@ -458,6 +656,7 @@
   };
 
   window.leverInstructie = function (waarde) {
+    if (opSlot()) return;
     info().leverInstructie = waarde;
     opslaan();
   };
@@ -808,6 +1007,26 @@
            String(d.getMonth() + 1).padStart(2, '0') + ' ' + tijd;
   }
 
+  // Het laatst opgehaalde logboek, voor de pdf als ophalen niet lukt (v98).
+  var logboekRegels = [];
+
+  function logboekOphalen(pid) {
+    return Promise.all([
+      glasGeschiedenis(pid),
+      window.glasMailLog ? glasMailLog(pid) : Promise.resolve([])
+    ]).then(function (uit) {
+      return (uit[0] || []).concat((uit[1] || []).map(function (m) {
+        return {
+          moment: m.moment,
+          wie_naam: m.wie_naam,
+          samenvatting: (m.gelukt ? '✉ ' : '✉ MISLUKT — ') +
+            (m.soort === 'taak' ? 'taakbericht' : 'bestelmail') + ' naar ' + (m.aan || '') +
+            (m.gelukt ? '' : ' (' + (m.fout || 'onbekende fout') + ')')
+        };
+      })).sort(function (a, b) { return String(b.moment).localeCompare(String(a.moment)); });
+    });
+  }
+
   window.logboekLaden = function () {
     var houder = document.getElementById('logboekLijst');
     if (!houder) return;
@@ -819,24 +1038,12 @@
       return;
     }
     houder.innerHTML = '<div class="taken-leeg">Logboek ophalen…</div>';
-    Promise.all([
-      glasGeschiedenis(window.glasProjectId),
-      window.glasMailLog ? glasMailLog(window.glasProjectId) : Promise.resolve([])
-    ]).then(function (uit) {
+    logboekOphalen(pid).then(function (lijst) {
       // Intussen een ander project geopend: dit antwoord niet tonen (v95).
       if ((window.glasProjectId || null) !== pid) return;
       // De verstuurde mail hoort in hetzelfde rijtje: dat is immers het
       // moment waarop de leverancier iets kreeg (v88).
-      var lijst = (uit[0] || []).concat((uit[1] || []).map(function (m) {
-        return {
-          moment: m.moment,
-          wie_naam: m.wie_naam,
-          samenvatting: (m.gelukt ? '✉ ' : '✉ MISLUKT — ') +
-            (m.soort === 'taak' ? 'taakbericht' : 'bestelmail') + ' naar ' + (m.aan || '') +
-            (m.gelukt ? '' : ' (' + (m.fout || 'onbekende fout') + ')')
-        };
-      })).sort(function (a, b) { return String(b.moment).localeCompare(String(a.moment)); });
-
+      logboekRegels = lijst || [];
       if (!lijst || !lijst.length) {
         houder.innerHTML = '<div class="taken-leeg">Nog geen wijzigingen vastgelegd. ' +
           'Het logboek houdt elke wijziging bij, met wie hem deed.</div>';
@@ -849,6 +1056,55 @@
           '<span class="log-wat">' + esc(r.samenvatting || 'wijziging') + '</span>' +
         '</div>';
       }).join('');
+    });
+  };
+
+  /* ─── voor de pdf (v98) ─────────────────────────────────────
+     De pdf van de invoer krijgt een pagina met de projectgegevens, ook de
+     taken en het logboek. Die komen uit de cloud; vers ophalen, maar nooit
+     langer dan een paar seconden wachten: zonder bereik moet de pdf er
+     gewoon komen, dan met wat er al op het scherm stond. */
+  function binnen(belofte, ms, terug) {
+    return Promise.race([
+      Promise.resolve(belofte).catch(function () { return terug; }),
+      new Promise(function (ok) { setTimeout(function () { ok(terug); }, ms); })
+    ]);
+  }
+
+  // Op papier geen 'vandaag': de pdf wordt later nog gelezen.
+  function volledigMoment(iso) {
+    var d = new Date(iso);
+    if (!iso || isNaN(d.getTime())) return '';
+    function twee(n) { return String(n).padStart(2, '0'); }
+    return twee(d.getDate()) + '-' + twee(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' +
+           twee(d.getHours()) + ':' + twee(d.getMinutes());
+  }
+
+  window.projectOverzichtVoorPdf = function () {
+    var pid = window.glasProjectId || null;
+    var takenBelofte = cloudTaken()
+      ? binnen(glasTakenVan(pid), 4000, null).then(function (l) {
+          return Array.isArray(l) ? l : (taakLijst || taken());
+        })
+      : Promise.resolve(taken());
+    var logBelofte = (pid && window.glasGeschiedenis)
+      ? binnen(logboekOphalen(pid), 4000, null).then(function (l) {
+          return Array.isArray(l) ? l : logboekRegels;
+        })
+      : Promise.resolve([]);
+    return Promise.all([takenBelofte, logBelofte]).then(function (uit) {
+      return {
+        taken: (uit[0] || []).map(function (t) {
+          return { tekst: t.tekst || '', klaar: !!t.klaar, wie: t.eigenaar_naam || '' };
+        }),
+        logboek: (uit[1] || []).slice(0, 30).map(function (r) {
+          return { moment: volledigMoment(r.moment), wie: r.wie_naam || 'onbekend',
+                   wat: r.samenvatting || 'wijziging' };
+        }),
+        leverAdres: leverAdresTekst(),
+        leverWanneer: leverDatumTekst(),
+        adres: adresRegel(info())
+      };
     });
   };
 

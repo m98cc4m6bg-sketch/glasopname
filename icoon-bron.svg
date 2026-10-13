@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Glasopname-icoon (v97, richting D): het huisje van Jelier Bouw met een
+       ruit en een rolmaat. Bron voor favicon.ico, favicon.png,
+       apple-touch-icon.png, icon-192.png en icon-512.png. -->
+  <polygon fill="#D9014F" points="256,82 338,136 338,186 256,131 141,205 141,388 363,388 363,155 413,186 413,429 98,429 98,187"/>
+  <rect x="166" y="204" width="150" height="124" fill="#A9D8EC" stroke="#1D1D1B" stroke-width="12"/>
+  <line x1="192" y1="306" x2="238" y2="230" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"/>
+  <line x1="228" y1="308" x2="262" y2="254" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+  <rect x="156" y="344" width="122" height="24" fill="#F2C200" stroke="#1D1D1B" stroke-width="5"/>
+  <line x1="178" y1="346" x2="178" y2="360" stroke="#1D1D1B" stroke-width="5"/>
+  <line x1="200" y1="346" x2="200" y2="354" stroke="#1D1D1B" stroke-width="4"/>
+  <line x1="222" y1="346" x2="222" y2="360" stroke="#1D1D1B" stroke-width="5"/>
+  <line x1="244" y1="346" x2="244" y2="354" stroke="#1D1D1B" stroke-width="4"/>
+  <rect x="146" y="334" width="14" height="44" fill="#1D1D1B"/>
+  <rect x="262" y="270" width="96" height="100" rx="24" fill="#1D1D1B"/>
+  <circle cx="310" cy="318" r="24" fill="none" stroke="#F2C200" stroke-width="9"/>
+</svg>

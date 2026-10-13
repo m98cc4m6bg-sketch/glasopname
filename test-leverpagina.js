@@ -110,10 +110,12 @@ function pdfViaExport(w, bestandsnaam) {
   check('drie knoppen: ' + knoppen.join(', '), knoppen.length === 3 &&
     knoppen.indexOf('Aanvullen') >= 0 && knoppen.indexOf('Toch exporteren') >= 0);
 
-  console.log('\n2. Aanvullen sluit de melding en springt naar Project');
+  // Sinds v98 worden klant, adres en levering op Invoer ingevuld; Aanvullen
+  // springt daarheen (tot v97: naar Project info).
+  console.log('\n2. Aanvullen sluit de melding en springt naar Invoer');
   venster.querySelector('[data-actie="aanvullen"]').click();
   check('melding is weg', !w.document.querySelector('.cloud-overlay'));
-  check('naar tabblad project', w.__tab === 'project', w.__tab);
+  check('naar tabblad invoer (v98; tot v97 project)', w.__tab === 'invoer', w.__tab);
 
   console.log('\n3. Annuleren doet niets');
   w = maakOmgeving();

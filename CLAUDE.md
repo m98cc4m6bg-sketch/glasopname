@@ -60,6 +60,10 @@ De volledige achtergrond staat in de projectkennis op claude.ai
   foto ophalen gaat via `fotoBlob(pad)` (wachtrij eerst, dan cloud).
 * Originele foto's staan in `<project>/origineel/`; opruimen moet die
   submap meenemen (`fotosOpruimen` in cloud.js).
+* Alles wat los van de opname wordt opgehaald (taken, logboek) hoort bij één
+  project. `renderProject()` haalt het opnieuw op als `glasProjectId`
+  veranderd is; een antwoord voor een ander project wordt genegeerd (v95).
+  Iets nieuws in die soort? Zelfde patroon.
 * 'Opgenomen door' staat vast na de eerste ruit en verandert alleen via
   `opnemerWijzig()` (wachtwoord + logboek). `projectVeld('opnemer')` weigert.
 * **De Edge Function `mail` is nog niet uitgerold** (stand oktober 2026): de

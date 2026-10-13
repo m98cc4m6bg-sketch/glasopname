@@ -175,7 +175,15 @@
     if (instr && instr.value !== (d.leverInstructie || '')) instr.value = d.leverInstructie || '';
     renderLevering();
     if (window.renderLeverFoto) renderLeverFoto();
-    renderTaken();
+    // Taken en logboek horen bij één project. Tot v94 werden ze alleen
+    // opnieuw opgehaald bij het openen van een bestaand project, niet bij
+    // een nieuw project: dan bleven taken en logboek van het vorige project
+    // staan (gemeld door Jan). Nu hier, aan de bron: renderProject() draait
+    // bij elke projectwissel, langs welke weg ook (v95).
+    var pid = window.glasProjectId || null;
+    if (takenVoor !== pid) { taakLijst = null; taakFoutmelding = ''; takenLaden(); }
+    else renderTaken();
+    if (logboekVoor !== pid) logboekLaden();
     toonKaartknop();
   };
 
@@ -513,6 +521,10 @@
   // zeggen we er eerlijk bij als die er niet is.
 
   var taakLijst = null;       // uit de tabel; null = nog niet opgehaald
+  // Voor welk project de taken en het logboek op het scherm staan (v95).
+  // undefined = nog nooit opgehaald.
+  var takenVoor;
+  var logboekVoor;
   var taakFoutmelding = '';
 
   // Alleen als de tabel er is; anders valt alles terug op de oude lijst in
@@ -557,16 +569,24 @@
   }
 
   window.takenLaden = function () {
+    var pid = window.glasProjectId || null;
+    takenVoor = pid;
     collegasLaden().then(function () { if (taakLijst !== undefined) renderTaken(); });
     if (!cloudTaken()) { taakLijst = null; renderTaken(); return; }
     taakFoutmelding = '';
-    glasTakenVan().then(function (lijst) {
+    // Intussen niet de taken van het vorige project laten staan (v95).
+    renderTaken();
+    glasTakenVan(pid).then(function (lijst) {
+      // Een antwoord dat binnenkomt nadat er een ander project geopend is,
+      // hoort niet meer op het scherm (v95).
+      if ((window.glasProjectId || null) !== pid) return;
       // null betekent: de tabel is er niet (of het ophalen lukte niet);
       // dan de taken uit het project zelf tonen.
       if (lijst === null) { taakLijst = null; renderTaken(); return; }
       taakLijst = lijst;
       renderTaken();
     }, function () {
+      if ((window.glasProjectId || null) !== pid) return;
       taakLijst = [];
       taakFoutmelding = 'De taken konden niet opgehaald worden.';
       renderTaken();
@@ -791,6 +811,8 @@
   window.logboekLaden = function () {
     var houder = document.getElementById('logboekLijst');
     if (!houder) return;
+    var pid = window.glasProjectId || null;
+    logboekVoor = pid;
     if (!window.glasProjectId || !window.glasGeschiedenis) {
       houder.innerHTML = '<div class="taken-leeg">Het logboek vult zich zodra dit project ' +
         'in de cloud staat.</div>';
@@ -801,6 +823,8 @@
       glasGeschiedenis(window.glasProjectId),
       window.glasMailLog ? glasMailLog(window.glasProjectId) : Promise.resolve([])
     ]).then(function (uit) {
+      // Intussen een ander project geopend: dit antwoord niet tonen (v95).
+      if ((window.glasProjectId || null) !== pid) return;
       // De verstuurde mail hoort in hetzelfde rijtje: dat is immers het
       // moment waarop de leverancier iets kreeg (v88).
       var lijst = (uit[0] || []).concat((uit[1] || []).map(function (m) {

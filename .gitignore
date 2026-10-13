@@ -1,0 +1,7 @@
+# Mac-bestand dat Finder overal neerzet; hoort niet in de repo.
+.DS_Store
+# Pdf's die de testreeksen maken (test-leverpagina.js e.a.).
+uit-*.pdf
+# Wat npm achterlaat als iemand de testen lokaal draait.
+node_modules/
+package-lock.json

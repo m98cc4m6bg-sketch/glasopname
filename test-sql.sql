@@ -343,3 +343,35 @@ select '16. originelen' as test, public, file_size_limit,
   from storage.buckets where id = 'projectfotos';
 select '16b. andere map ongemoeid' as test, file_size_limit, allowed_mime_types
   from storage.buckets where id = 'anders';
+
+-- 17. Opbouwlijsten (v96): dubbelen weg, omdraaien naar dun-binnen, HR++ geen
+--     spouw > 16, triple alleen spouw >= 9 en middenblad 4; gelaagd blijft;
+--     de lookup volgt de omgedraaide namen. Twee keer draaien = zelfde uitkomst.
+--     verwacht:
+--       17a. ["4-13-4", "4-13-5", "4-13-8"]
+--       17b. ["4-16-4-16-6"]
+--       17c. ["33.1-13-4", "4-13-33.1"]
+--       17d. ["4-13-6 ZW", "33.1-13-4 ZW"]
+--       17e. {"kg_m2": 30, "totaal": 25, "glasOnly": 12} | t (oude naam blijft)
+--       17f. ["3 mm", "4 mm"] (ander type ongemoeid)
+update public.app_data
+   set waarde = waarde || '{"opbouw_per_type": {
+         "HR++ glas": ["4-13-4", "4-13-5", "5-13-4", "8-13-4", "4-20-4"],
+         "HR+++ glas (Triple)": ["4-8-4-8-4", "6-16-4-16-4", "4-16-4-16-6", "4-16-6-16-4"],
+         "Gelaagd glas (VSG)": ["33.1-13-4", "4-13-33.1"],
+         "Zonwerend glas": ["6-13-4 ZW", "33.1-13-4 ZW"],
+         "Enkel glas": ["3 mm", "4 mm"]}}'::jsonb
+ where key = 'glas_data';
+update public.app_data
+   set waarde = jsonb_set(waarde, '{lookup,HR++ glas|8-13-4}', '{"glasOnly": 12, "totaal": 25, "kg_m2": 30}'::jsonb)
+ where key = 'glas_data';
+\i 20_opbouwlijsten.sql
+\i 20_opbouwlijsten.sql
+select '17a. HR++' as test, waarde->'opbouw_per_type'->'HR++ glas' as lijst from public.app_data where key = 'glas_data';
+select '17b. triple' as test, waarde->'opbouw_per_type'->'HR+++ glas (Triple)' as lijst from public.app_data where key = 'glas_data';
+select '17c. gelaagd' as test, waarde->'opbouw_per_type'->'Gelaagd glas (VSG)' as lijst from public.app_data where key = 'glas_data';
+select '17d. zonwerend' as test, waarde->'opbouw_per_type'->'Zonwerend glas' as lijst from public.app_data where key = 'glas_data';
+select '17e. lookup' as test, waarde->'lookup'->'HR++ glas|4-13-8' as nieuw,
+       (waarde->'lookup') ? 'HR++ glas|8-13-4' as oud_blijft
+  from public.app_data where key = 'glas_data';
+select '17f. enkel' as test, waarde->'opbouw_per_type'->'Enkel glas' as lijst from public.app_data where key = 'glas_data';

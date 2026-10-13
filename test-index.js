@@ -54,8 +54,36 @@ check('figuurglassoorten aanwezig', figuur > 20, figuur + ' soorten');
 check('lijst in index.html gelijk aan die uit de catalogus',
   JSON.stringify(g('DATA').glasbewerking) === JSON.stringify(w.glasbewerkingLijst()));
 check('overige DATA-sleutels intact',
-  Object.keys(g('DATA')).length === 8 && Object.keys(g('DATA').lookup).length === 828,
+  // 828 + 59 dikte-regels voor de omgedraaide opbouwen van v96 (4-13-8 e.d.).
+  Object.keys(g('DATA')).length === 8 && Object.keys(g('DATA').lookup).length === 887,
   Object.keys(g('DATA')).length + ' sleutels, ' + Object.keys(g('DATA').lookup).length + ' lookups');
+
+console.log('\n2b. Opbouwlijsten (v96)');
+{
+  const O = g('DATA').opbouw_per_type, L = g('DATA').lookup;
+  const typen = ['HR glas', 'HR+ glas', 'HR++ glas', 'HR+++ glas (Triple)', 'Zonwerend glas'];
+  const fout = [];
+  typen.forEach(t => (O[t] || []).forEach(o => {
+    const d = o.replace(/ ZW$/, '').split('-');
+    if (!d.every(x => /^\d+$/.test(x))) return;          // gelaagd: richting betekenisvol
+    if (+d[0] > +d[d.length - 1]) fout.push(t + ': ' + o + ' (dik binnen)');
+    const sp = d.filter((_, i) => i % 2 === 1).map(Number);
+    if (t === 'HR++ glas' && sp.some(x => x > 16)) fout.push(t + ': ' + o + ' (spouw > 16)');
+    if (t === 'HR+++ glas (Triple)' && (sp.some(x => x < 9) || d[2] !== '4')) fout.push(t + ': ' + o);
+  }));
+  check('geen dubbelen, geen dik-binnen, geen HR++-spouw > 16, triple alleen echt HR+++',
+        fout.length === 0, fout.slice(0, 5).join(', '));
+  const aantallen = typen.map(t => (O[t] || []).length).join('/');
+  check('aantallen 32/30/45/70/50', aantallen === '32/30/45/70/50', aantallen);
+  const zonder = [];
+  Object.keys(O).forEach(t => O[t].forEach(o => { if (!L[t + '|' + o]) zonder.push(t + '|' + o); }));
+  check('elke opbouw heeft een dikte en gewicht', zonder.length === 0, zonder.slice(0, 5).join(', '));
+  check('4-13-8 weegt hetzelfde als de oude 8-13-4',
+        JSON.stringify(L['HR++ glas|4-13-8']) === JSON.stringify(L['HR++ glas|8-13-4']));
+  check('gelaagd ongemoeid: beide richtingen blijven',
+        O['Gehard gelaagd (ESG+VSG)'].indexOf('44.2 ESG-13-4') >= 0 &&
+        O['Gehard gelaagd (ESG+VSG)'].indexOf('4-13-44.2 ESG') >= 0);
+}
 
 console.log('\n3. Rekenwerk ongemoeid');
 const r = g('rijen')[0];

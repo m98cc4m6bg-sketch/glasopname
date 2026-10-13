@@ -1452,6 +1452,24 @@
                      'draai 12_roeden_en_canale.sql. Tot die tijd gebruikt de app zijn eigen lijst.');
         return;
       }
+      // De opbouwlijsten van v96: zonder dubbelen (5-13-4 naast 4-13-5), in
+      // de leesrichting binnen → buiten, zonder HR++-spouwen boven 16 mm en
+      // met alleen echte HR+++ (spouw vanaf 9 mm, middenblad 4 mm). Staat de
+      // oude lijst nog in de database, dan zou die alles terugzetten zodra
+      // de app online komt. Draai 20_opbouwlijsten.sql en dit valt weg.
+      if (k === 'opbouw_per_type' && oudeOpbouwlijst(nieuw[k])) {
+        console.warn('[cloud] opbouw_per_type in de database is nog de lijst van vóór v96; ' +
+                     'draai 20_opbouwlijsten.sql. Tot die tijd gebruikt de app zijn eigen lijst.');
+        return;
+      }
+      if (k === 'lookup' && nieuw[k] && typeof nieuw[k] === 'object' && DATA.lookup) {
+        // Dikte en gewicht van een opbouw die alleen de app kent (bijv. de
+        // omgedraaide 4-13-8 van v96) niet kwijtraken omdat de database hem
+        // nog niet heeft. Wat de database wél heeft, wint (v96).
+        Object.keys(DATA.lookup).forEach(function (s) {
+          if (!(s in nieuw[k])) nieuw[k][s] = DATA.lookup[s];
+        });
+      }
       DATA[k] = nieuw[k];
       if (k === 'lookup') herstelBekendeDiktes(DATA.lookup);
     });
@@ -1476,6 +1494,14 @@
         console.warn('[cloud] dikte van ' + sleutel + ' in de database is nog fout; draai 17_vsg_1010.sql');
       }
     });
+  }
+
+  // Kenmerken van de lijst van vóór v96 (zie pasDataToe).
+  function oudeOpbouwlijst(o) {
+    if (!o || typeof o !== 'object') return false;
+    var hr = o['HR++ glas'] || [], tr = o['HR+++ glas (Triple)'] || [];
+    return hr.indexOf('5-13-4') >= 0 || hr.indexOf('4-24-4') >= 0 || hr.indexOf('8-13-4') >= 0 ||
+           tr.indexOf('4-8-4-8-4') >= 0 || tr.indexOf('4-16-6-16-4') >= 0;
   }
 
   function oudeBewerkingslijst(lijst) {
@@ -2334,6 +2360,8 @@
             // door' als eigen werk (v93).
             werkVanEerder = true;
             vulOpnemer();
+            // Taken en logboek van dít project ophalen (v95).
+            if (window.renderProject) renderProject();
             if (window.glasToonApp) glasToonApp();
             statusVanServer(res.data);
             herstelOntbrekendeFotos(res.data.data || {});

@@ -70,7 +70,15 @@ function resetDb() {
   oud.data.volgendId = 2;
   S.db = {
     projecten: [besteld, leegProject(2, 'Nieuw project'), leegProject(3, 'Fotoproject'), oud,
-                leegProject(5, 'Weigerproject'), leegProject(6, 'Ander apparaat')],
+                leegProject(5, 'Weigerproject'), leegProject(6, 'Ander apparaat'),
+                (function () {
+                  // Project 7: een ruit met een opbouw die in v96 uit de lijst ging.
+                  const p = leegProject(7, 'Oude opbouw');
+                  const r = ruit(1, 'C', '900', '900');
+                  r.glasType = 'HR++ glas'; r.opbouw = '5-13-4';
+                  p.data.rijen = [r]; p.data.volgendId = 2;
+                  return p;
+                })()],
     taken: [], projectgeschiedenis: [], mailverzonden: [], app_data: [],
     gebruikers: [{ id: 'u1', naam: 'julian', email: IK.email, actief: true },
                  { id: 'u2', naam: 'bart', email: BART.email, actief: true }],
@@ -645,6 +653,70 @@ async function wachtOpOpslaan(page) {
         /Mislukt/.test(await zonder.locator('#fotoMelding').innerText()) && await zonder.evaluate(() => fotos.length) === 2);
   S.offline = false;
   await ctx3.close();
+
+  /* ─── 10 ────────────────────────────────────────────────────── */
+  // De tekst van een taak staat in een invoerveld; dat telt mee.
+  const takenTekst = () => page.evaluate(() => {
+    const h = document.getElementById('takenLijst');
+    return h ? h.innerText + ' ' + [...h.querySelectorAll('input, textarea')].map(i => i.value).join(' ') : '';
+  });
+  console.log('\n10. Nieuw project: geen taken en logboek van het vorige (v95)');
+  S.offline = false;
+  S.db.projectgeschiedenis.push({ id: 'g-oud', project_id: P(1), moment: '2026-10-12T10:58:00Z',
+                                  wie_naam: 'julian', samenvatting: 'OUDPROJECT-LOGREGEL' });
+  S.db.taken.push({ id: 't-oud', project_id: P(1), tekst: 'OUDPROJECT-TAAK', klaar: false, volgorde: 1 });
+  await open(page, 1);
+  await page.click('button.tab-btn:has-text("Project info")');
+  await wachtTot(async () => /OUDPROJECT-LOGREGEL/.test(await page.locator('#logboekLijst').innerText()), 5000);
+  check('vooraf: project 1 toont zijn logboek en taak',
+        /OUDPROJECT-LOGREGEL/.test(await page.locator('#logboekLijst').innerText()) &&
+        /OUDPROJECT-TAAK/.test(await takenTekst()));
+  page.evaluate(() => { cloudNieuw(); });
+  await page.waitForSelector('.melding-laag input.melding-invoer', { timeout: 5000 });
+  await page.fill('.melding-laag input.melding-invoer', 'Nieuw na project 1');
+  await vensterKnop(page, 'Aanmaken');
+  await wachtTot(() => page.evaluate(p1 => !!window.glasProjectId && window.glasProjectId !== p1, P(1)), 8000);
+  await wacht(1500);
+  const log10 = await page.locator('#logboekLijst').innerText();
+  const tak10 = await takenTekst();
+  check('het logboek van het vorige project is weg', !/OUDPROJECT-LOGREGEL/.test(log10), log10.replace(/\s+/g, ' ').slice(0, 80));
+  check('de taken van het vorige project zijn weg', !/OUDPROJECT-TAAK/.test(tak10), tak10.replace(/\s+/g, ' ').slice(0, 80));
+  await open(page, 1);
+  await page.click('button.tab-btn:has-text("Project info")');
+  await wachtTot(async () => /OUDPROJECT-LOGREGEL/.test(await page.locator('#logboekLijst').innerText()), 5000);
+  check('terug in project 1: logboek en taak er weer',
+        /OUDPROJECT-LOGREGEL/.test(await page.locator('#logboekLijst').innerText()) &&
+        /OUDPROJECT-TAAK/.test(await takenTekst()));
+
+  /* ─── 11 ────────────────────────────────────────────────────── */
+  console.log('\n11. Opbouwlijsten (v96): oude lijst in de database, oude waarde in een project');
+  // De database heeft nog de lijst van vóór v96 (20_opbouwlijsten.sql niet gedraaid).
+  S.db.app_data = [{ key: 'glas_data', waarde: {
+    opbouw_per_type: { 'HR++ glas': ['4-13-4', '4-13-5', '5-13-4', '8-13-4', '4-24-4'] },
+    lookup: { 'HR++ glas|8-13-4': { glasOnly: 12, totaal: 25, kg_m2: 30 } } } }];
+  await open(page, 7);
+  await wacht(800);
+  const d11 = await page.evaluate(() => ({
+    hr: DATA.opbouw_per_type['HR++ glas'], l48: DATA.lookup['HR++ glas|4-13-8'],
+    l84: DATA.lookup['HR++ glas|8-13-4'], l44: DATA.lookup['HR++ glas|4-13-4'] }));
+  check('oude lijst in de database: de app houdt zijn eigen lijst',
+        d11.hr.indexOf('5-13-4') < 0 && d11.hr.indexOf('4-24-4') < 0 && d11.hr.indexOf('4-13-8') >= 0, d11.hr.length + ' opbouwen');
+  check('dikte en gewicht van 4-13-8 zijn er, ook al kent de database ze niet', !!d11.l48 && !!d11.l44);
+  check('wat de database wél heeft, wint (8-13-4)', d11.l84 && d11.l84.kg_m2 === 30);
+  const opties = await page.evaluate(() => {
+    const s = document.querySelector('#invoerBody select[id^="opb-"]');
+    return s ? { waarde: s.value, opties: [...s.options].map(o => o.value) } : null;
+  });
+  check('een project met 5-13-4 houdt die waarde, als oude waarde in de lijst',
+        !!opties && opties.waarde === '5-13-4' && opties.opties.indexOf('5-13-4') >= 0, JSON.stringify(opties && opties.waarde));
+  // Na het script: de database heeft de nieuwe lijst en wint weer.
+  S.db.app_data = [{ key: 'glas_data', waarde: {
+    opbouw_per_type: { 'HR++ glas': ['4-13-4', '4-13-5', '4-13-8', '4-15-4'] }, lookup: {} } }];
+  await open(page, 7);
+  await wacht(800);
+  const d11b = await page.evaluate(() => DATA.opbouw_per_type['HR++ glas']);
+  check('nieuwe lijst in de database: die wint', JSON.stringify(d11b) === JSON.stringify(['4-13-4', '4-13-5', '4-13-8', '4-15-4']), JSON.stringify(d11b));
+  S.db.app_data = [];
 
   check('geen fouten in de pagina', consoleFouten.length === 0, consoleFouten.slice(0, 3).join(' | '));
 

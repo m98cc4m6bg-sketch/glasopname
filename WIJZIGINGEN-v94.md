@@ -28,8 +28,8 @@ terug; daarna is de app weer verbonden.
   ook geen grijs vak meer met "Geen foto van de leverlocatie toegevoegd".
 * Bij het **Werkadres** blijft alles zoals het was: zonder foto komt de
   melding, en op de leverpagina staat dat de foto ontbreekt.
-* Een ontbrekende instructie voor de chauffeur wordt bij beide nog gemeld.
-  Zeg het als dat bij de werkplaats ook weg mag.
+* Een ontbrekende instructie voor de chauffeur wordt bij beide nog gemeld
+  (keuze van Jan: die blijft ook bij de werkplaats verplicht).
 
 ## Getest
 

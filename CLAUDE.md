@@ -90,6 +90,14 @@ De volledige achtergrond staat in de projectkennis op claude.ai
   de repo staat (dan komt er nooit meer een update). De catalogusfoto's
   mogen ontbreken. Test "geen bereik" met een server die echt weg is:
   `ctx.setOffline` raakt de service worker niet (`test-v99.js`).
+* **Een update komt aan via de code van de OUDE versie** (v101). Test daarom
+  altijd de overgang vanaf wat live staat (`test-overgang.js`). Apparaten op
+  v98 of ouder worden door sw.js zelf overgenomen (`draaitOudeVersie`,
+  cachenaam < v99); vanaf v99 doet de pagina het. Haal die redding pas weg
+  als zeker is dat geen apparaat meer op v98 of ouder staat.
+* Iconen hebben een versie in hun adres (`favicon.png?v=2`): in index.html,
+  het manifest én SHELL. Nieuw icoon → nummer ophogen (Safari houdt een
+  favicon anders vast). `test-index.js` bewaakt het.
 * **De Edge Function `mail` is nog niet uitgerold** (stand oktober 2026): de
   code staat in `supabase/functions/mail/`, maar in Supabase staat geen
   functie, geen Resend en geen geheimen. Jan stelt dat later in (handover
@@ -113,6 +121,9 @@ De volledige achtergrond staat in de projectkennis op claude.ai
 - Nooit gegevens kwijt: na elke stap staat het werk op de server, óf op het
   apparaat met de vlag "moet nog omhoog".
 - Onduidelijk? Vraag het Jan.
+- Gebruikers zitten op iPad/iPhone/Mac **én Android en Windows** (Jan, 13
+  oktober 2026). Dat geldt voor de app en voor alles wat hij maakt (pdf,
+  csv, zip). Botst iets met een van die systemen, meld het Jan.
 
 ```
 node test-index.js && node test-naslag.js && node test-cloudguard.js
@@ -123,6 +134,7 @@ node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
 node test-v98.js && python3 test-v98.py
 node test-v99.js
+OUD=/tmp/live node test-overgang.js   # OUD = wat nu live staat (git archive)
 bun test-mailfunctie.ts
 ```
 

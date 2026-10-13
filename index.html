@@ -12,15 +12,20 @@
 <!-- default in plaats van black-translucent: anders schuift de inhoud onder
      de klok en de dynamic island door, en vervaagt Safari de bovenrand. -->
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
-<link rel="icon" href="favicon.png" type="image/png" sizes="96x96">
+<!-- ?v=2: het icoon van v97. Safari (vooral op de Mac) bewaart een favicon
+     in een eigen opslag en haalt hem niet opnieuw op zolang het adres gelijk
+     blijft; na v97 bleef daardoor het oude huisje staan (gemeld door Jan, v101).
+     Verandert het icoon weer, verhoog dan dit nummer — ook in sw.js (SHELL)
+     en manifest.webmanifest. -->
+<link rel="icon" href="favicon.ico?v=2" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon.png?v=2" type="image/png" sizes="96x96">
 <link rel="manifest" href="manifest.webmanifest">
 <!-- Wit, gelijk aan de kopbalk. Let op: Safari 26 op iOS trekt zich hier
      weinig van aan — de wazige band bovenaan is daarmee niet te sturen.
      Daarvoor staat er in de opmaak ruimte boven de kopbalk (--ios-band).
      Wijzig je deze kleur, pas dan ook theme_color in manifest.webmanifest aan. -->
 <meta name="theme-color" content="#ffffff">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
 <title>Glasopname Formulier – Jelier Bouw</title>
 <style>
   /* Huisstijl Jelier Bouw: antraciet #1D1D1B en rood #D00243 uit het
@@ -2025,7 +2030,7 @@
       <div class="subtitle">Startscherm · <span class="app-versie"></span></div>
     </div>
     <span class="kop-gebruiker" id="startGebruiker"></span>
-    <button class="btn btn-ghost btn-sm" onclick="startVernieuwen()" title="Lijsten opnieuw ophalen">↻</button>
+    <button class="btn btn-ghost btn-sm" onclick="startVernieuwen()" title="Lijsten opnieuw ophalen en controleren op een nieuwe versie">↻</button>
     <button class="btn btn-ghost btn-sm" onclick="cloudUitloggen()">Uitloggen</button>
   </div>
 
@@ -2832,7 +2837,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v100';
+const APP_VERSIE = 'v101';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

@@ -299,5 +299,11 @@
     vulProjecten('');
   };
 
-  window.startVernieuwen = function () { window.glasToonStart(); };
+  // ↻ op het startscherm: de lijsten opnieuw ophalen én kijken of er een
+  // nieuwe versie is (v101). Tot v100 deed deze knop alleen de lijsten, en
+  // wie daar 'bijwerken' verwachtte, kreeg niets (gemeld door Jan).
+  window.startVernieuwen = function () {
+    window.glasToonStart();
+    if (window.glasZoekUpdate) window.glasZoekUpdate();
+  };
 })();

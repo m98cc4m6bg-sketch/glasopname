@@ -2486,7 +2486,10 @@
       // keer), dan is de eerste overname geen nieuwe versie: de pagina kwam
       // toen al vers van de server. Tot v98 herlaadde de app dan voor niets.
       var hadController = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js').then(function (reg) {
+      // updateViaCache 'none': bij elke controle sw.js vers van de server,
+      // nooit uit de browsercache (GitHub Pages laat die tien minuten
+      // bewaren). Chrome doet dat al vanzelf; zo ook in elke Safari (v101).
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
         registratie = reg;
         // Bij het openen, bij elke terugkeer naar de app, en sinds v99 ook
         // elke vijf minuten terwijl hij openstaat: een iPad-app op het

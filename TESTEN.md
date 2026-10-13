@@ -45,6 +45,47 @@ Claude moet kunnen lezen wat er getest wordt en waarom.
    aannames. Controleer dat ze doen wat de echte situatie doet. Doen ze
    dat niet, zeg het dan.
 
+## Bijwerken: test vanaf wat er nu live staat
+
+Wat er gebeurt als Jan een nieuwe versie online zet, bepaalt de code die op
+de apparaten draait: de **oude** versie, niet de nieuwe. In v99/v100 was het
+nieuwe bijwerken goed getest, maar alleen van "nieuw" naar "nog nieuwer".
+De overgang van wat live stond (v98) naar het nieuwe werd nooit getest. Dat
+gaf het probleem uit v101: op de iPhone van Jan bleef v98 staan, en er kwam
+geen melding.
+
+Daarom bij elke oplevering:
+
+- Haal de versie die nu live staat uit de repo:
+  `git -C <repo> archive <commit> | tar -x -C /tmp/live`
+- Draai `OUD=/tmp/live node test-overgang.js`.
+- Is er een apparaat dat nog een oudere versie kan draaien (de iPhone van
+  een buitenmedewerker die weken niets opende), draai dan ook vanaf die
+  versie. Sinds v101 staat v98 als vaste tweede proef in de batterij.
+- Bedenk wat de oude code wél en níet doet: welke melding toont hij, waar,
+  en wist hij die ergens? Kan hij herladen? Kan een app op het beginscherm
+  van de iPhone, die niet ververst kan worden, er zelf uit komen?
+
+## Welke apparaten en systemen
+
+Sinds 13 oktober 2026 (Jan): ook **Android** en **Windows** gebruiken de
+apps, plus alles wat ze maken (pdf, csv, zip, Excel). Het is dus niet
+alleen iPad/iPhone/Mac. Houd daar bij elke wijziging rekening mee, en
+**meld het Jan als iets op een van deze systemen botst**, ook als niemand
+erom vroeg.
+
+| systeem | browser | let op |
+|---|---|---|
+| iPad, iPhone | Safari, app op het beginscherm | Apple Pencil; iOS legt apps stil; eigen grenzen aan opslag; HEIC-foto's |
+| Mac | Safari, Chrome | ⌘-sneltoetsen |
+| **Android** | Chrome (ook als geïnstalleerde app), Samsung Internet | schermtoetsenbord geeft bij `keydown` vaak geen letter (code 229); S-Pen = `pen`; terug-knop van het systeem; geen opslagvenster (`showSaveFilePicker`) |
+| **Windows** | Edge, Chrome | Ctrl in plaats van ⌘, Ctrl+Y = opnieuw; **Excel opent een csv zonder BOM als rommel** (é, ×, —) en slaat zelf op in Windows-1252; verboden tekens in bestandsnamen (`\ / : * ? " < > \|`); vaste schuifbalken nemen breedte in; aanraakscherm met pen |
+
+Testen met de Playwright-apparaatprofielen (bijv. `devices['Pixel 7']`)
+nadert Android: aanraken, mobiele browser, schermmaat. Het blijft wel
+Chromium op Linux. Echte Android- en Windows-apparaten en Samsung Internet
+zijn hier niet te testen; zeg dat in de nota.
+
 ## De echte omstandigheden nabootsen
 
 Bedenk bij elke functie welke van deze omstandigheden ertoe doen, en test
@@ -66,6 +107,7 @@ aftikken.
 | **besteld project** | een project met status 'besteld' | het slot moet overal gelden |
 | **leeg en heel vol** | geen gegevens; en veel ruiten, notities, logregels | lege toestand, pagina-overgangen in de pdf |
 | **eerste keer** | een verse browser zonder service worker of opgeslagen gegevens | herladen voor niets (v100) |
+| **overgang van de live versie** | `OUD=… node test-overgang.js` (oude code in de browser, nieuwe op de server) | de oude code bepaalt of een update aankomt (v101) |
 
 ## De test zelf
 
@@ -104,6 +146,9 @@ Een test die nooit rood wordt, is geen test. Doe na het schrijven:
 
 Zeg in elke nota wat niet getest kon worden en waarom. Hier is dat bijna
 altijd:
+
+- **echte Android- en Windows-apparaten**: Samsung Internet, Excel op
+  Windows;
 
 - **echte Safari op iPad en iPhone**:
   - een app op het beginscherm;

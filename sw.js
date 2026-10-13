@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v100';
+const VERSIE = 'v101';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -30,11 +30,11 @@ const SHELL = [
   './wachtrij.js',
   './originelen.js',
   './manifest.webmanifest',
-  './favicon.ico',
-  './favicon.png',
-  './apple-touch-icon.png',
-  './icon-192.png',
-  './icon-512.png',
+  './favicon.ico?v=2',
+  './favicon.png?v=2',
+  './apple-touch-icon.png?v=2',
+  './icon-192.png?v=2',
+  './icon-512.png?v=2',
   // De bibliotheken staan sinds v91 in de repo, op een vaste versie. Tot
   // v90 kwamen ze van de CDN en werden ze pas bij het eerste gebruik
   // bewaard — in de cache van díe versie, die bij elke update weggegooid
@@ -146,6 +146,23 @@ function allesInCache(c, lijst) {
   return Promise.all(lijst.map(u => c.add(new Request(u, { cache: 'reload' }))));
 }
 
+// Redding voor apparaten die nog v98 of ouder draaien (v101).
+// Die oude versies tonen de melding 'Nu bijwerken' niet op het startscherm
+// en wissen hem bij het openen van een project (gemeld door Jan: na v100
+// bleef zijn iPhone op v98 staan). Wachten tot de gebruiker zelf bijwerkt
+// werkt daar dus niet. Draait er zo'n oude versie, dan neemt deze versie
+// meteen over. De oude pagina herlaadt dan vanzelf; wat er getypt was staat
+// al op het apparaat (elke toetsaanslag) met de vlag 'moet nog omhoog', en
+// gaat na het herladen naar de server. Vanaf v99 regelt de pagina het
+// bijwerken zelf, veilig en met aftellen; dan doet de service worker niets.
+const EERSTE_MET_EIGEN_BIJWERKEN = 99;
+function draaitOudeVersie() {
+  return caches.keys().then(namen => namen.some(n => {
+    const m = /^glasopname-v(\d+)$/.exec(n);
+    return !!m && +m[1] < EERSTE_MET_EIGEN_BIJWERKEN;
+  }));
+}
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
@@ -154,14 +171,17 @@ self.addEventListener('install', e => {
         // in de repo (Jan haalt ze zelf op) en de app werkt zonder.
         .then(() => inCache(c, CATALOGUS_FOTOS))
         .then(() => inCache(c, ROOSTER_FOTOS)))
+      // Pas als alles binnen is: anders zou een halve versie overnemen.
+      .then(() => draaitOudeVersie())
+      .then(oud => { if (oud) return self.skipWaiting(); })
     // Geen opruimen bij een mislukking: heeft een versie per ongeluk
     // hetzelfde nummer als de draaiende, dan zou dat juist de werkende
     // cache weggooien. Een halve cache onder een nieuwe naam doet niets;
     // de volgende poging vult hem aan.
   );
-  // Bewust géén skipWaiting: de nieuwe versie blijft klaarstaan tot de
-  // pagina zegt dat het mag. Anders zou de app kunnen omschakelen terwijl
-  // er nog werk openstaat.
+  // Verder bewust géén skipWaiting: de nieuwe versie blijft klaarstaan tot
+  // de pagina zegt dat het mag (v99: verplicht en veilig bijwerken). Alleen
+  // voor apparaten op v98 of ouder neemt hij zelf over, zie hierboven.
 });
 
 self.addEventListener('activate', e => {

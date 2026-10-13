@@ -209,5 +209,27 @@ console.log('\nBibliotheken in lib/ (v91)');
     !/cdn\.jsdelivr\.net/.test(['index.html', 'pdf.js', 'import.js'].map(f => fs.readFileSync(f, 'utf8')).join('')));
 }
 
+// v100/v101: de service worker installeert een nieuwe versie alleen als élk
+// bestand uit SHELL binnenkomt. Eén bestand dat niet in de repo staat, en er
+// komt NOOIT meer een update op welk apparaat dan ook. Daarom hier streng.
+console.log('\nSHELL compleet en iconen (v101)');
+{
+  const sw = fs.readFileSync('sw.js', 'utf8');
+  const blok = sw.match(/const SHELL = \[([\s\S]*?)\];/)[1].replace(/\/\/.*$/gm, '');
+  const shell = Array.from(blok.matchAll(/'([^']+)'/g)).map(m => m[1]);
+  const weg = shell.filter(p => p !== './' && !fs.existsSync(p.replace(/^\.\//, '').replace(/\?.*$/, '')));
+  check('elk bestand uit SHELL staat in de repo (anders nooit meer een update)', weg.length === 0, weg.join(', '));
+  // Iconen: hetzelfde adres in index.html, het manifest en SHELL, mét ?v=.
+  // Safari bewaart een favicon onder zijn adres; zonder nieuw adres bleef
+  // na v97 op de Mac het oude huisje staan (v101).
+  const html = fs.readFileSync('index.html', 'utf8');
+  const man = fs.readFileSync('manifest.webmanifest', 'utf8');
+  const iconen = Array.from(html.matchAll(/<link rel="(?:icon|apple-touch-icon)" href="([^"]+)"/g)).map(m => m[1])
+    .concat(Array.from(man.matchAll(/"src": "([^"]+)"/g)).map(m => m[1]));
+  check('iconen hebben een versie in hun adres (?v=)', iconen.length >= 5 && iconen.every(i => /\?v=\d+$/.test(i)), iconen.join(', '));
+  check('… en precies dat adres staat in SHELL (offline)', iconen.every(i => shell.indexOf('./' + i) >= 0),
+        iconen.filter(i => shell.indexOf('./' + i) < 0).join(', '));
+}
+
 console.log('\n' + (fouten === 0 ? 'Alles goed.' : fouten + ' fout(en).'));
 process.exit(fouten === 0 ? 0 : 1);

@@ -97,6 +97,28 @@
     return n;
   }
 
+  /* ─── versie (v99) ─────────────────────────────────────────── */
+  // 'v99' → 99. Zo zijn versies te vergelijken ('v100' > 'v99').
+  function versieNummer(v) {
+    var n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
+    return isNaN(n) ? 0 : n;
+  }
+  var versieGeweigerd = false;     // de server weigerde onze versie (v99)
+  var VERSIE_NR = versieNummer(typeof APP_VERSIE !== 'undefined' ? APP_VERSIE : '');
+
+  function verouderdeVersie(fout) {
+    return /Verouderde app-versie/i.test(String((fout && fout.message) || ''));
+  }
+
+  // Komt er een project binnen dat een nieuwere versie heeft opgeslagen,
+  // dan staat er een update klaar die dit apparaat nog niet heeft: meteen
+  // laten zoeken, in plaats van te wachten tot de opslag geweigerd wordt.
+  function nieuwereVersieGezien(data) {
+    if (data && versieNummer(data._versieNr) > VERSIE_NR && window.glasZoekUpdate) {
+      window.glasZoekUpdate(true);
+    }
+  }
+
   function huidigeStaat() {
     return {
       rijen: rijen,
@@ -112,6 +134,7 @@
   }
 
   function zetStaat(state) {
+    nieuwereVersieGezien(state);
     // Een selectie hoort bij de ruiten van het vorige scherm (v91).
     if (window.bulkSelectieLeeg) bulkSelectieLeeg();
     rijen = state.rijen || [];
@@ -390,6 +413,11 @@
     var json = JSON.stringify(huidigeStaat());
     var state = JSON.parse(json);
     state._sessie = SESSIE;
+    // Het versienummer van deze app (v99). De database weigert een opslag
+    // met een lager nummer dan er al staat (21_versieslot.sql): zo kan een
+    // apparaat met een oude versie niet stil wegschrijven wat een nieuwere
+    // versie erbij zette.
+    state._versieNr = VERSIE_NR;
     // Vóór het versturen onthouden: het live bericht van de database kan
     // eerder binnen zijn dan het antwoord op de update.
     var afdruk = vingerafdruk(state);
@@ -451,6 +479,19 @@
           plan();
           return;
         }
+        if (verouderdeVersie(res.error)) {
+          versieGeweigerd = true;
+          // Een nieuwere versie heeft dit project al opgeslagen. Niet blijven
+          // aandringen: het werk blijft op dit apparaat (vuil en de vlag
+          // 'moet nog omhoog' blijven staan) en gaat na het bijwerken alsnog
+          // omhoog (v99).
+          vuil = true;
+          localStorage.setItem(LS_PENDING, '1');
+          status('⚠ Eerst bijwerken — je werk staat op dit apparaat', '#a3231a');
+          if (window.glasZoekUpdate) window.glasZoekUpdate(false);
+          setTimeout(plan, 30000);
+          return;
+        }
         if (res.error.code === '23505') {
           status('⚠ Naam al in gebruik', '#a3231a');
           toonNaamWaarschuwing('⚠ Deze projectnaam is al in gebruik. Kies een andere naam; ' +
@@ -471,6 +512,7 @@
       // een met de hand gekozen status is daarmee verwerkt (v91).
       serverStatus = velden.status;
       statusHandmatig = false;
+      versieGeweigerd = false;
       if (JSON.stringify(huidigeStaat()) !== json) {
         // Tijdens het opslaan is er doorgetypt. Dat staat nog niet in de
         // database: open laten en meteen de volgende ronde plannen.
@@ -1311,6 +1353,7 @@
 
   function vanElders(rij) {
     if (!rij || !rij.data) return;
+    nieuwereVersieGezien(rij.data);
     // Een collega heeft het project naar de prullenbak verplaatst. Geen
     // eigen werk open: netjes loslaten. Wel eigen werk open: dat gaat
     // gewoon nog omhoog (de rij bestaat nog), en we zeggen waar het
@@ -2418,31 +2461,43 @@
     var herlaadt = false;
     var stilleOvername = false;
     var registratie = null;
+    window.glasZoekUpdate = zoekUpdate;
 
     // Handmatige uitweg: controleren en zo nodig meteen overschakelen.
-    // Handig als een melding weggeklikt is, of als er iets blijft hangen.
+    // Sinds v99 ook hier eerst veilig opslaan; tot v98 herlaadde de knop
+    // meteen als er geen nieuwe versie was.
     window.appBijwerken = function () {
-      if (!registratie) { location.reload(); return; }
+      if (updateBezig) return;
       status('… Versie controleren');
-      registratie.update().catch(function () {}).then(function () {
-        if (registratie.waiting) {
-          if (vuil) synchroniseer();
-          setTimeout(function () { registratie.waiting.postMessage('skipWaiting'); }, vuil ? 900 : 0);
+      var klaar = registratie ? registratie.update().catch(function () {}) : Promise.resolve();
+      klaar.then(function () {
+        var w = registratie && registratie.waiting;
+        if (w && navigator.serviceWorker.controller) {
+          updateWorker = w;
+          veiligBijwerken();
         } else {
-          location.reload();
+          veiligBijwerken({ alleenHerladen: true });
         }
       });
     };
 
     if ('serviceWorker' in navigator) {
+      // Had de pagina bij het laden nog geen service worker (de allereerste
+      // keer), dan is de eerste overname geen nieuwe versie: de pagina kwam
+      // toen al vers van de server. Tot v98 herlaadde de app dan voor niets.
+      var hadController = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.register('sw.js').then(function (reg) {
         registratie = reg;
-        // Bij het openen en bij elke terugkeer naar de app kijken of er
-        // een nieuwe versie op de server staat.
+        // Bij het openen, bij elke terugkeer naar de app, en sinds v99 ook
+        // elke vijf minuten terwijl hij openstaat: een iPad-app op het
+        // beginscherm kan dagen openstaan zonder ooit opnieuw te starten.
         reg.update().catch(function () {});
         document.addEventListener('visibilitychange', function () {
           if (document.visibilityState === 'visible') reg.update().catch(function () {});
         });
+        setInterval(function () {
+          if (document.visibilityState === 'visible') reg.update().catch(function () {});
+        }, 5 * 60 * 1000);
 
         function let_op(nieuwe) {
           if (!nieuwe) return;
@@ -2458,11 +2513,24 @@
 
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (herlaadt) return;
+        if (!hadController) { hadController = true; return; }
         // Bij een stille overname draait er al dezelfde versie; herladen
         // zou de gebruiker alleen maar uit zijn werk halen.
         if (stilleOvername) { stilleOvername = false; return; }
         herlaadt = true;
-        location.reload();
+        if (ikWerkBij) { location.reload(); return; }
+        // Een ander tabblad (of venster) werkte bij. Tot v98 herlaadde dit
+        // tabblad dan meteen, midden in wat je deed. Nu eerst je werk
+        // veiligstellen, net als bij zelf bijwerken (v99).
+        veiligBijwerken({ doorAnder: true });
+      });
+    }
+
+    function zoekUpdate(dringend) {
+      if (!registratie) return;
+      registratie.update().catch(function () {}).then(function () {
+        if (registratie.waiting && navigator.serviceWorker.controller) beoordeel(registratie.waiting);
+        else if (dringend) status('⚠ Er is een nieuwere versie — tik op ↻ Bijwerken', '#a3231a');
       });
     }
 
@@ -2481,28 +2549,229 @@
           stilleOvername = true;
           worker.postMessage('skipWaiting');
         } else {
-          meldNieuweVersie(worker);
+          verplichtBijwerken(worker, versie);
         }
       };
       try { worker.postMessage({ vraag: 'versie' }, [kanaal.port2]); } catch (e) {}
       // Antwoordt hij niet (oudere versie zonder die mogelijkheid), dan
       // is het hoe dan ook een andere versie.
-      setTimeout(function () { if (!beantwoord) meldNieuweVersie(worker); }, 1200);
+      setTimeout(function () { if (!beantwoord) verplichtBijwerken(worker, ''); }, 1200);
     }
 
-    function meldNieuweVersie(worker) {
-      toonMelding('Er is een nieuwe versie van de app beschikbaar.',
-        'Nu bijwerken', function () {
-          if (vuil) synchroniseer();
-          // Even wachten zodat openstaand werk nog omhoog kan.
-          setTimeout(function () { worker.postMessage('skipWaiting'); }, vuil ? 900 : 0);
-        });
+    /* ─── verplicht en veilig bijwerken (v99) ───────────────────
+       Keuze van Jan: élke nieuwe versie is verplicht. Er komt een balk die
+       op elk scherm te zien is (ook het startscherm en het inloggen) en
+       niet weg te klikken is. Na het aftellen — 60 s met een project open,
+       anders 10 s — wacht de app tot je 10 s niets doet, en dan:
+         1. opslaan, en wachten tot de server het heeft (niet op een klok);
+         2. gelukt: project sluiten, terug naar het startscherm;
+            niet gelukt (geen bereik): het werk blijft op het apparaat
+            met de vlag 'moet nog omhoog' en gaat na het bijwerken vanzelf
+            alsnog omhoog — dan gaat het project na het bijwerken weer open;
+         3. de nieuwe versie laden;
+         4. melden dat er bijgewerkt is, met 'Verder met …'.
+       Harde eis van Jan: nooit gegevens kwijt. Daarom gaat er nooit iets
+       weg dat niet óf op de server óf op het apparaat staat. */
+    function verplichtBijwerken(worker, versie) {
+      updateWorker = worker;
+      if (versie) updateVersie = versie;
+      if (updateBezig || updateKlok) return;
+      var metWerk = !!projectId || vuil || localStorage.getItem(LS_PENDING) === '1';
+      var eind = Date.now() + (metWerk ? UPDATE_AFTELLEN : UPDATE_AFTELLEN_LEEG);
+      var uiterst = eind + UPDATE_HOOGSTENS_WACHTEN;
+      function tik() {
+        var nu = Date.now();
+        var rest = Math.ceil((eind - nu) / 1000);
+        if (rest > 0) { toonUpdateBalk('aftellen', rest); return; }
+        // Niet midden in je werk: wacht tot je even niets doet en er geen
+        // venster openstaat (een vraag, het wachtwoord). Wel met een grens,
+        // anders houdt een vergeten venster de update eeuwig tegen.
+        var rustig = nu - laatsteActie >= UPDATE_STIL &&
+                     !document.querySelector('.melding-laag');
+        if (!rustig && nu < uiterst) { toonUpdateBalk('wachten'); return; }
+        clearInterval(updateKlok);
+        updateKlok = null;
+        veiligBijwerken();
+      }
+      updateKlok = setInterval(tik, 1000);
+      tik();
     }
+
+    function veiligBijwerken(opties) {
+      var o = opties || {};
+      if (updateBezig) return;
+      updateBezig = true;
+      if (updateKlok) { clearInterval(updateKlok); updateKlok = null; }
+      toonUpdateBalk(o.alleenHerladen ? 'herladen' : 'opslaan');
+      var pid = projectId;
+      var naam = waarde('projectNaam');
+      opslaanEnWachten(UPDATE_OPSLAAN_MAX).then(function (opgeslagen) {
+        if (!o.alleenHerladen) {
+          try {
+            localStorage.setItem(LS_NA_UPDATE, JSON.stringify({
+              id: pid, naam: naam, opgeslagen: opgeslagen,
+              van: typeof APP_VERSIE !== 'undefined' ? APP_VERSIE : '', op: Date.now()
+            }));
+          } catch (e) {}
+        }
+        // Opgeslagen: netjes terug naar het startscherm (keuze van Jan).
+        // Niet opgeslagen: het project blijft gekoppeld, zodat de app na het
+        // herladen het werk van dit apparaat meteen weer opstuurt.
+        if (pid && opgeslagen && !o.alleenHerladen && window.glasNaarStart) glasNaarStart('stil');
+        toonUpdateBalk(o.alleenHerladen ? 'herladen' : (opgeslagen ? 'laden' : 'lokaal'));
+        setTimeout(function () {
+          ikWerkBij = true;
+          var w = !o.doorAnder && !o.alleenHerladen && (updateWorker || (registratie && registratie.waiting));
+          if (w) {
+            try { w.postMessage('skipWaiting'); } catch (e) {}
+            // Vangnet als de wissel uitblijft (bijvoorbeeld al door een
+            // ander tabblad gedaan).
+            setTimeout(function () { location.reload(); }, 5000);
+          } else {
+            location.reload();
+          }
+        }, opgeslagen ? 400 : 2500);
+      });
+    }
+    window.glasVeiligBijwerken = veiligBijwerken;
+    window.glasVerplichtBijwerken = verplichtBijwerken;
+  }
+
+  /* ─── bijwerken: hulpstukken (v99) ─────────────────────────── */
+  // De tests zetten kortere tijden via config.js (updateTijden); in de
+  // echte config.js staat dat niet, dan gelden deze.
+  var tijden = cfg.updateTijden || {};
+  var UPDATE_AFTELLEN = tijden.aftellen || 60000;      // met een project open
+  var UPDATE_AFTELLEN_LEEG = tijden.leeg || 10000;     // op het startscherm of bij inloggen
+  var UPDATE_STIL = tijden.stil || 10000;              // zo lang niets doen voor het bijwerken
+  var UPDATE_HOOGSTENS_WACHTEN = 5 * 60000;
+  var UPDATE_OPSLAAN_MAX = 15000;       // langer niet wachten op de server
+  var LS_NA_UPDATE = 'glasopname_na_update';
+  var updateWorker = null;
+  var updateVersie = '';
+  var updateKlok = null;
+  var updateBezig = false;
+  var ikWerkBij = false;
+  var laatsteActie = 0;
+
+  ['keydown', 'input', 'pointerdown', 'touchstart'].forEach(function (soort) {
+    document.addEventListener(soort, function () { laatsteActie = Date.now(); },
+                              { capture: true, passive: true });
+  });
+
+  // Opslaan en wachten tot de server het heeft. Geeft true als alles
+  // binnen is (of er niets te versturen viel), false als het werk alleen
+  // op het apparaat staat (geen bereik, of de server antwoordde niet op
+  // tijd). In dat laatste geval blijft de vlag 'moet nog omhoog' staan.
+  function opslaanEnWachten(max) {
+    return new Promise(function (klaar) {
+      // Een veld dat nog focus heeft verliest die: dan vuren de
+      // onchange-handlers (bijv. een taakomschrijving) nog vóór het opslaan.
+      try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}
+      try { if (window.opslaan) window.opslaan(); } catch (e) {}
+      var eind = Date.now() + max;
+      var poging = 0;
+      (function kijk() {
+        // Alleen wat dít tabblad weet. De vlag in localStorage delen alle
+        // tabbladen; typt iemand in een ander tabblad, dan zou dit tabblad
+        // anders wachten op werk dat niet van hem is. (Na het opstarten
+        // zet start() `vuil` zelf aan als er nog werk van eerder openstaat.)
+        var open = vuil || bezig;
+        if (!projectId || !open) { klaar(true); return; }
+        // Geen bereik, de server weigert deze (oude) versie, of het duurt te
+        // lang: dan staat het werk op het apparaat en gaat het later omhoog.
+        if (!navigator.onLine || versieGeweigerd || Date.now() > eind) { klaar(false); return; }
+        // Hooguit elke drie seconden een poging; na een fout niet hameren.
+        if (!bezig && Date.now() - poging > 3000) {
+          poging = Date.now();
+          vuil = true;
+          synchroniseer();
+        }
+        setTimeout(kijk, 250);
+      })();
+    });
+  }
+  window.glasOpslaanEnWachten = opslaanEnWachten;
+
+  function toonUpdateBalk(stand, seconden) {
+    var balk = el('updateBalk');
+    if (!balk) return;
+    var versie = updateVersie ? ' (' + updateVersie + ')' : '';
+    var tekst, knop = '';
+    if (stand === 'aftellen') {
+      tekst = '<b>Nieuwe versie' + versie + '.</b> De app slaat je werk op en werkt bij over ' +
+              '<span class="update-tel">' + seconden + '</span> s.';
+      knop = '<button type="button" onclick="glasVeiligBijwerken()">Nu bijwerken</button>';
+    } else if (stand === 'wachten') {
+      tekst = '<b>Nieuwe versie' + versie + '.</b> Bijwerken zodra je even niets doet…';
+      knop = '<button type="button" onclick="glasVeiligBijwerken()">Nu bijwerken</button>';
+    } else if (stand === 'opslaan') {
+      tekst = '<b>Bijwerken.</b> Je werk wordt opgeslagen…';
+    } else if (stand === 'laden') {
+      tekst = '<b>Opgeslagen.</b> De nieuwe versie wordt geladen…';
+    } else if (stand === 'herladen') {
+      tekst = '<b>Bijwerken.</b> De app wordt opnieuw geladen…';
+    } else if (stand === 'klaar') {
+      tekst = '<b>Bijgewerkt naar ' + (typeof APP_VERSIE !== 'undefined' ? APP_VERSIE : '') + '.</b>';
+    } else if (stand === 'lokaal') {
+      tekst = '<b>Je werk is nog niet op de server</b> (geen verbinding?). Het staat veilig op ' +
+              'dit apparaat en gaat na het bijwerken vanzelf omhoog.';
+    }
+    balk.className = 'update-balk ' + stand;
+    balk.innerHTML = '<span class="update-tekst">' + (stand === 'klaar' ? '✓ ' : '↻ ') + tekst + '</span>' + knop;
+    balk.hidden = false;
+  }
+
+  // Na het herladen: zeggen dat er bijgewerkt is en waar je werk is.
+  function naBijwerkenMelden() {
+    var r = null;
+    try { r = JSON.parse(localStorage.getItem(LS_NA_UPDATE) || 'null'); } catch (e) {}
+    if (!r) return;
+    localStorage.removeItem(LS_NA_UPDATE);
+    if (!r.op || Date.now() - r.op > 10 * 60000) return;      // oud: niet meer melden
+    var nu = typeof APP_VERSIE !== 'undefined' ? APP_VERSIE : '';
+    var tot = Date.now() + 20000;
+    (function kijk() {
+      var klaar = document.body.classList.contains('op-start') || !!window.glasProjectId ||
+                  !!document.querySelector('#cloudLogin[style*="flex"]');
+      if (!klaar && Date.now() < tot) { setTimeout(kijk, 300); return; }
+      var naam = r.naam || '(naamloos)';
+      // Geen project open: een korte bevestiging in de balk, geen venster.
+      // (In de statusbalk bovenin werd hij meteen overschreven.)
+      if (!r.id) {
+        toonUpdateBalk('klaar');
+        setTimeout(function () {
+          var b = el('updateBalk');
+          if (b && /klaar/.test(b.className)) b.hidden = true;
+        }, 6000);
+        return;
+      }
+      if (!r.opgeslagen) {
+        if (window.appMelding) {
+          appMelding('De app is bijgewerkt naar ' + nu + '. Je werk in "' + naam + '" kon vóór het bijwerken ' +
+                     'nog niet naar de server. Het staat veilig op dit apparaat en gaat vanzelf omhoog zodra ' +
+                     'dat lukt; houd de statusbalk bovenaan in de gaten. Het project staat weer open; de ' +
+                     'indeling kan anders zijn dan je gewend bent.',
+                     { kop: 'Bijgewerkt', soort: 'letop' });
+        }
+        return;
+      }
+      if (!window.appVraag) return;
+      appVraag('De app is bijgewerkt naar ' + nu + '. Je werk in "' + naam + '" is opgeslagen. ' +
+               'Open het project opnieuw om verder te gaan; de indeling kan anders zijn dan je gewend bent.',
+               { kop: 'Bijgewerkt', ja: 'Verder met "' + naam + '"', nee: 'Sluiten', soort: 'info' })
+        .then(function (ja) { if (ja && window.cloudOpen) cloudOpen(r.id); });
+    })();
+  }
+
+  function opstarten() {
+    init();
+    naBijwerkenMelden();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', opstarten);
   } else {
-    init();
+    opstarten();
   }
 })();

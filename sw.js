@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v98';
+const VERSIE = 'v100';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -135,12 +135,29 @@ function inCache(c, lijst) {
   return Promise.all(lijst.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {})));
 }
 
+// De app zelf moet compleet in de cache, anders géén nieuwe versie (v99).
+// Tot v98 werd een bestand dat niet binnenkwam stil overgeslagen. Viel de
+// verbinding weg tijdens het ophalen (bouwplaats!), dan was de nieuwe versie
+// tóch 'klaar', verving hij de oude cache, en ontbrak er offline een stuk
+// van de app. Met het verplichte bijwerken van v99 zou dat vaker gebeuren.
+// Nu mislukt de installatie dan; de oude versie blijft gewoon werken en de
+// app probeert het bij de volgende controle opnieuw (binnen 5 minuten).
+function allesInCache(c, lijst) {
+  return Promise.all(lijst.map(u => c.add(new Request(u, { cache: 'reload' }))));
+}
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => inCache(c, SHELL)
+      .then(c => allesInCache(c, SHELL)
+        // De foto's van de catalogus mogen ontbreken: die staan niet altijd
+        // in de repo (Jan haalt ze zelf op) en de app werkt zonder.
         .then(() => inCache(c, CATALOGUS_FOTOS))
         .then(() => inCache(c, ROOSTER_FOTOS)))
+    // Geen opruimen bij een mislukking: heeft een versie per ongeluk
+    // hetzelfde nummer als de draaiende, dan zou dat juist de werkende
+    // cache weggooien. Een halve cache onder een nieuwe naam doet niets;
+    // de volgende poging vult hem aan.
   );
   // Bewust géén skipWaiting: de nieuwe versie blijft klaarstaan tot de
   // pagina zegt dat het mag. Anders zou de app kunnen omschakelen terwijl
@@ -206,8 +223,13 @@ self.addEventListener('fetch', e => {
         if (res && res.ok) {
           const kopie = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, kopie));
+          return res;
         }
-        return res;
+        // De server antwoordt wel, maar met een fout (500, 404, een
+        // storing bij GitHub): dan de versie uit de cache, als die er is.
+        // Tot v98 kreeg de pagina de fout, en ontbrak er een stuk van de
+        // app terwijl het gewoon in de cache stond (v99).
+        return caches.match(e.request).then(hit => hit || res);
       })
       .catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
   );

@@ -77,12 +77,42 @@ De volledige achtergrond staat in de projectkennis op claude.ai
   hele pagina.
 * Er is één naslag (`#naslagInhoud`); op het startscherm wordt hij
   verplaatst, niet gekopieerd (start.js, v98). Twee kopieën geven dubbele ids.
+* **Bijwerken is verplicht en veilig** (v99, cloud.js `verplichtBijwerken`
+  / `veiligBijwerken`): opslaan en wachten op de server, dan pas de nieuwe
+  versie laden. Nooit `location.reload()` zonder `opslaanEnWachten()`.
+  Elke opslag draagt `data._versieNr`; de database weigert een lager nummer
+  (`21_versieslot.sql`). Een nieuw onderdeel bovenin `data`? Dan is dat
+  slot precies wat voorkomt dat een oud apparaat het wegschrijft — dus
+  nooit het versienummer weglaten.
+* De service worker installeert een nieuwe versie alleen als **elk**
+  bestand uit `SHELL` binnen is (`allesInCache`, v100); anders blijft de
+  vorige versie draaien. Zet in `SHELL` dus nooit een bestand dat niet in
+  de repo staat (dan komt er nooit meer een update). De catalogusfoto's
+  mogen ontbreken. Test "geen bereik" met een server die echt weg is:
+  `ctx.setOffline` raakt de service worker niet (`test-v99.js`).
 * **De Edge Function `mail` is nog niet uitgerold** (stand oktober 2026): de
   code staat in `supabase/functions/mail/`, maar in Supabase staat geen
   functie, geen Resend en geen geheimen. Jan stelt dat later in (handover
   §11e). Schrijf installatie-instructies dus niet alsof hij bestaat.
 
 ## Testen
+
+**Lees eerst `TESTEN.md`** (afspraak van Jan, v100). In het kort:
+- Weet wat je test, waarom en waarvoor. Schrijf de echte situatie bovenaan
+  elke test: wie, welk apparaat, waar, welk bereik.
+- Boots de echte omstandigheden na, en controleer dat je nabootsing klopt.
+  Voorbeelden:
+  - geen bereik = een server die écht weg is;
+  - halverwege afgebroken;
+  - oude en nieuwe versie naast elkaar;
+  - twee tabbladen;
+  - iemand die nog typt.
+- Vraag bij elk proces: wat als het hier stopt?
+- Bewijs dat elke nieuwe test kan falen: draai de reparatie terug, de test
+  moet rood worden.
+- Nooit gegevens kwijt: na elke stap staat het werk op de server, óf op het
+  apparaat met de vlag "moet nog omhoog".
+- Onduidelijk? Vraag het Jan.
 
 ```
 node test-index.js && node test-naslag.js && node test-cloudguard.js
@@ -92,6 +122,7 @@ node test-slot.js && node test-v91.js && node test-v93.js && node test-offline.j
 node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
 node test-v98.js && python3 test-v98.py
+node test-v99.js
 bun test-mailfunctie.ts
 ```
 

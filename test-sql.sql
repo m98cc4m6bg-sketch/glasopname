@@ -375,3 +375,57 @@ select '17e. lookup' as test, waarde->'lookup'->'HR++ glas|4-13-8' as nieuw,
        (waarde->'lookup') ? 'HR++ glas|8-13-4' as oud_blijft
   from public.app_data where key = 'glas_data';
 select '17f. enkel' as test, waarde->'opbouw_per_type'->'Enkel glas' as lijst from public.app_data where key = 'glas_data';
+
+-- 18. Slot tegen oude app-versies (v99): een opslag met een lager
+--     versienummer dan wat er staat wordt geweigerd; zonder nummer telt
+--     als 0; alleen de kolom data telt. Twee keer draaien mag.
+--     verwacht:
+--       18a. ok  (geen nummer → 99)
+--       18b. geweigerd: Verouderde app-versie… (98 over 99)
+--       18c. geweigerd (geen nummer over 99: een app van vóór v99)
+--       18d. ok  (alleen de status, data gelijk)
+--       18e. ok  (99 → 100) en daarna 18f. geweigerd (99 over 100)
+--       18g. geweigerd ('abc' telt als 0)
+--       18h. versie 100, status 'gemonteerd' (niets overschreven)
+\i 21_versieslot.sql
+\i 21_versieslot.sql
+insert into public.projecten (id, naam, status, data) values
+  ('00000000-0000-4000-8000-0000000000ee', 'Versieproject', 'aangemaakt',
+   '{"info":{"status":"aangemaakt"},"rijen":[]}'::jsonb);
+create temp table versie_uitkomst (stap text, uitkomst text);
+do $$
+declare
+  pid uuid := '00000000-0000-4000-8000-0000000000ee';
+begin
+  begin
+    update public.projecten set data = '{"rijen":[1],"_versieNr":99}'::jsonb where id = pid;
+    insert into versie_uitkomst values ('18a', 'ok');
+  exception when others then insert into versie_uitkomst values ('18a', 'geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[2],"_versieNr":98}'::jsonb where id = pid;
+    insert into versie_uitkomst values ('18b', 'ok');
+  exception when others then insert into versie_uitkomst values ('18b', 'geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[3]}'::jsonb where id = pid;
+    insert into versie_uitkomst values ('18c', 'ok');
+  exception when others then insert into versie_uitkomst values ('18c', 'geweigerd: ' || left(sqlerrm, 24)); end;
+  begin
+    update public.projecten set status = 'gemonteerd' where id = pid;
+    insert into versie_uitkomst values ('18d', 'ok');
+  exception when others then insert into versie_uitkomst values ('18d', 'geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[4],"_versieNr":100}'::jsonb where id = pid;
+    insert into versie_uitkomst values ('18e', 'ok');
+  exception when others then insert into versie_uitkomst values ('18e', 'geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[5],"_versieNr":99}'::jsonb where id = pid;
+    insert into versie_uitkomst values ('18f', 'ok');
+  exception when others then insert into versie_uitkomst values ('18f', 'geweigerd: ' || left(sqlerrm, 24)); end;
+  begin
+    update public.projecten set data = '{"rijen":[6],"_versieNr":"abc"}'::jsonb where id = pid;
+    insert into versie_uitkomst values ('18g', 'ok');
+  exception when others then insert into versie_uitkomst values ('18g', 'geweigerd: ' || left(sqlerrm, 24)); end;
+end $$;
+select stap as test, uitkomst from versie_uitkomst order by stap;
+select '18h. eindstand' as test, data->>'_versieNr' as versie, data->'rijen' as rijen, status
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000ee';

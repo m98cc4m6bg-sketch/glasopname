@@ -857,11 +857,23 @@
     return uit;
   }
 
+  function echtLeeg(r) {
+    if (!r) return false;
+    var basis = (typeof isLeegLos === 'function') ? isLeegLos(r)
+      : !r.fotoId && !r.merk && !r.breedte && !r.hoogte && !r.glasType && !r.opmerking;
+    return basis && !r.fotoId && !r.opmerking && !r.opbouw && !r.ducoType && !r.ralKleur &&
+           !r.roedenbreedte && !r.roedenopmerking &&
+           (!r.roedenverdeling || r.roedenverdeling === 'Geen roedenverdeling') &&
+           (!r.rooster || r.rooster === 'Nee');
+  }
+
   window.impToevoegen = function () {
     var nieuw = verwerkMerken(bouwRijen());
-    // lege rijen aan het eind opruimen, anders staan er gaten in de lijst
-    while (rijen.length && !rijen[rijen.length - 1].breedte && !rijen[rijen.length - 1].hoogte &&
-           !rijen[rijen.length - 1].glasType && !rijen[rijen.length - 1].merk) {
+    // Lege rijen aan het eind opruimen, anders staan er gaten in de lijst.
+    // Alleen écht lege: tot v102 keek dit alleen naar maten, glas en merk,
+    // en verdwenen een regel bij een foto of een regel met alleen een
+    // opmerking stil bij het importeren (gevonden bij de controle van v103).
+    while (rijen.length && echtLeeg(rijen[rijen.length - 1])) {
       rijen.pop();
     }
     rijen = rijen.concat(nieuw);

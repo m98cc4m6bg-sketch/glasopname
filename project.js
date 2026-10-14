@@ -924,6 +924,10 @@
                                             eigenaar: voor.id, eigenaar_naam: voor.naam || mijnNaam() }]);
     renderTaken();
     glasTaakNieuw(tekst, null, voor).then(function (nieuw) {
+      // Niet gelukt (geen bereik, fout): de tekst terug in het veld, zodat
+      // hij niet stil verdwijnt (v103). Alleen als je er intussen niets
+      // nieuws hebt getypt.
+      if (!nieuw && veld && !veld.value.trim()) veld.value = tekst;
       takenLaden();
       if (nieuw) mailAanbieden(nieuw, collegaVan(voor.id));
     });
@@ -943,7 +947,9 @@
     if (!t) return;
     t.tekst = tekst;
     if (!cloudTaken()) { opslaan(); return; }
-    glasTaakWijzig(t.id, { tekst: tekst });
+    // Mislukt het, dan de lijst opnieuw: die toont dan wat er echt staat,
+    // in plaats van een tekst die alleen op dit scherm bestaat (v103).
+    glasTaakWijzig(t.id, { tekst: tekst }).then(function (r) { if (!r) takenLaden(); });
   };
 
   window.taakVoorMij = function (sleutel) {
@@ -1010,13 +1016,22 @@
   // Het laatst opgehaalde logboek, voor de pdf als ophalen niet lukt (v98).
   var logboekRegels = [];
 
-  function logboekOphalen(pid) {
+  // Geeft een lijst, of een fout (afgewezen) als het ophalen mislukte:
+  // 'mislukt' mag er niet uitzien als 'nog geen wijzigingen' (v103).
+  // lijst.totaal = hoeveel regels er in het logboek staan (als bekend).
+  function logboekOphalen(pid, aantal) {
     return Promise.all([
-      glasGeschiedenis(pid),
+      glasGeschiedenis(pid, aantal),
       window.glasMailLog ? glasMailLog(pid) : Promise.resolve([])
     ]).then(function (uit) {
-      return (uit[0] || []).concat((uit[1] || []).map(function (m) {
+      if (uit[0] === null || uit[1] === null) throw new Error('logboek niet opgehaald');
+      // Totaal = wijzigingen + mails, zoals de database ze telde.
+      var totaal = typeof uit[0].totaal === 'number'
+        ? uit[0].totaal + (typeof uit[1].totaal === 'number' ? uit[1].totaal : uit[1].length)
+        : null;
+      var l = uit[0].concat(uit[1].map(function (m) {
         return {
+          mail: true,
           moment: m.moment,
           wie_naam: m.wie_naam,
           samenvatting: (m.gelukt ? '✉ ' : '✉ MISLUKT — ') +
@@ -1024,10 +1039,12 @@
             (m.gelukt ? '' : ' (' + (m.fout || 'onbekende fout') + ')')
         };
       })).sort(function (a, b) { return String(b.moment).localeCompare(String(a.moment)); });
+      l.totaal = totaal;
+      return l;
     });
   }
 
-  window.logboekLaden = function () {
+  window.logboekLaden = function (alles) {
     var houder = document.getElementById('logboekLijst');
     if (!houder) return;
     var pid = window.glasProjectId || null;
@@ -1038,7 +1055,7 @@
       return;
     }
     houder.innerHTML = '<div class="taken-leeg">Logboek ophalen…</div>';
-    logboekOphalen(pid).then(function (lijst) {
+    logboekOphalen(pid, alles ? 200 : 30).then(function (lijst) {
       // Intussen een ander project geopend: dit antwoord niet tonen (v95).
       if ((window.glasProjectId || null) !== pid) return;
       // De verstuurde mail hoort in hetzelfde rijtje: dat is immers het
@@ -1049,13 +1066,24 @@
           'Het logboek houdt elke wijziging bij, met wie hem deed.</div>';
         return;
       }
+      // Er staan er meer dan getoond: dat zeggen, niet stil afkappen (v103).
+      var meer = (typeof lijst.totaal === 'number' && lijst.totaal > lijst.length)
+        ? '<div class="taken-leeg">De laatste ' + lijst.length + ' van ' + lijst.totaal +
+          ' regels. <button class="btn btn-secondary btn-sm" onclick="logboekLaden(true)">' +
+          'Alles tonen</button></div>'
+        : '';
       houder.innerHTML = lijst.map(function (r) {
         return '<div class="log-regel">' +
           '<span class="log-moment">' + esc(logMoment(r.moment)) + '</span>' +
           '<span class="log-wie">' + esc(r.wie_naam || 'onbekend') + '</span>' +
           '<span class="log-wat">' + esc(r.samenvatting || 'wijziging') + '</span>' +
         '</div>';
-      }).join('');
+      }).join('') + meer;
+    }, function () {
+      if ((window.glasProjectId || null) !== pid) return;
+      houder.innerHTML = '<div class="taken-leeg">Het logboek kon niet opgehaald worden (geen bereik?). ' +
+        'Er is niets mee gebeurd. <button class="btn btn-secondary btn-sm" onclick="logboekLaden()">' +
+        'Opnieuw proberen</button></div>';
     });
   };
 
@@ -1097,6 +1125,7 @@
         taken: (uit[0] || []).map(function (t) {
           return { tekst: t.tekst || '', klaar: !!t.klaar, wie: t.eigenaar_naam || '' };
         }),
+        logboekTotaal: (uit[1] && typeof uit[1].totaal === 'number') ? uit[1].totaal : null,
         logboek: (uit[1] || []).slice(0, 30).map(function (r) {
           return { moment: volledigMoment(r.moment), wie: r.wie_naam || 'onbekend',
                    wat: r.samenvatting || 'wijziging' };

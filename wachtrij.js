@@ -40,6 +40,7 @@
   var nogEenRonde = false;
   var urls = {};            // pad → object-URL (blob:…)
   var laatsteFout = '';
+  var vol = false;          // de cloudopslag gaf 'vol' (v103)
 
   function sb() { return window.glasSupabase || null; }
   function ingelogd() {
@@ -209,7 +210,29 @@
   // dan kan het script inmiddels gedraaid zijn.
   function blijvend(e) {
     var t = foutTekst(e);
+    if (opslagVol(e)) return false;     // gaat over zodra er ruimte is (v103)
     return /\b(413|415)\b|too large|maximum allowed size|exceeded|mime type|invalid_mime/i.test(t);
+  }
+
+  // De cloudopslag zelf zit vol (gratis plan: 1 GB). Iets anders dan één
+  // te groot bestand, en het helpt niet om 19_originelen.sql te draaien.
+  // Tot v102 kreeg je die (verkeerde) raad (v103).
+  function opslagVol(e) {
+    var t = foutTekst(e);
+    return /quota|storage limit|insufficient storage|\b507\b|exceed(ed)? (the )?(storage|space)/i.test(t);
+  }
+
+  // Geen verbinding (of geen antwoord): dan heeft de rest van de ronde
+  // ook geen zin. Een fout van de server over dít bestand (4xx) mag de
+  // andere bestanden niet tegenhouden. Tot v102 stopte elke ronde bij
+  // het eerste bestand dat niet lukte; zat dat vast, dan ging er nooit
+  // meer een foto omhoog (gevonden bij de controle van v103).
+  function geenVerbinding(e) {
+    var code = Number((e && (e.statusCode || e.status)) || 0);
+    if (code >= 400 && code < 500) return false;
+    var t = foutTekst(e);
+    if (/\(code 4\d\d\)/.test(t)) return false;
+    return true;
   }
 
   function metTijdslimiet(belofte, ms) {
@@ -231,12 +254,15 @@
         { contentType: meta.type || 'image/jpeg', upsert: false });
       return metTijdslimiet(Promise.resolve(verzoek), ms).then(function (res) {
         if (res && res.error) throw res.error;
+        vol = false;
         return haalWeg(meta.pad);
       }).catch(function (e) {
         if (alAanwezig(e)) return haalWeg(meta.pad);
         meta.pogingen = (meta.pogingen || 0) + 1;
         meta.fout = foutTekst(e);
+        meta.laatstePoging = Date.now();
         laatsteFout = meta.fout;
+        if (opslagVol(e)) vol = true;
         if (blijvend(e)) geweigerd[meta.pad] = meta.fout;
         console.warn('[wachtrij] upload mislukt', meta.pad, meta.fout);
         return transactie('meta', 'readwrite', function (t) { t.objectStore('meta').put(meta); })
@@ -264,8 +290,9 @@
         return keten.then(function () {
           if (stop || navigator.onLine === false) return;
           return uploadEen(m).catch(function (e) {
-            // Geen verbinding: de rest heeft nu ook geen zin.
-            if (!blijvend(e)) stop = true;
+            // Geen verbinding, of de opslag is vol: de rest heeft nu ook
+            // geen zin. Een fout over alleen dit bestand: door met de rest.
+            if (opslagVol(e) || (!blijvend(e) && geenVerbinding(e))) stop = true;
           });
         });
       }, Promise.resolve());
@@ -280,16 +307,32 @@
 
   /* ─── laten zien wat er nog wacht ──────────────────────────── */
 
+  var DAG = 24 * 3600 * 1000;
+
+  // oudste: wanneer het oudste bestand in de wachtrij kwam. Staat er iets
+  // langer dan een dag, dan klopt er iets niet (v103): dan wordt de teller
+  // rood en zegt het startscherm het.
   function telling() {
-    var t = { beeld: 0, origineel: 0, geweigerd: 0, totaal: 0, mb: 0 };
+    var t = { beeld: 0, origineel: 0, geweigerd: 0, totaal: 0, mb: 0,
+              oudste: null, fout: laatsteFout, vol: vol, lang: false };
     Object.keys(bekend).forEach(function (p) {
       var m = bekend[p];
       t.totaal++;
       t[m.soort === 'origineel' ? 'origineel' : 'beeld']++;
       t.mb += (m.grootte || 0) / 1048576;
       if (geweigerd[p]) t.geweigerd++;
+      if (m.gemaakt && (t.oudste === null || m.gemaakt < t.oudste)) t.oudste = m.gemaakt;
+      if (!t.fout && m.fout) t.fout = m.fout;
     });
+    t.lang = !!(t.oudste && Date.now() - t.oudste > DAG);
     return t;
+  }
+
+  function hoeLang(ms) {
+    var uur = Math.floor(ms / 3600000);
+    if (uur < 1) return 'minder dan een uur';
+    if (uur < 48) return uur + ' uur';
+    return Math.floor(uur / 24) + ' dagen';
   }
 
   function melden() {
@@ -298,7 +341,7 @@
     if (vak) {
       vak.hidden = !t.totaal;
       vak.textContent = t.totaal ? '⇡ ' + t.totaal + ' te uploaden' : '';
-      vak.classList.toggle('probleem', !!t.geweigerd);
+      vak.classList.toggle('probleem', !!(t.geweigerd || t.vol || t.lang));
       vak.title = t.totaal
         ? t.beeld + ' foto(\'s) en ' + t.origineel + ' origine(e)l(en) staan alleen nog op dit apparaat. ' +
           'Ze gaan vanzelf naar de cloud zodra er verbinding is. Tik voor meer.'
@@ -321,14 +364,25 @@
     if (t.beeld) regels.push('• ' + t.beeld + ' foto(\'s) of tekening(en) zoals ze in het project staan');
     if (t.origineel) regels.push('• ' + t.origineel + ' originele foto(\'s)');
     regels.push('');
+    if (t.oudste) regels.push('Het oudste wacht al ' + hoeLang(Date.now() - t.oudste) + '.');
+    if (t.vol) {
+      regels.push('');
+      regels.push('De opslag in de cloud is VOL en neemt geen foto\'s meer aan. Ze blijven op dit apparaat ' +
+                  'bewaard. Voor Jan: ruim oude projecten op (prullenbak definitief legen) of zet Supabase ' +
+                  'op een betaald plan; daarna gaan ze vanzelf.');
+    }
     if (navigator.onLine === false) regels.push('Dit apparaat is nu offline. Zodra er bereik is, gaan ze vanzelf.');
     else if (!ingelogd()) regels.push('Je bent niet ingelogd. Na het inloggen gaan ze vanzelf.');
     else regels.push('De app probeert het elke halve minuut, en meteen als er weer bereik is.');
     if (t.geweigerd) {
       regels.push('');
-      regels.push(t.geweigerd + ' bestand(en) worden door de opslag geweigerd, meestal omdat ze te groot ' +
-                  'zijn of een onbekend soort bestand. Is 19_originelen.sql al gedraaid in Supabase? ' +
-                  'Daarna de app opnieuw starten. (' + (laatsteFout || '') + ')');
+      regels.push(t.geweigerd + ' bestand(en) worden door de opslag geweigerd, omdat ze te groot ' +
+                  'zijn of een soort bestand dat de opslag niet aanneemt. Voor Jan: controleer in Supabase ' +
+                  '(Storage → projectfotos) de maximale bestandsgrootte en de toegestane soorten ' +
+                  '(19_originelen.sql). Daarna de app opnieuw starten. (' + (laatsteFout || '') + ')');
+    } else if (t.fout && (t.lang || t.vol)) {
+      regels.push('');
+      regels.push('Laatste foutmelding: ' + t.fout);
     }
     regels.push('');
     regels.push('Belangrijk: verwijder de app niet van het beginscherm en wis de websitegegevens niet ' +

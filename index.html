@@ -1915,7 +1915,34 @@
   }
   .start-blokkop h2 { font-size: 14px; font-weight: 700; color: var(--blauw); }
   .start-blokkop .btn { margin-left: auto; }
+  .start-sorteer { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--grijs-tekst); }
+  .start-sorteer select {
+    font-family: inherit; font-size: 13px; padding: 5px 8px; max-width: 100%;
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); background: white; color: #1d1d1b;
+  }
+  /* Op een telefoon of tablet: 16 px, anders zoomt Safari in zodra je de
+     keuzelijst aantikt; en de keuze op een eigen regel. */
+  @media (max-width: 820px) {
+    .start-sorteer { order: 3; flex: 1 1 100%; }
+    .start-sorteer select { flex: 1; }
+  }
+  /* Aanraakscherm (ook een iPad in liggende stand, breder dan 820 px):
+     16 px, anders zoomt Safari in zodra je de keuzelijst aantikt. */
+  @media (max-width: 820px), (pointer: coarse) {
+    .start-sorteer select { font-size: 16px; }
+  }
   .start-leeg { padding: 16px; font-size: 13px; color: var(--grijs-tekst); line-height: 1.6; }
+  /* Waarschuwingen op het startscherm (v103). */
+  .start-waarschuwing { border-left-color: #b8860b; }
+  .start-waarschuwing.rood { border-left-color: var(--rood); }
+  .start-waarschuwing[hidden] { display: none; }
+  .waarschuwing-regel { padding: 12px 16px; font-size: 13px; line-height: 1.55; border-bottom: 1px solid var(--grijs-rand); }
+  .waarschuwing-regel:last-child { border-bottom: none; }
+  .waarschuwing-regel b { color: #8a5a00; }
+  .waarschuwing-regel.rood b { color: var(--rood); }
+  .ruimte-balk { height: 6px; background: var(--grijs-licht); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .ruimte-balk span { display: block; height: 100%; background: #b8860b; }
+  .waarschuwing-regel.rood .ruimte-balk span { background: var(--rood); }
   .start-fout { color: var(--rood); }
 
   .start-taak { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--grijs-rand); }
@@ -2049,6 +2076,10 @@
   <div class="start-naslag" id="startNaslag" hidden></div>
 
   <div class="start-inhoud" id="startInhoud">
+    <!-- Waarschuwingen (v103): ruimte bijna op, foto's die al lang wachten,
+         werk dat apart bewaard moet worden. Verborgen als er niets is. -->
+    <section class="start-blok start-waarschuwing" id="startWaarschuwing" hidden></section>
+
     <section class="start-blok">
       <div class="start-blokkop">
         <h2>Mijn taken</h2>
@@ -2061,6 +2092,16 @@
       <div class="start-blokkop">
         <h2>Projecten</h2>
         <span class="blok-telling" id="startProjectTelling"></span>
+        <!-- Sorteren (v102, keuze van Jan). Alleen de volgorde op het
+             scherm; de keuze wordt per apparaat onthouden (start.js). -->
+        <label class="start-sorteer">
+          <span>Sorteren</span>
+          <select id="startSortering" onchange="startSorteer(this.value)">
+            <option value="gewijzigd">Laatst gewijzigd</option>
+            <option value="aangemaakt">Aanmaakdatum (nieuwste eerst)</option>
+            <option value="alfabet">Alfabet (A–Z)</option>
+          </select>
+        </label>
         <button class="btn btn-primary btn-sm" onclick="cloudNieuw()">+ Nieuw project</button>
       </div>
       <div class="cloud-zoek">
@@ -2837,7 +2878,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v101';
+const APP_VERSIE = 'v103';
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {

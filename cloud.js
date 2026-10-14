@@ -20,7 +20,23 @@
   var cfg      = window.GLASOPNAME_CONFIG || {};
   var sb       = null;
   var gebruiker = null;
-  var projectId = localStorage.getItem(LS_PROJECT) || null;
+  // In try: staat opslag geblokkeerd (Safari 'Blokkeer alle cookies'), dan
+  // gooit localStorage een fout, en tot v102 startte cloud.js dan helemaal
+  // niet — geen inloggen, geen opslaan (gevonden bij de controle van v103).
+  var projectId = null;
+  try { projectId = localStorage.getItem(LS_PROJECT) || null; } catch (e) {}
+  // Van welk project is de inhoud die nu op het scherm staat? Bij het
+  // opstarten is dat de kopie op het apparaat (v103). Alleen als dat het
+  // project is dat open staat, mag de app opslaan. Tot v102 kon de inhoud
+  // van project A naar project B gaan: een link naar B geopend zonder
+  // bereik, A stond nog op het scherm, en wie typte, overschreef B.
+  var basisVan = (function () {
+    try {
+      var k = JSON.parse(localStorage.getItem(LS_STATE) || 'null');
+      if (!k) return null;
+      return ('_projectId' in k) ? k._projectId : projectId;
+    } catch (e) { return null; }
+  })();
   window.glasProjectId = projectId;
   var vuil      = false;   // er zijn wijzigingen die nog niet omhoog zijn
   var laatsteJson = null;  // stand zoals die het laatst is weggeschreven
@@ -60,6 +76,20 @@
            t.indexOf('load failed') >= 0 ||
            t.indexOf('networkerror') >= 0;
   }
+
+  // De database zit vol (v103). Op het gratis plan zet Supabase hem dan op
+  // alleen-lezen: elke opslag wordt geweigerd. Dat moet je zien, met wat
+  // je moet doen; het werk blijft op het apparaat en gaat later omhoog.
+  function databaseVol(err) {
+    if (!err) return false;
+    var t = String((err.code || '') + ' ' + (err.message || '')).toLowerCase();
+    return t.indexOf('25006') >= 0 || t.indexOf('read-only transaction') >= 0 ||
+           t.indexOf('read only transaction') >= 0 || t.indexOf('53100') >= 0 ||
+           t.indexOf('disk full') >= 0 || t.indexOf('no space left') >= 0 ||
+           t.indexOf('quota') >= 0 || t.indexOf('exceed') >= 0 && t.indexOf('size') >= 0;
+  }
+  window.glasDatabaseVol = databaseVol;
+  var volGemeld = false;
 
   // Voert een verzoek uit en probeert het bij zo'n fout nog een paar keer,
   // met een beetje meer geduld per keer. De sleutel wordt er tussendoor
@@ -135,6 +165,7 @@
 
   function zetStaat(state) {
     nieuwereVersieGezien(state);
+    basisVan = projectId;
     // Een selectie hoort bij de ruiten van het vorige scherm (v91).
     if (window.bulkSelectieLeeg) bulkSelectieLeeg();
     rijen = state.rijen || [];
@@ -291,8 +322,176 @@
 
   /* ─── opslaan: lokaal altijd, cloud zodra het kan ──────────── */
 
+  // De kopie op het apparaat. Met het project erbij (v103): zo kan de app
+  // bij het opstarten zien of 'werk dat nog omhoog moet' wel bij het project
+  // hoort dat opengaat (zie start()).
+  var lokaalGemeld = false;
   function opslaanLokaal() {
-    try { localStorage.setItem(LS_STATE, JSON.stringify(huidigeStaat())); } catch (e) {}
+    var staat = huidigeStaat();
+    try {
+      // _projectId: van welk project de inhoud is (basisVan), niet welk
+      // project open staat. Die twee verschillen zolang een project nog
+      // niet geladen is; wie dan typt, typt in de inhoud van het vorige
+      // (v103).
+      localStorage.setItem(LS_STATE, JSON.stringify(Object.assign({}, staat, { _projectId: basisVan || null })));
+      return true;
+    } catch (e) {
+      // Vol of geblokkeerd. Tot v102 werd dit stil ingeslikt: de oude kopie
+      // bleef staan (misschien van een ander project), met de vlag 'moet
+      // nog omhoog' erbij, en na een herstart zonder bereik ging die oude
+      // stand naar de server. Nu: de oude kopie weg, zodat hij nooit als
+      // werk van nu kan gelden, en het één keer zeggen (v103).
+      try { localStorage.removeItem(LS_STATE); } catch (e2) {}
+      if (!lokaalGemeld && window.appFout) {
+        lokaalGemeld = true;
+        appFout('Dit apparaat kan het werk niet meer bewaren (het geheugen van de browser zit vol, ' +
+                'of opslag staat uit). Zolang de app open is gaat het werk gewoon naar de server, ' +
+                'maar sluit de app niet zonder verbinding: dan is wat nog niet verstuurd is weg.',
+                { kop: 'Niet bewaard op dit apparaat' });
+      }
+      return false;
+    }
+  }
+
+  // Hoort de kopie op het apparaat bij dit project? Kopieën van vóór v103
+  // hebben geen _projectId; die gelden (zoals altijd) als van dit project.
+  function kopieVan(id) {
+    try {
+      var k = JSON.parse(localStorage.getItem(LS_STATE) || 'null');
+      if (!k) return 'geen';
+      if (!('_projectId' in k)) return 'onbekend';
+      return k._projectId === id ? 'ja' : 'nee';
+    } catch (e) { return 'geen'; }
+  }
+
+  /* ─── Redding (v103) ──────────────────────────────────────────
+     Werk dat niet bij het open project hoort, mag dat project nooit
+     overschrijven. Maar weggooien mag ook niet (harde eis van Jan). Het
+     gaat daarom als APART project naar de server: "<naam> (apart bewaard
+     13-10 14:05)". Zo staat het gewoon in de projectenlijst en kan Jan
+     het openen, vergelijken of naar de prullenbak slepen.
+     Eerst op het apparaat (glasopname_redding, een lijst), dan omhoog.
+     Lukt omhoog niet (geen bereik), dan blijft het op het apparaat staan
+     en probeert de app het bij de volgende start opnieuw. Gaat het
+     antwoord van de server verloren nadat het project al gemaakt was, dan
+     kan er een dubbele kopie komen: liever twee dan nul. */
+  var LS_REDDING = 'glasopname_redding';
+
+  function reddingen() {
+    try {
+      var r = JSON.parse(localStorage.getItem(LS_REDDING) || '[]');
+      // Tot v103 in ontwikkeling stond hier één los object; dat ook meenemen.
+      if (r && !Array.isArray(r)) r = [{ op: Date.now(), data: r }];
+      return Array.isArray(r) ? r : [];
+    } catch (e) { return []; }
+  }
+
+  function reddingBewaar(data, reden) {
+    if (!data || !ingevuldeRijen(data) && !(data.fotos || []).length &&
+        !(data.info && Object.keys(data.info).some(function (k) { return data.info[k]; }))) {
+      return true;    // niets ingevuld: niets te redden
+    }
+    var lijst = reddingen();
+    lijst.push({ op: Date.now(), reden: reden || '', data: data });
+    try {
+      localStorage.setItem(LS_REDDING, JSON.stringify(lijst));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function tweeCijfers(n) { return (n < 10 ? '0' : '') + n; }
+
+  var reddingBezig = false;
+  var reddingFout = '';
+  function reddingenUploaden() {
+    if (!sb || !gebruiker || reddingBezig || !navigator.onLine) return Promise.resolve();
+    var lijst = reddingen();
+    if (!lijst.length) return Promise.resolve();
+    reddingBezig = true;
+    var namen = [];
+    var stap = Promise.resolve();
+    lijst.forEach(function (r) {
+      stap = stap.then(function () {
+        var d = JSON.parse(JSON.stringify(r.data || {}));
+        delete d._projectId;
+        delete d._sessie;
+        d._versieNr = VERSIE_NR;
+        var t = new Date(r.op || Date.now());
+        var naam = (d.project || '(naamloos)') + ' (apart bewaard ' + tweeCijfers(t.getDate()) + '-' +
+                   tweeCijfers(t.getMonth() + 1) + ' ' + tweeCijfers(t.getHours()) + ':' +
+                   tweeCijfers(t.getMinutes()) + ')';
+        function invoegen(n, poging) {
+          d.project = n;
+          return sb.from('projecten').insert({
+            naam: n, datum: d.datum || '', data: d,
+            aantal_ruiten: ingevuldeRijen(d), adres: adresVan(d),
+            status: (d.info && d.info.status) || 'aangemaakt',
+            gewijzigd_door: gebruiker.id
+          }).select('id').single().then(function (res) {
+            // Naam toevallig al in gebruik: dan met een volgnummer erachter.
+            if (res.error && res.error.code === '23505' && poging < 5) {
+              return invoegen(naam + ' ' + (poging + 2), poging + 1);
+            }
+            if (res.error || !res.data) throw res.error || new Error('geen antwoord');
+            return n;
+          });
+        }
+        return invoegen(naam, 0).then(function (n) {
+          namen.push(n);
+          // Pas na een geslaagde opslag van het apparaat halen.
+          var rest = reddingen().filter(function (x) { return x.op !== r.op; });
+          try {
+            if (rest.length) localStorage.setItem(LS_REDDING, JSON.stringify(rest));
+            else localStorage.removeItem(LS_REDDING);
+          } catch (e) {}
+        }, function (f) {
+          // Blijft op het apparaat; de volgende start of 'online' probeert
+          // het opnieuw. Eén die niet lukt, houdt de rest niet tegen.
+          reddingFout = (f && f.message) || String(f);
+          console.warn('[cloud] apart bewaren nog niet gelukt: ' + reddingFout);
+        });
+      });
+    });
+    return stap.then(function () {}, function () {}).then(function () {
+      reddingBezig = false;
+      if (namen.length && window.appMelding) {
+        appMelding('Op dit apparaat stond werk dat niet bij het open project hoorde. Het is niet ' +
+                   'weggegooid en heeft ook niets overschreven: het staat nu als apart project in de ' +
+                   'lijst: ' + namen.map(function (n) { return '‹' + n + '›'; }).join(', ') +
+                   '. Bekijk het en gooi het weg als je het niet nodig hebt.',
+                   { kop: 'Werk apart bewaard', soort: 'letop' });
+      }
+      if (window.startVernieuwen && namen.length) { try { startVernieuwen(); } catch (e) {} }
+    });
+  }
+  // Voor het startscherm: hoeveel werk wacht er nog om apart bewaard te worden.
+  window.glasReddingen = function () { return { aantal: reddingen().length, fout: reddingFout }; };
+
+  // Het werk op het scherm hoort niet bij dit project: apart bewaren en dan
+  // de stand van de server tonen. Geeft false als bewaren op het apparaat
+  // niet lukte; dan blijft alles staan zoals het is (niets overschrijven).
+  function reddenEnLaden(serverData, reden) {
+    var mijn = huidigeStaat();
+    if (vuil || localStorage.getItem(LS_PENDING) === '1') {
+      if (!reddingBewaar(mijn, reden)) {
+        if (window.appFout) {
+          appFout('Op dit apparaat staat werk dat niet bij dit project hoort, en het apparaat kan het ' +
+                  'niet apart bewaren (geheugen vol). Daarom is er niets veranderd. Sluit de app niet ' +
+                  'en vraag hulp.', { kop: 'Niet geladen' });
+        }
+        return false;
+      }
+    }
+    try { localStorage.removeItem(LS_PENDING); } catch (e) {}
+    vuil = false;
+    zetStaat(serverData || {});
+    opslaanLokaal();
+    laatsteJson = JSON.stringify(huidigeStaat());
+    if (window.glasToonApp) glasToonApp();
+    reddingenUploaden();
+    return true;
   }
 
   // Heeft de gebruiker zelf iets gedaan sinds dit project openging? Zo
@@ -376,6 +575,15 @@
 
   function synchroniseer() {
     if (!sb || !gebruiker || !projectId || !vuil || bezig) return;
+    // Staat er inhoud van een ánder project op het scherm (nog niet geladen),
+    // dan nooit versturen: dat zou dit project overschrijven (v103).
+    if (basisVan !== projectId) {
+      status('… Wachten tot het project geladen is', '#8a5a00');
+      // Het laden regelt de rest: daar wordt dit werk apart bewaard en de
+      // stand van dit project getoond (herstelProbeer).
+      if (geladen) { geladen = false; herstelPoging = 0; planHerstel(); }
+      return;
+    }
     if (!navigator.onLine) { status('⚠ Offline — lokaal', '#a3231a'); return; }
     if (!standDeugt(huidigeStaat())) {
       status('⚠ Niet verstuurd — zie melding', '#a3231a');
@@ -456,13 +664,13 @@
       if (!res.error && Array.isArray(res.data) && res.data.length === 0) {
         var i2 = eigenSchrijfsels.lastIndexOf(afdruk);
         if (i2 >= 0) eigenSchrijfsels.splice(i2, 1);
-        status('⚠ Niet opgeslagen — project weg?', '#a3231a');
-        if (window.appFout) {
-          appFout('Het opslaan kwam niet aan: dit project bestaat niet meer, of je mag er niet meer bij. ' +
-                  'Je werk staat nog op dit apparaat. Maak een nieuw project aan en exporteer of kopieer ' +
-                  'de maten daarheen voordat je de app sluit.',
-                  { kop: 'Niet opgeslagen' });
-        }
+        // Het werk blijft gemarkeerd als 'moet nog omhoog'. Daarna nagaan
+        // waaróm er niets aankwam: niet meer ingelogd, of het project is
+        // echt weg (v103).
+        vuil = true;
+        try { localStorage.setItem(LS_PENDING, '1'); } catch (e) {}
+        status('⚠ Niet opgeslagen — even nagaan waarom', '#a3231a');
+        projectWeg();
         return;
       }
       if (res.error) {
@@ -490,6 +698,21 @@
           status('⚠ Eerst bijwerken — je werk staat op dit apparaat', '#a3231a');
           if (window.glasZoekUpdate) window.glasZoekUpdate(false);
           setTimeout(plan, 30000);
+          return;
+        }
+        if (databaseVol(res.error)) {
+          vuil = true;
+          try { localStorage.setItem(LS_PENDING, '1'); } catch (e3) {}
+          status('⚠ Database vol — je werk staat op dit apparaat', '#a3231a');
+          if (!volGemeld && window.appFout) {
+            volGemeld = true;
+            appFout('De database in de cloud is vol en neemt niets meer aan. Je werk is NIET weg: het ' +
+                    'staat op dit apparaat en gaat vanzelf omhoog zodra er weer ruimte is. Sluit de app ' +
+                    'niet af en wis geen websitegegevens.\n\nVoor Jan: ruim projecten op (prullenbak ' +
+                    'definitief legen) of zet Supabase op een betaald plan.',
+                    { kop: 'Database vol' });
+          }
+          setTimeout(plan, 60000);
           return;
         }
         if (res.error.code === '23505') {
@@ -523,6 +746,7 @@
         vuil = false;
         localStorage.removeItem(LS_PENDING);
         statusOpgeslagen();
+        linkNaOpslaan();
       }
     }, function (e) {
       // Netwerkfout zonder antwoord: niets is zeker weggeschreven.
@@ -535,6 +759,7 @@
 
   window.addEventListener('online', function () {
     herstelPoging = 0;
+    setTimeout(reddingenUploaden, 1000);   // v103
     if (!geladen) { herstelProbeer(); return; }
     if (!kanaalGezond()) luisterOpProject();
     if (vuil) synchroniseer(); else statusOpgeslagen();
@@ -798,15 +1023,36 @@
     if (window.renderBestellijst) renderBestellijst();
   }
 
-  // Het logboek ophalen voor dit project.
-  window.glasGeschiedenis = function (id) {
+  // Bestaat een tabel (nog) niet, omdat een SQL-script niet gedraaid is?
+  // Dat is iets anders dan 'ophalen mislukt': dan is de lijst echt leeg.
+  function tabelOntbreekt(fout) {
+    var t = String((fout && fout.message) || '') + ' ' + String((fout && fout.code) || '');
+    return /42P01|PGRST205|does not exist/.test(t);
+  }
+  window.glasTabelOntbreekt = tabelOntbreekt;
+
+  // Een lijst ophalen waarbij 'mislukt' niet op 'leeg' mag lijken (v103).
+  // Tot v102 gaf een fout of geen bereik een lege lijst terug, en stond
+  // er "Nog geen wijzigingen" of "Geen openstaande taken" terwijl die er
+  // wel waren. Nu: een lijst, of null als het niet lukte. Een lijst krijgt
+  // .totaal mee als de database dat telde (count: 'exact').
+  function lijstOf(res) {
+    if (!res) return null;
+    if (res.error) return tabelOntbreekt(res.error) ? [] : null;
+    var l = Array.isArray(res.data) ? res.data.slice() : [];
+    if (typeof res.count === 'number') l.totaal = res.count;
+    return l;
+  }
+
+  // Het logboek ophalen voor dit project. null = ophalen mislukt (v103).
+  window.glasGeschiedenis = function (id, aantal) {
     if (!sb) return Promise.resolve([]);
     return sb.from('projectgeschiedenis')
-      .select('id,moment,wie_naam,samenvatting')
+      .select('id,moment,wie_naam,samenvatting', { count: 'exact' })
       .eq('project_id', id || projectId)
       .order('moment', { ascending: false })
-      .limit(30)
-      .then(function (res) { return (res && res.data) || []; }, function () { return []; });
+      .limit(aantal || 30)
+      .then(lijstOf, function () { return null; });
   };
 
   var kanaal = null;
@@ -914,13 +1160,18 @@
   stilReset();
 
   // De projectenlijst, ook bruikbaar vanaf het startscherm.
-  window.glasProjecten = function (zoek) {
+  // sortering (v102, keuze van Jan): 'gewijzigd' (standaard), 'aangemaakt'
+  // of 'alfabet'. De volgorde zit in de vraag aan de database, niet pas in
+  // de app: anders zou de app sorteren binnen alleen de laatst gewijzigde
+  // projecten, en vielen oudere projecten ongemerkt uit de lijst.
+  window.glasProjecten = function (zoek, sortering) {
     if (!sb || !gebruiker) return Promise.resolve({ data: [], error: null });
     return new Promise(function (klaar) {
       var metFilter = prullenbakKolom;
       metHerkansing(function () {
         var q = sb.from('projecten')
-          .select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at,gewijzigd_naam');
+          .select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at,created_at,gewijzigd_naam',
+                  { count: 'exact' });
         // Wat in de prullenbak staat hoort niet in de lijst (v91).
         if (metFilter) q = q.is('verwijderd_op', null);
         var t = zoekTekst(zoek);
@@ -928,14 +1179,24 @@
           var z = '%' + t + '%';
           q = q.or('naam.ilike.' + z + ',datum.ilike.' + z + ',adres.ilike.' + z);
         }
-        return q.order('updated_at', { ascending: false }).limit(200);
+        if (sortering === 'alfabet') q = q.order('naam', { ascending: true });
+        else if (sortering === 'aangemaakt') q = q.order('created_at', { ascending: false });
+        else q = q.order('updated_at', { ascending: false });
+        // Tot v101: 200. Bij sorteren op naam of aanmaakdatum zou dan een
+        // deel van de projecten wegvallen zodra er meer dan 200 zijn. Een
+        // regel is hooguit een paar honderd bytes; 1000 is nog geen halve MB.
+        return q.limit(1000);
       }, function (res) {
         // Script 18 nog niet gedraaid: dan zonder dat filter opnieuw.
         if (res && res.error && metFilter && geenPrullenbak(res.error)) {
-          window.glasProjecten(zoek).then(klaar);
+          window.glasProjecten(zoek, sortering).then(klaar);
           return;
         }
-        klaar({ data: (res && res.data) || [], error: res && res.error });
+        // totaal: hoeveel projecten er werkelijk zijn (v103). Zijn dat er
+        // meer dan de grens, dan zegt het startscherm dat; zo valt er nooit
+        // stil een project uit de lijst.
+        klaar({ data: (res && res.data) || [], error: res && res.error,
+                totaal: (res && typeof res.count === 'number') ? res.count : null });
       });
     });
   };
@@ -947,6 +1208,39 @@
   function zoekTekst(t) {
     return String(t || '').replace(/[%_,()"\\]/g, ' ').trim();
   }
+
+  /* ─── ruimte bewaken (v103) ──────────────────────────────────
+     Vraag van Jan: "zodat iets nooit stilzwijgend kwijtraakt". Het gratis
+     plan van Supabase heeft 500 MB database en 1 GB foto-opslag. Is de
+     database vol, dan neemt hij niets meer aan; is de opslag vol, dan
+     blijven foto's op de apparaten wachten. Het startscherm waarschuwt
+     vanaf 80%. Andere grenzen (betaald plan)? In config.js:
+       limieten: { databaseMB: 8000, opslagMB: 100000 }
+     Meet hooguit eens per tien minuten: het is een vraag aan de database. */
+  var gebruikCache = null;
+  var gebruikOp = 0;
+  window.glasGebruik = function (opnieuw) {
+    if (!sb || !gebruiker || !sb.rpc) return Promise.resolve(null);
+    if (!opnieuw && gebruikCache && Date.now() - gebruikOp < 600000) return Promise.resolve(gebruikCache);
+    return Promise.resolve(sb.rpc('glas_gebruik')).then(function (res) {
+      // Script 22 nog niet gedraaid of geen bereik: niets te melden.
+      if (!res || res.error || !res.data) return gebruikCache;
+      var d = res.data;
+      var lim = cfg.limieten || {};
+      function deel(bytes, mb) {
+        var max = mb * 1048576;
+        var b = Number(bytes) || 0;
+        return { bytes: b, max: max, mb: Math.round(b / 1048576), maxMb: mb, pct: Math.round(b / max * 100) };
+      }
+      gebruikCache = {
+        database: deel(d.database_bytes, Number(lim.databaseMB) || 500),
+        opslag: deel(d.opslag_bytes, Number(lim.opslagMB) || 1024),
+        bestanden: Number(d.opslag_bestanden) || 0
+      };
+      gebruikOp = Date.now();
+      return gebruikCache;
+    }, function () { return gebruikCache; });
+  };
 
   window.glasGebruiker = function () {
     return { id: gebruiker ? gebruiker.id : null, naam: gebruikersNaam(),
@@ -1008,12 +1302,17 @@
       .then(function (res) { return (res && res.data) || null; }, function () { return null; });
   };
 
-  window.glasMailLog = function (pid) {
+  // soort (v103): alleen die soort mail. De vraag "is er al besteld?"
+  // keek tot v102 in de laatste 10 mails van alle soorten; na tien
+  // taakberichten viel een eerdere bestelling daar buiten, en kwam er geen
+  // waarschuwing voor een dubbele bestelling. null = ophalen mislukt.
+  window.glasMailLog = function (pid, soort) {
     if (!sb) return Promise.resolve([]);
-    return sb.from('mailverzonden').select('moment,soort,aan,onderwerp,gelukt,fout,wie_naam')
-      .eq('project_id', pid || projectId)
-      .order('moment', { ascending: false }).limit(10)
-      .then(function (res) { return (res && res.data) || []; }, function () { return []; });
+    var q = sb.from('mailverzonden').select('moment,soort,aan,onderwerp,gelukt,fout,wie_naam', { count: 'exact' })
+      .eq('project_id', pid || projectId);
+    if (soort) q = q.eq('soort', soort);
+    return q.order('moment', { ascending: false }).limit(30)
+      .then(lijstOf, function () { return null; });
   };
 
   // Een collega die een taak krijgt, krijgt er een kort mailtje over.
@@ -1186,12 +1485,29 @@
   // app kan laten zien wat er voor jou openstaat zonder elk project in
   // te laden (v87).
 
+  // Een antwoord van de database mét fout is net zo goed mislukt als geen
+  // antwoord. Tot v102 werd zo'n fout stil weggegooid: zonder bereik
+  // verscheen een nieuwe taak even, en verdween hij daarna zonder melding
+  // (gevonden bij de controle van v103).
+  function taakAntwoord(wat) {
+    return function (res) {
+      if (!res || res.error || !res.data) return taakFout(wat)((res && res.error) || null);
+      return res.data;
+    };
+  }
+
   function taakFout(wat) {
     return function (e) {
       console.warn('[taken] ' + wat + ' mislukt', e);
-      if (window.appFout) appFout('De taken konden niet bijgewerkt worden: ' +
-        ((e && e.message) || 'geen verbinding') + '. Probeer het zo nog eens.',
-        { kop: 'Taken' });
+      var waarom = (e && e.message) || 'geen verbinding';
+      var tekst = wat === 'toevoegen'
+        ? 'De taak is niet opgeslagen (' + waarom + '). De tekst staat weer in het invoerveld; ' +
+          'probeer het opnieuw zodra er bereik is.'
+        : wat === 'verwijderen'
+          ? 'De taak is niet verwijderd (' + waarom + '). Hij staat er nog; probeer het zo nog eens.'
+          : 'De taak is niet bijgewerkt (' + waarom + '). De lijst toont weer wat er echt is ' +
+            'opgeslagen; probeer het zo nog eens.';
+      if (window.appFout) appFout(tekst, { kop: 'Taken' });
       return null;
     };
   }
@@ -1209,23 +1525,36 @@
     return !(res && res.error);
   }
 
+  // null = de tabel bestaat (nog) niet: dan de taken uit het project zelf.
+  // Mislukt het ophalen (geen bereik, fout), dan een fout (afgewezen
+  // belofte), zodat het scherm "konden niet opgehaald worden" zegt en niet
+  // "Nog geen taken". Tot v102 kwam ook dat als null terug, en toonde de
+  // app de (lege) oude takenlijst uit het project (v103).
   window.glasTakenVan = function (pid) {
     if (!sb || !takenTabel || !(pid || projectId)) return Promise.resolve(null);
     return sb.from('taken').select('*').eq('project_id', pid || projectId)
       .order('klaar', { ascending: true }).order('volgorde', { ascending: true })
       .then(function (res) {
-        if (!takenTabelCheck(res)) return null;
+        if (!takenTabelCheck(res)) {
+          if (!takenTabel) return null;
+          throw res.error;
+        }
         return (res && res.data) || [];
-      }, function () { return null; });
+      });
   };
 
+  // Open taken op mijn naam, voor het startscherm. null = mislukt (v103).
+  // De grens was 100 zonder dat iemand het zag; nu 500 en de telling erbij.
   window.glasMijnTaken = function () {
     if (!sb || !gebruiker || !takenTabel) return Promise.resolve([]);
     return sb.from('taken')
-      .select('id,tekst,project_id,aangemaakt_op,eigenaar_naam')
+      .select('id,tekst,project_id,aangemaakt_op,eigenaar_naam', { count: 'exact' })
       .eq('klaar', false).eq('eigenaar', gebruiker.id)
-      .order('aangemaakt_op', { ascending: true }).limit(100)
-      .then(function (res) { return (res && res.data) || []; }, function () { return []; });
+      .order('aangemaakt_op', { ascending: true }).limit(500)
+      .then(function (res) {
+        if (res && res.error) takenTabelCheck(res);
+        return lijstOf(res);
+      }, function () { return null; });
   };
 
   // `wie` is { id, naam } van de collega die de taak krijgt; laat je het
@@ -1240,7 +1569,7 @@
       aangemaakt_door: gebruiker.id,
       volgorde: Date.now() % 100000
     }).select('*').single()
-      .then(function (res) { return (res && res.data) || null; }, taakFout('toevoegen'));
+      .then(taakAntwoord('toevoegen'), taakFout('toevoegen'));
   };
 
   window.glasTaakWijzig = function (id, velden) {
@@ -1253,13 +1582,16 @@
     }
     if (v.klaar === false) { v.afgerond_op = null; v.afgerond_door = null; }
     return sb.from('taken').update(v).eq('id', id).select('*').single()
-      .then(function (res) { return (res && res.data) || null; }, taakFout('bijwerken'));
+      .then(taakAntwoord('bijwerken'), taakFout('bijwerken'));
   };
 
   window.glasTaakWeg = function (id) {
     if (!sb) return Promise.resolve(false);
     return sb.from('taken').delete().eq('id', id)
-      .then(function (res) { return !(res && res.error); }, taakFout('verwijderen'));
+      .then(function (res) {
+        if (res && res.error) { taakFout('verwijderen')(res.error); return false; }
+        return true;
+      }, function (e) { taakFout('verwijderen')(e); return false; });
   };
 
   // Taken die nog in het project zelf staan één keer overzetten.
@@ -1454,6 +1786,7 @@
       if (vuil || bezig) return;     // intussen toch weer iets getypt
       geladen = true;
       statusVanServer(res.data);
+      if (basisVan !== projectId) { reddenEnLaden(res.data.data || {}, ''); statusOpgeslagen(); return; }
       if (vingerafdruk(res.data.data || {}) !== vingerafdruk(huidigeStaat())) {
         vanElders({ data: res.data.data, status: res.data.status });
       } else {
@@ -1716,13 +2049,15 @@
     // overgaat wordt het een paar keer opnieuw geprobeerd (v86).
     var metFilter = prullenbakKolom;
     metHerkansing(function () {
-      var q = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at');
+      var q = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at',
+                                          { count: 'exact' });
       if (metFilter) q = q.is('verwijderd_op', null);     // niet de prullenbak (v91)
       if (zoekTekst(zoekTerm)) {
         var z = '%' + zoekTekst(zoekTerm) + '%';
         q = q.or('naam.ilike.' + z + ',datum.ilike.' + z + ',adres.ilike.' + z);
       }
-      return q.order('updated_at', { ascending: false }).limit(200);
+      // Tot v102: 200, zonder dat iemand zag dat er meer waren (v103).
+      return q.order('updated_at', { ascending: false }).limit(1000);
     }, function (res) {
         if (res.error && metFilter && geenPrullenbak(res.error)) { toonProjecten(true); return; }
         if (res.error) {
@@ -1733,10 +2068,13 @@
           return;
         }
         var telling = el('cloudTelling');
+        var totaal = (typeof res.count === 'number' && res.count > res.data.length) ? res.count : res.data.length;
         if (telling) {
-          telling.textContent = zoekTerm.trim()
-            ? res.data.length + ' van de projecten komt overeen'
-            : (res.data.length ? res.data.length + ' projecten' : '');
+          telling.textContent = totaal > res.data.length
+            ? res.data.length + ' van ' + totaal + ' getoond — zoek om de andere te vinden'
+            : zoekTerm.trim()
+              ? res.data.length + ' van de projecten komt overeen'
+              : (res.data.length ? res.data.length + ' projecten' : '');
         }
         if (!res.data.length) {
           lijst.innerHTML = zoekTerm.trim()
@@ -1890,6 +2228,7 @@
       statusHandmatig = false;
       projectId = res.data.id;
       window.glasProjectId = projectId;
+      basisVan = projectId;    // wat op het scherm staat hoort nu bij het nieuwe project (v103)
       localStorage.setItem(LS_PROJECT, projectId);
       zetHash(projectId);
       luisterOpProject();
@@ -1960,7 +2299,10 @@
   // het opruimen na 30 dagen, of als 18_prullenbak.sql nog niet gedraaid
   // is. `vraag` is de tekst van de bevestiging; zonder vraag (opruimen) geen
   // venster en geen meldingen (v91).
-  async function definitiefVerwijderen(id, vraag) {
+  // alleenUitPrullenbak (v103): bij het automatisch opruimen alleen
+  // verwijderen als het project nog in de prullenbak staat. Zette iemand
+  // het net terug, dan blijft het staan (met foto's).
+  async function definitiefVerwijderen(id, vraag, alleenUitPrullenbak) {
     if (vraag && !await appVraag(vraag,
         { kop: 'Project verwijderen', ja: 'Definitief verwijderen', gevaarlijk: true })) return false;
 
@@ -1979,14 +2321,21 @@
     var gelukt = false;
     var melding = '';
     try {
-      var res = await sb.from('projecten').delete().eq('id', id).select('id');
+      var wegQ = sb.from('projecten').delete().eq('id', id);
+      if (alleenUitPrullenbak) wegQ = wegQ.not('verwijderd_op', 'is', null);
+      var res = await wegQ.select('id');
       if (res && res.error) {
         melding = res.error.message;
       } else if (res && Array.isArray(res.data) && res.data.length === 0) {
         // Niets verwijderd. Bestaat hij nog, dan mag deze gebruiker het niet;
         // is hij er niet meer, dan was een ander ons voor.
         var na = await sb.from('projecten').select('id').eq('id', id).maybeSingle();
-        if (!na.error && na.data) melding = 'je hebt hier geen rechten voor';
+        if (!na.error && na.data) {
+          melding = alleenUitPrullenbak ? 'intussen teruggezet' : 'je hebt hier geen rechten voor';
+        } else if (na.error) {
+          // Niet na te gaan: dan ook de foto's niet aanraken (v103).
+          melding = na.error.message || 'niet na te gaan';
+        }
         else gelukt = true;
       } else {
         gelukt = true;
@@ -2126,12 +2475,14 @@
   window.glasPrullenbak = function () {
     if (!sb || !gebruiker || !prullenbakKolom) return Promise.resolve([]);
     return sb.from('projecten')
-      .select('id,naam,adres,aantal_ruiten,verwijderd_op,verwijderd_naam')
+      .select('id,naam,adres,aantal_ruiten,verwijderd_op,verwijderd_naam', { count: 'exact' })
       .not('verwijderd_op', 'is', null)
-      .order('verwijderd_op', { ascending: false }).limit(200)
+      .order('verwijderd_op', { ascending: false }).limit(1000)
       .then(function (res) {
         if (res && res.error) { geenPrullenbak(res.error); return []; }
-        return (res && res.data) || [];
+        var l = ((res && res.data) || []).slice();
+        if (typeof res.count === 'number') l.totaal = res.count;
+        return l;
       }, function () { return []; });
   };
 
@@ -2160,21 +2511,27 @@
   };
 
   // Na 30 dagen: definitief. Eén keer per sessie, bij het startscherm.
+  // Welke projecten oud genoeg zijn, beslist de database met zijn eigen
+  // klok (prullenbak_opruimbaar, 22_gebruik_en_prullenbak.sql). Tot v102
+  // rekende de app met de klok van het apparaat: stond die een maand
+  // vooruit, dan werd de hele prullenbak met foto's leeggemaakt (gevonden
+  // bij de controle van v103). Is script 22 nog niet gedraaid, dan wordt
+  // er niets opgeruimd: liever een volle prullenbak dan iets te vroeg weg.
   window.glasPrullenbakOpruimen = function () {
-    if (opgeruimd || !sb || !gebruiker || !prullenbakKolom) return Promise.resolve(0);
+    if (opgeruimd || !sb || !gebruiker || !prullenbakKolom || !sb.rpc) return Promise.resolve(0);
     opgeruimd = true;
-    var grens = Date.now() - PRULLENBAK_DAGEN * 24 * 3600 * 1000;
-    return window.glasPrullenbak().then(function (lijst) {
-      var oud = lijst.filter(function (p) {
-        var t = new Date(p.verwijderd_op).getTime();
-        return isFinite(t) && t < grens;
-      });
-      return oud.reduce(function (keten, p) {
+    return Promise.resolve(sb.rpc('prullenbak_opruimbaar', { dagen: PRULLENBAK_DAGEN })).then(function (res) {
+      if (!res || res.error || !Array.isArray(res.data)) {
+        if (res && res.error) console.warn('[prullenbak] niet opgeruimd: ' + (res.error.message || res.error.code));
+        return 0;
+      }
+      return res.data.reduce(function (keten, rij) {
         return keten.then(function (n) {
-          return definitiefVerwijderen(p.id, null).then(function (ok) { return n + (ok ? 1 : 0); });
+          // alleenUitPrullenbak: wie intussen is teruggezet, blijft staan.
+          return definitiefVerwijderen(rij.id, null, true).then(function (ok) { return n + (ok ? 1 : 0); });
         });
       }, Promise.resolve(0));
-    });
+    }, function () { return 0; });
   };
 
   window.cloudProjectenTonen = function () {
@@ -2238,10 +2595,69 @@
   // Het geopende project bestaat niet meer — verwijderd door een collega,
   // of de rechten zijn weg. Eén keer duidelijk melden, en niet doen alsof
   // er nog opgeslagen wordt (v85).
-  function projectWeg() {
-    status('⚠ Project bestaat niet meer', '#a3231a');
+  // Is er nog een geldige sessie? Een database die 'geen rij' zegt, kan
+  // ook betekenen: niet meer ingelogd (de beveiliging laat dan niets zien
+  // en laat niets wijzigen). Tot v102 werd dat gemeld als 'project bestaat
+  // niet meer' (gevonden bij de controle van v103).
+  //   'ok'       – ingelogd
+  //   'weg'      – niet meer ingelogd (of de server weigert de sessie)
+  //   'onbekend' – kon het niet nagaan (geen bereik)
+  function sessieCheck() {
+    if (!sb || !sb.auth || !sb.auth.getSession) return Promise.resolve('ok');
+    var p;
+    try { p = sb.auth.getSession(); } catch (e) { return Promise.resolve('onbekend'); }
+    return Promise.resolve(p).then(function (r) {
+      if (r && r.data && r.data.session) return 'ok';
+      var f = r && r.error;
+      if (!f) return 'weg';
+      return (f.status >= 400 && f.status < 500) ? 'weg' : 'onbekend';
+    }, function () { return 'onbekend'; });
+  }
+
+  var sessieGemeld = false;
+  function sessieKwijt() {
     geladen = false;
     clearTimeout(herstelKlok);
+    // Het werk blijft staan en blijft gemarkeerd als 'moet nog omhoog'.
+    if (vuil) { try { localStorage.setItem(LS_PENDING, '1'); } catch (e) {} }
+    status('⚠ Opnieuw inloggen — je werk staat op dit apparaat', '#a3231a');
+    gebruiker = null;
+    if (sessieGemeld) return;
+    sessieGemeld = true;
+    toonLogin('Je bent niet meer ingelogd. Log opnieuw in: je werk staat nog op dit apparaat ' +
+              'en gaat daarna alsnog naar de server.');
+  }
+
+  function projectWeg() {
+    geladen = false;
+    clearTimeout(herstelKlok);
+    sessieCheck().then(function (s) {
+      if (s === 'weg') { sessieKwijt(); return; }
+      if (s === 'onbekend') { mislukt('sessie nagaan'); return; }
+      projectEchtWeg();
+    });
+  }
+
+  function projectEchtWeg() {
+    status('⚠ Project bestaat niet meer', '#a3231a');
+    // Stond er eigen werk dat nog niet op de server was? Dat mag niet met
+    // het project mee verdwijnen: apart bewaren als nieuw project, en naar
+    // het startscherm, zodat er niet verder getypt wordt in een project dat
+    // er niet meer is (v103). Tot v102 bleef het alleen op het scherm
+    // staan; wie daarna een ander project opende, was het kwijt.
+    var openWerk = vuil || localStorage.getItem(LS_PENDING) === '1';
+    if (openWerk && reddingBewaar(huidigeStaat(), 'project bestond niet meer')) {
+      try { localStorage.removeItem(LS_PENDING); } catch (e) {}
+      vuil = false;
+      werkTeRedden = false;
+      projectId = null;
+      window.glasProjectId = null;
+      try { localStorage.removeItem(LS_PROJECT); } catch (e) {}
+      zetHash(null);
+      reddingenUploaden();
+      toonStart();
+      return;
+    }
     werkTeRedden = ingevuldeRijen(huidigeStaat()) > 0;
     if (wegGemeld) return;
     wegGemeld = true;
@@ -2289,6 +2705,19 @@
         if (!res.data) { projectWeg(); return; }
         luisterOpProject();
         statusVanServer(res.data);
+        // Staat er nog inhoud van een ánder project op het scherm (de link
+        // ging open zonder bereik), dan nu de stand van dít project laden.
+        // Is daar intussen in getypt, dan gaat dat apart, nooit over dit
+        // project heen (v103).
+        if (basisVan !== projectId) {
+          if (reddenEnLaden(res.data.data || {}, 'getypt voordat het project geladen was')) {
+            statusOpgeslagen();
+            migreerTaken(projectId);
+            if (window.takenLaden) takenLaden();
+            if (window.logboekLaden) logboekLaden();
+          }
+          return;
+        }
         if (vuil || localStorage.getItem(LS_PENDING) === '1') {
           vuil = true;
           synchroniseer();
@@ -2326,9 +2755,35 @@
     }, 300000);
   }
 
+  var linkWacht = null;     // een link naar een ander project, die wacht op eigen werk (v103)
+  var linkWachtSinds = 0;
+
+  // Het eigen werk staat op de server; nu door naar de link. Was dat snel
+  // (met bereik: binnen een paar seconden) en heeft de gebruiker intussen
+  // niets gedaan, dan gewoon openen: daar tikte hij op. Duurde het langer
+  // of werkt hij intussen verder, dan eerst vragen: anders springt de app
+  // ineens naar een ander project terwijl hij bezig is.
+  function linkNaOpslaan() {
+    if (!linkWacht) return;
+    var doel = linkWacht;
+    linkWacht = null;
+    if (!gebruikerDeedIets && Date.now() - linkWachtSinds < 60000) {
+      if (window.cloudOpen) cloudOpen(doel);
+      return;
+    }
+    if (!window.appVraag) return;
+    appVraag('Je werk is opgeslagen. Wil je nu het project van de link openen?',
+             { kop: 'Verder naar de link', ja: 'Openen', nee: 'Hier blijven' })
+      .then(function (ja) { if (ja && window.cloudOpen) cloudOpen(doel); });
+  }
+
   function start() {
     haalData();
     startHartslag();
+    sessieGemeld = false;
+    // Werk dat eerder apart bewaard moest worden en nog op dit apparaat
+    // staat (geen bereik op dat moment): nu alsnog naar de server (v103).
+    setTimeout(reddingenUploaden, 2000);
     // Staat er een project in het webadres, dan wint dat: zo opent een
     // gedeelde link bij iedereen hetzelfde project (v87).
     var uitHash = hashProject();
@@ -2338,7 +2793,29 @@
       // webadres had). Stond het project uit de link al open, dan blijft
       // het open; eerder viel de app dan terug naar het startscherm en ging
       // er daarna niets meer omhoog (v87).
-      if (uitHash !== projectId) {
+      if (uitHash !== projectId && projectId && localStorage.getItem(LS_PENDING) === '1' &&
+          kopieVan(projectId) !== 'nee') {
+        // Er staat nog werk van een ánder project op dit apparaat dat niet op
+        // de server is. Tot v102 gooide een link (bijvoorbeeld uit een
+        // taakmail) dat werk weg, en zonder bereik kwam de inhoud van het
+        // oude project zelfs in het nieuwe terecht (gevonden bij de controle
+        // van v103). Nu gaat dat werk eerst: het oude project opent, de link
+        // wacht.
+        linkWacht = uitHash;
+        linkWachtSinds = Date.now();
+        zetHash(projectId);
+        if (window.appMelding) {
+          // Pas melden als het niet meteen lukt: met bereik staat het werk
+          // binnen een paar seconden op de server en gaat de link vanzelf open.
+          setTimeout(function () {
+            if (linkWacht !== uitHash) return;
+            linkWachtSinds = 0;     // gemeld: straks vragen, niet zelf springen
+            appMelding('Op dit apparaat staat nog werk dat niet op de server is. Dat project opent ' +
+                       'eerst, zodat het werk niet verloren gaat. Zodra het is opgeslagen, kun je door ' +
+                       'naar het project van de link.', { kop: 'Eerst je eigen werk', soort: 'letop' });
+          }, 4000);
+        }
+      } else if (uitHash !== projectId) {
         projectId = uitHash;
         window.glasProjectId = projectId;
         localStorage.setItem(LS_PROJECT, projectId);
@@ -2396,9 +2873,24 @@
           geladen = true;
           herstelPoging = 0;
           if (!res.data) { projectId = null; localStorage.removeItem(LS_PROJECT); toonProjecten(); return; }
-          // Lokale, nog niet gesynchroniseerde wijzigingen winnen.
+          if (localStorage.getItem(LS_PENDING) === '1' && kopieVan(projectId) === 'nee') {
+            // Lokale, nog niet gesynchroniseerde wijzigingen winnen — maar
+            // alleen als de kopie op het apparaat bij dít project hoort
+            // (v103). Hoort hij bij een ander, dan nooit versturen (anders
+            // overschrijft hij dit project), maar apart bewaren.
+            if (!reddenEnLaden(res.data.data || {}, 'hoorde niet bij dit project')) return;
+            statusVanServer(res.data);
+            statusOpgeslagen();
+            migreerTaken(projectId);
+            if (window.takenLaden) takenLaden();
+            if (window.logboekLaden) logboekLaden();
+            luisterOpProject();
+            return;
+          }
           if (localStorage.getItem(LS_PENDING) === '1') {
             // Openstaand werk wint; zetStaat wordt hier dus niet gedraaid.
+            // Het hoort bij dit project (zie hierboven), dus mag het omhoog.
+            basisVan = projectId;
             // Dat werk is van dit apparaat, dus telt het voor 'Opgenomen
             // door' als eigen werk (v93).
             werkVanEerder = true;

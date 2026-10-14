@@ -108,6 +108,11 @@ aftikken.
 | **leeg en heel vol** | geen gegevens; en veel ruiten, notities, logregels | lege toestand, pagina-overgangen in de pdf |
 | **eerste keer** | een verse browser zonder service worker of opgeslagen gegevens | herladen voor niets (v100) |
 | **overgang van de live versie** | `OUD=… node test-overgang.js` (oude code in de browser, nieuwe op de server) | de oude code bepaalt of een update aankomt (v101) |
+| **ophalen mislukt** | de nagebootste database een fout laten geven voor één tabel (`S.fout['taken:select']` in `test-v103.js`) | een mislukte vraag mag er nooit uitzien als een lege lijst ("Nog geen taken") (v103) |
+| **meer dan de grens** | meer rijen dan de app ophaalt (1205 projecten, 521 taken, 45 logregels), met een database die echt telt en begrenst | wat buiten de grens valt, moet je zien (v103) |
+| **niet meer ingelogd** | geen sessie, en de database laat dan niets zien (0 rijen, géén fout, zoals RLS) | dat is iets anders dan "project weg" (v103) |
+| **database of opslag vol** | de fout die Supabase dan geeft (25006 / read-only, quota) | alleen-lezen is geen gewone fout (v103) |
+| **klok van het apparaat verkeerd** | een eigen `Date` in de pagina die een maand vooruit staat | alles wat met tijd iets weggooit, hoort op de klok van de server (v103) |
 
 ## De test zelf
 
@@ -117,6 +122,12 @@ aftikken.
   gebruiker gebruikt. Niet alleen de functie aanroepen.
 - **Na elke stap: waar staat het werk nu?** Op de server, of op het
   apparaat met de vlag "moet nog omhoog". Er is geen derde mogelijkheid.
+- **Kan het onvindbaar worden zonder dat iemand het ziet?** (Jan, v103)
+  - Elke grens (`limit`) die stil afkapt, is een plek waar iets
+    verdwijnt: tel mee (`count: 'exact'`) en zeg het als er meer is.
+  - Elke vraag die mislukt, moet er anders uitzien dan een lege lijst.
+  - Werk dat niet bij het open project hoort, gaat apart en wordt nooit
+    weggegooid.
 - **Kijk ook naar wat níet mag gebeuren:**
   - geen onnodige herlaadbeurt;
   - de server niet bestoken met verzoeken;
@@ -190,3 +201,10 @@ harde eis wint.
   - de wachtrij voor foto's zonder bereik.
 - `test-sql.sql`: elk SQL-script twee keer draaien, tegen een echte
   PostgreSQL.
+- `test-v103.js`:
+  - elk onderdeel begint met de echte situatie;
+  - een database die fouten geeft per tabel, telt en begrenst;
+  - zwak signaal waarbij de telefoon niet merkt dat het bereik terug is;
+  - de klok van het apparaat verzet;
+  - `--mutaties` draait elke reparatie terug en eist dat de reeks rood
+    wordt. Doe dat ook in nieuwe reeksen.

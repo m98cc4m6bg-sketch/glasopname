@@ -255,6 +255,35 @@ function maakApp() {
   await wacht(200);
   check('en er is niets uitgevoerd', w.__xss === 0, String(w.__xss));
 
+  console.log('\n19. Toevoegen gooit geen regels met een foto of opmerking weg (v103)');
+  // Echte situatie: op de bouwplaats is bij een foto een regel gemaakt
+  // (alleen de foto, nog geen maten) en een regel met alleen een
+  // opmerking ('rooster nameten'). Op kantoor wordt daarna een lijst van
+  // de leverancier geïmporteerd met Toevoegen. Tot v102 werden zulke
+  // regels aan het eind van de lijst stil verwijderd: Toevoegen ruimde
+  // 'lege' regels op en keek alleen naar maten, glas en merk.
+  w.eval('rijen = []; volgendId = 1;');
+  w.eval('var a = nieuweRij(); a.merk = "K1"; a.breedte = "900"; a.hoogte = "700"; rijen.push(a);' +
+         'var f = nieuweRij(); f.fotoId = "foto-1"; rijen.push(f);' +
+         'var o = nieuweRij(); o.opmerking = "rooster nameten"; rijen.push(o);' +
+         'var d = nieuweRij(); d.ducoType = "DucoTon 10"; rijen.push(d);' +
+         'rijen.push(nieuweRij()); rijen.push(nieuweRij());');
+  w.impOpen();
+  w.document.getElementById('impPlak').value = 'Merk;Breedte;Hoogte\nB1;1200;600\n';
+  w.impPlakVerwerken();
+  await wacht(150);
+  w.impControleren();
+  await wacht(150);
+  w.impToevoegen();
+  await wacht(150);
+  const na = JSON.parse(w.eval('JSON.stringify(rijen.map(function(r){return {m:r.merk||"",f:r.fotoId||"",o:r.opmerking||"",d:r.ducoType||"",b:r.breedte||""};}))'));
+  check('de regel bij de foto staat er nog', na.some(r => r.f === 'foto-1'), JSON.stringify(na));
+  check('de regel met alleen een opmerking staat er nog', na.some(r => r.o === 'rooster nameten'));
+  check('de regel met alleen een rooster staat er nog', na.some(r => r.d === 'DucoTon 10'));
+  check('de geïmporteerde regel staat erachter', na.some(r => r.m === 'B1' && r.b === '1200'));
+  check('de echt lege regels tussendoor zijn wel opgeruimd',
+    na.findIndex(r => r.m === 'B1') === 4, JSON.stringify(na.map(r => r.m || r.f || r.o || r.d || '-')));
+
   w.close();
   console.log('\n' + (fouten ? fouten + ' fout(en).' : 'Alles goed.'));
   process.exit(fouten ? 1 : 0);

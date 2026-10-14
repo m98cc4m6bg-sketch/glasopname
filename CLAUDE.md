@@ -98,6 +98,23 @@ De volledige achtergrond staat in de projectkennis op claude.ai
 * Iconen hebben een versie in hun adres (`favicon.png?v=2`): in index.html,
   het manifest én SHELL. Nieuw icoon → nummer ophogen (Safari houdt een
   favicon anders vast). `test-index.js` bewaakt het.
+* De projectenlijst sorteert in de vraag aan de database (`glasProjecten(zoek,
+  sortering)`, grens 1000) en op naam nog eens in de app (Intl.Collator 'nl',
+  numeriek), v102. De datum van inmeten is tekst (dd-mm-jjjj): nooit als
+  tekst sorteren.
+* **Van wie is de inhoud op het scherm?** (v103) `basisVan` in cloud.js. Alleen
+  als dat het open project is, mag `synchroniseer()` versturen; de kopie op
+  het apparaat draagt het als `_projectId`. Werk dat nergens bij hoort, wordt
+  nooit weggegooid en nooit over een ander project heen gezet: het gaat als
+  apart project naar de server (`reddenEnLaden` → `reddingenUploaden`).
+* **Mislukt is niet leeg** (v103). Een lijst ophalen geeft bij een fout
+  `null` of een afgewezen belofte, nooit `[]` (`lijstOf()` in cloud.js); het
+  scherm zegt dan "konden niet opgehaald worden". Elke `limit()` telt mee
+  (`count: 'exact'`) en het scherm zegt het als er meer is.
+* **Wat met tijd iets weggooit, rekent met de klok van de server** (v103):
+  de prullenbak via `prullenbak_opruimbaar()` (SQL 22).
+* **0 rijen bij opslaan** kan "niet meer ingelogd" zijn (RLS geeft dan geen
+  fout). Eerst `sessieCheck()`, dan pas "project weg" (v103).
 * **De Edge Function `mail` is nog niet uitgerold** (stand oktober 2026): de
   code staat in `supabase/functions/mail/`, maar in Supabase staat geen
   functie, geen Resend en geen geheimen. Jan stelt dat later in (handover
@@ -134,6 +151,8 @@ node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
 node test-v98.js && python3 test-v98.py
 node test-v99.js
+node test-v102.js
+node test-v103.js                     # en: node test-v103.js --mutaties
 OUD=/tmp/live node test-overgang.js   # OUD = wat nu live staat (git archive)
 bun test-mailfunctie.ts
 ```

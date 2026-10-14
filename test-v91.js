@@ -188,6 +188,9 @@ function maakApp(url, wachtwoord) {
             signOut: function () { return Promise.resolve({}); }
           },
           from: function (t) { return window.__bouwer(t); },
+          // Sinds v103 beslist de database welke projecten oud genoeg zijn
+          // (22_gebruik_en_prullenbak.sql); hier met de klok van de 'server'.
+          rpc: function (naam, args) { return Promise.resolve(window.__rpc(naam, args || {})); },
           functions: { invoke: function (naam, opties) {
             return Promise.resolve(window.__mail(naam, (opties || {}).body));
           } },
@@ -217,6 +220,12 @@ function maakApp(url, wachtwoord) {
   const w = dom.window;
   Object.defineProperty(w.document, 'visibilityState', { get: () => 'visible' });
   w.__bouwer = bouwer;
+  w.__rpc = function (naam, args) {
+    if (naam !== 'prullenbak_opruimbaar') return { data: null, error: { message: 'onbekend', code: 'PGRST202' } };
+    const grens = Date.now() - (args.dagen || 30) * 864e5;
+    return { data: db.projecten.filter(p => p.verwijderd_op && new Date(p.verwijderd_op).getTime() < grens)
+                               .map(p => ({ id: p.id })), error: null };
+  };
   w.__mail = (naam, lading) => mailFunctie(lading);
   return w;
 }

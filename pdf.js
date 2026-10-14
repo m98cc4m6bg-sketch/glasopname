@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v101';
+  var PDF_VERSIE = 'v103';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
   // service worker en werkt de eerste pdf na een update ook zonder bereik.
   var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
@@ -636,7 +636,11 @@
       leeg('Geen taken.');
     }
 
-    kopje('Logboek' + ((ov.logboek || []).length >= 30 ? ' (laatste 30)' : ''));
+    // Hoeveel er in totaal in staan, als de database dat telde (v103).
+    var logAantal = (ov.logboek || []).length;
+    kopje('Logboek' + (typeof ov.logboekTotaal === 'number' && ov.logboekTotaal > logAantal
+      ? ' (laatste ' + logAantal + ' van ' + ov.logboekTotaal + ')'
+      : (logAantal >= 30 ? ' (laatste 30)' : '')));
     var log = ov.logboek || [];
     if (log.length) {
       tabel({
@@ -1128,7 +1132,9 @@
     var lokaal = i.bestelmail && i.bestelmail.op
       ? { op: i.bestelmail.op, aan: i.bestelmail.aan || '', wie: i.bestelmail.door || '' } : null;
     if (!window.glasMailLog) return Promise.resolve(lokaal);
-    return Promise.resolve(glasMailLog()).then(function (log) {
+    // Alleen bestelmails: anders kon een bestelling buiten de laatste
+    // tien mails vallen (v103).
+    return Promise.resolve(glasMailLog(null, 'bestelling')).then(function (log) {
       var m = (log || []).find(function (x) { return x && x.soort === 'bestelling' && x.gelukt; });
       return m ? { op: m.moment, aan: m.aan || '', wie: m.wie_naam || '' } : lokaal;
     }, function () { return lokaal; });

@@ -429,3 +429,43 @@ end $$;
 select stap as test, uitkomst from versie_uitkomst order by stap;
 select '18h. eindstand' as test, data->>'_versieNr' as versie, data->'rijen' as rijen, status
   from public.projecten where id = '00000000-0000-4000-8000-0000000000ee';
+
+-- 19. Ruimte en prullenbak op de klok van de server (v103).
+--     verwacht:
+--       19a. database > 0, opslag 3000 (alleen projectfotos), 2 bestanden
+--       19b. t  (een apparaat met de klok een maand vooruit: toch now())
+--       19c. t  (een gezet tijdstip kan niet verschoven worden)
+--       19d. alleen 'Oud in prullenbak' is opruimbaar
+--       19e. terugzetten (null) mag
+create table if not exists storage.objects (
+  id uuid primary key default gen_random_uuid(), bucket_id text, name text, metadata jsonb
+);
+insert into storage.objects (bucket_id, name, metadata) values
+  ('projectfotos', 'a/1.jpg', '{"size": 1000}'), ('projectfotos', 'a/2.jpg', '{"size": 2000}'),
+  ('anders', 'x', '{"size": 99999}');
+\i 22_gebruik_en_prullenbak.sql
+\i 22_gebruik_en_prullenbak.sql
+select '19a. gebruik' as test,
+       (public.glas_gebruik() ->> 'database_bytes')::bigint > 0 as database,
+       public.glas_gebruik() ->> 'opslag_bytes' as opslag,
+       public.glas_gebruik() ->> 'opslag_bestanden' as bestanden;
+insert into public.projecten (id, naam, data) values
+  ('00000000-0000-4000-8000-0000000000f1', 'Klok vooruit', '{}'::jsonb);
+insert into public.projecten (id, naam, data, verwijderd_op) values
+  ('00000000-0000-4000-8000-0000000000f2', 'Oud in prullenbak', '{}'::jsonb, now() - interval '40 days'),
+  ('00000000-0000-4000-8000-0000000000f3', 'Net in prullenbak', '{}'::jsonb, now() - interval '2 days');
+update public.projecten set verwijderd_op = now() + interval '31 days'
+ where id = '00000000-0000-4000-8000-0000000000f1';
+select '19b. servertijd' as test, verwijderd_op <= now() + interval '1 minute' as klopt
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000f1';
+update public.projecten set verwijderd_op = now() - interval '400 days'
+ where id = '00000000-0000-4000-8000-0000000000f3';
+select '19c. niet te verschuiven' as test, verwijderd_op > now() - interval '3 days' as klopt
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000f3';
+select '19d. opruimbaar' as test, p.naam
+  from public.prullenbak_opruimbaar(30) o join public.projecten p on p.id = o.id
+ where p.id in ('00000000-0000-4000-8000-0000000000f1', '00000000-0000-4000-8000-0000000000f2',
+                '00000000-0000-4000-8000-0000000000f3');
+update public.projecten set verwijderd_op = null where id = '00000000-0000-4000-8000-0000000000f3';
+select '19e. terugzetten' as test, verwijderd_op is null as teruggezet
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000f3';

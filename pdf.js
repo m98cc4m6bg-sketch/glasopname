@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v103';
+  var PDF_VERSIE = 'v106';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
   // service worker en werkt de eerste pdf na een update ook zonder bereik.
   var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
@@ -392,7 +392,10 @@
   /* ─── uitvoeren ────────────────────────────────────────────── */
 
   function maakNaam(voorvoegsel, project, datum) {
-    return voorvoegsel + '_' + schoon(project).replace(/[^A-Za-z0-9]+/g, '_') +
+    // Accenten eraf in plaats van weg: "Café" wordt Cafe, niet Caf_ (v104).
+    var p = String(project || '');
+    try { p = p.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) {}
+    return voorvoegsel + '_' + schoon(p).replace(/[^A-Za-z0-9]+/g, '_') +
            (datum ? '_' + datum.replace(/[^0-9]/g, '-') : '') + '.pdf';
   }
 
@@ -702,12 +705,16 @@
         String(d.getMinutes()).padStart(2, '0');
       delen.push('laatst gewijzigd door ' + laatste.gewDoor + (wanneer ? ' op ' + wanneer : ''));
     }
-    if (i.besteld && i.besteld.op) {
-      var b = new Date(i.besteld.op);
+    var bl = window.glasBestellingen ? glasBestellingen() : [];
+    if (bl.length) {
+      var lb = bl[bl.length - 1];
+      var b = new Date(lb.op);
       if (!isNaN(b.getTime())) {
-        delen.push('bestellijst gemaakt op ' +
+        // 'besteld', niet 'bestellijst gemaakt': sinds v104 telt alleen
+        // een verstuurde lijst.
+        delen.push((bl.length > 1 ? bl.length + 'e bestellijst' : 'besteld') + ' op ' +
           String(b.getDate()).padStart(2, '0') + '-' + String(b.getMonth() + 1).padStart(2, '0') +
-          '-' + b.getFullYear() + (i.besteld.door ? ' door ' + i.besteld.door : ''));
+          '-' + b.getFullYear() + (lb.door ? ' door ' + lb.door : ''));
       }
     }
     if (!delen.length) return;
@@ -728,11 +735,73 @@
     return !!(window.regelStrijdig && window.regelStrijdig(r));
   }
 
-  function bestelKolommen() {
+  // De kolom Wijz. op een aanvulling (v105, keuze van Jan): NIEUW = een
+  // extra ruit; VERVANGT = maak deze in plaats van de eerder bestelde, met
+  // welke dat was en in welke bestellijst, zodat de leverancier de oude kan
+  // annuleren als dat nog kan. Altijd met de oude maat erbij: anders ziet
+  // de leverancier bij "Aantal 2" niet of het er 1 of 2 extra zijn.
+  function wijzLabel(r) {
+    var st = window.besteldeStand ? besteldeStand() : null;
+    if (!st || !st.laatste) return '';
+    var oud = st.ruiten[r.id];
+    if (oud === undefined) return 'NIEUW';
+    if (!window.ruitAnders || !ruitAnders(oud, r)) return '';
+    var nr = st.nr[r.id] || 1;
+    if (typeof oud !== 'object') return 'VERVANGT de ruit ' + (r.merk || '') + ' uit de ' + nr + 'e';
+    var was = (oud.aantal || 1) + 'x ' + (oud.glasBreedte != null ? oud.glasBreedte : '?') + ' x ' +
+              (oud.glasHoogte != null ? oud.glasHoogte : '?');
+    if (oud.glasType !== r.glasType || oud.opbouw !== r.opbouw) {
+      was += ', ' + [oud.glasType, oud.opbouw].filter(Boolean).join(' ');
+    }
+    return 'VERVANGT ' + (oud.merk || '(zonder merk)') + ' uit de ' + nr + 'e (' + was + ')';
+  }
+
+  // In welke bestellijst een ruit besteld is (kolom Besteld op het overzicht).
+  function besteldIn(r) {
+    var st = window.besteldeStand ? besteldeStand() : null;
+    var nr = st && st.nr[r.id];
+    return nr ? nr + 'e' : '';
+  }
+
+  // Wat er op de volgende bestellijst komt (v105). 'volledig' = nog niets
+  // besteld, alles wat compleet is. 'aanvulling' = alleen nieuw en
+  // gewijzigd, plus wat er geannuleerd moet worden. 'overzicht' = er is
+  // niets bij te bestellen: alles wat besteld is, en dat is geen bestelling.
+  function bestelModus() {
+    var t = window.teBestellen ? teBestellen() : null;
+    if (!t || !t.aanvulling) return { modus: 'volledig', t: t };
+    return { modus: t.aantal ? 'aanvulling' : 'overzicht', t: t };
+  }
+
+  // De naam van de bestellijst. Twee bestanden met dezelfde naam zijn bij
+  // de leverancier niet uit elkaar te houden, en in een opslagvenster op de
+  // pc overschrijft de 2e anders de 1e (v104). Een aanvulling heet dus
+  // ..._2e_aanvulling.pdf, het overzicht ..._overzicht.pdf (v105). Eén plek,
+  // voor het opslagvenster én de pdf zelf.
+  function bestellijstNaam(project, datum) {
+    var m = bestelModus().modus;
+    // Het overzicht heet niet "Bestellijst": in een lijst met bijlagen zie
+    // je vaak alleen het begin van de naam (beoordeling v105).
+    if (m === 'overzicht') return maakNaam('Overzicht_besteld', project, datum);
+    var naam = maakNaam('Bestellijst', project, datum);
+    if (m === 'aanvulling') naam = naam.replace(/\.pdf$/, '_' + (bestellingTeller() + 1) + 'e_aanvulling.pdf');
+    return naam;
+  }
+
+  function bestellingTeller() {
+    return window.glasBestellingen ? glasBestellingen().length : 0;
+  }
+
+  function bestelKolommen(modus) {
     return [
       { kop: 'Pos',        w: 8,  haal: function (r, i) { return i + 1; }, altijd: true },
       { kop: 'Aantal',     w: 12, haal: function (r) { return parseInt(r.aantal) || 1; }, altijd: true },
       { kop: 'Merk',       w: 14, haal: function (r) { return r.merk; }, altijd: true },
+      // Op een aanvulling: NIEUW of VERVANGT ... (v105). Op het overzicht:
+      // in welke bestellijst de ruit besteld is. Leeg = niet getoond.
+      modus === 'overzicht'
+        ? { kop: 'Besteld',  w: 14, haal: function (r) { return besteldIn(r); } }
+        : { kop: 'Wijz.',    w: 34, haal: function (r) { return wijzLabel(r); } },
       { kop: 'Glasbreedte', w: 20, haal: function (r) { return r.glasBreedte; }, altijd: true },
       { kop: 'Glashoogte',  w: 22, haal: function (r) {
           // Bij een rooster gaat de speling er bij de leverancier nog af.
@@ -880,25 +949,135 @@
     return startExport('bestellijst');
   };
 
+  // Vóór een aanvulling of overzicht (v105, na de beoordeling): wat er niet
+  // klopt met wat er besteld is, eerst aan de gebruiker voorleggen.
+  // - Een oudere stand van een ander apparaat (niet gewijzigd sinds de
+  //   bestelling, toch anders) is geen wijziging. Hij gaat niet mee; de app
+  //   biedt aan hem terug te zetten.
+  // - Een bestelde ruit die weg is, komt onder ANNULEREN. Dat kost geld als
+  //   het niet de bedoeling was (een ander apparaat met een oudere stand, of
+  //   per ongeluk verwijderd). Daarom vragen: zelf verwijderd, of terugzetten?
+  // Geeft 'door', of null (gestopt, of teruggezet). Na terugzetten stopt de
+  // export: de naam van het bestand is al gekozen (opslagvenster) en kan
+  // nu niet meer kloppen. De gebruiker kijkt het na en begint opnieuw.
+  var alleenBekijken = false;   // gekozen: "Alleen bekijken" (v106)
+  function voorControles(bm) {
+    // Alleen kijken (een collega bewerkt het project, v106): de lijst mag je
+    // maken en bekijken, maar de app kan hem niet als bestelling vastleggen.
+    // Dat vooraf zeggen, niet pas als hij al verstuurd is.
+    if (bm.modus !== 'overzicht' && window.glasAlleenKijken && glasAlleenKijken() && window.appKeuze) {
+      var st = window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
+      return appKeuze((st.naam || 'Een collega') + ' bewerkt dit project; jij kijkt alleen mee. Deze bestellijst ' +
+        'kun je maken en bekijken, maar de app kan hem niet als bestelling vastleggen. Gaat hij naar de ' +
+        'leverancier, neem het project dan eerst over en maak de lijst daarna opnieuw.',
+        [{ tekst: 'Stoppen', waarde: null },
+         { tekst: 'Toch bewerken', waarde: 'over' },
+         { tekst: 'Alleen bekijken', waarde: 'door' }],
+        { kop: 'Alleen kijken', soort: 'letop' }).then(function (k) {
+          if (k === 'over' && window.bewerkslotTochBewerken) bewerkslotTochBewerken();
+          alleenBekijken = k === 'door';
+          return k === 'door' ? 'door' : null;
+        });
+    }
+    alleenBekijken = false;
+    if (bm.modus === 'volledig' || !bm.t || !window.appKeuze) return Promise.resolve('door');
+    var w = bm.t.w;
+    var namen = function (l, f) { return l.map(f).slice(0, 10).join('; ') + (l.length > 10 ? ' …' : ''); };
+    // Een oudere stand: niet stil weglaten en niet stil bestellen. De
+    // herkenning gaat op het stempel van de laatste wijziging; staat de klok
+    // van een apparaat verkeerd, of was een wijziging offline gedaan en is de
+    // app daarna opnieuw opgestart, dan kan het ook een echte wijziging zijn.
+    // Daarom kiest de gebruiker (en daarna opnieuw beginnen).
+    var stap1 = !w.ouder.length ? Promise.resolve('door') : appKeuze(
+      'Deze ruiten zijn anders dan besteld, maar volgens de app niet gewijzigd sinds de bestelling: ' +
+      namen(w.ouder, function (o) {
+        var spoor = window.ruitSpoor ? ruitSpoor(o.rij) : '';
+        return (o.rij.merk || '(zonder merk)') + ' (' + o.verschil.join('; ') + (spoor ? '; ' + spoor.toLowerCase() : '') + ')';
+      }) + '.\n' +
+      'Waarschijnlijk heeft een ander apparaat een oudere versie opgeslagen. Maar heeft iemand het bewust ' +
+      'zo gezet (of stond de klok van dat apparaat verkeerd), kies dan "Nee, toch zo bestellen". Vraag het ' +
+      'bij twijfel na bij wie het laatst wijzigde.',
+      // Geen knop voorgesteld: de app weet het niet zeker (beoordeling).
+      [{ tekst: 'Stoppen', waarde: null },
+       { tekst: 'Nee, toch zo bestellen', waarde: 'toch' },
+       { tekst: 'Zet terug zoals besteld', waarde: 'terug' }],
+      { kop: 'Oudere stand?', soort: 'letop' })
+      .then(function (k) {
+        var ids = w.ouder.map(function (o) { return String(o.rij.id); });
+        if (k === 'terug') return teruggezet(ids);
+        if (k === 'toch') return tochBesteld(ids);
+        return null;
+      });
+    return stap1.then(function (k) {
+      if (k !== 'door' || !bm.t.vervallen.length) return k;
+      var kanTerug = bm.t.vervallen.some(function (v) { return v.oud && typeof v.oud === 'object'; });
+      return appKeuze(
+        'Besteld, en niet meer in het project: ' +
+        namen(bm.t.vervallen, function (v) { return besteldeRuit(v.oud, v.nr); }) + '.\n' +
+        'Ze komen op de aanvulling onder ANNULEREN, als dat nog kan. Heb je ze zelf verwijderd? Zo niet ' +
+        '(per ongeluk, of een ander apparaat met een oudere stand), zet ze dan terug.',
+        [{ tekst: 'Stoppen', waarde: null }]
+          .concat(kanTerug ? [{ tekst: 'Zet terug zoals besteld', waarde: 'terug' }] : [])
+          .concat([{ tekst: 'Ja, laten annuleren', waarde: 'door', primair: true }]),
+        { kop: 'Laten annuleren?', soort: 'letop' })
+        .then(function (k2) {
+          if (k2 !== 'terug') return k2;
+          return teruggezet(bm.t.vervallen.map(function (v) { return String(v.id); }));
+        });
+    });
+  }
+
+  function tochBesteld(ids) {
+    var n = window.ruitenTochBestellen ? ruitenTochBestellen(ids) : 0;
+    if (n && window.appMelding) {
+      appMelding(n + (n === 1 ? ' ruit telt' : ' ruiten tellen') + ' nu als wijziging en ' +
+        (n === 1 ? 'gaat' : 'gaan') + ' mee op de volgende bestellijst. Maak de bestellijst opnieuw.', { kop: 'Toch zo bestellen' });
+    }
+    return null;
+  }
+
+  function teruggezet(ids) {
+    var n = window.ruitenTerugZoalsBesteld ? ruitenTerugZoalsBesteld(ids) : 0;
+    if (n && window.appMelding) {
+      appMelding(n + (n === 1 ? ' ruit is' : ' ruiten zijn') + ' teruggezet zoals besteld. Kijk het na op Invoer, ' +
+        'en maak de bestellijst daarna opnieuw.', { kop: 'Teruggezet' });
+    }
+    return null;
+  }
+
   function bouwBestellijst() {
+    return voorControles(bestelModus()).then(function (k) {
+      if (k !== 'door') { bezig(''); return null; }
+      return bouwBestellijstVerder();
+    });
+  }
+
+  function bouwBestellijstVerder() {
     var knop = document.getElementById('pdfBestelKnop');
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
-    var naam = maakNaam('Bestellijst', project, datum);
+    var naam = bestellijstNaam(project, datum);
 
     var compleet = window.bestelbaar || function (r) {
       return !!(r.glasType && r.opbouw && r.glasBreedte != null && r.glasHoogte != null);
     };
-    var lijst = rijen.filter(compleet);
-    if (!lijst.length) {
+    var bm = bestelModus();
+    // Een aanvulling heeft alleen de nieuwe en gewijzigde ruiten (v105).
+    var lijst = bm.modus === 'aanvulling' ? bm.t.regels : rijen.filter(compleet);
+    var annuleren = bm.modus === 'aanvulling' ? bm.t.vervallen : [];
+    if (!lijst.length && !annuleren.length) {
       appMelding('Geen volledige regels gevonden. Een regel telt mee zodra glastype, opbouw ' +
         'en de glasmaten ingevuld zijn.', { kop: 'Niets te bestellen', soort: 'letop' });
       return Promise.resolve(null);
     }
     // Regels waar wél aan begonnen is maar die niet compleet zijn, vielen
     // zonder een woord van de bestellijst. Die gingen dus niet mee in de
-    // bestelling terwijl niemand dat zag (v83).
+    // bestelling terwijl niemand dat zag (v83). Een ruit die al besteld is
+    // en nu onvolledig, telt hier niet: die maakt de leverancier zoals hij
+    // besteld is (v105; hij staat geel in de app).
+    var st = window.besteldeStand ? besteldeStand() : null;
     var onvolledig = rijen.filter(function (r) {
+      if (st && st.laatste && st.ruiten[r.id] !== undefined) return false;
       return !compleet(r) && (r.merk || r.breedte || r.hoogte || r.glasType || r.opbouw);
     });
     if (onvolledig.length) {
@@ -911,13 +1090,108 @@
         { kop: 'Niet alles gaat mee', ja: 'Toch doorgaan', nee: 'Eerst aanvullen', gevaarlijk: true })
         .then(function (door) {
           if (!door) return null;
-          return bestellijstTekenen(knop, project, datum, naam, lijst);
+          return bestellijstTekenen(knop, project, datum, naam, lijst, bm);
         });
     }
-    return bestellijstTekenen(knop, project, datum, naam, lijst);
+    return bestellijstTekenen(knop, project, datum, naam, lijst, bm);
   }
 
-  function bestellijstTekenen(knop, project, datum, naam, lijst) {
+  // "1e van 14-10-2026, 2e van 15-10-2026" — de geldige bestellingen.
+  function eerdereTekst() {
+    var lijst = window.glasBestellingen ? glasBestellingen() : [];
+    return lijst.filter(function (b) { return b && !b.ingetrokken; }).map(function (b) {
+      return (b.nr || '') + 'e van ' + (window.korteDatum ? korteDatum(b.op, true).split(' ')[0] : b.op);
+    }).join(', ');
+  }
+
+  // "K3 2x 792 x 1392 HR++ (1e)" — een eerder bestelde ruit, voor op papier.
+  function besteldeRuit(oud, nr) {
+    if (!oud || typeof oud !== 'object') {
+      return 'een ruit uit de ' + (nr || 1) + 'e bestellijst (gegevens van voor v104 niet bewaard)';
+    }
+    var b2 = oud.glasBreedte != null ? oud.glasBreedte : oud.breedte;
+    var h2 = oud.glasHoogte != null ? oud.glasHoogte : oud.hoogte;
+    return (oud.merk || '(zonder merk)') + ' ' + (oud.aantal || 1) + 'x ' +
+           (b2 || '?') + ' x ' + (h2 || '?') + (oud.glasType ? ' ' + oud.glasType : '') +
+           (nr ? ' (' + nr + 'e)' : '');
+  }
+
+  // Een tabel onder de bestellijst met eerder bestelde ruiten (annuleren,
+  // of op het overzicht: ook besteld / gevraagd te annuleren). r: { oud, nr, reden }.
+  function annulerenTabel(doc, titel, kop, rijen2, rustig) {
+    var y = doc.lastAutoTable.finalY + 6;
+    if (y > HOOGTE - MARGE - 30) { doc.addPage(); kopregel(doc, titel + ' (vervolg)'); y = MARGE + 14; }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(rustig ? 9.5 : 11);
+    if (rustig) doc.setTextColor(90, 58, 0); else doc.setTextColor(142, 27, 18);
+    doc.text(schoon(kop), MARGE, y);
+    var maat = function (o, w) {
+      if (!o || typeof o !== 'object') return '';
+      var v = w === 'b' ? (o.glasBreedte != null ? o.glasBreedte : o.breedte) : (o.glasHoogte != null ? o.glasHoogte : o.hoogte);
+      return v == null ? '?' : String(v);
+    };
+    doc.autoTable({
+      startY: y + 2,
+      margin: { left: MARGE, right: MARGE, top: MARGE + 8, bottom: MARGE + 8 },
+      head: [['Merk', 'Aantal', 'Glasbreedte', 'Glashoogte', 'Glas type', 'Opbouw', 'Besteld in', rustig ? 'Toelichting' : 'Waarom']],
+      body: rijen2.map(function (r) {
+        var o = r.oud && typeof r.oud === 'object' ? r.oud : null;
+        return [o ? (o.merk || '(zonder merk)') : '(gegevens van voor v104 niet bewaard)', o ? String(o.aantal || 1) : '',
+                maat(o, 'b'), maat(o, 'h'), o ? (o.glasType || '') : '', o ? (o.opbouw || '') : '',
+                (r.nr || 1) + 'e', r.reden].map(schoon);
+      }),
+      styles: { fontSize: 8, cellPadding: 1.4, lineColor: [205, 210, 218], lineWidth: 0.15 },
+      headStyles: { fillColor: rustig ? [184, 134, 11] : [142, 27, 18], textColor: 255, fontStyle: 'bold' },
+      tableLineColor: rustig ? [184, 134, 11] : [142, 27, 18],
+      tableLineWidth: rustig ? 0.4 : 0.8,
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+      didDrawPage: function (data) {
+        if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)');
+      }
+    });
+  }
+
+  // Wat er in de geldige aanvullingen gevraagd is te annuleren: de
+  // vervallen ruiten en de oude versie van wat vervangen is.
+  function gevraagdTeAnnuleren() {
+    var lijst = (window.glasBestellingen ? glasBestellingen() : []).filter(function (b) { return b && !b.ingetrokken; });
+    var opNr = {};
+    lijst.forEach(function (b) { opNr[b.nr] = b; });
+    var uit = [];
+    lijst.forEach(function (b) {
+      if (b.soort !== 'aanvulling') return;
+      Object.keys(b.vervallen || {}).forEach(function (id) {
+        var o = b.vervallen[id];
+        uit.push({ oud: o, nr: (o && o.nr) || 1, reden: 'vervallen, gevraagd in de ' + b.nr + 'e' });
+      });
+      Object.keys(b.ruiten || {}).forEach(function (id) {
+        var o = b.ruiten[id];
+        if (!o || !o.opLijst || !o.vervangt) return;
+        var eerder = opNr[o.vervangt];
+        var was = eerder && eerder.ruiten ? eerder.ruiten[id] : null;
+        // Alleen als de oude anders gemaakt werd (maat of glas). Bij alleen
+        // een ander aantal stond er twee keer hetzelfde merk met dezelfde
+        // maat, en annuleerde een leverancier de geldige (beoordeling).
+        if (was && typeof was === 'object' && String(was.glasBreedte) === String(o.glasBreedte) &&
+            String(was.glasHoogte) === String(o.glasHoogte) && was.glasType === o.glasType && was.opbouw === o.opbouw) return;
+        // Altijd de versie noemen die nu geldt: bij een ruit die twee keer
+        // vervangen is, stond de tussenversie anders zowel als 'niet
+        // annuleren' als 'annuleren' op hetzelfde papier (beoordeling).
+        var st = window.besteldeStand ? besteldeStand() : null;
+        var geldig = st && st.ruiten[id] && typeof st.ruiten[id] === 'object' ? st.ruiten[id] : o;
+        var geldigNr = (st && st.nr[id]) || b.nr;
+        uit.push({ oud: was || null, nr: o.vervangt,
+                   reden: 'oude maat, vervangen in de ' + b.nr + 'e; geldig is nu ' + (geldig.merk || 'de ruit') + ' ' +
+                     (geldig.glasBreedte != null ? geldig.glasBreedte : '?') + ' x ' +
+                     (geldig.glasHoogte != null ? geldig.glasHoogte : '?') + ' uit de ' + geldigNr + 'e (die NIET annuleren)' });
+      });
+    });
+    return uit;
+  }
+
+  function bestellijstTekenen(knop, project, datum, naam, lijst, bm) {
+    bm = bm || bestelModus();
+    var modus = bm.modus;
 
     if (knop) knop.disabled = true;
     bezig('Bestellijst als pdf maken…');
@@ -928,7 +1202,8 @@
       var jsPDF = window.jspdf.jsPDF;
       var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-      var titel = 'Bestellijst glas';
+      var titel = modus === 'aanvulling' ? 'Bestellijst glas - AANVULLING'
+                : modus === 'overzicht' ? 'Overzicht bestelde ruiten - GEEN BESTELLING' : 'Bestellijst glas';
       kopregel(doc, titel);
 
       doc.setFont('helvetica', 'normal');
@@ -938,14 +1213,67 @@
       doc.text(schoon('Project: ' + project + (datum ? '     Datum: ' + datum : '') +
                (adres ? '     ' + adres : '') +
                (projectInfo.klant ? '     Opdrachtgever: ' + projectInfo.klant : '')), MARGE, MARGE + 9);
+      var t = bm.t;
+      var annuleren = modus === 'aanvulling' ? t.vervallen : [];
+      // De stand zoals hij nu op de pdf komt: dít wordt vastgelegd als het
+      // antwoord 'Ja, verstuurd' is, ook als er intussen iets binnenkomt
+      // (v104). Het overzicht is geen bestelling: niets vast te leggen.
+      var moment = modus !== 'overzicht' && window.bestelMomentopname ? bestelMomentopname(lijst) : null;
+      var tabelY = MARGE + 13;
+      // Een aanvulling en een overzicht zeggen bovenaan, vóór de tabel, wat
+      // ze zijn. Onderaan zag niemand het.
+      if (modus !== 'volledig') {
+        var nuNr = bestellingTeller() + 1;
+        var ingetrokken = (window.glasBestellingen ? glasBestellingen() : []).filter(function (b) {
+          return b && b.ingetrokken;
+        }).length;
+        // Het kopje groot (op een telefoon is de rest pas met inzoomen te
+        // lezen), de uitleg eronder (beoordeling v105).
+        var kopje = modus === 'aanvulling'
+          ? nuNr + 'e BESTELLIJST = AANVULLING op de eerdere bestelling (' + eerdereTekst() + ')'
+          : 'OVERZICHT van alles wat besteld is (' + eerdereTekst() + ') - GEEN nieuwe bestelling';
+        var kopTekst = modus === 'aanvulling'
+          ? 'Hierop staan ALLEEN nieuwe ruiten en ruiten die anders gemaakt moeten worden. Alles wat ' +
+            'eerder besteld is en hier niet op staat, blijft zoals besteld. Kolom Wijz.: NIEUW = extra ruit, ' +
+            'erbij maken; VERVANGT = maak deze in plaats van de genoemde eerder bestelde ruit, en annuleer ' +
+            'die als dat nog kan.' +
+            (annuleren.length ? ' Onder de tabel: ANNULEREN.' : '')
+          : 'Kolom Besteld: in welke bestellijst de ruit besteld is.' +
+            (gevraagdTeAnnuleren().length ? ' Onder de tabel: wat er gevraagd is te annuleren (dat kan toch ' +
+              'geleverd zijn).' : '');
+        if (ingetrokken) {
+          kopTekst += ' (' + (ingetrokken === 1 ? 'Een bestellijst is' : ingetrokken + ' bestellijsten zijn') +
+            ' ingetrokken en ' + (ingetrokken === 1 ? 'geldt' : 'gelden') + ' niet.)';
+        }
+        // Meten in hetzelfde lettertype als waarin getekend wordt, anders
+        // loopt een regel over de rand (beoordeling v105).
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        var kopjeRegels = doc.splitTextToSize(schoon(kopje), INHOUD - 6);
+        doc.setFontSize(8.5);
+        var kopRegels = doc.splitTextToSize(schoon(kopTekst), INHOUD - 6);
+        var kopH = kopjeRegels.length * 5.4 + kopRegels.length * 4 + 5;
+        doc.setFillColor(255, 236, 170);
+        doc.setDrawColor(184, 134, 11);
+        doc.setLineWidth(0.6);
+        doc.rect(MARGE, MARGE + 12, INHOUD, kopH, 'FD');
+        doc.setTextColor(90, 58, 0);
+        doc.setFontSize(12);
+        doc.text(kopjeRegels, MARGE + 3, MARGE + 17.4);
+        doc.setFontSize(8.5);
+        doc.text(kopRegels, MARGE + 3, MARGE + 17.4 + kopjeRegels.length * 5.4 + 0.6);
+        tabelY = MARGE + 12 + kopH + 3;
+      }
 
-      var kols = bestelKolommen().filter(function (k) {
+      var kols = bestelKolommen(modus).filter(function (k) {
         if (k.altijd) return true;
         return lijst.some(function (r) {
           var v = k.haal(r, 0);
           return v !== null && v !== undefined && String(v).trim() !== '';
         });
       });
+      var wijzKolom = -1;
+      kols.forEach(function (k, i) { if (k.kop === 'Wijz.') wijzKolom = i; });
       var totaal = kols.reduce(function (n, k) { return n + k.w; }, 0);
       var factor = INHOUD / totaal;
       var stijlen = {};
@@ -953,8 +1281,15 @@
         stijlen[i] = { cellWidth: k.w * factor, halign: /Glas(breedte|hoogte)|Aantal|Pos/.test(k.kop) ? 'right' : 'left' };
       });
 
-      doc.autoTable({
-        startY: MARGE + 13,
+      // Een aanvulling met alleen iets te annuleren heeft geen tabel (v105).
+      if (!lijst.length) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(29, 29, 27);
+        doc.text(schoon('Geen nieuwe of gewijzigde ruiten op deze aanvulling.'), MARGE, tabelY + 4);
+        doc.lastAutoTable = { finalY: tabelY + 6 };
+      } else doc.autoTable({
+        startY: tabelY,
         margin: { left: MARGE, right: MARGE, top: MARGE + 8, bottom: MARGE + 8 },
         head: [kols.map(function (k) { return k.kop; })],
         body: lijst.map(function (r, i) {
@@ -970,6 +1305,12 @@
         // gaat hier per cel van de betreffende regel.
         didParseCell: function (data) {
           if (data.section !== 'body') return;
+          if (data.column.index === wijzKolom && data.cell.raw) {
+            data.cell.styles.fillColor = [255, 236, 170];
+            data.cell.styles.textColor = [90, 58, 0];
+            data.cell.styles.fontStyle = 'bold';
+            return;
+          }
           if (!strijdigeRegel(lijst[data.row.index])) return;
           data.cell.styles.fillColor = [253, 236, 234];
           data.cell.styles.textColor = [142, 27, 18];
@@ -1024,6 +1365,31 @@
         doc.lastAutoTable.finalY = yr + 11;
       }
 
+      // Onder de tabel (v105). Aanvulling: wat de leverancier moet
+      // annuleren, als dat nog kan: de vervallen ruiten en de oude versie van
+      // wat hier vervangen wordt. Een ruit die verwijderd is, staat anders
+      // nergens, en dan maakt de leverancier hem gewoon. Als eigen tabel met
+      // een rode kop: als doorlopende tekst las een orderverwerker eroverheen
+      // (beoordeling). Overzicht: wat wel besteld is maar in de app nu niet
+      // compleet is, en wat er ooit gevraagd is te annuleren (dat kan toch
+      // geleverd zijn), zodat dit papier niet stil minder toont.
+      if (modus === 'aanvulling') {
+        var ann = annuleren.map(function (v) { return { oud: v.oud, nr: v.nr, reden: 'vervalt' }; })
+          .concat((t.gewijzigd || []).filter(function (g) { return g.oud; }).map(function (g) {
+            return { oud: g.oud, nr: g.nr, reden: 'vervangen door ' + (g.rij.merk || 'de ruit') + ' op deze lijst' };
+          }));
+        if (ann.length) annulerenTabel(doc, titel, 'ANNULEREN, als dat nog kan', ann);
+      } else if (modus === 'overzicht' && t && t.w) {
+        if (t.w.vanLijst.length) {
+          annulerenTabel(doc, titel, 'OOK BESTELD, hier niet getoond (in de app nu niet compleet)',
+            t.w.vanLijst.map(function (v) { return { oud: v.oud, nr: v.nr, reden: 'besteld' }; }), true);
+        }
+        var gevraagd = gevraagdTeAnnuleren();
+        if (gevraagd.length) {
+          annulerenTabel(doc, titel, 'GEVRAAGD TE ANNULEREN (kan toch geleverd zijn)', gevraagd, true);
+        }
+      }
+
       // Totalen onder de tabel
       var stuks = lijst.reduce(function (n, r) { return n + (parseInt(r.aantal) || 1); }, 0);
       var m2 = lijst.reduce(function (n, r) {
@@ -1034,13 +1400,25 @@
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(29, 29, 27);
+      var nNieuw = 0, nVervangt = 0;
+      if (modus === 'aanvulling') {
+        lijst.forEach(function (r) {
+          var l = wijzLabel(r);
+          if (l === 'NIEUW') nNieuw++; else if (l) nVervangt++;
+        });
+      }
       doc.text(schoon(lijst.length + ' posities   |   ' + stuks + ' ruiten   |   totaal ' +
-               m2.toFixed(2).replace('.', ',') + ' m2 glas'), MARGE, y);
+               m2.toFixed(2).replace('.', ',') + ' m2 glas' +
+               (modus === 'aanvulling' ? '   |   alleen deze aanvulling: ' + nNieuw + ' NIEUW, ' +
+                 nVervangt + ' VERVANGT' + (annuleren.length ? ', ' + annuleren.length + ' ANNULEREN' : '') : '') +
+               (modus === 'overzicht' ? '   |   alles wat besteld is' : '')), MARGE, y);
 
       return leverPagina(doc, project, datum).then(function () {
         voetteksten(doc, project, datum);
-        legBestellingVast(lijst);
-        return { doc: doc, naam: naam };
+        // Vastleggen als bestelling gebeurt níet meer hier (v104): pas als
+        // de lijst echt naar de leverancier gaat (vraagVerstuurd, of een
+        // bestelmail die aankwam).
+        return { doc: doc, naam: naam, lijst: lijst, moment: moment, modus: modus };
       });
     }).then(function (res) {
       if (knop) knop.disabled = false;
@@ -1048,33 +1426,66 @@
     });
   }
 
-  /* ═══════════════ HET BESTELMOMENT VASTLEGGEN ═══════════════ */
-  // Zodra de bestellijst gemaakt is onthouden we hoe elke ruit er op dat
-  // moment uitzag. Wijzigt er daarna iets, dan valt dat op in de app —
-  // niets gaat op slot, maar je ziet het wel (v87).
-  function legBestellingVast(lijst) {
-    if (typeof projectInfo === 'undefined' || !projectInfo) return;
-    if (!window.ruitKenmerk || typeof rijen === 'undefined') return;
-    var ruiten = {};
-    rijen.forEach(function (r) {
-      if (r && r.id != null) ruiten[r.id] = ruitKenmerk(r);
-    });
-    projectInfo.besteld = {
-      op: new Date().toISOString(),
-      door: (window.glasGebruiker ? glasGebruiker().naam : '') || projectInfo.opnemer || '',
-      aantal: (lijst || []).length,
-      ruiten: ruiten
-    };
-    // De status gaat hier bewust níet op 'besteld' (v88). Een gemaakte pdf
-    // betekent nog niet dat de leverancier hem heeft; dat weet je pas als
-    // de bestelmail eruit is. Die zet de status, in de mailfunctie.
-    if (window.glasSpoorNotitie) glasSpoorNotitie('bestellijst gemaakt');
-    if (window.glasMarkeerWerk) glasMarkeerWerk();
-    if (window.opslaan) opslaan();
-    if (window.renderProject) renderProject();
-    if (window.renderBestellijst) renderBestellijst();
-    if (window.renderTabel) renderTabel();
+  /* ═══════════════ IS HIJ VERSTUURD? (v104, keuze van Jan) ═══════════════ */
+  // Tot v103 legde élke bestellijst-pdf vast "zo is het besteld". Een pdf
+  // die alleen bekeken werd, wiste zo de gele markeringen van wat er na de
+  // echte bestelling veranderd was. Nu vraagt de app het, nadat de pdf is
+  // opgeslagen of gedeeld. Ja: vastleggen (een nieuwe bestelling erbij,
+  // nooit overschrijven), status 'besteld', op slot. Nee of wegtikken: er
+  // verandert niets.
+  function vraagVerstuurd(lijst, moment) {
+    if (!lijst || !window.bestellingVastleggen || !window.appVraag) return Promise.resolve(false);
+    // Het overzicht (er is niets bij te bestellen) is geen bestelling: dan
+    // is er geen momentopname, en niets te vragen (v105).
+    if (!moment) return Promise.resolve(false);
+    // Alleen wie het project bewerkt, kan iets als bestelling vastleggen
+    // (v106). Kijken en een pdf maken mag wel.
+    if (window.glasAlleenKijken && glasAlleenKijken()) {
+      // Al gezegd en gekozen ("Alleen bekijken"): niet nog eens.
+      if (alleenBekijken) { alleenBekijken = false; return Promise.resolve(false); }
+      if (window.appMelding) {
+        // Hier kom je alleen als een collega het project overnam terwijl
+        // deze lijst gemaakt werd (vooraf vraagt voorControles het al).
+        var st = window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
+        var wie = st.naam || 'Een collega';
+        appMelding(wie + ' bewerkt dit project nu, dus deze lijst kon de app niet als bestelling vastleggen. ' +
+          'Is hij naar de leverancier gegaan? Laat het ' + (st.naam || 'die collega') + ' weten, of neem het ' +
+          'project terug met ‹Toch bewerken›, maak de lijst opnieuw en kies dan ‹Ja, verstuurd›. Hij hoeft niet nog ' +
+          'een keer naar de leverancier.',
+          { kop: 'Bestelling niet vastgelegd', soort: 'letop' });
+      }
+      return Promise.resolve(false);
+    }
+    var aanvulling = moment.soort === 'aanvulling';
+    if (!lijst.length && !(aanvulling && moment.vervallen && Object.keys(moment.vervallen).length)) {
+      return Promise.resolve(false);
+    }
+    var eerder = window.glasBestellingen ? glasBestellingen() : [];
+    var nr = eerder.length + 1;
+    return appVraag('Is deze bestellijst de bestelling (opdracht) aan de leverancier, en stuur je hem ' +
+      'nu of heb je hem al gestuurd?\n' +
+      'Ja, verstuurd: de app legt vast wat er op deze pdf staat. Het project gaat op "besteld" en de ' +
+      'maten gaan op slot. Wat daarna verandert, zie je geel terug.' +
+      (aanvulling ? ' Dit wordt de ' + nr + 'e bestellijst, een aanvulling; wat eerder besteld is, blijft gelden.' : '') +
+      '\n' +
+      'Nee, alleen bekeken (of een prijsaanvraag): er verandert niets.',
+      { kop: 'Naar de leverancier?', ja: 'Ja, verstuurd', nee: 'Nee, alleen bekeken' })
+      .then(function (ja) {
+        if (!ja) return false;
+        bestellingVastleggen(lijst, 'pdf', moment);
+        // Is er tussen de pdf en het antwoord iets veranderd (een collega,
+        // of Ctrl+Z)? Vastgelegd is wat op de pdf staat; het verschil is
+        // geel. Dat zeggen, anders lijkt het alsof het besteld is.
+        var w = window.wijzigingenSindsBestelling ? wijzigingenSindsBestelling() : null;
+        if (w && w.aantal && window.appMelding) {
+          appMelding('Vastgelegd is wat op de pdf staat. Na het maken van de pdf is er intussen iets ' +
+            'veranderd (' + w.aantal + (w.aantal === 1 ? ' ruit' : ' ruiten') + '); dat staat geel en ' +
+            'is dus nog niet besteld.', { kop: 'Let op', soort: 'letop' });
+        }
+        return true;
+      });
   }
+  window.glasVraagVerstuurd = vraagVerstuurd;
 
   /* ═══════════════ BESTELMAIL ═══════════════ */
   // De bestellijst gaat als pdf mee in een mail naar de leverancier. Dat
@@ -1083,14 +1494,34 @@
   // project op 'besteld'. Zo betekent die status één ding: de mail is er
   // echt uit (v88).
 
-  function mailTekst(project, datum, aantal) {
+  // Het onderwerp zegt wat het is: bij een leverancier beslist de
+  // orderintake vaak op het onderwerp (beoordeling v105).
+  function mailOnderwerp(bm, project, datum) {
+    var achter = project + (datum ? ' (' + datum + ')' : '');
+    if (bm && bm.modus === 'aanvulling') return 'AANVULLING (' + (bestellingTeller() + 1) + 'e bestellijst) glas — ' + achter;
+    if (bm && bm.modus === 'overzicht') return 'Overzicht bestelde ruiten, GEEN nieuwe bestelling — ' + achter;
+    return 'Bestelling glas — ' + achter;
+  }
+
+  // bm = bestelModus(): een aanvulling of een overzicht zegt dat in de
+  // mail zelf ook, niet alleen in de bijlage (v105).
+  function mailTekst(project, datum, aantal, bm) {
     var i = (typeof projectInfo === 'object' && projectInfo) || {};
-    var regels = [
-      'Beste,',
-      '',
-      'Bijgaand de bestellijst voor ' + (project || 'dit project') + '.',
-      ''
-    ];
+    var modus = bm ? bm.modus : 'volledig';
+    var regels = ['Beste,', ''];
+    if (modus === 'aanvulling') {
+      regels.push('Bijgaand een AANVULLING op onze eerdere bestelling (' + eerdereTekst() + ') voor ' +
+        (project || 'dit project') + '. Hierop staan alleen nieuwe ruiten en ruiten die anders gemaakt ' +
+        'moeten worden; wat eerder besteld is, blijft zoals besteld.');
+      if (bm.t.vervallen.length) regels.push('Onder de tabel staat wat er geannuleerd moet worden, als dat nog kan.');
+      aantal = bm.t.regels.length + ' (alleen deze aanvulling)';
+    } else if (modus === 'overzicht') {
+      regels.push('Bijgaand het overzicht van alles wat er voor ' + (project || 'dit project') +
+        ' besteld is. Dit is GEEN nieuwe bestelling.');
+    } else {
+      regels.push('Bijgaand de bestellijst voor ' + (project || 'dit project') + '.');
+    }
+    regels.push('');
     if (i.referentie) regels.push('Referentie: ' + i.referentie);
     regels.push('Aantal posities: ' + aantal);
     regels.push('Afleveren: ' + leverAdres());
@@ -1160,6 +1591,7 @@
 
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
+    var bmVenster = bestelModus();
 
     mailVensterOpen = true;
     Promise.all([
@@ -1182,7 +1614,16 @@
       laag.innerHTML =
         '<div class="melding-venster mail-venster" role="dialog" aria-modal="true" aria-label="Bestelmail">' +
           '<h3>Bestelmail versturen</h3>' +
-          (eerder ? '<div class="mail-al-besteld"><b>Dit project is al besteld</b> op ' +
+          // v105: na een bestelling is de bijlage een aanvulling (alleen wat
+          // nieuw of anders is) of een overzicht (geen bestelling).
+          (bmVenster.modus === 'aanvulling'
+            ? '<div class="mail-al-besteld"><b>Dit wordt een aanvulling</b> op de eerdere bestelling: ' +
+              'alleen de nieuwe en gewijzigde ruiten' + (bmVenster.t.vervallen.length ? ', en wat er ' +
+              'geannuleerd moet worden' : '') + '.</div>'
+            : bmVenster.modus === 'overzicht'
+            ? '<div class="mail-al-besteld"><b>Er is niets bij te bestellen.</b> De bijlage is een overzicht ' +
+              'van wat er besteld is, geen nieuwe bestelling.</div>'
+            : eerder ? '<div class="mail-al-besteld"><b>Dit project is al besteld</b> op ' +
             esc(datumTijd(eerder.op)) + (eerder.wie ? ' door ' + esc(eerder.wie) : '') +
             (eerder.aan ? ', naar ' + esc(eerder.aan) : '') + '. Nog een keer versturen geeft ' +
             'de leverancier een tweede bestelling. Is er iets gewijzigd, zeg dat dan in het bericht.</div>' : '') +
@@ -1190,18 +1631,23 @@
             '<input type="text" id="mailExtra" placeholder="nog een adres, bijvoorbeeld inkoop@…">' +
           '</div>' +
           '<div class="mail-vak"><label class="mail-kop" for="mailOnderwerp">Onderwerp</label>' +
-            '<input type="text" id="mailOnderwerp" value="' +
-              esc('Bestelling glas — ' + project + (datum ? ' (' + datum + ')' : '')) + '">' +
+            '<input type="text" id="mailOnderwerp" value="' + esc(mailOnderwerp(bmVenster, project, datum)) + '">' +
           '</div>' +
           '<div class="mail-vak"><label class="mail-kop" for="mailTekst">Bericht</label>' +
-            '<textarea id="mailTekst" rows="12">' + esc(mailTekst(project, datum, lijst.length)) + '</textarea>' +
+            '<textarea id="mailTekst" rows="12">' + esc(mailTekst(project, datum, lijst.length, bmVenster)) + '</textarea>' +
           '</div>' +
-          '<label class="mail-adres"><input type="checkbox" id="mailBijlage" checked> ' +
-            'Bestellijst als pdf meesturen</label>' +
+          // Bij een aanvulling of overzicht staat alles in de bijlage: zonder
+          // ziet de leverancier niet wat er bij of af moet (beoordeling v105).
+          (bmVenster.modus === 'volledig'
+            ? '<label class="mail-adres"><input type="checkbox" id="mailBijlage" checked> ' +
+              'Bestellijst als pdf meesturen</label>'
+            : '<label class="mail-adres"><input type="checkbox" id="mailBijlage" checked disabled> ' +
+              (bmVenster.modus === 'aanvulling' ? 'Aanvulling' : 'Overzicht') + ' als pdf meesturen ' +
+              '<span>(verplicht: daarin staat wat er bij of af moet)</span></label>') +
           '<div class="mail-melding" id="mailMelding"></div>' +
           '<div class="melding-knoppen">' +
             '<button class="btn btn-secondary" id="mailAf">Annuleren</button>' +
-            '<button class="btn btn-primary" id="mailVerstuur">' + (eerder ? 'Toch opnieuw versturen' : 'Versturen') + '</button>' +
+            '<button class="btn btn-primary" id="mailVerstuur">' + (eerder && bmVenster.modus !== 'aanvulling' ? 'Toch opnieuw versturen' : 'Versturen') + '</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(laag);
@@ -1223,21 +1669,42 @@
         var metBijlage = !!(laag.querySelector('#mailBijlage') || {}).checked;
 
         if (!aan.length) { melding.textContent = 'Kies minstens één adres.'; return; }
+        // Een aanvulling of overzicht gaat altijd met de pdf (het vinkje staat
+        // vast); zonder zou er niets vastgelegd mogen worden.
+        if (bmVenster.modus !== 'volledig' || bestelModus().modus !== 'volledig') metBijlage = true;
         if (!tekst) { melding.textContent = 'Er moet wel iets in de mail staan.'; return; }
 
         knop.disabled = true;
         melding.textContent = metBijlage ? 'Bestellijst maken…' : 'Versturen…';
+        // Zonder bijlage: de stand op het moment van versturen (v104). Na
+        // een bestelling is dat de aanvulling (v105); is er niets bij te
+        // bestellen, dan is de mail geen bestelling.
+        var bmMail = bestelModus();
+        var zonderBijlage = bmMail.modus === 'aanvulling' ? bmMail.t.regels
+          : rijen.filter(window.bestelbaar || function () { return true; });
+        var zonderBijlageMoment = bmMail.modus !== 'overzicht' && window.bestelMomentopname
+          ? bestelMomentopname(zonderBijlage) : null;
         var bijlageGemaakt = false;
+        var mailLijst = null;
+        var mailMoment = null;
 
         Promise.resolve()
           .then(function () {
             if (!metBijlage) return null;
             // Dezelfde bouwer als de knop Bestellijst, dus de mail bevat
-            // precies wat je op papier zou krijgen. Het bestelmoment wordt
-            // hierbij ook vastgelegd (legBestellingVast).
-            return bouwBestellijst().then(function (res) {
+            // precies wat je op papier zou krijgen. Vastgelegd wordt pas
+            // als de mail echt verstuurd is (v104).
+            return voorControles(bestelModus()).then(function (k) {
+              // Gestopt of teruggezet bij "Oudere stand?" / "Laten annuleren?":
+              // niets versturen, het venster dicht (v105, beoordeling).
+              if (k !== 'door') { var g = new Error('gestopt'); g.gestopt = true; throw g; }
+              return bouwBestellijstVerder();
+            }).then(function (res) {
+              if (!res) throw new Error('er staat niets op de bestellijst');
               var uri = res.doc.output('datauristring');
               bijlageGemaakt = true;
+              mailLijst = res.lijst;
+              mailMoment = res.moment;   // null bij het overzicht: geen bestelling
               return { naam: res.naam, inhoud: String(uri).split(',')[1] || '' };
             });
           })
@@ -1246,7 +1713,7 @@
             return glasMail({
               soort: 'bestelling',
               aan: aan,
-              onderwerp: onderwerp || ('Bestelling glas — ' + project),
+              onderwerp: onderwerp || mailOnderwerp(bmMail, project, datum),
               tekst: tekst,
               bijlage: bijlage || undefined
             });
@@ -1261,10 +1728,12 @@
               return;
             }
             var echtAan = (uit.aan && uit.aan.length) ? uit.aan : aan;
-            // Verstuurd zonder pdf? Dan is het bestelmoment nog niet
-            // vastgelegd (dat doet de pdf-bouwer). De mail is de
-            // bestelling, dus hier alsnog (v88).
-            if (!bijlageGemaakt) legBestellingVast(lijst);
+            // De mail is de bestelling: nu vastleggen, met de regels die in
+            // de bijlage stonden (of, zonder bijlage, wat bestelbaar is).
+            if (window.bestellingVastleggen) {
+              if (bijlageGemaakt) { if (mailMoment) bestellingVastleggen(mailLijst, 'mail', mailMoment); }
+              else if (zonderBijlageMoment) bestellingVastleggen(zonderBijlage, 'mail', zonderBijlageMoment);
+            }
             sluitVenster(laag);
             if (window.renderProject) renderProject();
             if (window.renderTabel) renderTabel();
@@ -1280,6 +1749,14 @@
             }
           }, function (e) {
             knop.disabled = false;
+            if (e && e.gestopt) {
+              sluitVenster(laag);
+              if (window.appMelding) {
+                appMelding('De bestelmail is niet verstuurd. Kijk het na en open de bestelmail daarna opnieuw.',
+                  { kop: 'Gestopt' });
+              }
+              return;
+            }
             melding.textContent = 'Niet verstuurd: ' + ((e && e.message) || 'onbekende fout');
           });
       };
@@ -1441,28 +1918,76 @@
     return Promise.resolve();
   };
 
+  // Loopt er een export (pdf maken, opslagvenster, delen, de vraag erna)?
+  // Dan wacht het bewerkslot met vrijgeven tot hij klaar is (v106): anders
+  // ging het project op slot terwijl iemand in het deelvenster stond, en kon
+  // hij daarna "Ja, verstuurd" niet meer vastleggen.
+  var exportTeller = 0;
+  var exportSinds = 0;
+  // Hooguit 10 minuten: een deelvenster op iOS dat nooit antwoordt, mag het
+  // overnemen niet voor altijd tegenhouden (beoordeling v106).
+  window.glasExportBezig = function () { return exportTeller > 0 && Date.now() - exportSinds < 10 * 60 * 1000; };
   function exportVerder(wat) {
+    // Een export die al 10 minuten "loopt", hangt: niet meer meetellen.
+    if (exportTeller && Date.now() - exportSinds >= 10 * 60 * 1000) exportTeller = 0;
+    if (!exportTeller) exportSinds = Date.now();
+    exportTeller++;
+    var klaar = function () { exportTeller = Math.max(0, exportTeller - 1); };
+    var p;
+    try { p = exportVerderNu(wat); } catch (e) { klaar(); throw e; }
+    return Promise.resolve(p).then(function (x) { klaar(); return x; }, function (e) { klaar(); throw e; });
+  }
+
+  function exportVerderNu(wat) {
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
 
     if (wat === 'alles') {
-      var map = mapVragen();
-      return Promise.resolve(map).then(function (keuze) {
+      // v105: ook hier eerst de vragen, dan pas de mapkeuze. Na Stoppen
+      // wordt er niets opgeslagen (ook de foto-pdf niet), zodat niemand
+      // denkt dat de bestellijst erbij zit (beoordeling).
+      return voorControles(bestelModus()).then(function (k) {
+        if (k !== 'door') { bezig(''); return { gestopt: true }; }
+        return Promise.resolve(mapVragen()).then(function (keuze) { return { keuze: keuze }; });
+      }).then(function (stap) {
+        if (stap.gestopt) return;
+        var keuze = stap.keuze;
         if (keuze && keuze.afgebroken) { bezig(''); return; }
-        return bouwBestellijst().then(function (a) {
+        return bouwBestellijstVerder().then(function (a) {
           return bouwFotoPdf().then(function (b) {
             var stukken = [a, b].filter(Boolean);
             if (!stukken.length) { bezig(''); return; }
-            return leverMeerdere(stukken, keuze && keuze.map);
+            return leverMeerdere(stukken, keuze && keuze.map).then(function (uit) {
+              if (uit !== 'afgebroken' && a) return vraagVerstuurd(a.lijst, a.moment);
+            });
           });
         });
       }).catch(mislukt);
     }
 
-    var naam = maakNaam(wat === 'fotos' ? 'Inmeting' : 'Bestellijst', project, datum);
+    if (wat === 'bestellijst') {
+      // v105 (beoordeling): eerst de vragen ("Oudere stand?", "Laten
+      // annuleren?"), dan pas het opslagvenster van de pc. Anders koos je een
+      // bestandsnaam en las je daarna pas dat er iets niet klopte. De klik op
+      // het antwoord telt als handeling van de gebruiker, dus het venster mag
+      // daarna nog open.
+      return voorControles(bestelModus()).then(function (k) {
+        if (k !== 'door') { bezig(''); return; }
+        var bestandB = bestandVragen(bestellijstNaam(project, datum));
+        return bouwBestellijstVerder().then(function (res) {
+          if (!res) { bezig(''); return; }
+          return afleveren(res.doc, res.naam, bestandB).then(function (uit) {
+            // Alleen een bestellijst die echt is opgeslagen of gedeeld (v104).
+            if (uit !== 'afgebroken') return vraagVerstuurd(res.lijst, res.moment);
+          });
+        });
+      }).catch(mislukt);
+    }
+
+    // De foto-pdf (de bestellijst gaat hierboven, v105).
+    var naam = maakNaam('Inmeting', project, datum);
     var bestand = bestandVragen(naam);
-    var bouwer = wat === 'fotos' ? bouwFotoPdf : bouwBestellijst;
-    return bouwer().then(function (res) {
+    return bouwFotoPdf().then(function (res) {
       if (!res) { bezig(''); return; }
       return afleveren(res.doc, res.naam, bestand);
     }).catch(mislukt);
@@ -1513,7 +2038,7 @@
             .then(function () { bezig(''); })
             .catch(function (e) {
               bezig('');
-              if (e && (e.name === 'AbortError' || /abort|cancel/i.test(e.message || ''))) return;
+              if (e && (e.name === 'AbortError' || /abort|cancel/i.test(e.message || ''))) return 'afgebroken';
               return naElkaarDownloaden(stukken);
             });
         }
@@ -1553,8 +2078,11 @@
      bestand gevraagd wordt vóórdat de pdf gemaakt is.
   */
 
+  // Telefoon of tablet? Niet alleen aan het aanraakscherm herkennen: veel
+  // Windows-laptops hebben er een, en die horen het opslagvenster te
+  // krijgen, niet het deelvenster (v104). Zie glasMobiel in index.html.
   function isAanraakapparaat() {
-    return (navigator.maxTouchPoints || 0) > 1;
+    return window.glasMobiel ? glasMobiel() : (navigator.maxTouchPoints || 0) > 1;
   }
 
   function bestandVragen(naam) {
@@ -1578,7 +2106,7 @@
     var blob = doc.output('blob');
 
     return Promise.resolve(bestandBelofte).then(function (keuze) {
-      if (keuze && keuze.afgebroken) { bezig(''); return; }
+      if (keuze && keuze.afgebroken) { bezig(''); return 'afgebroken'; }
 
       if (keuze && keuze.handvat) {
         return keuze.handvat.createWritable()
@@ -1598,7 +2126,7 @@
             return navigator.share({ files: [bestand], title: naam })
               .catch(function (e) {
                 if (e && (e.name === 'AbortError' || e.name === 'CanceledError' ||
-                          /abort|cancel/i.test(e.message || ''))) return;
+                          /abort|cancel/i.test(e.message || ''))) return 'afgebroken';
                 console.warn('[pdf] delen mislukt, dan maar downloaden', e);
                 doc.save(naam);
               });

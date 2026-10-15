@@ -351,7 +351,8 @@ async function wachtOpOpslaan(page) {
     return [...c.children].map(e => e.id).filter(Boolean);
   });
   check('volgorde: slotbalk, klant, foto\'s, losse maten, levering',
-        JSON.stringify(volgorde) === JSON.stringify(['slotBalk', 'blok-klant', 'fotoHouder', 'blok-los', 'blok-lever']),
+        // bestelVerschil (v104): de balk 'Anders dan besteld', direct onder de slotbalk.
+        JSON.stringify(volgorde) === JSON.stringify(['slotBalk', 'bestelVerschil', 'blok-klant', 'fotoHouder', 'blok-los', 'blok-lever']),
         volgorde.join(' > '));
   const velden = await ids('#klantVelden input');
   check('klantblok: zoeken + klantnaam, contact, telefoon, straat, postcode, plaats',

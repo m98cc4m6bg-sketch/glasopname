@@ -37,6 +37,21 @@
       return ('_projectId' in k) ? k._projectId : projectId;
     } catch (e) { return null; }
   })();
+  // Op welk volgnummer van de server de inhoud op het scherm voortbouwt
+  // (v106, 24_bewerkslot.sql: data._rev). Gaat mee bij elke opslag als
+  // _basis; de database weigert werk op een oudere stand als intussen een
+  // ander apparaat opsloeg. Bewaard bij de kopie op het apparaat, zodat het
+  // ook na een herstart klopt. null = onbekend (telt als ouder).
+  var basisRev = (function () {
+    try {
+      var k = JSON.parse(localStorage.getItem(LS_STATE) || 'null');
+      return k && typeof k._basis === 'number' ? k._basis : null;
+    } catch (e) { return null; }
+  })();
+  function revVan(d) {
+    var r = d && d._rev;
+    return typeof r === 'number' ? r : (/^\d+$/.test(String(r == null ? '' : r)) ? parseInt(r, 10) : null);
+  }
   window.glasProjectId = projectId;
   var vuil      = false;   // er zijn wijzigingen die nog niet omhoog zijn
   var laatsteJson = null;  // stand zoals die het laatst is weggeschreven
@@ -166,6 +181,8 @@
   function zetStaat(state) {
     nieuwereVersieGezien(state);
     basisVan = projectId;
+    // De stand van de server (of leeg): daarop bouwt het werk nu voort (v106).
+    basisRev = revVan(state);
     // Een selectie hoort bij de ruiten van het vorige scherm (v91).
     if (window.bulkSelectieLeeg) bulkSelectieLeeg();
     rijen = state.rijen || [];
@@ -333,7 +350,7 @@
       // project open staat. Die twee verschillen zolang een project nog
       // niet geladen is; wie dan typt, typt in de inhoud van het vorige
       // (v103).
-      localStorage.setItem(LS_STATE, JSON.stringify(Object.assign({}, staat, { _projectId: basisVan || null })));
+      localStorage.setItem(LS_STATE, JSON.stringify(Object.assign({}, staat, { _projectId: basisVan || null, _basis: basisRev })));
       return true;
     } catch (e) {
       // Vol of geblokkeerd. Tot v102 werd dit stil ingeslikt: de oude kopie
@@ -463,7 +480,13 @@
                    '. Bekijk het en gooi het weg als je het niet nodig hebt.',
                    { kop: 'Werk apart bewaard', soort: 'letop' });
       }
-      if (window.startVernieuwen && namen.length) { try { startVernieuwen(); } catch (e) {} }
+      // Alleen de lijst op het startscherm verversen als dat in beeld is.
+      // Tot v105 haalde dit het startscherm óver een open project heen; sinds
+      // v106 gebeurt apart bewaren ook midden in het werk (een collega nam
+      // het project over), en dan stond je ineens op het startscherm.
+      if (window.startVernieuwen && namen.length && (!projectId || document.body.classList.contains('op-start'))) {
+        try { startVernieuwen(); } catch (e) {}
+      }
     });
   }
   // Voor het startscherm: hoeveel werk wacht er nog om apart bewaard te worden.
@@ -493,6 +516,212 @@
     reddingenUploaden();
     return true;
   }
+
+  /* ─── bewerkslot (v106) ──────────────────────────────────────
+     Eén apparaat tegelijk bewerkt een project (bewerkslot.js,
+     24_bewerkslot.sql). Hier wat dat betekent voor het opslaan. */
+
+  // Iets veranderd terwijl dit apparaat alleen mocht kijken (dat zou niet
+  // moeten kunnen; het scherm staat dan op slot). Wordt nooit verstuurd;
+  // vóór er een andere stand op het scherm komt, gaat het apart.
+  var kijkWijziging = false;
+
+  window.glasKijkModusAan = function () {
+    gebruikerDeedIets = false;
+    kijkWijziging = false;
+  };
+
+  // Het werk op het scherm kan niet in het project (een ander heeft het):
+  // apart bewaren, dan de stand van de server laden. Niets gaat verloren en
+  // niets wordt overschreven.
+  // Loopt er al een (de weigering van de database en het bericht "een ander
+  // heeft het overgenomen" kunnen tegelijk komen), dan niet nog eens: anders
+  // kwam de stand van de server als tweede "apart" project in de lijst.
+  var apartLoopt = null;
+  function apartEnLaden(reden, melding) {
+    if (apartLoopt) return apartLoopt;
+    apartLoopt = apartEnLadenNu(reden, melding);
+    apartLoopt.then(function () { apartLoopt = null; }, function () { apartLoopt = null; });
+    return apartLoopt;
+  }
+  // Heeft het werk op dit apparaat iets wat de server niet heeft? Lege
+  // regels, stempels en dergelijke tellen niet (v106). Zo komt er geen apart
+  // project bij dat alleen een kopie is (bijvoorbeeld een tweede tabblad
+  // dat zichzelf klaarzette, of een app die meekeek zonder iets te doen).
+  function inhoudVan(d) {
+    var n = normaliseer(d);
+    var rijen = n.rijen.filter(function (r) {
+      return r && Object.keys(r).some(function (k) {
+        return k !== 'id' && !VELDEN_BUITEN_SPOOR[k] && r[k] !== '' && r[k] != null &&
+          !(k === 'aantal' && String(r[k]) === '1') && !(k === 'maatsoort') &&
+          !(k === 'rooster' && r[k] === 'Nee') && !(k === 'glasbewerking' && /standaard/.test(r[k])) &&
+          !(k === 'roedenverdeling' && /^Geen/.test(r[k]));
+      });
+    }).map(ruitAfdruk).sort();
+    return diepCanon({ rijen: rijen, fotos: n.fotos, info: n.info, project: n.project, datum: n.datum,
+                       speling: n.speling, bijtelling: n.bijtelling });
+  }
+
+  function apartEnLadenNu(reden, melding) {
+    var pid = projectId;
+    if (!sb || !pid) return Promise.resolve(apartBewarenEnLaden(reden, melding, null));
+    // Eerst de stand van de server: is er wel iets dat anders is?
+    return sb.from('projecten').select('data,status').eq('id', pid).maybeSingle().then(function (res) {
+      var server = (pid === projectId && res && !res.error && res.data) ? res.data : null;
+      return apartBewarenEnLaden(reden, melding, server);
+    }, function () { return apartBewarenEnLaden(reden, melding, null); });
+  }
+
+  // server: de rij van de server (of null als ophalen niet lukte).
+  function apartBewarenEnLaden(reden, melding, server) {
+    var nodig = !server || inhoudVan(huidigeStaat()) !== inhoudVan(server.data || {});
+    if (!nodig) {
+      vuil = false;
+      kijkWijziging = false;
+      try { localStorage.removeItem(LS_PENDING); } catch (e) {}
+      zetStaat(server.data || {});
+      statusVanServer(server);
+      opslaanLokaal();
+      laatsteJson = JSON.stringify(huidigeStaat());
+      statusOpgeslagen();
+      return true;
+    }
+    // De bestellingen van dit apparaat (vóór de stand van de server erover
+    // komt): die moeten in het project, niet alleen apart (zie hieronder).
+    var eigenInfo = JSON.parse(JSON.stringify(projectInfo || {}));
+    if (!reddingBewaar(huidigeStaat(), reden)) {
+      if (window.appFout) {
+        appFout('Je werk kon niet in het project, en dit apparaat kan het ook niet apart bewaren ' +
+                '(geheugen vol). Daarom is er niets veranderd. Sluit de app niet en vraag hulp.',
+                { kop: 'Niet opgeslagen' });
+      }
+      return Promise.resolve(false);
+    }
+    vuil = false;
+    kijkWijziging = false;
+    try { localStorage.removeItem(LS_PENDING); } catch (e) {}
+    var pid = projectId;
+    // Geeft terug of de stand van de server geladen is (het werk zelf staat
+    // dan al veilig apart op het apparaat).
+    var geladenOk = false;
+    var klaar = function () {
+      reddingenUploaden();
+      if (melding && window.appMelding) appMelding(melding, { kop: 'Je werk staat apart', soort: 'letop' });
+      return geladenOk;
+    };
+    if (server && pid === projectId) {
+      zetStaat(server.data || {});
+      statusVanServer(server);
+      opslaanLokaal();
+      laatsteJson = JSON.stringify(huidigeStaat());
+      statusOpgeslagen();
+      geladenOk = true;
+      return bestellingenAlsnog(pid, eigenInfo).then(klaar);
+    }
+    return Promise.resolve(klaar());
+  }
+
+  // Een bestelling ("Ja, verstuurd") die op dit apparaat is vastgelegd, maar
+  // niet in het project kon (een ander had het intussen): toch in het project
+  // zetten, anders bestelt die ander alles nog een keer (beoordeling v106).
+  // Samenvoegen zoals altijd (bestellingenSamenvoegen), dan alleen het
+  // bestel-deel naar de server (24_bewerkslot.sql, glas_bestellingen_erbij).
+  // Lukt dat niet, dan staat de bestelling in het aparte project en zegt de
+  // app het met nadruk.
+  function bestellingenAlsnog(pid, eigenInfo) {
+    var eigen = Array.isArray(eigenInfo.bestellingen) ? eigenInfo.bestellingen : [];
+    if (!eigen.length || !window.bestellingenSamenvoegen) return Promise.resolve();
+    var opServer = {};
+    ((projectInfo || {}).bestellingen || []).forEach(function (b) { if (b && b.op) opServer[b.op] = true; });
+    var nieuw = eigen.filter(function (b) { return b && b.op && !b.ingetrokken && !opServer[b.op]; })
+      .map(function (b) { return window.korteDatum ? korteDatum(b.op, true) : b.op; }).join(', ');
+    var uit = bestellingenSamenvoegen(eigenInfo);
+    if (!uit) return Promise.resolve();
+    var i = projectInfo || {};
+    return Promise.resolve(sb.rpc('glas_bestellingen_erbij', {
+      p_project: pid, p_bestellingen: i.bestellingen || [], p_besteld: i.besteld || null,
+      p_status: i.status || '', p_slot: i.slot || null
+    })).then(function (r) {
+      if (r && !r.error) {
+        if (r.data && r.data.rev != null) basisRev = revVan({ _rev: r.data.rev });
+        laatsteJson = JSON.stringify(huidigeStaat());
+        opslaanLokaal();
+        if (window.renderBestellijst) renderBestellijst();
+        if (window.renderProject) renderProject();
+        if (window.appMelding) {
+          appMelding('Je bestelling (' + (nieuw || 'Ja, verstuurd') + ') is alsnog in het project gezet, zodat ' +
+            'niemand hem nog een keer bestelt.', { kop: 'Bestelling in het project', soort: 'letop' });
+        }
+        return;
+      }
+      throw new Error((r && r.error && r.error.message) || 'onbekend');
+    }).catch(function (e) {
+      console.warn('[cloud] bestelling alsnog in het project zetten mislukt', e);
+      if (window.appFout) {
+        appFout('LET OP: je bestelling (' + (nieuw || 'Ja, verstuurd') + ') staat nog niet in het project, alleen in ' +
+          'het aparte project. Zeg het de collega die het project nu bewerkt, anders wordt er dubbel besteld.',
+          { kop: 'Bestelling niet in het project' });
+      }
+    });
+  }
+
+  // De stand van de server laden (na het overnemen, of als een ander het
+  // project overnam). Wat hier nog openstond, gaat eerst apart.
+  window.glasHerlaad = function (reden) {
+    if (!sb || !projectId) return Promise.resolve(false);
+    var openstaand = false;
+    try { openstaand = localStorage.getItem(LS_PENDING) === '1'; } catch (e) {}
+    if (kijkWijziging || vuil || openstaand) {
+      return apartEnLaden(reden || 'niet opgeslagen vóór het overnemen',
+        'Wat je op dit apparaat nog niet had opgeslagen, kon niet meer in het project. Het is niet weg: ' +
+        'het staat apart in de projectenlijst.');
+    }
+    var pid = projectId;
+    return sb.from('projecten').select('data,status').eq('id', pid).maybeSingle().then(function (res) {
+      if (pid !== projectId || !res || res.error || !res.data) return false;
+      if (vuil || bezig) return false;
+      zetStaat(res.data.data || {});
+      statusVanServer(res.data);
+      opslaanLokaal();
+      laatsteJson = JSON.stringify(huidigeStaat());
+      statusOpgeslagen();
+      return true;
+    }, function () { return false; });
+  };
+
+  // Een ander nam het project over terwijl dit apparaat het had.
+  window.glasNaOvername = function (melding, poging) {
+    // Is er net een opslag onderweg, dan eerst het antwoord afwachten: de
+    // database weigert hem (dan gaat het werk apart, via synchroniseer) of
+    // hij was er nog net op tijd. Daarna pas kijken wat er nog openstaat.
+    if (bezig && (poging || 0) < 120) {
+      setTimeout(function () { window.glasNaOvername(melding, (poging || 0) + 1); }, 300);
+      return;
+    }
+    if (apartLoopt) {
+      apartLoopt.then(function () { window.glasNaOvername(melding, 999); });
+      return;
+    }
+    var openstaand = false;
+    try { openstaand = localStorage.getItem(LS_PENDING) === '1'; } catch (e) {}
+    if (vuil || bezig || kijkWijziging || openstaand) {
+      apartEnLaden('bewerkslot', melding + ' Wat je daarna nog wijzigde, kon niet meer in het project. ' +
+        'Het is niet weg: het staat apart in de projectenlijst.');
+      return;
+    }
+    window.glasHerlaad('');
+    toonMelding(melding + ' Je kunt meekijken.');
+  };
+
+  // In het logboek: wie het project overnam (Jans keuze: iedereen mag het,
+  // en het komt in het logboek).
+  window.glasProjectOvergenomen = function (van) {
+    if (typeof projectInfo !== 'object' || !projectInfo) return;
+    projectInfo.overgenomen = { door: gebruikersNaam(), van: van || '', op: new Date().toISOString() };
+    spoorNotitie('project overgenomen' + (van ? ' van ' + van : ''));
+    gebruikerDeedIets = true;
+    window.opslaan();
+  };
 
   // Heeft de gebruiker zelf iets gedaan sinds dit project openging? Zo
   // niet, dan is een verschil met de server niet 'onopgeslagen werk'
@@ -527,6 +756,17 @@
     opslaanLokaal();
     // Geen project open: er is niets om naartoe te sturen.
     if (!projectId) { localStorage.removeItem(LS_PENDING); return; }
+    // Alleen kijken (v106): nooit versturen. Een verschil dat de app zelf
+    // maakt (lege regels erbij) is geen werk; iets wat de gebruiker toch
+    // veranderde wel: dat gaat apart vóór er een andere stand komt.
+    if (window.glasAlleenKijken && glasAlleenKijken()) {
+      if (gebruikerDeedIets && !kijkWijziging) {
+        kijkWijziging = true;
+        toonMelding('Je kunt dit project alleen bekijken; wat je hier verandert, wordt niet in het project ' +
+          'opgeslagen. Kies ‹Toch bewerken› om het over te nemen.');
+      }
+      return;
+    }
     // Stand van de server nog niet binnen en de gebruiker heeft niets
     // gedaan: dit is de app die zichzelf klaarzet, geen werk.
     if (!geladen && !gebruikerDeedIets) return;
@@ -573,6 +813,30 @@
   // Naar buiten voor test-herstel.js; verder gebruikt niemand dit.
   window.standDeugt = standDeugt;
 
+  var naOffline = false;
+  var voorlezenBezig = false;
+  function voorlezenEnVersturen() {
+    if (voorlezenBezig || !sb || !projectId) return;
+    voorlezenBezig = true;
+    sb.from('projecten').select('id,status,bestellingen:data->info->bestellingen').eq('id', projectId).maybeSingle()
+      .then(function (r) {
+        voorlezenBezig = false;
+        if (!r || r.error) {
+          status(r && r.error && !tijdelijkeFout(r.error)
+            ? '⚠ Niet opgeslagen — ' + (r.error.message || 'fout') + ' (staat op dit apparaat)'
+            : '⚠ Geen verbinding — lokaal', '#a3231a');
+          setTimeout(plan, 8000);
+          return;
+        }
+        naOffline = false;
+        if (r.data) bestellingenErbij({ info: { bestellingen: r.data.bestellingen, status: r.data.status } }, r.data.status);
+        synchroniseer();
+      }, function () {
+        voorlezenBezig = false;
+        setTimeout(plan, 8000);
+      });
+  }
+
   function synchroniseer() {
     if (!sb || !gebruiker || !projectId || !vuil || bezig) return;
     // Staat er inhoud van een ánder project op het scherm (nog niet geladen),
@@ -584,7 +848,20 @@
       if (geladen) { geladen = false; herstelPoging = 0; planHerstel(); }
       return;
     }
-    if (!navigator.onLine) { status('⚠ Offline — lokaal', '#a3231a'); return; }
+    // Alleen kijken, maar er staat nog werk open van vóór dat een ander het
+    // project kreeg (v106): dat kan niet meer in het project. Apart.
+    if (window.glasAlleenKijken && glasAlleenKijken()) {
+      apartEnLaden('bewerkslot', 'Een collega bewerkt dit project nu. Wat je op dit apparaat nog niet had ' +
+        'opgeslagen, kon niet meer in het project. Het is niet weg: het staat apart in de projectenlijst.');
+      return;
+    }
+    if (!navigator.onLine) { naOffline = true; status('⚠ Offline — lokaal', '#a3231a'); return; }
+    // Kwam dit apparaat net terug na een tijd zonder bereik, dan eerst de
+    // bestellingen en de status van de server ophalen en erbij voegen,
+    // en pas dan versturen. Zo wist een iPad die offline werkte geen
+    // bestelling die intussen op kantoor gedaan is, ook als script 23 (de
+    // database-kant) nog niet gedraaid is (v104, na de beoordeling).
+    if (naOffline) { voorlezenEnVersturen(); return; }
     if (!standDeugt(huidigeStaat())) {
       status('⚠ Niet verstuurd — zie melding', '#a3231a');
       if (!standGemeld && window.appFout) {
@@ -626,6 +903,11 @@
     // apparaat met een oude versie niet stil wegschrijven wat een nieuwere
     // versie erbij zette.
     state._versieNr = VERSIE_NR;
+    // Van welk apparaat deze opslag komt: de database laat alleen het
+    // apparaat opslaan dat het project op zijn naam heeft (v106).
+    if (window.glasBewerkslotVelden) Object.assign(state, glasBewerkslotVelden());
+    // En op welke stand van de server dit werk voortbouwt (v106).
+    state._basis = basisRev == null ? null : String(basisRev);
     // Vóór het versturen onthouden: het live bericht van de database kan
     // eerder binnen zijn dan het antwoord op de update.
     var afdruk = vingerafdruk(state);
@@ -654,7 +936,12 @@
       // plaats van er een nieuwe bij te zetten (v88).
       velden.spoor_vervolg = spoorVervolg;
     }
-    sb.from('projecten').update(velden).eq('id', projectId).select('id').then(function (res) {
+    // Terug: ook de status en de bestellingen zoals ze ná de opslag in de
+    // database staan. De database voegt bestellingen samen die dit apparaat
+    // nog niet kende (23_bestellingen.sql); zo weet het scherm het meteen,
+    // en niet pas bij de volgende start (v104).
+    sb.from('projecten').update(velden).eq('id', projectId)
+      .select('id,status,bestellingen:data->info->bestellingen,rev:data->_rev').then(function (res) {
       bezig = false;
       clearTimeout(wachtKlok);
       // Een update die geen enkele rij raakt geeft géén fout. Zonder deze
@@ -685,6 +972,14 @@
           spoorKolommen = false;
           vuil = true;
           plan();
+          return;
+        }
+        // Een ander heeft het project (v106): de database weigert. Het werk
+        // gaat apart, de stand van de server komt op het scherm.
+        if (/Bewerkslot/.test(String(res.error.message || ''))) {
+          if (window.glasBewerkslotGeweigerd) glasBewerkslotGeweigerd();
+          apartEnLaden('bewerkslot', String(res.error.message).replace(/^Bewerkslot:\s*/, '').replace(/\s*Je werk blijft.*$/, '') +
+            ' Wat je deed, kon daarom niet in het project. Het is niet weg: het staat apart in de projectenlijst.');
           return;
         }
         if (verouderdeVersie(res.error)) {
@@ -721,11 +1016,13 @@
                                'je metingen blijven zolang lokaal bewaard.');
         } else if (tijdelijkeFout(res.error)) {
           // Gaat vanzelf over; niet alarmeren, gewoon zo weer proberen.
+          naOffline = true;
           status('… Opnieuw proberen');
           try { if (sb.auth && sb.auth.getSession) sb.auth.getSession(); } catch (e2) {}
           setTimeout(plan, 2000);
           return;
         } else {
+          naOffline = true;
           status('⚠ Niet opgeslagen — ' + res.error.message, '#a3231a');
         }
         setTimeout(plan, 8000);
@@ -734,6 +1031,21 @@
       // Gelukt. Wat er nu in de kolom status staat, is wat wij stuurden;
       // een met de hand gekozen status is daarmee verwerkt (v91).
       serverStatus = velden.status;
+      var terug = Array.isArray(res.data) && res.data[0];
+      if (terug && terug.status) serverStatus = terug.status;
+      // Het nieuwe volgnummer: hierop bouwt de volgende opslag voort (v106).
+      // Zonder script 24 komt er niets terug; dan blijft het zoals het was.
+      if (terug && revVan({ _rev: terug.rev }) != null) {
+        basisRev = revVan({ _rev: terug.rev });
+        opslaanLokaal();
+      }
+      if (terug && Array.isArray(terug.bestellingen) &&
+          bestellingenErbij({ info: { bestellingen: terug.bestellingen, status: terug.status } }, terug.status)) {
+        // Er kwam een bestelling bij die dit apparaat niet kende: de stand
+        // op het scherm is nu anders dan wat er net verstuurd is.
+        vuil = true;
+        try { localStorage.setItem(LS_PENDING, '1'); } catch (e4) {}
+      }
       statusHandmatig = false;
       versieGeweigerd = false;
       if (JSON.stringify(huidigeStaat()) !== json) {
@@ -745,11 +1057,17 @@
       } else {
         vuil = false;
         localStorage.removeItem(LS_PENDING);
+        // Wat er nu staat, is precies wat er verstuurd is (mét de stempels
+        // die stempelWijzigingen() er net bij zette). Tot v105 zag de
+        // volgende ronde van opslaan() die stempels als een wijziging en
+        // stuurde alles nog een keer (v106).
+        laatsteJson = json;
         statusOpgeslagen();
         linkNaOpslaan();
       }
     }, function (e) {
       // Netwerkfout zonder antwoord: niets is zeker weggeschreven.
+      naOffline = true;
       bezig = false;
       clearTimeout(wachtKlok);
       status('⚠ Niet opgeslagen — ' + ((e && e.message) || 'geen verbinding'), '#a3231a');
@@ -764,7 +1082,14 @@
     if (!kanaalGezond()) luisterOpProject();
     if (vuil) synchroniseer(); else statusOpgeslagen();
   });
+  // Gaat de app naar de achtergrond (iPad op slot, andere app), dan kan er
+  // intussen elders besteld worden zonder dat dit apparaat een netwerkfout
+  // ziet. Bij de volgende opslag dus eerst de server lezen (v104).
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') naOffline = true;
+  });
   window.addEventListener('offline', function () {
+    naOffline = true;
     status('⚠ Offline — lokaal', '#a3231a');
   });
   setInterval(function () { if (vuil) synchroniseer(); }, 20000);
@@ -955,7 +1280,8 @@
   /* ─── de status bijhouden ─────────────────────────────────── */
   // Aangemaakt → bezig met inmeten/verwerken gaat vanzelf, zodra er een
   // eerste ruit met inhoud staat; compleet hoeft die niet te zijn. De
-  // stap naar 'besteld' zet alleen de mailfunctie (of jij met de hand);
+  // stap naar 'besteld' zet de mailfunctie, 'Ja, verstuurd' na de
+  // bestellijst-pdf (v104), of jij met de hand;
   // verder komt niemand er automatisch (v88).
   var STATUS_START = 'aangemaakt';
   var STATUS_BEZIG = 'bezig met inmeten/verwerken';
@@ -1102,6 +1428,8 @@
       } catch (e) {}
     }
     if (kanaal) { kanaalZelfWeg = true; try { sb.removeChannel(kanaal); } catch (e) {} kanaal = null; }
+    // Het project vrijgeven voor een collega (v106).
+    if (window.glasBewerkslotStop) glasBewerkslotStop();
     projectId = null;
     window.glasProjectId = null;
     geladen = false;
@@ -1240,6 +1568,22 @@
       gebruikOp = Date.now();
       return gebruikCache;
     }, function () { return gebruikCache; });
+  };
+
+  // Is script 23 (bestellingen samenvoegen in de database) gedraaid? (v104)
+  // Zonder dat script vangt de app het zelf op, maar de database is de
+  // tweede verdediging. Het startscherm vraagt Jan het script te draaien.
+  // true = ja, false = nee, null = onbekend (geen bereik).
+  var script23 = null;
+  window.glasScript23 = function () {
+    if (script23 !== null) return Promise.resolve(script23);
+    if (!sb || !gebruiker || !sb.rpc) return Promise.resolve(null);
+    return Promise.resolve(sb.rpc('glas_status_rang', { s: 'besteld' })).then(function (r) {
+      if (r && !r.error) { script23 = true; return true; }
+      var t = String((r && r.error && (r.error.code + ' ' + r.error.message)) || '');
+      if (/PGRST202|42883|Could not find the function|does not exist/.test(t)) { script23 = false; return false; }
+      return null;
+    }, function () { return null; });
   };
 
   window.glasGebruiker = function () {
@@ -1636,6 +1980,9 @@
   }
 
   function luisterOpProject() {
+    // Wie mag dit project bewerken (v106)? Bij elk geopend project, en bij
+    // een nieuwe verbinding de stand verversen.
+    if (projectId && window.glasBewerkslotStart) glasBewerkslotStart(projectId);
     // Een oudere bibliotheek uit de cache kent geen kanalen. Dan werkt de
     // app gewoon door, alleen zonder live bijwerken.
     if (!sb || !projectId || typeof sb.channel !== 'function') return;
@@ -1712,6 +2059,7 @@
       document.activeElement.matches && document.activeElement.matches('input, select, textarea');
 
     if (!vuil && !veldActief) {
+      if (kijkWijziging) { kijkWijziging = false; reddingBewaar(huidigeStaat(), 'gewijzigd tijdens meekijken'); reddingenUploaden(); }
       zetStaat(rij.data);
       statusVanServer(rij);
       laatsteJson = JSON.stringify(huidigeStaat());
@@ -1723,7 +2071,10 @@
     }
 
     // Er staat lokaal werk open of je bent aan het typen: dan niets
-    // overschrijven, maar wel zeggen dat het er is.
+    // overschrijven, maar wel zeggen dat het er is. Bestellingen zijn de
+    // uitzondering: die neemt dit apparaat meteen over, anders zou zijn
+    // volgende opslag een bestelling van een collega wissen (v104).
+    bestellingenErbij(rij.data, rij.status);
     toonMelding('Een collega heeft dit project gewijzigd.' +
       (vuil ? ' Jouw wijzigingen staan nog open en overschrijven die van hem zodra ze omhoog gaan.' : ''),
       'Hun versie laden', async function () {
@@ -1742,6 +2093,28 @@
       });
   }
 
+  // Bestellingen uit een andere stand (de server, een collega) bij die van
+  // dit apparaat voegen (v104). De database doet hetzelfde
+  // (23_bestellingen.sql); dit zorgt dat het scherm het ook meteen weet.
+  function bestellingenErbij(data, kolomStatus) {
+    if (!data || !data.info || !window.bestellingenSamenvoegen) return false;
+    var info = data.info;
+    if (kolomStatus && rang(kolomStatus) > rang(info.status)) info = Object.assign({}, info, { status: kolomStatus });
+    var uit = bestellingenSamenvoegen(info);
+    if (!uit) return false;
+    if (uit === 'geldig' && window.appMelding) {
+      appMelding('Op een ander apparaat is dit project intussen besteld. Die bestelling staat er nu ' +
+                 'ook hier bij; wat je hier wijzigde, zie je geel (anders dan besteld).',
+                 { kop: 'Intussen besteld', soort: 'letop' });
+    }
+    if (window.renderTabel) renderTabel();
+    if (window.renderBestellijst) renderBestellijst();
+    if (window.renderProject) renderProject();
+    opslaanLokaal();
+    return true;
+  }
+
+  window.glasToonMelding = function (t) { toonMelding(t); };
   function toonMelding(tekst, knopTekst, actie) {
     var balk = el('syncMelding');
     if (!balk) return;
@@ -1954,6 +2327,7 @@
         'en er bereik is. Wis de websitegegevens dus niet.',
         { kop: 'Uitloggen', ja: 'Toch uitloggen' })) return;
     localStorage.removeItem(LS_PENDING);
+    if (window.glasBewerkslotStop) glasBewerkslotStop();
     sb.auth.signOut().then(function () {
       gebruiker = null;
       projectId = null;
@@ -2720,6 +3094,7 @@
         }
         if (vuil || localStorage.getItem(LS_PENDING) === '1') {
           vuil = true;
+          bestellingenErbij(res.data.data, res.data.status);     // v104
           synchroniseer();
           return;
         }
@@ -2866,6 +3241,7 @@
             // terwijl de app intussen allang weer online was (v84).
             laatsteJson = JSON.stringify(huidigeStaat());
             if (localStorage.getItem(LS_PENDING) === '1') { vuil = true; }
+            naOffline = true;      // eerst de server lezen vóór de eerste opslag (v104)
             luisterOpProject();
             mislukt('verbinden');
             return;
@@ -2894,6 +3270,8 @@
             // Dat werk is van dit apparaat, dus telt het voor 'Opgenomen
             // door' als eigen werk (v93).
             werkVanEerder = true;
+            // Wat er intussen besteld is, gaat niet verloren door dit werk (v104).
+            bestellingenErbij(res.data.data, res.data.status);
             vulOpnemer();
             // Taken en logboek van dít project ophalen (v95).
             if (window.renderProject) renderProject();

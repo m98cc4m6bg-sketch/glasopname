@@ -112,6 +112,9 @@ aftikken.
 | **meer dan de grens** | meer rijen dan de app ophaalt (1205 projecten, 521 taken, 45 logregels), met een database die echt telt en begrenst | wat buiten de grens valt, moet je zien (v103) |
 | **niet meer ingelogd** | geen sessie, en de database laat dan niets zien (0 rijen, géén fout, zoals RLS) | dat is iets anders dan "project weg" (v103) |
 | **database of opslag vol** | de fout die Supabase dan geeft (25006 / read-only, quota) | alleen-lezen is geen gewone fout (v103) |
+| **een ander apparaat kent iets nog niet** | twee contexten op één nagebootste database, één per apparaat offline (`nieuweContext(opties, 'ipad')` + `S.weg.ipad`) | een apparaat dat offline was, mag niets van een ander wissen (v104) |
+| **twee apparaten, dezelfde ruit** | iPad offline een opmerking, kantoor een nieuwe maat en een aanvulling; daarna een klok die achterloopt | een oude maat mag niet stil opnieuw besteld worden, een echte wijziging niet stil weggezet (v105) |
+| **bestanden van andere systemen** | de echte bytes: Windows-1252, MacRoman, UTF-16, HEIC-kop, met en zonder naam/type | je ziet de tekens pas fout op het andere systeem (v104) |
 | **klok van het apparaat verkeerd** | een eigen `Date` in de pagina die een maand vooruit staat | alles wat met tijd iets weggooit, hoort op de klok van de server (v103) |
 
 ## De test zelf
@@ -208,3 +211,55 @@ harde eis wint.
   - de klok van het apparaat verzet;
   - `--mutaties` draait elke reparatie terug en eist dat de reeks rood
     wordt. Doe dat ook in nieuwe reeksen.
+- `test-v104.js`:
+  - twee apparaten op één database, één offline;
+  - de nabootsing van de database doet wat Supabase doet (count, de
+    JSON-kolom `data->info->bestellingen`, de trigger van script 23);
+  - een pdf teruglezen en een xlsx teruglezen met SheetJS;
+  - les: een check met `|| true` of een klik met `.catch(() => {})` kan niet
+    falen; de beoordelaars vonden ze. Elke check moet rood kunnen worden.
+- `test-v105.js`:
+  - de stempels (`gewOp`) zoals ze bij het inmeten echt in de ruiten staan
+    (`INGEMETEN`); zonder stempel kan de app een oudere stand niet zien;
+  - twee apparaten die **dezelfde ruit** veranderen (de iPad een opmerking,
+    kantoor de maat), en een iPad met een **klok die achterloopt**;
+  - een pdf-hulp die de vragen onderweg beantwoordt en een FOUT geeft als er
+    geen pdf komt (geen time-out als enige teken);
+  - het opslagvenster nagebootst om de **volgorde** te toetsen (eerst de
+    vraag, dan het venster);
+  - les: een test op telefoonbreedte met een tekst mét streepjes bewijst
+    niets voor een woord zonder; neem het ergste geval.
+- `test-v106.js` (bewerkslot):
+  - meerdere apparaten tegelijk, elk met een eigen gebruiker, eigen code en
+    eigen bereik (`apparaatCtx`): Mac, iPad, Windows-pc, Android-telefoon;
+  - het **live bijwerken nagebootst** (`window.__live`): elke wijziging gaat
+    naar elke open pagina, behalve naar een apparaat zonder bereik
+    (`S.weg`) of zonder live verbinding (`S.geenLive`);
+  - geen bereik = `S.weg` **én** `ctx.setOffline(true)`: de server antwoordt
+    niet, en de browser weet het ook;
+  - de volgorde op de server vastleggen (`S.log`) en daarop toetsen: eerst
+    opslaan, dan vrijgeven, dan pas de ander;
+  - een stilgelegde app (iOS) nabootsen door `Date.now` vooruit te zetten;
+  - een vorige versie (v105) op hetzelfde adres laten draaien (`S.oudeCode`)
+    en daarna "bijwerken";
+  - `--mutaties` draait per mutatie alleen de onderdelen die hem moeten
+    vangen (`WAAR`, `ALLEEN=`); de hele reeks draait in de batterij;
+  - les: het moeilijkste geval was niet "een ander heeft het project", maar
+    "het project is **vrij** en een oud apparaat komt terug". Toets ook de
+    toestand ná het normale verloop (iemand ging naar huis, het project is
+    gesloten).
+  - les: **kijk naar het scherm**. Alle checks waren groen terwijl het seintje
+    midden óver de vraag "Naar de leverancier?" stond: een CSS-regel verloor
+    van een latere regel met hetzelfde gewicht. Pas een schermafdruk liet het
+    zien (`PLAATJES=map node test-v106.js`).
+  - les: een app stilleggen zoals iOS doet, lukt in Chromium niet met CDP
+    (`Page.setWebLifecycleState` bevriest een zichtbare pagina niet; de
+    tellers liepen door). Wel met de klok van Playwright:
+    `context.clock.install()`, dan `page.clock.pauseAt(…)`,
+    `setSystemTime(… + 2 uur)` en `resume()`.
+  - les: een mutatie die niet gevangen wordt, wijst vaak op een **ontbrekend
+    gewoon geval** (hier: offline werken, app dicht en weer open, niemand
+    anders deed iets: dat moet gewoon opgeslagen worden, §25).
+  - les: controleer vóór de lange mutatieproef of elke mutatie nog past; de
+    runner doet dat nu zelf, en telt alleen een eigen FOUT-regel als
+    gevangen (geen crash of time-out).

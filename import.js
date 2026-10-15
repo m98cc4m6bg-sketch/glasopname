@@ -162,10 +162,21 @@
     return beste;
   }
 
+  // Een csv uit de app zelf zet een apostrof vóór tekst die met = + - @
+  // begint (anders voert Excel hem uit als formule). Bij inlezen weer weg.
+  function geenFormuleApostrof(rij) {
+    return Array.isArray(rij) ? rij.map(function (c) {
+      return typeof c === 'string' && /^'[=+\-@]/.test(c) ? c.slice(1) : c;
+    }) : rij;
+  }
+
   function uitTekst(tekst) {
-    if (!String(tekst || '').trim()) return null;
+    // Een BOM die er via plakken of een andere weg nog voor staat, hoort
+    // niet bij de eerste kolomnaam (anders herkent de app 'Merk' niet).
+    tekst = String(tekst || '').replace(/^\uFEFF/, '');
+    if (!tekst.trim()) return null;
     var sch = kiesScheiding(tekst);
-    if (sch) return { rijen: csvLees(tekst, sch), scheiding: sch };
+    if (sch) return { rijen: csvLees(tekst, sch).map(geenFormuleApostrof), scheiding: sch };
     // Geen scheidingsteken te vinden: uitgelijnde kolommen met spaties.
     // Aanhalingstekens spelen dan geen rol.
     var regels = String(tekst).split(/\r?\n/).filter(function (r) { return r.trim() !== ''; });
@@ -314,6 +325,96 @@
     m.style.color = fout ? 'var(--rood)' : 'var(--grijs-tekst)';
   }
 
+  // Een tekstbestand lezen in de tekenset waarin het gemaakt is (v104).
+  // Excel op Windows bewaart een csv niet in UTF-8 maar in Windows-1252
+  // ('CSV (gescheiden door lijstscheidingsteken)'). Tot v103 las de app
+  // alles als UTF-8: dan werd é een vraagteken-ruit (�), en × en ø in een
+  // opmerking of merk gingen verloren. Nu:
+  // - een BOM vooraan zegt het zelf (UTF-8, of UTF-16 bij 'Unicode-tekst');
+  // - anders eerst UTF-8 strikt proberen; lukt dat niet, dan Windows-1252.
+  function leesTekst(file) {
+    var buf = file.arrayBuffer ? file.arrayBuffer()
+      : new Promise(function (ok, fout) {
+          var r = new FileReader();
+          r.onload = function () { ok(r.result); };
+          r.onerror = function () { fout(r.error || new Error('lezen mislukt')); };
+          r.readAsArrayBuffer(file);
+        });
+    return buf.then(function (ab) { return decodeer(new Uint8Array(ab)); });
+  }
+
+  var CODERING_NAAM = { 'utf-8': 'UTF-8', 'utf-16le': 'Unicode (UTF-16)', 'utf-16be': 'Unicode (UTF-16)',
+                        'windows-1252': 'Windows (Excel op Windows)', 'macintosh': 'Mac (Excel voor Mac)' };
+
+  // Windows-1252 zelf omzetten (v104). De browser doet dat ook, maar Chromium
+  // leest een byte uit 80–9F op een bepaalde plek soms als stuurteken in
+  // plaats van als €, ‘ of – (gevonden bij de beoordeling). Met een eigen
+  // tabel van 32 tekens maakt dat niet meer uit.
+  var CP1252 = [0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160,
+                0x2039, 0x0152, 0x8D, 0x017D, 0x8F, 0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022,
+                0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x9D, 0x017E, 0x0178];
+  function vanWindows(b) {
+    var uit = [];
+    for (var i = 0; i < b.length; i++) {
+      var c = b[i];
+      uit.push(String.fromCharCode(c >= 0x80 && c <= 0x9F ? CP1252[c - 0x80] : c));
+    }
+    return uit.join('');
+  }
+
+  // Windows (Excel op Windows) of Mac (Excel voor Mac, MacRoman)? Beslist
+  // op de bytes zelf.
+  // - Windows: de kleine accentletters à–ü (E0–FC, behalve F7 ÷) staan in
+  //   een Nederlandse Windows-csv als één byte; in een Mac-csv vrijwel nooit.
+  // - Mac: é, ë, ö enz. zijn 8E, 91, 9A (80–9F); zo'n byte telt als hij
+  //   direct na een letter staat (in een woord: "Belgi‘" is "België").
+  //   € – ‘ “ staan in Windows-tekst na een spatie; ’ … ” ™ (92, 85, 94, 99)
+  //   ook na een letter (zo’n, enz…), die tellen daarom niet mee.
+  //   Daarnaast de typografische tekens van de Mac: – — “ ” ‘ ’ … en de
+  //   vaste spatie (D0–D5, C9, CA); in Windows zijn dat hoofdletters met
+  //   een accent, die in Nederlandse tekst bijna niet voorkomen.
+  function lijktMacRoman(b) {
+    var mac = 0, win = 0;
+    for (var i = 0; i < b.length; i++) {
+      var c = b[i];
+      if (c >= 0xE0 && c <= 0xFC && c !== 0xF7) { win++; continue; }
+      if ((c >= 0xD0 && c <= 0xD5) || c === 0xC9 || c === 0xCA) { mac++; continue; }
+      if (c < 0x80 || c > 0x9F || c === 0x85 || c === 0x92 || c === 0x94 || c === 0x99) continue;
+      var v = i > 0 ? b[i - 1] : 0;
+      var letterVoor = (v >= 0x41 && v <= 0x5A) || (v >= 0x61 && v <= 0x7A) || (v >= 0x80 && v <= 0x9F);
+      if (letterVoor) mac++;
+    }
+    return mac > win;
+  }
+
+  function decodeer(b) {
+    function met(codering, vanaf) {
+      return { tekst: new TextDecoder(codering).decode(b.subarray(vanaf || 0)), codering: codering };
+    }
+    if (b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) return met('utf-8', 3);
+    if (b[0] === 0xFF && b[1] === 0xFE) return met('utf-16le', 2);
+    if (b[0] === 0xFE && b[1] === 0xFF) return met('utf-16be', 2);
+    // UTF-16 zonder BOM: om en om een nulbyte.
+    if (b.length > 8) {
+      var nul = 0;
+      for (var i = 1; i < Math.min(b.length, 200); i += 2) if (b[i] === 0) nul++;
+      if (nul > Math.min(b.length, 200) / 4) return met('utf-16le');
+    }
+    try {
+      return { tekst: new TextDecoder('utf-8', { fatal: true }).decode(b), codering: 'utf-8' };
+    } catch (e) {
+      // Excel voor Mac bewaart een csv in MacRoman (v104, na de beoordeling).
+      if (lijktMacRoman(b)) {
+        try { return met('macintosh'); } catch (e2) {}
+      }
+      return { tekst: vanWindows(b), codering: 'windows-1252' };
+    }
+  }
+  window.impDecodeer = decodeer;      // voor test-v104.js
+
+  // Voor de Excel-export in index.html (v104): dezelfde SheetJS uit lib/.
+  window.glasLaadXlsx = function () { return laadScript(XLSX_URL); };
+
   window.impBestandGekozen = function (input) {
     var file = input.files && input.files[0];
     if (!file) return;
@@ -323,7 +424,12 @@
     var lezer;
     if (naam.endsWith('.pdf')) lezer = uitPdf(file);
     else if (naam.endsWith('.xlsx') || naam.endsWith('.xls')) lezer = uitWerkblad(file);
-    else if (naam.endsWith('.csv') || naam.endsWith('.txt')) lezer = file.text().then(uitTekst);
+    else if (naam.endsWith('.csv') || naam.endsWith('.txt')) {
+      lezer = leesTekst(file).then(function (t) {
+        bron.codering = t.codering;
+        return uitTekst(t.tekst);
+      });
+    }
     else { melding('Onbekend bestandstype. Gebruik PDF, XLSX, XLS of CSV.', true); return; }
 
     lezer.then(function (res) {
@@ -666,6 +772,8 @@
       (bron.blad ? ', tabblad «' + esc2(bron.blad) + '»' : '') +
       (bron.scheiding && bron.scheiding !== 'spaties'
         ? ', gescheiden door «' + esc2(bron.scheiding === '\t' ? 'tab' : bron.scheiding) + '»' : '') +
+      // Hoe de tekst gelezen is (v104): klopt een é niet, dan zie je hier waarom.
+      (bron.codering ? ', gelezen als ' + esc2(CODERING_NAAM[bron.codering] || bron.codering) : '') +
       '</div><ul>' + herkomst() + '</ul>' +
       (nietGebruikt().length
         ? '<div class="imp-niet-gebruikt">Niet overgenomen: ' +

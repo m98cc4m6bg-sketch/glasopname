@@ -42,7 +42,9 @@
     // alleen met een wachtwoord (v93), dus Cmd+Z mag hem niet leegmaken.
     var nuInfo = (typeof projectInfo === 'object' && projectInfo) || {};
     projectInfo = s.info || {};
-    ['status', 'besteld', 'bestelmail', 'slot', 'opnemer'].forEach(function (k) {
+    // De lijst met verstuurde bestellingen (v104) net zo: een bestelling
+    // die de deur uit is, haal je niet terug met Cmd+Z.
+    ['status', 'besteld', 'bestellingen', 'bestelmail', 'slot', 'opnemer'].forEach(function (k) {
       if (nuInfo[k] === undefined) delete projectInfo[k];
       else projectInfo[k] = nuInfo[k];
     });
@@ -91,6 +93,10 @@
 
   window.ongedaan = function () {
     if (!terug.length) return;
+    // Stond de aandacht nog in een veld (bijvoorbeeld een net aangevinkt
+    // vakje), dan zag het verlaten van dat veld de teruggezette stand als
+    // 'cel gewijzigd' en wiste het opnieuw-doen (gevonden bij v104).
+    bijBetreden = null;
     var stap = terug.pop();
     vooruit.push({ staat: staat(), label: stap.label });
     herstel(stap.staat);
@@ -100,6 +106,7 @@
 
   window.opnieuw = function () {
     if (!vooruit.length) return;
+    bijBetreden = null;
     var stap = vooruit.pop();
     terug.push({ staat: staat(), label: stap.label });
     herstel(stap.staat);
@@ -221,12 +228,26 @@
 
     // Sneltoets, maar niet terwijl je in een tekstveld staat:
     // daar hoort Cmd+Z de tekst zelf ongedaan te maken.
+    // Ongedaan maken: Cmd+Z / Ctrl+Z. Opnieuw: Cmd+Shift+Z (Mac) en
+    // Ctrl+Y of Ctrl+Shift+Z (Windows, v104: Ctrl+Y deed tot v103 niets).
+    // In een invoerveld houdt de browser zijn eigen ongedaan-maken voor
+    // de tekst die je net typt.
     document.addEventListener('keydown', function (e) {
-      if (e.key.toLowerCase() !== 'z' || !(e.metaKey || e.ctrlKey)) return;
+      var k = String(e.key || '').toLowerCase();
+      var mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.altKey) return;
+      var terug = k === 'z' && !e.shiftKey;
+      var vooruit = (k === 'z' && e.shiftKey) || (k === 'y' && e.ctrlKey && !e.metaKey && !e.shiftKey);
+      if (!terug && !vooruit) return;
+      // Staat er een venster open (zoals "Naar de leverancier?"), dan niets
+      // terugdraaien onder dat venster door (v104).
+      if (window.appMeldingBezig && appMeldingBezig()) return;
       var a = document.activeElement;
-      if (a && a.matches('input, textarea')) return;
+      // Alleen tekstvelden houden hun eigen ongedaan-maken; een net
+      // aangevinkt vakje of een keuzelijst niet.
+      if (a && (a.isContentEditable || a.matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit])'))) return;
       e.preventDefault();
-      if (e.shiftKey) window.opnieuw(); else window.ongedaan();
+      if (vooruit) window.opnieuw(); else window.ongedaan();
     });
 
     tekenKnoppen();

@@ -93,8 +93,22 @@
         '<button class="btn btn-secondary btn-sm" onclick="wachtrijUitleg()">Meer</button></div>');
     }
 
+    var zonder23 = false;
+    var zonder24 = false;
     function toon(g) {
       var extra = [];
+      if (zonder24) {
+        extra.push('<div class="waarschuwing-regel"><b>Voor Jan: SQL-script 24 is nog niet gedraaid</b><br>' +
+          'Plak 24_bewerkslot.sql in Supabase → SQL Editor en kies Run. Pas dan kan maar één apparaat ' +
+          'tegelijk een project bewerken; zonder kan een apparaat dat offline was, werk van een ander ' +
+          'overschrijven.</div>');
+      }
+      if (zonder23) {
+        extra.push('<div class="waarschuwing-regel"><b>Voor Jan: SQL-script 23 is nog niet gedraaid</b><br>' +
+          'Plak 23_bestellingen.sql in Supabase → SQL Editor en kies Run. Het zorgt dat een apparaat ' +
+          'dat offline was, nooit een bestelling kan wissen. De app vangt dat nu zelf op, maar het ' +
+          'script is de tweede verdediging.</div>');
+      }
       if (g) {
         [['database', 'Database (projecten, taken, logboek)'], ['opslag', 'Foto-opslag']].forEach(function (x) {
           var d = g[x[0]];
@@ -118,7 +132,14 @@
         : '';
     }
     toon(null);
-    if (window.glasGebruik) Promise.resolve(glasGebruik()).then(toon, function () {});
+    var gebruik = null;
+    if (window.glasGebruik) Promise.resolve(glasGebruik()).then(function (g) { gebruik = g; toon(g); }, function () {});
+    if (window.glasScript23) Promise.resolve(glasScript23()).then(function (ja) {
+      if (ja === false) { zonder23 = true; toon(gebruik); }
+    }, function () {});
+    if (window.glasScript24) Promise.resolve(glasScript24()).then(function (ja) {
+      if (ja === false) { zonder24 = true; toon(gebruik); }
+    }, function () {});
   }
   window.startWaarschuwing = vulWaarschuwing;
   // De wachtrij is pas na de start ingelezen, en verandert terwijl het

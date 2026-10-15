@@ -146,9 +146,56 @@
           ok({ blob: blob, breedte: b, hoogte: h });
         }, 'image/jpeg', KWALITEIT);
       };
-      img.onerror = function () { URL.revokeObjectURL(url); fout(new Error('Kan de afbeelding niet lezen')); };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        // Herkennen aan naam en type, en anders aan de eerste bytes: de
+        // fotokiezer op Android geeft vaak geen extensie en soms geen type.
+        Promise.resolve(isHeic(file) || heicVanBinnen(file)).then(function (heic) {
+          if (heic) { heicMelding(); var h = new Error(HEIC_KORT); h.heic = true; fout(h); return; }
+          fout(new Error('Kan de afbeelding niet lezen'));
+        });
+      };
       img.src = url;
     });
+  }
+
+  // HEIC is het fotoformaat van de iPhone (v104). Safari op iPhone, iPad
+  // en Mac kan het lezen, Chrome en Edge op Windows en Android niet. Een
+  // iPhone-foto die via AirDrop, mail of OneDrive op een Windows-pc of
+  // Android-toestel komt, gaf tot v103 alleen 'Mislukt: Kan de afbeelding
+  // niet lezen'. Omzetten in de browser vraagt een bibliotheek van ruim een
+  // megabyte; dat weegt niet op tegen een duidelijke uitleg. Er gaat niets
+  // verloren: de foto staat nog gewoon waar hij vandaan kwam.
+  var HEIC_KORT = 'deze foto is HEIC (iPhone-formaat) en kan in deze browser niet geopend worden';
+  function isHeic(file) {
+    var t = String((file && file.type) || '').toLowerCase();
+    return /image\/hei[cf]/.test(t) || /\.(heic|heif)$/i.test((file && file.name) || '');
+  }
+  window.glasIsHeic = isHeic;
+  // Een HEIC/HEIF-bestand begint met '....ftyp' en een merk als heic, heix,
+  // hevc, mif1 (ISO-container). Zo herkennen we hem ook zonder naam of type.
+  function heicVanBinnen(file) {
+    if (!file || !file.slice) return Promise.resolve(false);
+    var stuk = file.slice(0, 16);
+    var lees = stuk.arrayBuffer ? stuk.arrayBuffer() : new Response(stuk).arrayBuffer();
+    return lees.then(function (ab) {
+      var b = new Uint8Array(ab);
+      if (b.length < 12) return false;
+      var t = String.fromCharCode.apply(null, Array.prototype.slice.call(b, 4, 12));
+      return /^ftyp(hei[cxms]|hev[cxms]|mif1|msf1|avci)$/.test(t);
+    }, function () { return false; });
+  }
+  function heicMelding() {
+    if (!window.appFout) return;
+    appFout('Deze foto is in HEIC/HEIF-formaat (de zuinige opslag van iPhones en sommige Samsung-' +
+            'telefoons). Deze browser kan dat niet openen, dus de foto is niet toegevoegd. Er is niets ' +
+            'verloren: de foto staat nog waar hij vandaan kwam.\n' +
+            'Zo lukt het wel:\n' +
+            '• voeg de foto toe vanaf de iPhone of iPad zelf (die zet hem vanzelf om), of\n' +
+            '• laat nieuwe foto\'s voortaan als JPG maken: op de iPhone Instellingen → Camera → ' +
+            'Formaten → "Meest compatibel"; op een Samsung in de camera-instellingen ' +
+            '"Hoge-efficiëntiefoto\'s" uitzetten.',
+            { kop: 'Foto in HEIC-formaat' });
   }
 
   /* ─── bewaren: eerst op het apparaat, dan naar de cloud (v93) ── */
@@ -511,7 +558,7 @@
           return origineelErbij(file, bestaand.id, pad, renderLeverFoto);
         });
     }).catch(function (e) {
-      console.error('[leverfoto]', e);
+      (e && e.heic ? console.warn : console.error)('[leverfoto]', e);
       leverMelding('Mislukt: ' + e.message, true);
     });
   };
@@ -616,7 +663,7 @@
           return origineelErbij(file, doel.id, pad, renderFotos);
         });
     }).catch(function (e) {
-      console.error('[foto] uploaden mislukt', e);
+      (e && e.heic ? console.warn : console.error)('[foto] niet toegevoegd', e);
       melding('Mislukt: ' + e.message, true);
     });
   };

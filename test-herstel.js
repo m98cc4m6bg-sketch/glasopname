@@ -176,10 +176,14 @@ g('herbereken()');
 g("projectInfo = { besteld: { op: new Date().toISOString(), door: 'julian'," +
   " ruiten: { 1: ruitKenmerk(rijen[0]), 2: ruitKenmerk(rijen[1]) } } }");
 g('renderBestellijst()');
-check('de bestelbalk staat er',
-  d.getElementById('bestellijstInhoud').innerHTML.indexOf('Bestellijst gemaakt op') >= 0);
+// Een bestelling uit een oudere versie (alleen het kenmerk per ruit) telt
+// sinds v104 als de 1e bestellijst.
+check('het bestelblok staat er, met de bestelling van vóór v104',
+  /Bestellingen/.test(d.getElementById('bestellijstInhoud').textContent) &&
+  /1e bestellijst/.test(d.getElementById('bestellijstInhoud').textContent),
+  d.getElementById('bestellijstInhoud').textContent.slice(0, 160).replace(/\s+/g, ' '));
 check('zonder wijzigingen geen waarschuwing',
-  d.getElementById('bestellijstInhoud').innerHTML.indexOf('nadat de bestellijst') < 0);
+  /niets gewijzigd/.test(d.getElementById('bestellijstInhoud').textContent));
 
 g("rijen[0].breedte = 1010");
 g('herbereken()');
@@ -187,7 +191,9 @@ check('een gewijzigde ruit wordt herkend', g('naBestellingGewijzigd(rijen[0])') 
 check('een ongewijzigde ruit niet', g('naBestellingGewijzigd(rijen[1])') === false);
 g('renderBestellijst()');
 check('en de bestellijst waarschuwt erover',
-  d.getElementById('bestellijstInhoud').innerHTML.indexOf('nadat de bestellijst gemaakt was') >= 0);
+  /anders dan de leverancier heeft/.test(d.getElementById('bestellijstInhoud').textContent) &&
+  /vóór v104 niet bewaard/.test(d.getElementById('bestellijstInhoud').textContent),
+  d.getElementById('bestellijstInhoud').textContent.replace(/\s+/g, ' ').slice(0, 300));
 g('renderTabel()');
 check('de regel is in de invoertabel gemarkeerd',
   d.querySelectorAll('#invoerBody td.rijnr.na-bestelling').length === 1,

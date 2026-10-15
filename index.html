@@ -1066,8 +1066,42 @@
   }
   .slot-balk.dicht { background: #fff3d0; border-color: #e0bb63; color: #4a3200; }
   .slot-balk.open  { background: var(--grijs-licht); color: var(--grijs-tekst); }
+  .slot-balk.kijken { background: #e8f0fb; border-color: #9db8e0; color: #17325a; }
+  /* Het aftellen bij overnemen (bewerkslot.js, v106). */
+  .bs-aftel { margin-top: 12px; }
+  .bs-aftel[hidden] { display: none; }
+  .bs-aftel-balk { height: 8px; border-radius: 4px; background: var(--grijs-licht); overflow: hidden; }
+  .bs-aftel-balk span { display: block; height: 100%; width: 100%; background: var(--merk); }
+  .bs-aftel-tekst { margin-top: 6px; font-size: 12px; color: var(--grijs-tekst); text-align: right; min-height: 1em; }
   .slot-balk .slot-teken { font-size: 16px; line-height: 1.3; }
-  .slot-balk div { flex: 1; }
+  .slot-balk div { flex: 1 1 200px; }
+  .slot-balk { flex-wrap: wrap; }   /* smalle telefoon: de knop eronder (v106) */
+  /* Het seintje en "Project overnemen" bovenaan: op een telefoon met het
+     toetsenbord open valt een venster in het midden eronder (v106). */
+  /* (.melding-laag.… : de algemene regel voor .melding-laag staat verderop
+     en zou anders winnen; dan stond het seintje in het midden, óp de vraag.) */
+  .melding-laag.bewerkslot-laag { align-items: flex-start; padding-top: max(8vh, env(safe-area-inset-top)); }
+  /* Zolang de bewerker nog een vraag afrondt: een smalle balk bovenaan,
+     zonder knop, en de andere vensters schuiven zolang wat naar beneden,
+     zodat de balk nooit iets van de vraag bedekt. */
+  .melding-laag.bewerkslot-laag.bs-op-de-achtergrond { background: transparent; pointer-events: none; z-index: 9500;
+    padding-top: max(8px, env(safe-area-inset-top)); }
+  .bs-op-de-achtergrond .melding-venster { pointer-events: auto; padding: 8px 14px; border-top-width: 3px;
+    box-shadow: 0 6px 20px rgba(29,29,27,0.25); }
+  .bs-op-de-achtergrond .melding-venster h3 { font-size: 13px; margin-bottom: 2px; }
+  .bs-op-de-achtergrond .melding-tekst p { font-size: 12px; line-height: 1.4; }
+  .bs-op-de-achtergrond .melding-knoppen { display: none; }
+  body.bs-achtergrond .melding-laag:not(.bewerkslot-laag) { padding-top: calc(max(8px, env(safe-area-inset-top)) + var(--bs-balk, 84px)); }
+  /* Alleen kijken, op elk tabblad zichtbaar (v106). */
+  .kijk-chip { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; padding: 4px 6px 4px 10px;
+    background: #e8f0fb; border: 1px solid #9db8e0; color: #17325a; border-radius: 999px; font-size: 12px; }
+  .kijk-chip[hidden] { display: none; }
+  .kijk-chip > span { white-space: nowrap; }
+  /* Telefoon: de werkbalk staat dan onder elkaar; het label over de volle
+     breedte, op één regel (v106). */
+  @media (max-width: 760px) {
+    .kijk-chip { margin-left: 0; align-self: stretch; justify-content: space-between; border-radius: var(--radius); }
+  }
   .slot-balk strong { color: inherit; }
   /* Vastgezette velden: zichtbaar, maar duidelijk niet te bewerken. */
   body.op-slot table.invoer input:disabled,
@@ -1810,6 +1844,25 @@
   table.invoer td.rijnr.na-bestelling::after {
     content: '●'; color: var(--geel); font-size: 9px; display: block; line-height: 1;
   }
+  .bestel-noot[hidden] { display: none; }
+  .bestel-verschil { margin: 0 0 10px; align-items: center; }
+  .bestel-verschil .btn { margin-left: 6px; }
+  /* Bestellingen op het tabblad Bestellijst (v104). */
+  .bestel-overzicht { margin-bottom: 12px; padding: 10px 14px; border-left: 4px solid #8a9aa8;
+    background: var(--grijs-licht); border-radius: var(--radius); font-size: 12.5px; line-height: 1.55; }
+  .bestel-overzicht.met-verschil { border-left-color: var(--geel); background: #fff8e1; color: #5a3a00; }
+  .bestel-kop { font-weight: 700; margin-bottom: 4px; }
+  .bestel-lijst, .bestel-wijz ul { margin: 2px 0 6px 18px; }
+  .bestel-wijz { margin: 6px 0; }
+  .bestel-zelfde { color: var(--grijs-tekst); margin: 4px 0 0; }
+  .bestel-totaal { margin: 4px 0 0; }
+  .bestel-knoppen { margin: 2px 0 8px 18px; display: flex; flex-wrap: wrap; gap: 6px; }
+  /* Een merk of opmerking zonder spatie mag de telefoon niet breder maken (v105). */
+  .bestel-overzicht, .bestel-noot, .mail-al-besteld, .melding-tekst { overflow-wrap: anywhere; }
+  .bestel-geen { color: var(--grijs-tekst); }
+  .bestel-lijst li.ingetrokken { color: var(--grijs-tekst); text-decoration: line-through; }
+  .bestel-lijst li.ingetrokken b { text-decoration: none; }
+  .bestel-lijst .btn { margin-left: 6px; padding: 2px 8px; }
   .bestel-noot {
     display: flex; gap: 10px; align-items: flex-start;
     margin-top: 12px; padding: 10px 14px;
@@ -2216,6 +2269,8 @@
     <i class="info-icon" onclick="toonInfo(this)" data-info="De bijtelling geldt <b>rondom</b>: hij komt er aan beide zijden bij, dus 2× bij de breedte en 2× bij de hoogte.<br><br>Bij 11 mm bijtelling wordt een dagmaat van 1000 × 2000 dus een glasmaat van <b>1022 × 2022</b>.">i</i>
       </span>
 </div>
+  <span id="kijkChip" class="kijk-chip" hidden><span>👁 Alleen kijken<span class="kijk-wie"></span></span>
+    <button type="button" class="btn btn-primary btn-sm" onclick="bewerkslotTochBewerken()">Toch bewerken</button></span>
 </div>
 
 
@@ -2291,6 +2346,9 @@
        balk dat, en zit hier de weg eruit. slotToepassen() in het script
        onderaan vult hem. -->
   <div id="slotBalk" class="slot-balk" hidden></div>
+  <!-- Anders dan besteld (v104): gewijzigd, nieuw of vervallen sinds de
+       laatst verstuurde bestellijst. Verborgen als alles klopt. -->
+  <div id="bestelVerschil" class="bestel-noot bestel-verschil" hidden></div>
 
   <!-- Klant en werkadres (v98): hier ingevuld, op Project info alleen te
        lezen. Dicht zodra klantnaam en adres er staan; dan staat alles op
@@ -2659,13 +2717,19 @@ function toonVeldMenu(knop, inhoud) {
 
 function exportMenu(e) {
   if (exportBalk) { exportSluit(); return; }
+  // De Excel-bibliotheek alvast laden (v104): op een iPad moet het
+  // deelvenster vlak na de tik open, en laden kost even.
+  if (window.glasLaadXlsx) glasLaadXlsx().catch(() => {});
   toonVeldMenu(e.currentTarget,
     '<button onclick="exportKies(\'bestellijst\')"><b>📦 Bestellijst als PDF</b>' +
       '<span>Voor de glasleverancier</span></button>' +
     '<button onclick="exportKies(\'fotos\')"><b>📄 PDF invoer</b>' +
       '<span>Foto\'s en tekeningen met de maten eronder</span></button>' +
+    // Excel-bestand (v104): in een csv maakt Excel van 4-12-4 een datum.
+    '<button onclick="exportKies(\'xlsx\')"><b>📊 Excel-bestand (.xlsx)</b>' +
+      '<span>Om in Excel te openen, ook op Windows</span></button>' +
     '<button onclick="exportKies(\'csv\')"><b>📥 CSV-bestand</b>' +
-      '<span>Om in Excel te openen</span></button>' +
+      '<span>Voor andere programma\'s</span></button>' +
     '<button onclick="exportKies(\'alles\')"><b>📦📄 Alles exporteren</b>' +
       '<span>Bestellijst én PDF invoer, als twee losse bestanden</span></button>' +
     // De foto's zoals ze van de camera kwamen, voor het archief (v93).
@@ -2687,7 +2751,11 @@ function exportKies(wat) {
   exportSluit();
   const acties = document.getElementById('kopActies');
   if (acties) acties.classList.remove('open');
-  if (wat === 'csv') {
+  if (wat === 'xlsx') {
+    if (window.exportMetControle) exportMetControle(exportXlsx);
+    else exportXlsx();
+  }
+  else if (wat === 'csv') {
     // De controle op de levergegevens zit in pdf.js; die laat je kiezen
     // tussen aanvullen en toch doorgaan en roept dan pas exportCSV aan.
     if (window.exportMetControle) exportMetControle(exportCSV);
@@ -2878,7 +2946,18 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v103';
+const APP_VERSIE = 'v106';
+// Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
+// via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
+// Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
+// maar heeft meer dan één aanraakpunt; een echte Mac heeft er geen.
+function glasMobiel() {
+  const ua = navigator.userAgent || '';
+  if (navigator.userAgentData && navigator.userAgentData.mobile) return true;
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+  return /Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1;
+}
+window.glasMobiel = glasMobiel;
 
 // ═══════════════ INIT ═══════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -3151,6 +3230,43 @@ function herbereken() {
   updateStrijdigeRegels();
   updateStatusBar();
   groeiIndienNodig();
+  bestelMarkeringenBijwerken();
+}
+
+// De gele markering bij elke ruit en de balk 'Anders dan besteld' bijwerken
+// na een herberekening (v104). Een andere speling of bijtelling verandert
+// de glasmaat zonder dat de tabel opnieuw getekend wordt; de markering
+// moet dan toch meekomen.
+function bestelMarkeringenBijwerken() {
+  if (typeof bestelling !== 'function') return;
+  const heeft = !!bestelling();
+  rijen.forEach(r => {
+    const tr = document.getElementById('rij-' + r.id);
+    const td = tr && tr.querySelector('td.rijnr');
+    if (!td) return;
+    const nb = heeft && naBestellingGewijzigd(r);
+    td.classList.toggle('na-bestelling', nb);
+    td.title = rijnrTitel(r);
+  });
+  renderBestelVerschil();
+}
+
+function rijnrTitel(rij) {
+  // v105: vergelijken met wat er van deze ruit besteld is (1e of aanvulling).
+  if (!naBestellingGewijzigd(rij)) return ruitSpoor(rij);
+  const st = besteldeStand();
+  const nr = st.nr[rij.id];
+  const b = nr ? bestellingen().find(x => x && x.nr === nr && !x.ingetrokken) : null;
+  const wanneer = b ? korteDatum(b.op) + (b.door ? ' door ' + b.door : '') : bestelMoment();
+  const ga = st.geannuleerd[rij.id];
+  if (!nr && ga && oudereStand(rij, st, ga.oud)) {
+    return 'Geannuleerd in de ' + rangTekst(ga.nr) + ', maar staat er weer (oudere stand van een ander apparaat?). ' +
+      ruitSpoor(rij);
+  }
+  const ouder = nr && kenmerkVan(st.ruiten[rij.id]) !== ruitKenmerk(rij) && oudereStand(rij, st, st.ruiten[rij.id]);
+  return (ouder ? 'Oudere stand van een ander apparaat? ' : '') +
+    'Anders dan besteld (' + (nr ? 'in de ' + rangTekst(nr) + ', ' : '') + wanneer + '): ' +
+    ruitVerschil(bestelOud(rij.id), rij).join('; ') + '. ' + ruitSpoor(rij);
 }
 
 // Rijen die de algemene waarde volgen tonen die waarde in hun keuzevakje.
@@ -3387,6 +3503,7 @@ function renderTabel() {
   if (window.merkBalkBijwerken) merkBalkBijwerken();
   if (window.renderFotoTabellen && document.getElementById('fotoHouder')) renderFotoTabellen();
   slotToepassen();
+  renderBestelVerschil();
 }
 
 // ═══════════════ SLOT NA BESTELLEN ═══════════════
@@ -3417,6 +3534,8 @@ function statusRang(s) {
 window.statusRang = statusRang;
 
 function invoerOpSlot() {
+  // Een collega bewerkt dit project: alleen kijken (v106, bewerkslot.js).
+  if (window.glasAlleenKijken && glasAlleenKijken()) return true;
   const i = (typeof projectInfo === 'object' && projectInfo) || {};
   if (statusRang(i.status) < 2) return false;
   return !(i.slot && i.slot.open);
@@ -3444,7 +3563,13 @@ function slotWeigert() {
   // stil. Het terugzetten van het scherm gebeurt wél elke keer.
   if (Date.now() - slotGemeld > 3000) {
     slotGemeld = Date.now();
-    if (window.appFout) {
+    if (window.glasAlleenKijken && glasAlleenKijken()) {
+      if (window.appFout) {
+        const st = window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
+        appFout((st.naam || 'Een collega') + ' bewerkt dit project nu; je kunt alleen kijken. Wil je zelf ' +
+                'iets wijzigen, kies dan ‹Toch bewerken› in de balk bovenaan Invoer.', { kop: 'Alleen kijken' });
+      }
+    } else if (window.appFout) {
       appFout('Dit project is besteld, dus de maten en de foto\'s staan vast. Moet er toch iets ' +
               'veranderen, gebruik dan ‹Ontgrendelen› in de balk bovenaan Invoer — ' +
               'dat komt met je naam in het logboek te staan.',
@@ -3456,6 +3581,25 @@ function slotWeigert() {
 }
 window.slotWeigert = slotWeigert;
 
+// Kijkt dit apparaat alleen mee (een collega bewerkt het project, v106)?
+// Dan geen enkele wijziging, ook niet buiten de invoer om: status,
+// ontgrendelen, bestellingen. Zegt het één keer en geeft true terug.
+// (Lukt het toch, dan stuurt opslaan() in kijkmodus niets en bewaart de
+// app het werk apart: dit is de nette voorkant, niet het slot zelf.)
+function kijkWeigert() {
+  if (!window.glasAlleenKijken || !glasAlleenKijken()) return false;
+  if (Date.now() - slotGemeld > 3000) {
+    slotGemeld = Date.now();
+    const st = window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
+    if (window.appFout) {
+      appFout((st.naam || 'Een collega') + ' bewerkt dit project nu; je kunt alleen kijken. Wil je zelf ' +
+              'iets wijzigen, kies dan ‹Toch bewerken› in de balk bovenaan Invoer.', { kop: 'Alleen kijken' });
+    }
+  }
+  return true;
+}
+window.kijkWeigert = kijkWeigert;
+
 function slotToepassen() {
   const opSlot = invoerOpSlot();
   const paneel = document.getElementById('panel-invoer');
@@ -3466,6 +3610,19 @@ function slotToepassen() {
     });
   }
   document.body.classList.toggle('op-slot', opSlot);
+  // Alleen kijken (v106): ook de projectnaam, de datum en de speling
+  // bovenaan gaan op slot (bij een besteld project mogen die wel).
+  const kijken = !!(window.glasAlleenKijken && glasAlleenKijken());
+  document.querySelectorAll('.toolbar input, .toolbar select').forEach(e => { e.disabled = kijken; });
+  document.body.classList.toggle('alleen-kijken', kijken);
+  const chip = document.getElementById('kijkChip');
+  if (chip) {
+    const st = kijken && window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
+    const wie = st.naam ? ' — ' + st.naam : '';
+    if (chip.hidden !== !kijken) chip.hidden = !kijken;
+    const w = chip.querySelector('.kijk-wie');
+    if (w && w.textContent !== wie) w.textContent = wie;
+  }
 
   const balk = document.getElementById('slotBalk');
   if (!balk) return;
@@ -3479,11 +3636,17 @@ function slotToepassen() {
   // en riep slotToepassen() weer aan: een eindeloze lus, zo'n 200 keer per
   // seconde. De knop ‹Ontgrendelen› werd dus steeds vervangen door een
   // nieuwe, en een tik kwam vrijwel nooit aan op de knop die er stond.
-  const sleutel = [opSlot ? 'dicht' : (i.slot && i.slot.open ? 'open' : 'weg'),
-    besteldOp, i.status || '', (i.slot && i.slot.door) || ''].join('|');
+  const kijkTekst = kijken && window.glasBewerkslotTekst ? glasBewerkslotTekst() : '';
+  const sleutel = [kijken ? 'kijken' : (opSlot ? 'dicht' : (i.slot && i.slot.open ? 'open' : 'weg')),
+    besteldOp, i.status || '', (i.slot && i.slot.door) || '', kijkTekst].join('|');
   if (balk.dataset.sleutel === sleutel) return;
   balk.dataset.sleutel = sleutel;
-  if (opSlot) {
+  if (kijken) {
+    balk.hidden = false;
+    balk.className = 'slot-balk kijken';
+    balk.innerHTML = '<span class="slot-teken">👁</span><div>' + kijkTekst + '</div>' +
+      '<button class="btn btn-primary btn-sm vrij-bij-slot" onclick="bewerkslotTochBewerken()">Toch bewerken</button>';
+  } else if (opSlot) {
     balk.hidden = false;
     balk.className = 'slot-balk dicht';
     const statusTekst = i.status && i.status !== 'besteld' ? ' en ' + esc(i.status) : '';
@@ -3565,6 +3728,7 @@ function slotBewaking() {
 }
 
 window.slotOntgrendel = async function () {
+  if (kijkWeigert()) return;
   if (!window.glasWachtwoordKlopt) {
     await appFout('Ontgrendelen kan alleen als je ingelogd bent in de cloud.', { kop: 'Ontgrendelen' });
     return;
@@ -3591,6 +3755,7 @@ window.slotOntgrendel = async function () {
 
 window.slotSluit = function () {
   if (typeof projectInfo !== 'object' || !projectInfo) return;
+  if (kijkWeigert()) return;
   projectInfo.slot = null;
   if (window.glasSpoorNotitie) glasSpoorNotitie('slot weer gesloten');
   if (window.glasMarkeerWerk) glasMarkeerWerk();
@@ -3678,9 +3843,7 @@ function rijHTML(rij, nr) {
 
   const id = rij.id;
   return `
-    <td class="rijnr${naBestellingGewijzigd(rij) ? ' na-bestelling' : ''}" title="${esc(
-         (naBestellingGewijzigd(rij) ? 'Gewijzigd ná de bestellijst van ' + bestelMoment() + '. ' : '') +
-         ruitSpoor(rij))}"><div class="rijnr-wrap"><input type="checkbox" ${bulkIsGeselecteerd(id) ? 'checked' : ''}
+    <td class="rijnr${naBestellingGewijzigd(rij) ? ' na-bestelling' : ''}" title="${esc(rijnrTitel(rij))}"><div class="rijnr-wrap"><input type="checkbox" ${bulkIsGeselecteerd(id) ? 'checked' : ''}
        onchange="bulkToggle(${id}, this.checked)" title="Selecteren"><span>${nr}</span></div></td>
     <td><input type="number" inputmode="numeric" class="aantal-input" value="${rij.aantal}" min="1" max="999"
        onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>
@@ -3923,31 +4086,876 @@ function ruitKenmerk(rij) {
 }
 window.ruitKenmerk = ruitKenmerk;
 
-function bestelling() {
-  return (typeof projectInfo !== 'undefined' && projectInfo && projectInfo.besteld) || null;
+// ═══════════════ BESTELLINGEN (v104, keuze van Jan) ═══════════════
+// Tot v103 legde élke bestellijst-pdf vast "zo is het besteld", ook een
+// pdf die alleen bekeken werd. De gele markeringen bij ruiten die daarna
+// gewijzigd waren, verdwenen dan, terwijl de leverancier nog steeds de
+// eerste lijst had. En een ruit die na het bestellen verwijderd werd,
+// stond nergens.
+//
+// Nu:
+// - vastleggen gebeurt alleen als de bestellijst echt naar de leverancier
+//   gaat ('Ja, verstuurd', of een bestelmail die aankwam), en dan precies
+//   zoals hij op de pdf stond (de momentopname wordt bij het tekenen van
+//   de pdf gemaakt, niet bij het antwoord);
+// - elke verstuurde bestellijst komt erbij in projectInfo.bestellingen;
+//   er wordt nooit een bestelling overschreven. Intrekken (met wachtwoord)
+//   markeert hem als ingetrokken; hij blijft in de geschiedenis;
+// - per ruit staat de inhoud erbij, niet alleen een kenmerk, zodat de app
+//   kan zeggen wát er anders is en welke ruiten vervallen zijn;
+// - een apparaat dat de bestelling (nog) niet kende, kan hem niet wissen:
+//   de app voegt samen (bestellingenSamenvoegen) en de database ook
+//   (23_bestellingen.sql).
+//
+// v105 (keuze van Jan): een volgende bestellijst is altijd een AANVULLING.
+// Daarop staan alleen nieuwe ruiten en ruiten die anders gemaakt moeten
+// worden (met "vervangt K1 uit de 1e"). Vervallen ruiten staan eronder als
+// "annuleren, als dat nog kan". Wat de leverancier in totaal maakt, is dus
+// de 1e bestelling plus alle aanvullingen: besteldeStand(). Daarmee wordt
+// vergeleken, niet meer met alleen de laatste lijst. Een bestelling van
+// vóór v105 (zonder soort 'aanvulling') was een volledige lijst en begint
+// de stand opnieuw.
+//
+// projectInfo.besteld blijft bestaan in de oude vorm (kenmerk per ruit):
+// dat is de besteld stand, voor apparaten die nog een oudere versie
+// draaien tot ze bijgewerkt zijn.
+const MOMENT_VELDEN = KENMERK_VELDEN.concat(['glasBreedte', 'glasHoogte']);
+// Wat er van een óudere bestelling bewaard blijft zodra er een nieuwere
+// bij komt: genoeg om hem te tonen, niet alles (een project gaat bij elke
+// opslag in zijn geheel omhoog).
+const KORT_VELDEN = ['aantal', 'merk', 'breedte', 'hoogte', 'glasBreedte', 'glasHoogte', 'glasType', 'opbouw'];
+
+function ruitMomentopname(rij, opLijst) {
+  const o = { k: ruitKenmerk(rij), opLijst: !!opLijst };
+  MOMENT_VELDEN.forEach(v => {
+    const w = rij[v];
+    if (w !== undefined && w !== null && w !== '') o[v] = w;
+  });
+  // Het stempel van deze versie (v105): een ruit met een óuder stempel die
+  // er anders uitziet, is een oudere stand van een ander apparaat.
+  if (rij.gewOp) o.g = rij.gewOp;
+  return o;
+}
+window.ruitMomentopname = ruitMomentopname;
+
+// Wat er vastgelegd wordt als de bestellijst verstuurd wordt, gemaakt op
+// het moment dat de pdf getekend wordt. lijst = de regels op de pdf.
+//
+// De 1e bestelling (soort 'volledig'): alle ruiten met inhoud; opLijst zegt
+// welke erop stonden (een onvolledige ruit gaat niet mee, maar is 'bekend').
+//
+// Een aanvulling (v105): alleen de ruiten op de lijst, plus de ruiten die
+// nog nooit besteld zijn (onvolledig, 'bekend'). Wat al besteld is en niet
+// op deze lijst staat, hoort bij een eerdere bestelling en blijft daar.
+// Een ruit die een eerder bestelde vervangt, draagt 'vervangt' (het nummer
+// van die bestelling). vervallen = wat besteld was en nu weg is: dat staat
+// op de pdf onder 'annuleren', en telt daarna niet meer als besteld.
+function bestelMomentopname(lijst) {
+  const opLijst = {};
+  (lijst || []).forEach(r => { if (r && r.id != null) opLijst[r.id] = true; });
+  const st = besteldeStand();
+  const aanvulling = !!st.laatste;
+  const ruiten = {};
+  (typeof rijen === 'undefined' ? [] : rijen).forEach(r => {
+    if (!r || r.id == null) return;
+    if (!opLijst[r.id] && !heeftRuitInhoud(r)) return;
+    const al = st.ruiten[r.id] !== undefined;
+    if (aanvulling && al && !opLijst[r.id]) return;
+    const o = ruitMomentopname(r, opLijst[r.id]);
+    if (aanvulling && al) o.vervangt = st.nr[r.id] || 1;
+    ruiten[r.id] = o;
+  });
+  const uit = {
+    soort: aanvulling ? 'aanvulling' : 'volledig',
+    // Wanneer deze stand gemaakt is (de pdf). Een ruit die sindsdien niet
+    // gewijzigd is (gewOp ouder) maar er anders uitziet, is een oudere
+    // stand van een ander apparaat, geen wijziging (v105, beoordeling).
+    moment: new Date().toISOString(),
+    ruiten: ruiten,
+    aantal: (lijst || []).length,
+    stuks: (lijst || []).reduce((n, r) => n + (parseInt(r.aantal) || 1), 0)
+  };
+  if (aanvulling) {
+    const vervallen = {};
+    wijzigingenSindsBestelling().vervallen.forEach(v => {
+      vervallen[v.id] = typeof v.oud === 'object' && v.oud
+        ? Object.assign(korteRuit(v.oud), { nr: v.nr || 1 })
+        : { k: kenmerkVan(v.oud), nr: v.nr || 1, kort: 1 };
+    });
+    if (Object.keys(vervallen).length) uit.vervallen = vervallen;
+  }
+  return uit;
+}
+window.bestelMomentopname = bestelMomentopname;
+
+// Alleen wat nodig is om een ruit te tonen en te vergelijken.
+function korteRuit(o) {
+  const kort = { k: o.k, opLijst: o.opLijst, kort: 1 };
+  if (o.vervangt) kort.vervangt = o.vervangt;
+  if (o.g) kort.g = o.g;
+  KORT_VELDEN.forEach(v => { if (o[v] !== undefined) kort[v] = o[v]; });
+  return kort;
 }
 
-// Is deze ruit veranderd nadat de bestellijst gemaakt is?
+// Wat de leverancier in totaal maakt (v105): de 1e bestelling plus alle
+// aanvullingen, min wat er geannuleerd is. Ingetrokken bestellingen tellen
+// niet. Een bestelling zonder soort 'aanvulling' (de 1e, of een volledige
+// lijst van vóór v105) begint opnieuw.
+//   ruiten: { id: wat er besteld is }   nr: { id: in welke bestelling }
+//   bron:   { id: index in de lijst }   bekend: { id: niet besteld, wel
+//           bekend uit de laatste bestelling (was toen niet compleet) }
+//   laatste: de laatste geldige bestelling (of null)
+//   geannuleerd: { id: { nr, moment, oud } }  laatst geannuleerd, niet opnieuw besteld
+//   leeg:   { id: kenmerk }  lege regels uit een bestelling van vóór v104
+//           (alleen voor projectInfo.besteld, zoals 23_bestellingen.sql)
+//   eerder: { id: { kenmerk: nr } }  eerder bestelde versies van de ruit
+//   eerderVersies: { id: [ { versie, nr } ] }  idem, met de inhoud
+function standVan(lijst) {
+  let ruiten = {}, nr = {}, bron = {}, geannuleerd = {}, leeg = {};
+  const eerder = {}, eerderVersies = {};
+  let laatste = null, laatsteIndex = -1;
+  (lijst || []).forEach((b, i) => {
+    if (!b || b.ingetrokken) return;
+    Object.keys(b.ruiten || {}).forEach(id => {
+      const o = b.ruiten[id];
+      const k = kenmerkVan(o);
+      if (k && (typeof o === 'string' || o.opLijst)) {
+        (eerder[id] = eerder[id] || {})[k] = b.nr || i + 1;
+        if (typeof o === 'object') (eerderVersies[id] = eerderVersies[id] || []).push({ versie: o, nr: b.nr || i + 1 });
+      }
+    });
+    if (b.soort !== 'aanvulling') { ruiten = {}; nr = {}; bron = {}; geannuleerd = {}; leeg = {}; }
+    const rs = b.ruiten || {};
+    Object.keys(rs).forEach(id => {
+      const o = rs[id];
+      if (typeof o === 'string') {
+        // Van vóór v104: alleen een kenmerk; een lege regel is niets besteld.
+        if (o === leegKenmerk()) { leeg[id] = o; return; }
+      } else if (!o || !o.opLijst) return;
+      ruiten[id] = o; nr[id] = b.nr || i + 1; bron[id] = i;
+      delete geannuleerd[id];
+    });
+    Object.keys(b.vervallen || {}).forEach(id => {
+      geannuleerd[id] = { nr: b.nr || i + 1, oud: b.vervallen[id] };
+      delete ruiten[id]; delete nr[id]; delete bron[id];
+    });
+    laatste = b; laatsteIndex = i;
+  });
+  const bekend = {};
+  if (laatste) {
+    const rs = laatste.ruiten || {};
+    Object.keys(rs).forEach(id => {
+      const o = rs[id];
+      if (o && typeof o === 'object' && !o.opLijst && ruiten[id] === undefined) bekend[id] = o;
+    });
+  }
+  // Alleen de versies die níet meer gelden (de huidige is geen 'eerdere').
+  Object.keys(ruiten).forEach(id => {
+    if (eerder[id]) delete eerder[id][kenmerkVan(ruiten[id])];
+    if (eerderVersies[id]) eerderVersies[id] = eerderVersies[id].filter(e => e.versie !== ruiten[id] && e.versie.k !== kenmerkVan(ruiten[id]));
+  });
+  return { ruiten: ruiten, nr: nr, bron: bron, geannuleerd: geannuleerd, leeg: leeg,
+           eerder: eerder, eerderVersies: eerderVersies, bekend: bekend, laatste: laatste, laatsteIndex: laatsteIndex };
+}
+
+// De velden die een leverancier maakt (maat, aantal, glas). Daarop letten
+// we bij een oudere stand per veld.
+const MAAKVELDEN = ['aantal', 'breedte', 'hoogte', 'maatsoort', 'correctie', 'glasType', 'opbouw', 'merk'];
+
+// Welke velden van de ruit staan terug op een eerder bestelde waarde, terwijl
+// de geldende bestelling iets anders heeft (v105, beoordeling ronde 2)?
+// Voorbeeld: de iPad zette offline alleen een opmerking bij K1 (maat nog
+// 1200); kantoor mat K1 na op 1210 en bestelde. Terug online staat K1 weer
+// op 1200, mét de opmerking van de iPad. Dat is geen nieuwe maat maar een
+// oude: niet stil opnieuw bestellen. De opmerking blijft gewoon een wijziging.
+function oudeVelden(rij, st) {
+  const nu = st.ruiten[rij.id];
+  const versies = st.eerderVersies[rij.id];
+  if (!nu || typeof nu !== 'object' || !versies || !versies.length) return [];
+  const tekst = v => (v === undefined || v === null ? '' : String(v));
+  return MAAKVELDEN.filter(v => {
+    if (!(v in nu) && nu.kort) return false;                       // niet bewaard: onbekend
+    if (tekst(rij[v]) === tekst(nu[v])) return false;              // gelijk aan wat besteld is
+    return versies.some(e => (v in e.versie || !e.versie.kort) && tekst(e.versie[v]) === tekst(rij[v]));
+  });
+}
+
+// Een oudere stand van een ander apparaat (v105, beoordeling): de ruit is
+// anders dan besteld, en
+// - hij is precies een eerder bestelde versie (een apparaat dat de nieuwere
+//   bestelling niet kende, zette hem terug), of
+// - zijn stempel is ouder dan dat van de bestelde versie.
+// (Een geannuleerde ruit die terugkomt, is altijd ook een eerder bestelde
+// versie: dat dekt de eerste regel.)
+// Koos de gebruiker "toch zo bestellen" na de laatste bestelling, dan niet.
+// oud = de bestelde (of geannuleerde) versie.
+// Geeft false, true (de hele ruit is een oudere stand) of een lijst velden
+// (alleen die velden staan terug op een eerder bestelde waarde).
+function oudereStand(rij, st, oud) {
+  if (st.laatste && rij.tochBestellen && rij.tochBestellen === st.laatste.op) return false;
+  const k = ruitKenmerk(rij);
+  const ev = st.eerder[rij.id];
+  if (ev && ev[k]) return true;
+  if (nietGewijzigdSinds(rij, oud && typeof oud === 'object' ? oud.g : null)) return true;
+  const velden = oudeVelden(rij, st);
+  return velden.length ? velden : false;
+}
+
+// Is de ruit óuder dan de bestelde versie? Elke wijziging krijgt bij het
+// opslaan een stempel (gewOp, cloud.js stempelWijzigingen); ook Cmd+Z. De
+// bestelling bewaart het stempel van de bestelde versie (g). Een ruit met
+// een ouder stempel is een stand van vóór die versie. Een wijziging van na
+// de laatste keer dat de besteller bijwerkte (ook offline gedaan, vóór de
+// bestelling), heeft een nieuwer stempel en telt dus gewoon als wijziging.
+// Zonder stempels weten we het niet: dan telt het als wijziging.
+// Een wijziging die net getypt is, heeft nog het stempel van daarvoor. Bij
+// een ruit die gelijk was aan de bestelde versie is dat stempel gelijk aan
+// g (dus niet ouder): die telt gewoon als wijziging. Alleen een ruit die al
+// een oudere stand wás, blijft dat ook als er iets bij getypt wordt: de
+// gebruiker kiest dan (voorControles), niets gaat stil.
+function nietGewijzigdSinds(rij, g) {
+  if (!rij || !rij.gewOp || !g) return false;
+  const a = Date.parse(rij.gewOp), b = Date.parse(g);
+  return !isNaN(a) && !isNaN(b) && a < b;
+}
+
+let standCache = { lijst: null, sleutel: null, stand: null };
+function besteldeStand() {
+  const lijst = bestellingen();
+  const sleutel = lijst.map(b => b ? (b.op || '') + (b.ingetrokken ? '-' : '') + (b.soort || '') : '').join('|');
+  if (standCache.lijst === lijst && standCache.sleutel === sleutel) return standCache.stand;
+  const stand = standVan(lijst);
+  standCache = { lijst: lijst, sleutel: sleutel, stand: stand };
+  return stand;
+}
+window.besteldeStand = besteldeStand;
+
+// Waarmee een ruit vergeleken wordt: wat er van hem besteld is, of (nooit
+// besteld) hoe hij er bij de laatste bestelling uitzag.
+function bestelOud(id) {
+  const st = besteldeStand();
+  return st.ruiten[id] !== undefined ? st.ruiten[id] : st.bekend[id];
+}
+window.bestelOud = bestelOud;
+
+// Wat er op de volgende bestellijst komt (v105). Nog niets besteld: alles
+// wat compleet is. Wel besteld: een aanvulling met alleen de complete
+// nieuwe en gewijzigde ruiten, in de volgorde van Invoer, plus wat er
+// vervallen is (annuleren).
+function teBestellen() {
+  const alle = typeof rijen === 'undefined' ? [] : rijen;
+  const w = wijzigingenSindsBestelling();
+  if (!w.bestelling) {
+    const regels = alle.filter(bestelbaar);
+    return { aanvulling: false, regels: regels, vervallen: [], gewijzigd: [], aantal: regels.length, w: w };
+  }
+  const ids = {};
+  w.nieuw.forEach(r => { if (bestelbaar(r)) ids[r.id] = true; });
+  w.gewijzigd.forEach(g => { if (bestelbaar(g.rij)) ids[g.rij.id] = true; });
+  const regels = alle.filter(r => ids[r.id]);
+  return { aanvulling: true, regels: regels, vervallen: w.vervallen,
+           gewijzigd: w.gewijzigd.filter(g => ids[g.rij.id]),
+           aantal: regels.length + w.vervallen.length, w: w };
+}
+window.teBestellen = teBestellen;
+
+// Het kenmerk van een lege regel zoals nieuweRij() hem maakt.
+let leegKenmerkCache = null;
+function leegKenmerk() {
+  if (leegKenmerkCache === null) {
+    leegKenmerkCache = ruitKenmerk({ aantal: 1, merk: '', maatsoort: 'Sponningmaat', breedte: '', hoogte: '',
+      glasType: '', opbouw: '', rooster: 'Nee', ducoType: '', ralKleur: '',
+      glasbewerking: 'Helder (standaard)', opmerking: '', roedenverdeling: 'Geen roedenverdeling',
+      roedenbreedte: '', roedenopmerking: '' });
+  }
+  return leegKenmerkCache;
+}
+
+function heeftRuitInhoud(rij) {
+  return !!(rij && (rij.merk || rij.breedte || rij.hoogte || rij.glasType));
+}
+
+// Alle bestellingen, oudste eerst, ook ingetrokken. Een project van vóór
+// v104 heeft alleen projectInfo.besteld: dat telt als de eerste, zonder de
+// inhoud per ruit (die bewaarde de app toen nog niet).
+function bestellingen() {
+  const i = (typeof projectInfo !== 'undefined' && projectInfo) || {};
+  if (Array.isArray(i.bestellingen) && i.bestellingen.length) return i.bestellingen;
+  if (i.besteld && i.besteld.op) {
+    return [{ nr: 1, op: i.besteld.op, door: i.besteld.door || '', aantal: i.besteld.aantal || 0,
+              via: 'oud', ruiten: i.besteld.ruiten || {} }];
+  }
+  return [];
+}
+window.glasBestellingen = bestellingen;
+
+// De geldige (niet ingetrokken) bestellingen.
+function geldigeBestellingen() { return bestellingen().filter(b => b && !b.ingetrokken); }
+window.glasGeldigeBestellingen = geldigeBestellingen;
+
+// Waar alles mee vergeleken wordt: de laatst verstuurde, geldige bestelling.
+function bestelling() {
+  const l = geldigeBestellingen();
+  return l.length ? l[l.length - 1] : null;
+}
+window.glasBestelling = bestelling;
+
+function kenmerkVan(oud) {
+  if (oud === undefined || oud === null) return undefined;
+  return typeof oud === 'string' ? oud : oud.k;
+}
+
+function maatGetal(v) { return v === undefined || v === null || v === '' ? '' : String(v); }
+
+// Is de ruit anders dan in de momentopname? Het kenmerk dekt wat er is
+// ingevuld; de glasmaat komt erbij, want die verandert ook als iemand de
+// speling of bijtelling aanpast, zonder dat er in de ruit zelf iets
+// gewijzigd is. (Gevonden bij de beoordeling van v104.)
+function ruitAnders(oud, rij) {
+  if (kenmerkVan(oud) !== ruitKenmerk(rij)) return true;
+  if (oud && typeof oud === 'object' && ('glasBreedte' in oud || 'glasHoogte' in oud)) {
+    return maatGetal(oud.glasBreedte) !== maatGetal(rij.glasBreedte) ||
+           maatGetal(oud.glasHoogte) !== maatGetal(rij.glasHoogte);
+  }
+  return false;
+}
+window.ruitAnders = ruitAnders;
+
+// Is deze ruit anders dan wat er besteld is (1e + aanvullingen, v105)?
 function naBestellingGewijzigd(rij) {
-  const b = bestelling();
-  if (!b || !b.ruiten) return false;
-  if (!(rij.merk || rij.breedte || rij.hoogte || rij.glasType)) return false;
-  const oud = b.ruiten[rij.id];
+  if (!besteldeStand().laatste) return false;
+  if (!heeftRuitInhoud(rij)) return false;
+  const oud = bestelOud(rij.id);
   if (oud === undefined) return true;              // na de bestelling erbij gekomen
-  return oud !== ruitKenmerk(rij);
+  return ruitAnders(oud, rij);
 }
 window.naBestellingGewijzigd = naBestellingGewijzigd;
+
+const VELD_NAAM = {
+  aantal: 'aantal', merk: 'merk', maatsoort: 'maatsoort', breedte: 'breedte', hoogte: 'hoogte',
+  correctie: 'correctie', glasType: 'glastype', opbouw: 'opbouw', rooster: 'rooster',
+  ducoType: 'Duco', ralKleur: 'RAL', glasbewerking: 'glasbewerking', opmerking: 'opmerking',
+  roedenverdeling: 'roedenverdeling', roedenbreedte: 'roedenbreedte', roedenopmerking: 'opmerking roeden'
+};
+
+// Wat er anders is aan een ruit, in woorden: ["breedte 1200 → 1210"].
+// Een bestelling van vóór v104 kent alleen het kenmerk: dan weten we dát
+// hij anders is, niet wat.
+function ruitVerschil(oud, rij) {
+  if (!oud) return ['nieuw na de bestelling'];
+  if (typeof oud === 'string') return ['gewijzigd (wat precies is van vóór v104 niet bewaard)'];
+  const uit = [];
+  // Van een ingekorte (oudere) bestelling kennen we alleen een paar velden.
+  // Wat er niet in staat, is niet 'leeg' maar onbekend: niet noemen (v104,
+  // gevonden bij de beoordeling: na intrekken stond er "rooster (leeg) → Nee").
+  const velden = oud.kort ? KENMERK_VELDEN.filter(v => KORT_VELDEN.indexOf(v) >= 0) : KENMERK_VELDEN;
+  velden.forEach(v => {
+    const a = oud[v] === undefined || oud[v] === null ? '' : String(oud[v]);
+    const b = rij[v] === undefined || rij[v] === null ? '' : String(rij[v]);
+    if (a !== b) uit.push(VELD_NAAM[v] + ' ' + (a || '(leeg)') + ' → ' + (b || '(leeg)'));
+  });
+  const gb = maatGetal(oud.glasBreedte), gh = maatGetal(oud.glasHoogte);
+  if (('glasBreedte' in oud || 'glasHoogte' in oud) &&
+      (gb !== maatGetal(rij.glasBreedte) || gh !== maatGetal(rij.glasHoogte))) {
+    uit.push('glasmaat ' + (gb || '?') + ' × ' + (gh || '?') + ' → ' +
+             (maatGetal(rij.glasBreedte) || '?') + ' × ' + (maatGetal(rij.glasHoogte) || '?'));
+  }
+  if (!oud.opLijst && heeftRuitInhoud(rij)) uit.unshift('stond niet op de bestellijst (was niet compleet)');
+  if (oud.kort) {
+    // Zou de ruit gelijk zijn als alleen de bewaarde velden terug gingen?
+    // Zo niet, dan is er ook iets anders veranderd dat we niet meer kennen.
+    const terug = Object.assign({}, rij);
+    velden.forEach(v => { terug[v] = oud[v] === undefined ? '' : oud[v]; });
+    if (ruitKenmerk(terug) !== oud.k) {
+      uit.push((uit.length ? 'en ' : '') + 'overige gegevens gewijzigd (de details van die bestelling zijn niet meer bewaard)');
+    }
+  }
+  return uit.length ? uit : ['gewijzigd'];
+}
+window.ruitVerschil = ruitVerschil;
+
+// "2× glasmaat 792 × 1392 HR++ glas" — altijd de glasmaat, en dat zeggen.
+function maatTekst(o) {
+  if (!o || typeof o !== 'object') return '';
+  const b = o.glasBreedte != null ? o.glasBreedte : null;
+  const h = o.glasHoogte != null ? o.glasHoogte : null;
+  const maat = (b != null || h != null)
+    ? 'glasmaat ' + (b != null ? b : '?') + ' × ' + (h != null ? h : '?')
+    : 'maat ' + (o.breedte || '?') + ' × ' + (o.hoogte || '?');
+  return (o.aantal && +o.aantal > 1 ? o.aantal + '× ' : '') + maat + (o.glasType ? ' ' + o.glasType : '');
+}
+window.maatTekst = maatTekst;
+
+// Alles wat anders is dan wat er besteld is (1e + aanvullingen, v105).
+//   gewijzigd: [{ rij, oud, nr, verschil }]   nieuw: [rij]
+//   vanLijst:  [{ rij, oud, nr }]  besteld, maar nu niet meer compleet
+//   vervallen: [{ id, oud, nr }]   besteld, en nu weg
+//   ouder:     [{ rij, oud, nr, geannuleerd, verschil }]  anders dan besteld,
+//              maar niet gewijzigd sinds die bestelling: een oudere stand
+//              van een ander apparaat (dat wie-het-laatst-opslaat-wint
+//              overschreef). Geen wijziging, dus niet op een aanvulling.
+//              geannuleerd = hij was geannuleerd en staat er weer.
+// nr = de bestelling waarin de ruit besteld (of geannuleerd) is.
+function wijzigingenSindsBestelling() {
+  const st = besteldeStand();
+  const uit = { gewijzigd: [], nieuw: [], vanLijst: [], vervallen: [], ouder: [], bestelling: st.laatste, aantal: 0 };
+  if (!st.laatste) return uit;
+  const nu = {};
+  (typeof rijen === 'undefined' ? [] : rijen).forEach(r => {
+    if (!r || !heeftRuitInhoud(r)) return;
+    nu[r.id] = r;
+    const oud = st.ruiten[r.id];
+    if (oud === undefined) {
+      // Nooit besteld. Was hij er al bij de laatste bestelling (toen niet
+      // compleet) en is hij niet veranderd, dan is er niets nieuws.
+      const bk = st.bekend[r.id];
+      if (bk !== undefined && !ruitAnders(bk, r)) return;
+      const ga = st.geannuleerd[r.id];
+      if (ga && oudereStand(r, st, ga.oud)) {
+        uit.ouder.push({ rij: r, oud: ga.oud, nr: ga.nr, geannuleerd: true, verschil: ['geannuleerd in de ' + ga.nr + 'e bestellijst'] });
+        return;
+      }
+      uit.nieuw.push(r);
+      return;
+    }
+    // Een bestelde ruit die niet meer compleet is, kan niet op een
+    // aanvulling: de leverancier maakt hem zoals besteld. Dat moet apart
+    // gezegd worden.
+    if (typeof oud === 'object' && !bestelbaar(r)) { uit.vanLijst.push({ rij: r, oud: oud, nr: st.nr[r.id] }); return; }
+    if (!ruitAnders(oud, r)) return;
+    // Alleen de ruit zelf telt (het kenmerk): een andere glasmaat door een
+    // andere speling is altijd een echte wijziging.
+    const os = kenmerkVan(oud) !== ruitKenmerk(r) && oudereStand(r, st, oud);
+    if (os) {
+      const verschil = Array.isArray(os)
+        ? os.map(v => VELD_NAAM[v] + ' ' + (oud[v] == null ? '(leeg)' : oud[v]) + ' → ' + (r[v] == null || r[v] === '' ? '(leeg)' : r[v]) +
+            ' (een eerder bestelde waarde)')
+        : ruitVerschil(oud, r);
+      uit.ouder.push({ rij: r, oud: oud, nr: st.nr[r.id], velden: Array.isArray(os) ? os : null, verschil: verschil });
+      return;
+    }
+    uit.gewijzigd.push({ rij: r, oud: oud, nr: st.nr[r.id], verschil: ruitVerschil(oud, r) });
+  });
+  Object.keys(st.ruiten).forEach(id => {
+    const oud = st.ruiten[id];
+    if (typeof oud === 'object' && oud && !heeftRuitInhoud(oud)) return;
+    if (!nu[id]) uit.vervallen.push({ id: id, oud: oud, nr: st.nr[id] });
+  });
+  uit.aantal = uit.gewijzigd.length + uit.nieuw.length + uit.vanLijst.length + uit.vervallen.length + uit.ouder.length;
+  return uit;
+}
+window.wijzigingenSindsBestelling = wijzigingenSindsBestelling;
+
+// Een ruit terugzetten zoals hij besteld is (v105): na een oudere stand van
+// een ander apparaat, of een bestelde ruit die (per ongeluk of door zo'n
+// oudere stand) uit het project verdween. Uit de bestelling, die per ruit
+// de inhoud bewaart. Van een bestelling van vóór v104 is alleen een
+// kenmerk bekend: die kan niet terug. Geeft het aantal teruggezette ruiten.
+function ruitenTerugZoalsBesteld(ids) {
+  if (window.slotWeigert && slotWeigert()) return 0;
+  const st = besteldeStand();
+  let n = 0;
+  if (window.bewaarStap) bewaarStap('terugzetten zoals besteld');
+  (ids || []).forEach(id => {
+    const ga = st.geannuleerd[id];
+    const oud = st.ruiten[id];
+    const bestaand = rijen.find(r => String(r.id) === String(id));
+    if (oud === undefined && ga && bestaand) {          // geannuleerd: weer weg
+      rijen = rijen.filter(r => r !== bestaand);
+      n++;
+      return;
+    }
+    if (!oud || typeof oud !== 'object') return;
+    const doel = bestaand || Object.assign(nieuweRij(), { id: isNaN(+id) ? id : +id });
+    // Staan alleen enkele velden terug op een oude waarde (en heeft dit
+    // apparaat verder iets echt gewijzigd), dan alleen die velden.
+    const os = bestaand ? oudereStand(bestaand, st, oud) : true;
+    const velden = Array.isArray(os) ? os : KENMERK_VELDEN;
+    velden.forEach(v => {
+      if (oud.kort && KORT_VELDEN.indexOf(v) < 0) return;  // niet bewaard: laten staan
+      doel[v] = oud[v] === undefined ? (v === 'aantal' ? 1 : '') : oud[v];
+    });
+    if (!bestaand) rijen.push(doel);
+    n++;
+  });
+  if (!n) return 0;
+  if (typeof volgendId !== 'undefined') {
+    rijen.forEach(r => { if (typeof r.id === 'number' && r.id >= volgendId) volgendId = r.id + 1; });
+  }
+  if (window.glasSpoorNotitie) glasSpoorNotitie(n + (n === 1 ? ' ruit' : ' ruiten') + ' teruggezet zoals besteld');
+  herbereken(); renderTabel(); renderBestellijst();
+  window.opslaan();
+  return n;
+}
+window.ruitenTerugZoalsBesteld = ruitenTerugZoalsBesteld;
+
+// "Toch zo bestellen": de ruiten zoals ze nu zijn, tellen als wijziging
+// (bijvoorbeeld als de klok van een apparaat verkeerd stond).
+function ruitenTochBestellen(ids) {
+  if (window.slotWeigert && slotWeigert()) return 0;
+  const nu = new Date().toISOString();
+  const naam = (window.glasGebruiker ? glasGebruiker().naam : '') || '';
+  const laatste = besteldeStand().laatste;
+  let n = 0;
+  rijen.forEach(r => {
+    if (ids.indexOf(String(r.id)) < 0) return;
+    r.gewOp = nu; if (naam) r.gewDoor = naam;
+    // Geldt tot de volgende bestelling: dan is het gewoon besteld of niet.
+    if (laatste) r.tochBestellen = laatste.op;
+    n++;
+  });
+  if (window.glasSpoorNotitie) glasSpoorNotitie(n + (n === 1 ? ' ruit' : ' ruiten') + ' toch zo besteld (oudere stand)');
+  if (!n) return 0;
+  herbereken(); renderTabel(); renderBestellijst();
+  window.opslaan();
+  return n;
+}
+window.ruitenTochBestellen = ruitenTochBestellen;
+
+function korteDatum(iso, metJaar) {
+  const d = new Date(iso);
+  if (!iso || isNaN(d.getTime())) return '';
+  return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+         (metJaar ? '-' + d.getFullYear() : '') +
+         ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+window.korteDatum = korteDatum;
 
 function bestelMoment() {
   const b = bestelling();
   if (!b || !b.op) return '';
-  const d = new Date(b.op);
-  if (isNaN(d.getTime())) return '';
-  return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') +
-         ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') +
-         (b.door ? ' door ' + b.door : '');
+  const t = korteDatum(b.op);
+  return t ? t + (b.door ? ' door ' + b.door : '') : '';
 }
 window.bestelMoment = bestelMoment;
+
+function rangTekst(n) { return n + 'e bestellijst'; }
+window.rangTekst = rangTekst;
+
+// "2e bestellijst (aanvulling)" — hoe een bestelling heet in de app.
+function bestellingNaam(b) {
+  return rangTekst(b.nr || 1) + (b.soort === 'aanvulling' ? ' (aanvulling)' : '');
+}
+window.bestellingNaam = bestellingNaam;
+
+// projectInfo.besteld (de oude vorm, voor apparaten op v103) gelijkzetten
+// met wat er besteld is: de 1e plus de aanvullingen (v105).
+// 23_bestellingen.sql rekent hetzelfde uit.
+function besteldBijwerken() {
+  const st = besteldeStand();
+  if (!st.laatste) { delete projectInfo.besteld; return; }
+  const k = {};
+  Object.keys(st.bekend).forEach(id => { k[id] = kenmerkVan(st.bekend[id]); });
+  Object.keys(st.leeg).forEach(id => { k[id] = st.leeg[id]; });
+  Object.keys(st.ruiten).forEach(id => { k[id] = kenmerkVan(st.ruiten[id]); });
+  projectInfo.besteld = { op: st.laatste.op, door: st.laatste.door || '',
+                          aantal: Object.keys(st.ruiten).length + Object.keys(st.leeg).length, ruiten: k };
+}
+
+// Inkorten wat niet meer nodig is om mee te vergelijken (een project gaat
+// bij elke opslag in zijn geheel omhoog). Volledig blijft: de laatste
+// geldige bestelling, en van elke ruit wat er nu van besteld is, ook als
+// dat uit de 1e komt (v105: een aanvulling vervangt de 1e niet meer).
+function bestellingenOpschonen(lijst) {
+  const st = standVan(lijst);
+  return lijst.map((b, i) => {
+    if (!b || !b.ruiten || i === st.laatsteIndex) return b;
+    let veranderd = false;
+    const r = {};
+    Object.keys(b.ruiten).forEach(id => {
+      const o = b.ruiten[id];
+      if (typeof o !== 'object' || !o || o.kort || st.bron[id] === i) { r[id] = o; return; }
+      r[id] = korteRuit(o);
+      veranderd = true;
+    });
+    return veranderd ? Object.assign({}, b, { ruiten: r, kort: true }) : b;
+  });
+}
+
+// Vastleggen als verstuurde bestelling. moment = bestelMomentopname() van
+// de pdf (zonder: de stand van nu). via: 'pdf' (Ja, verstuurd) of 'mail'.
+// Zet het project op 'besteld' en (weer) op slot: Jans keuze, v104.
+function bestellingVastleggen(lijst, via, moment) {
+  if (typeof projectInfo === 'undefined' || !projectInfo) return null;
+  // Een collega nam het project over terwijl deze bestelling nog gemaakt
+  // werd (v106): dan kan hij niet meer in het project. Duidelijk zeggen wat
+  // er nu moet, want de leverancier heeft hem misschien al.
+  if (window.glasAlleenKijken && glasAlleenKijken()) {
+    const st = window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
+    if (window.appMelding) {
+      appMelding((st.naam || 'Een collega') + ' bewerkt dit project nu, dus deze bestelling kon de app niet ' +
+        'vastleggen. Is de lijst naar de leverancier gegaan? Laat het ' + (st.naam || 'die collega') + ' weten, ' +
+        'of neem het project terug met ‹Toch bewerken›, maak de lijst opnieuw en kies dan ‹Ja, verstuurd›. Hij hoeft ' +
+        'niet nog een keer naar de leverancier.',
+        { kop: 'Bestelling niet vastgelegd', soort: 'letop' });
+    }
+    return null;
+  }
+  const m = moment || bestelMomentopname(lijst);
+  // Een aanvulling zonder één ruit en zonder iets te annuleren is geen
+  // bestelling (bijvoorbeeld het overzicht opnieuw gemaild).
+  if (m.soort === 'aanvulling' && !Object.keys(m.vervallen || {}).length &&
+      !Object.keys(m.ruiten || {}).some(id => m.ruiten[id] && m.ruiten[id].opLijst)) return null;
+  const vorige = bestellingen().slice();
+  const door = (window.glasGebruiker ? glasGebruiker().naam : '') || projectInfo.opnemer || '';
+  // Het tijdstip nooit vóór de laatst bekende bestelling: een iPad met een
+  // achterlopende klok zou zijn bestelling anders vóór een oudere zetten
+  // (gevonden bij de beoordeling).
+  let op = new Date();
+  vorige.forEach(b => {
+    const t = new Date(b.op);
+    if (!isNaN(t.getTime()) && t >= op) op = new Date(t.getTime() + 1);
+  });
+  const nieuw = {
+    nr: vorige.length + 1,
+    op: op.toISOString(),
+    door: door,
+    via: via || 'pdf',
+    soort: m.soort || 'volledig',
+    moment: m.moment || op.toISOString(),
+    aantal: m.aantal,
+    stuks: m.stuks,
+    ruiten: m.ruiten
+  };
+  const nAnnuleren = Object.keys(m.vervallen || {}).length;
+  if (nAnnuleren) nieuw.vervallen = m.vervallen;
+  vorige.push(nieuw);
+  projectInfo.bestellingen = bestellingenOpschonen(vorige);
+  besteldBijwerken();
+  const wasRang = statusRang(projectInfo.status);
+  if (wasRang < 2) projectInfo.status = 'besteld';
+  // Ook als het project na ontgrendelen openstond: weer dicht. Wat nu
+  // besteld is, staat vast tot iemand opnieuw ontgrendelt.
+  projectInfo.slot = null;
+  if (window.glasSpoorNotitie) {
+    glasSpoorNotitie(bestellingNaam(nieuw) + ' verstuurd naar de leverancier' +
+      (via === 'mail' ? ' (bestelmail)' : '') + ', ' + nieuw.aantal +
+      (nieuw.aantal === 1 ? ' positie' : ' posities') +
+      (nAnnuleren ? ', ' + nAnnuleren + ' te annuleren' : '') +
+      (wasRang < 2 ? '; status op "besteld"' : ''));
+  }
+  if (window.glasMarkeerWerk) glasMarkeerWerk();
+  if (typeof opslaan === 'function') window.opslaan();
+  if (window.renderProject) renderProject();
+  if (window.renderTabel) renderTabel();
+  if (window.renderBestellijst) renderBestellijst();
+  return nieuw;
+}
+window.bestellingVastleggen = bestellingVastleggen;
+
+// Een verkeerde 'Ja' (een prijsaanvraag, of per ongeluk getikt) moet terug
+// te draaien zijn, maar niet stilletjes: met je eigen wachtwoord, en de
+// bestelling blijft in de geschiedenis staan als ingetrokken.
+window.bestellingIntrekken = async function () {
+  const b = bestelling();
+  if (!b) return false;
+  if (kijkWeigert()) return false;
+  if (!window.glasWachtwoordKlopt) {
+    await appFout('Intrekken kan alleen als je ingelogd bent in de cloud.', { kop: 'Bestelling intrekken' });
+    return false;
+  }
+  const wie = (window.glasGebruiker ? glasGebruiker() : {}) || {};
+  const pw = await appWachtwoord(
+    'De ' + bestellingNaam(b) + ' van ' + korteDatum(b.op, true) + ' intrekken? Doe dit alleen als hij ' +
+    'níet als bestelling naar de leverancier is gegaan (bijvoorbeeld een prijsaanvraag).\n' +
+    'Hij blijft in de geschiedenis staan als ingetrokken, met je naam. Typ je eigen wachtwoord.',
+    { kop: 'Bestelling intrekken', ja: 'Intrekken' });
+  if (pw === null) return false;
+  if (!await glasWachtwoordKlopt(pw)) {
+    await appFout('Dat wachtwoord klopt niet. De bestelling blijft staan.', { kop: 'Bestelling intrekken' });
+    return false;
+  }
+  projectInfo.bestellingen = bestellingen().map(x => x.op === b.op
+    ? Object.assign({}, x, { ingetrokken: { op: new Date().toISOString(), door: wie.naam || '' } }) : x);
+  besteldBijwerken();
+  let statusTekst = '';
+  // Geen geldige bestelling meer: terug naar 'bezig', en open.
+  if (!bestelling() && statusRang(projectInfo.status) === 2) {
+    projectInfo.status = 'bezig met inmeten/verwerken';
+    projectInfo.slot = null;
+    if (window.glasStatusHandmatig) glasStatusHandmatig();
+    statusTekst = '; status terug op "bezig met inmeten/verwerken"';
+  }
+  if (window.glasSpoorNotitie) {
+    glasSpoorNotitie(bestellingNaam(b) + ' ingetrokken door ' + (wie.naam || 'onbekend') + statusTekst);
+  }
+  if (window.glasMarkeerWerk) glasMarkeerWerk();
+  window.opslaan();
+  renderTabel();
+  if (window.renderProject) renderProject();
+  renderBestellijst();
+  return true;
+};
+
+// Bestellingen van een andere stand (de server, een collega) erbij
+// voegen. Een apparaat dat offline was of de bestelling nog niet kende,
+// mag hem niet wissen. Samenvoegen op het tijdstip (op); een ingetrokken
+// versie wint van een niet-ingetrokken. Geeft true als er iets bijkwam.
+function bestellingenSamenvoegen(andereInfo) {
+  if (typeof projectInfo === 'undefined' || !projectInfo || !andereInfo) return false;
+  const ander = Array.isArray(andereInfo.bestellingen) ? andereInfo.bestellingen : [];
+  if (!ander.length) return false;
+  const eigen = Array.isArray(projectInfo.bestellingen) ? projectInfo.bestellingen : bestellingen();
+  const opOp = {};
+  eigen.forEach(b => { if (b && b.op) opOp[b.op] = b; });
+  let veranderd = false, geldigErbij = false;
+  ander.forEach(b => {
+    if (!b || !b.op) return;
+    const e = opOp[b.op];
+    if (!e) { opOp[b.op] = b; veranderd = true; if (!b.ingetrokken) geldigErbij = true; }
+    else if (b.ingetrokken && !e.ingetrokken) { opOp[b.op] = Object.assign({}, e, { ingetrokken: b.ingetrokken }); veranderd = true; }
+  });
+  if (!veranderd) return false;
+  // Volgorde op tijdstip. Een apparaat met een achterlopende klok kan geen
+  // tijdstip vóór een bestelling die het kent vastleggen (zie
+  // bestellingVastleggen), dus dit is de volgorde waarin ze verstuurd zijn.
+  const lijst = Object.keys(opOp).map(k => opOp[k]).sort((x, y) => String(x.op).localeCompare(String(y.op)));
+  // Alleen inkorten wat niet meer nodig is om mee te vergelijken (v105:
+  // ook uit de 1e kan nog besteld zijn wat geldt).
+  projectInfo.bestellingen = bestellingenOpschonen(lijst.map((b, i) => Object.assign({}, b, { nr: i + 1 })));
+  besteldBijwerken();
+  // Er kwam een geldige bestelling bij die dit apparaat niet kende: dan
+  // hoort ook de status en het slot van die stand erbij.
+  if (geldigErbij && statusRang(andereInfo.status) >= 2) {
+    if (statusRang(projectInfo.status) < statusRang(andereInfo.status)) projectInfo.status = andereInfo.status;
+    // Wat dit apparaat over het slot wist, is van vóór die bestelling.
+    projectInfo.slot = andereInfo.slot || null;
+  }
+  // Kwam er een intrekking bij en is er geen geldige bestelling meer, dan
+  // geldt de status van de andere stand (niet meer 'besteld').
+  if (!bestelling() && statusRang(projectInfo.status) >= 2 && statusRang(andereInfo.status) < 2 &&
+      andereInfo.status) {
+    projectInfo.status = andereInfo.status;
+    projectInfo.slot = andereInfo.slot || null;
+  }
+  return geldigErbij ? 'geldig' : true;
+}
+window.bestellingenSamenvoegen = bestellingenSamenvoegen;
+
+// Is er niets bij te bestellen en niets te annuleren (v105)? Dan wordt de
+// pdf een overzicht van wat er besteld is, en vraagt de app niets.
+// (lijst wordt niet meer gebruikt; de naam blijft voor pdf.js.)
+function zelfdeAlsBestelling() {
+  const t = teBestellen();
+  return t.aanvulling && !t.aantal;
+}
+window.zelfdeAlsBestelling = zelfdeAlsBestelling;
+
+// "1× glasmaat 792 × 1392 HR++ (1e)" — een bestelde ruit met waar hij in staat.
+function besteldTekst(oud, nr) {
+  if (!oud || typeof oud !== 'object') return 'een ruit van vóór v104 (wat het was, is niet bewaard)';
+  return esc((oud.merk || '(zonder merk)')) + ' ' + esc(maatTekst(oud)) + (nr ? ' (' + nr + 'e)' : '');
+}
+
+// Het blok op het tabblad Bestellijst: welke bestellingen er zijn, en wat
+// er anders is dan wat er besteld is — ook wat er vervallen is.
+function bestellingenBlok() {
+  const lijst = bestellingen();
+  if (!lijst.length) {
+    return '<div class="bestel-balk bestel-geen">📦 Nog niets besteld. Maak de bestellijst-pdf; ' +
+      'de app vraagt dan of hij naar de leverancier gaat.</div>';
+  }
+  const laatsteGeldig = bestelling();
+  const items = lijst.map((b, i) => '<li' + (b.ingetrokken ? ' class="ingetrokken"' : '') + '>' +
+    esc(bestellingNaam(Object.assign({ nr: i + 1 }, b))) + ' — ' +
+    esc(korteDatum(b.op, true)) + (b.door ? ' door ' + esc(b.door) : '') +
+    (b.aantal ? ', ' + b.aantal + (b.aantal === 1 ? ' positie' : ' posities') : '') +
+    (b.vervallen && Object.keys(b.vervallen).length
+      ? ', ' + Object.keys(b.vervallen).length + ' geannuleerd' : '') +
+    (b.via === 'mail' ? ' (bestelmail)' : b.via === 'oud' ? ' (vastgelegd vóór v104)' : '') +
+    (b.ingetrokken ? ' — <b>ingetrokken</b> ' + esc(korteDatum(b.ingetrokken.op)) +
+      (b.ingetrokken.door ? ' door ' + esc(b.ingetrokken.door) : '') : '') +
+    (laatsteGeldig && b === laatsteGeldig && b.via !== 'oud'
+      ? ' <button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="bestellingIntrekken()">Intrekken…</button>' : '') +
+    '</li>').join('');
+  if (!laatsteGeldig) {
+    return '<div class="bestel-overzicht"><div class="bestel-kop">📦 Bestellingen</div>' +
+      '<ul class="bestel-lijst">' + items + '</ul><p class="bestel-zelfde">Er is geen geldige bestelling.</p></div>';
+  }
+  const st = besteldeStand();
+  // Ruiten (stuks) en posities, zoals op de pdf (v105, beoordeling: het
+  // aantal per positie telt mee).
+  const ids = Object.keys(st.ruiten);
+  const stuks = ids.reduce((n, id) => n + (typeof st.ruiten[id] === 'object' ? (parseInt(st.ruiten[id].aantal) || 1) : 1), 0);
+  const metAanvulling = geldigeBestellingen().some(b => b.soort === 'aanvulling');
+  const totaalTekst = '<p class="bestel-totaal">De leverancier maakt in totaal ' + stuks +
+    (stuks === 1 ? ' ruit' : ' ruiten') + ' in ' + ids.length + (ids.length === 1 ? ' positie' : ' posities') +
+    (metAanvulling ? ' (de 1e bestellijst plus de aanvullingen)' : '') + '.</p>';
+  const w = wijzigingenSindsBestelling();
+  let verschil;
+  if (!w.aantal) {
+    verschil = '<p class="bestel-zelfde">Sinds de ' + esc(rangTekst(laatsteGeldig.nr)) +
+      ' is er niets gewijzigd. Een nieuwe bestellijst-pdf wordt een overzicht van wat er besteld is.</p>';
+  } else {
+    const t = teBestellen();
+    const regel = (teken, kop, uitleg, dingen) => dingen.length
+      ? '<div class="bestel-wijz"><b>' + teken + ' ' + kop + ' (' + dingen.length + ')</b> — ' + uitleg + '<ul>' +
+        dingen.join('') + '</ul></div>' : '';
+    const naam = r => '<b>' + esc((r && r.merk) || '(zonder merk)') + '</b>';
+    const volgende = rangTekst((lijst.length || 0) + 1);
+    const idLijst = dingen => esc(JSON.stringify(dingen.map(x => String(x))));
+    const knopjes = (dingen, terug, toch) =>
+      '<div class="bestel-knoppen">' +
+      (terug ? '<button class="btn btn-secondary btn-sm vrij-bij-slot" onclick="ruitenTerugZoalsBesteld(' +
+        idLijst(dingen) + ')">' + terug + '</button>' : '') +
+      (toch ? ' <button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="ruitenTochBestellen(' +
+        idLijst(dingen) + ')">' + toch + '</button>' : '') + '</div>';
+    verschil =
+      '<p><strong>Dit is anders dan de leverancier heeft (laatste bestelling: ' + esc(bestellingNaam(laatsteGeldig)) + ', ' +
+      esc(bestelMoment()) + '):</strong></p>' +
+      regel('●', 'Gewijzigd', 'komt op de aanvulling; de oude annuleren als dat nog kan', w.gewijzigd.map(g => '<li>' + naam(g.rij) + ': ' +
+        esc(g.verschil.join('; ')) + (g.nr ? ' (besteld in de ' + g.nr + 'e)' : '') +
+        (bestelbaar(g.rij) ? '' : ' — nog niet compleet') + '</li>')) +
+      regel('●', 'Nieuw', 'komt op de aanvulling', w.nieuw.map(r => '<li>' + naam(r) + ' ' + esc(maatTekst(r)) +
+        (bestelbaar(r) ? '' : ' — nog niet compleet, gaat pas mee als hij compleet is') + '</li>')) +
+      regel('!', 'Niet meer compleet', 'de leverancier maakt hem zoals besteld. Vul hem aan, of verwijder ' +
+        'hem als hij moet vervallen', w.vanLijst.map(v => '<li>' + naam(v.rij) +
+        ' is besteld als ' + esc(maatTekst(v.oud)) + (v.nr ? ' (in de ' + v.nr + 'e)' : '') +
+        '; nu ontbreekt er een glastype, opbouw of maat</li>')) +
+      regel('✕', 'Vervallen', 'komt op de aanvulling onder "annuleren"', w.vervallen.map(v => '<li>' +
+        besteldTekst(v.oud, v.nr) + ' — besteld, nu verwijderd</li>')) +
+      (w.vervallen.length ? knopjes(w.vervallen.map(v => v.id), 'Niet zelf verwijderd? Zet terug zoals besteld', '') : '') +
+      regel('⚠', 'Oudere stand', 'anders dan besteld, maar niet gewijzigd sinds de bestelling. Waarschijnlijk heeft een ' +
+        'ander apparaat een oudere versie opgeslagen. Kies: terugzetten zoals besteld, of toch zo bestellen', w.ouder.map(o => '<li>' + naam(o.rij) +
+        ': ' + esc(o.verschil.join('; ')) + (o.geannuleerd ? '' : ' (besteld in de ' + o.nr + 'e)') + '</li>')) +
+      (w.ouder.length ? knopjes(w.ouder.map(o => o.rij.id), 'Zet terug zoals besteld', 'Nee, toch zo bestellen') : '') +
+      (t.aantal
+        ? '<p>Maak de bestellijst-pdf: dat wordt de <b>' + esc(volgende) + ', een aanvulling</b> met alleen ' +
+          t.regels.length + (t.regels.length === 1 ? ' nieuwe of gewijzigde ruit' : ' nieuwe of gewijzigde ruiten') +
+          (t.vervallen.length ? ' en ' + t.vervallen.length + ' te annuleren' : '') +
+          '. Kies daarna <b>Ja, verstuurd</b>.</p>'
+        : '<p>Er is nu niets bij te bestellen: vul eerst aan wat niet compleet is.</p>');
+  }
+  return '<div class="bestel-overzicht' + (w.aantal ? ' met-verschil' : '') + '"><div class="bestel-kop">📦 Bestellingen</div>' +
+    '<ul class="bestel-lijst">' + items + '</ul>' + totaalTekst + verschil + '</div>';
+}
+window.bestellingenBlok = bestellingenBlok;
+
+// Op Invoer één regel als er iets anders is dan besteld (v104): de gele
+// markering zie je bij de ruit zelf, maar een verwijderde ruit heeft geen
+// regel meer om iets bij te zetten.
+function renderBestelVerschil() {
+  const vak = document.getElementById('bestelVerschil');
+  if (!vak) return;
+  const w = wijzigingenSindsBestelling();
+  const n = w.aantal || 0;
+  const sleutel = w.bestelling ? [w.bestelling.op, w.gewijzigd.length, w.nieuw.length,
+                                  w.vanLijst.length, w.vervallen.length, w.ouder.length].join('|') : '';
+  if (vak.dataset.sleutel === sleutel && !vak.hidden === !!n) return;
+  vak.dataset.sleutel = sleutel;
+  vak.hidden = !n;
+  if (!n) { vak.innerHTML = ''; return; }
+  const delen = [];
+  if (w.gewijzigd.length) delen.push(w.gewijzigd.length + ' gewijzigd');
+  if (w.nieuw.length) delen.push(w.nieuw.length + ' nieuw');
+  if (w.vanLijst.length) delen.push(w.vanLijst.length + ' niet meer compleet');
+  if (w.vervallen.length) delen.push(w.vervallen.length + ' vervallen');
+  if (w.ouder.length) delen.push(w.ouder.length + ' oudere stand');
+  vak.innerHTML = '<span>●</span><div><strong>Anders dan besteld</strong> (' + esc(bestelMoment()) + '): ' +
+    esc(delen.join(', ')) + '. ' +
+    '<button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="gaNaarTab(\'bestellijst\')">Bekijk op Bestellijst</button></div>';
+}
+window.renderBestelVerschil = renderBestelVerschil;
 
 // 'Laatst gewijzigd door …' voor in het aanwijsvakje bij een regel.
 function ruitSpoor(rij) {
@@ -3992,7 +5000,10 @@ function renderBestellijst() {
   const onvolledig = onvolledigeRijen();
   const el = document.getElementById('bestellijstInhoud');
   if (ingevuld.length === 0) {
-    el.innerHTML = '<em style="color:var(--grijs-tekst)">Geen volledige regels gevonden.</em>' +
+    // Ook zonder één complete regel: wat er besteld is en wat er vervallen
+    // is, moet hier te zien blijven (v104).
+    el.innerHTML = bestellingenBlok() +
+      '<em style="color:var(--grijs-tekst)">Geen volledige regels gevonden.</em>' +
       (onvolledig.length ? onvolledigTekst(onvolledig) : '');
     return;
   }
@@ -4007,7 +5018,6 @@ function renderBestellijst() {
   // kunnen wat niet in de showroom staat — maar wel gemarkeerd.
   const strijdig = ingevuld.filter(r => isStrijdig(r)).length;
 
-  const naBestelling = ingevuld.filter(naBestellingGewijzigd);
 
   let rows = ingevuld.map((r, i) => `<tr class="${isStrijdig(r) ? 'strijdig' : ''}">
     <td class="rijnr${naBestellingGewijzigd(r) ? ' na-bestelling' : ''}" title="${esc(ruitSpoor(r))}">${i+1}</td>
@@ -4030,10 +5040,7 @@ function renderBestellijst() {
     <div style="margin-bottom:10px;font-size:12px;color:var(--grijs-tekst)">
       <strong>Project:</strong> ${esc(project)} &nbsp;|&nbsp; <strong>Datum:</strong> ${esc(datum)}
     </div>
-    ${bestelling() ? `<div class="bestel-balk">📦 Bestellijst gemaakt op <b>${esc(bestelMoment())}</b>.
-      ${naBestelling.length
-        ? `Daarna ${naBestelling.length === 1 ? 'is er 1 ruit' : 'zijn er ' + naBestelling.length + ' ruiten'} gewijzigd.`
-        : 'Sindsdien is er niets gewijzigd.'}</div>` : ''}
+    ${bestellingenBlok()}
     <div style="overflow-x:auto">
     <table class="samenvatting">
       <thead><tr>
@@ -4059,13 +5066,7 @@ function renderBestellijst() {
       catalogus niet in de gekozen bladdikte bestaat.</div>
     </div>` : ''}
     ${onvolledig.length ? onvolledigTekst(onvolledig) : ''}
-    ${naBestelling.length ? `<div class="bestel-noot">
-      <span>●</span>
-      <div><strong>Let op — ${naBestelling.length === 1 ? 'één ruit is' : naBestelling.length + ' ruiten zijn'}
-      gewijzigd nadat de bestellijst gemaakt was</strong> (${esc(bestelMoment())}).
-      Het gaat om: ${esc(naBestelling.map(r => r.merk || '(zonder merk)').slice(0, 12).join(', '))}${naBestelling.length > 12 ? ' …' : ''}.
-      Geef de wijziging door aan de leverancier, of maak een nieuwe bestellijst.</div>
-    </div>` : ''}`;
+`;
 }
 
 // ═══════════════ OPSLAAN / LADEN ═══════════════
@@ -4156,43 +5157,143 @@ async function clearAlles() {
 
 // ═══════════════ PRINT ═══════════════
 // ═══════════════ CSV EXPORT ═══════════════
-async function exportCSV() {
+// De regels voor een export naar een rekenblad: koppen en per ruit de
+// waarden, getallen als getal en tekst als tekst. Gedeeld door de csv en
+// het Excel-bestand (v104).
+function exportTabel() {
   const ingevuld = rijen.filter(r => r.glasType || r.breedte || r.hoogte);
-  if (ingevuld.length === 0) {
-    await appMelding('Er is nog niets ingevuld om te exporteren.',
-      { kop: 'Niets te exporteren', soort: 'letop' });
-    return;
-  }
-
-  const headers = ['Pos','Aantal','Merk','Maatsoort','Breedte invoer','Hoogte invoer',
+  const koppen = ['Pos','Aantal','Merk','Maatsoort','Breedte invoer','Hoogte invoer',
     'Glasbreedte','Glashoogte','Glas Type','Opbouw','Totaal dikte (mm)',
     'Gewicht p/stuk (kg)','Rooster','Duco Type','RAL Kleur',
     'Glasbewerking','Opmerking','Roedenverdeling','Roedenbreedte','Opmerking roeden',
     // Achteraan, zodat bestaande kolommen op hun plek blijven staan voor
     // wie dit bestand ergens anders inleest.
     'Let op'];
-
-  const csvRows = [headers.join(';')];
-  ingevuld.forEach((r, i) => {
+  const getal = v => {
+    if (v === null || v === undefined || v === '') return '';
+    const n = Number(String(v).replace(',', '.'));
+    return isFinite(n) ? n : String(v);
+  };
+  const regels = ingevuld.map((r, i) => {
     berekenGlasMaat(r); berekenDikte(r);
     const gew = r.kgM2 && r.glasBreedte && r.glasHoogte
-      ? ((r.glasBreedte/1000)*(r.glasHoogte/1000)*r.kgM2).toFixed(1) : '';
-    csvRows.push([
-      i+1, r.aantal, r.merk, r.maatsoort, r.breedte, r.hoogte,
-      r.glasBreedte??'', r.glasHoogte??'',
-      r.glasType, r.opbouw, r.totaalDikte??'', gew,
-      r.rooster==='Ja'?'Ja':'Nee', r.ducoType, r.ralKleur,
-      r.glasbewerking, r.opmerking, r.roedenverdeling, r.roedenbreedte, r.roedenopmerking,
+      ? +((r.glasBreedte/1000)*(r.glasHoogte/1000)*r.kgM2).toFixed(1) : '';
+    return [
+      i+1, getal(r.aantal), r.merk || '', r.maatsoort || '', getal(r.breedte), getal(r.hoogte),
+      getal(r.glasBreedte), getal(r.glasHoogte),
+      r.glasType || '', r.opbouw || '', getal(r.totaalDikte), gew,
+      r.rooster==='Ja'?'Ja':'Nee', r.ducoType || '', r.ralKleur || '',
+      r.glasbewerking || '', r.opmerking || '', r.roedenverdeling || '', r.roedenbreedte || '', r.roedenopmerking || '',
       isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : ''
-    ].map(v => '"' + String(v??'').replace(/"/g,'""') + '"').join(';'));
+    ];
   });
+  return { koppen, regels };
+}
 
-  const blob = new Blob([csvRows.join('\n')], {type:'text/csv;charset=utf-8;'});
+// Een bestand bij de gebruiker krijgen (v104). Op een iPad, iPhone of
+// Android-toestel gaat een download vanuit een app op het beginscherm
+// onbetrouwbaar; daar het deelvenster, net als bij de pdf. Elders (of als
+// delen niet kan) een gewone download.
+async function bestandAfleveren(blob, naam) {
+  const aanraak = glasMobiel();
+  if (aanraak && navigator.canShare) {
+    try {
+      const f = new File([blob], naam, { type: blob.type });
+      if (navigator.canShare({ files: [f] })) {
+        await navigator.share({ files: [f], title: naam });
+        return 'gedeeld';
+      }
+    } catch (e) {
+      if (e && (e.name === 'AbortError' || /abort|cancel/i.test(e.message || ''))) return 'afgebroken';
+    }
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'glasopname_' + (document.getElementById('projectNaam').value||'export') + '.csv';
+  a.download = naam;
+  document.body.appendChild(a);
   a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  return 'gedownload';
 }
+window.bestandAfleveren = bestandAfleveren;
+
+function exportNaam(ext) {
+  return 'glasopname_' + veiligeBestandsnaam(document.getElementById('projectNaam').value || 'export') + '.' + ext;
+}
+
+async function exportCSV() {
+  const t = exportTabel();
+  if (!t.regels.length) {
+    await appMelding('Er is nog niets ingevuld om te exporteren.',
+      { kop: 'Niets te exporteren', soort: 'letop' });
+    return;
+  }
+  const csvRows = [t.koppen.join(';')].concat(t.regels.map(r => r.map(csvCel).join(';')));
+  // Voor Excel op Windows (v104):
+  // - een BOM vooraan, anders leest Excel het bestand als Windows-1252 en
+  //   worden é, × en — rommel;
+  // - regels eindigen op CRLF, zoals Windows dat verwacht;
+  // - een bestandsnaam zonder tekens die Windows niet toestaat (\ / : * ? " < > |).
+  // Excel maakt van een opbouw als 4-12-4 nog steeds een datum: daarvoor
+  // is het Excel-bestand (.xlsx) er.
+  const blob = new Blob(['\uFEFF' + csvRows.join('\r\n') + '\r\n'], {type:'text/csv;charset=utf-8;'});
+  return bestandAfleveren(blob, exportNaam('csv'));
+}
+
+// Een echt Excel-bestand (v104). In een csv maakt Excel van een opbouw als
+// 4-12-4 een datum (4 december 2004), en van merk 01 het getal 1. In een
+// .xlsx is elke cel van een vast soort: merk, opbouw en opmerking blijven
+// tekst, maten en gewicht zijn getallen. Werkt ook zonder bereik: SheetJS
+// staat in lib/ en in de cache van de app.
+async function exportXlsx() {
+  const t = exportTabel();
+  if (!t.regels.length) {
+    await appMelding('Er is nog niets ingevuld om te exporteren.',
+      { kop: 'Niets te exporteren', soort: 'letop' });
+    return;
+  }
+  try {
+    if (window.glasLaadXlsx) await glasLaadXlsx();
+    if (!window.XLSX) throw new Error('de Excel-bibliotheek is niet geladen');
+    const ws = XLSX.utils.aoa_to_sheet([t.koppen].concat(t.regels));
+    ws['!cols'] = t.koppen.map((k, i) => ({ wch: Math.max(6, Math.min(40,
+      Math.max(String(k).length, ...t.regels.map(r => String(r[i] === undefined ? '' : r[i]).length)) + 2)) }));
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: t.regels.length, c: t.koppen.length - 1 } }) };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Glasopname');
+    const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    return bestandAfleveren(blob, exportNaam('xlsx'));
+  } catch (e) {
+    await appFout('Het Excel-bestand kon niet gemaakt worden: ' + (e.message || e) +
+      '. Probeer het nog eens, of kies CSV.', { kop: 'Excel-bestand' });
+  }
+}
+window.exportXlsx = exportXlsx;
+
+// Eén cel voor de csv (v104). Getallen met een komma, zoals de Nederlandse
+// Excel ze verwacht: "12.5" werd daar tekst of zelfs een datum (12 mei).
+// Alleen echte getallen; een merk als "1.10" (verdieping 1, raam 10) blijft
+// zoals hij is. Tekst die met = + @ of - begint (en geen getal is), zou Excel
+// als formule uitvoeren ("- onderste ruit mat" werd #NAAM?); die krijgt een
+// apostrof ervoor (dat ziet Excel als 'dit is tekst'). Bij inlezen haalt
+// de app die apostrof er weer af.
+function csvCel(v) {
+  let t = v === null || v === undefined ? '' : v;
+  if (typeof t === 'number') t = String(t).replace('.', ',');
+  else {
+    t = String(t);
+    if (/^[=+@\t\r]/.test(t) || /^-(?!\d+([.,]\d+)?$)/.test(t)) t = "'" + t;
+  }
+  return '"' + t.replace(/"/g, '""') + '"';
+}
+window.csvCel = csvCel;
+
+function veiligeBestandsnaam(t) {
+  return String(t).replace(/[\\/:*?"<>|\x00-\x1f]+/g, '_').replace(/[. ]+$/, '').slice(0, 120) || 'export';
+}
+window.veiligeBestandsnaam = veiligeBestandsnaam;
 </script>
 <script src="melding.js"></script>
 <script>
@@ -4213,6 +5314,7 @@ async function exportCSV() {
   }
 </script>
 <script src="cloud.js"></script>
+<script src="bewerkslot.js"></script>
 <script src="wachtrij.js"></script>
 <script src="start.js"></script>
 <script src="import.js"></script>

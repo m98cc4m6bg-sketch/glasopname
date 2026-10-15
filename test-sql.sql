@@ -469,3 +469,322 @@ select '19d. opruimbaar' as test, p.naam
 update public.projecten set verwijderd_op = null where id = '00000000-0000-4000-8000-0000000000f3';
 select '19e. terugzetten' as test, verwijderd_op is null as teruggezet
   from public.projecten where id = '00000000-0000-4000-8000-0000000000f3';
+
+-- 20. Een bestelling gaat nooit verloren (v104, 23_bestellingen.sql).
+--     Situatie: op kantoor 'Ja, verstuurd' (1 bestelling, status besteld).
+--     Een iPad die offline was, stuurt daarna het project zonder die
+--     bestelling, met status 'bezig' en een gewijzigde ruit.
+--     verwacht:
+--       20a. 1 bestelling terug, status besteld (kolom én info), slot null,
+--            besteld.ruiten in de oude vorm (kenmerk), de ruit van de iPad blijft
+--       20b. een 2e van een ander apparaat met hetzelfde nummer: 2 stuks, nr 1 en 2
+--       20c. een intrekking gaat niet verloren door een apparaat dat hem niet kende
+--       20d. bewust intrekken (lagere status) mag gewoon
+--       20e. zonder bestellingen verandert er niets (gewone opslag)
+\i 23_bestellingen.sql
+\i 23_bestellingen.sql
+insert into public.projecten (id, naam, status, data) values
+  ('00000000-0000-4000-8000-0000000000b1', 'Bestelproef', 'besteld',
+   '{"rijen":[{"id":1,"merk":"K1","breedte":"1200"}],
+     "info":{"status":"besteld","slot":null,
+       "besteld":{"op":"2026-10-14T08:00:00Z","door":"julian","aantal":1,"ruiten":{"1":"abc"}},
+       "bestellingen":[{"nr":1,"op":"2026-10-14T08:00:00Z","door":"julian","aantal":1,
+                        "ruiten":{"1":{"k":"abc","opLijst":true,"breedte":"1200"}}}]}}'::jsonb);
+update public.projecten
+   set status = 'bezig met inmeten/verwerken',
+       data = '{"rijen":[{"id":1,"merk":"K1","breedte":"1210"}],
+                "info":{"status":"bezig met inmeten/verwerken","slot":{"open":true,"door":"bart"}}}'::jsonb
+ where id = '00000000-0000-4000-8000-0000000000b1';
+select '20a. terug' as test,
+       jsonb_array_length(data #> '{info,bestellingen}') as aantal,
+       status, data #>> '{info,status}' as info_status,
+       data #> '{info,slot}' = 'null'::jsonb as slot_dicht,
+       data #>> '{info,besteld,ruiten,1}' as kenmerk,
+       data #>> '{rijen,0,breedte}' as ruit_van_ipad
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b1';
+update public.projecten
+   set data = jsonb_set(data, '{info,bestellingen}',
+     '[{"nr":2,"op":"2026-10-14T09:00:00Z","door":"bart","aantal":1,"ruiten":{"1":{"k":"def","opLijst":true}}}]'::jsonb)
+ where id = '00000000-0000-4000-8000-0000000000b1';
+select '20b. twee' as test,
+       jsonb_array_length(data #> '{info,bestellingen}') as aantal,
+       (select string_agg(e ->> 'nr', ',' order by e ->> 'op') from jsonb_array_elements(data #> '{info,bestellingen}') e) as nummers,
+       data #>> '{info,besteld,op}' as laatste
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b1';
+-- iemand trekt de 2e in
+update public.projecten
+   set data = jsonb_set(data, '{info,bestellingen,1,ingetrokken}', '{"op":"2026-10-14T10:00:00Z","door":"julian"}'::jsonb)
+ where id = '00000000-0000-4000-8000-0000000000b1';
+-- een apparaat dat de intrekking niet kende, stuurt de 2e zonder
+update public.projecten
+   set data = jsonb_set(data, '{info,bestellingen,1}', (data #> '{info,bestellingen,1}') - 'ingetrokken')
+ where id = '00000000-0000-4000-8000-0000000000b1';
+select '20c. intrekking blijft' as test,
+       data #> '{info,bestellingen,1,ingetrokken}' is not null as ingetrokken,
+       data #>> '{info,besteld,op}' as besteld_volgt_de_1e
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b1';
+-- bewust: de 1e ook ingetrokken, status terug
+update public.projecten
+   set status = 'bezig met inmeten/verwerken',
+       data = jsonb_set(jsonb_set(data, '{info,bestellingen,0,ingetrokken}', '{"op":"2026-10-14T11:00:00Z"}'::jsonb),
+                        '{info,status}', '"bezig met inmeten/verwerken"')
+ where id = '00000000-0000-4000-8000-0000000000b1';
+select '20d. bewust intrekken' as test, status,
+       jsonb_array_length(data #> '{info,bestellingen}') as nog_in_geschiedenis
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b1';
+update public.projecten set data = '{"rijen":[],"info":{}}'::jsonb, status = 'open'
+ where id = '00000000-0000-4000-8000-0000000000f1';
+select '20e. gewone opslag' as test, data, status
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000f1';
+--       20f. drie bestellingen over twee apparaten: volgorde op tijdstip
+--            (kantoor 09:00 en 09:30, iPad 10:00 als 'nr 2'): de iPad als laatste
+--       20g. een apparaat dat ontgrendeld was, opent het slot niet na een 'Ja' elders
+--       20h. een apparaat dat een intrekking niet kende, zet de status niet terug op besteld
+--            (status bezig, info ook, ingetrokken blijft, geen info.besteld)
+update public.projecten set status = 'besteld', data = '{"rijen":[],"info":{"status":"besteld","slot":null,
+  "bestellingen":[{"nr":1,"op":"2026-10-14T08:00:00Z","ruiten":{"1":{"k":"a","opLijst":true}}},
+                  {"nr":2,"op":"2026-10-14T09:00:00Z","ruiten":{"1":{"k":"b","opLijst":true}}},
+                  {"nr":3,"op":"2026-10-14T09:30:00Z","ruiten":{"1":{"k":"c","opLijst":true}}}]}}'::jsonb
+ where id = '00000000-0000-4000-8000-0000000000b1';
+update public.projecten set data = jsonb_set(data, '{info,bestellingen}',
+  '[{"nr":1,"op":"2026-10-14T08:00:00Z","ruiten":{"1":{"k":"a","opLijst":true}}},
+    {"nr":2,"op":"2026-10-14T10:00:00Z","ruiten":{"1":{"k":"ipad","opLijst":true}}}]'::jsonb)
+ where id = '00000000-0000-4000-8000-0000000000b1';
+select '20f. volgorde' as test, data #>> '{info,besteld,ruiten,1}' as laatste_kenmerk,
+       (select string_agg(e ->> 'nr', ',') from jsonb_array_elements(data #> '{info,bestellingen}') e) as nummers
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b1';
+update public.projecten set data = jsonb_set(jsonb_set(data, '{info,bestellingen}',
+  '[{"nr":1,"op":"2026-10-14T08:00:00Z","ruiten":{"1":{"k":"a","opLijst":true}}}]'::jsonb),
+  '{info,slot}', '{"open":true,"door":"bart"}'::jsonb)
+ where id = '00000000-0000-4000-8000-0000000000b1';
+select '20g. slot blijft dicht' as test, data #> '{info,slot}' = 'null'::jsonb as dicht, status
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b1';
+insert into public.projecten (id, naam, status, data) values
+  ('00000000-0000-4000-8000-0000000000b2', 'Ingetrokken', 'bezig met inmeten/verwerken',
+   '{"rijen":[],"info":{"status":"bezig met inmeten/verwerken",
+     "bestellingen":[{"nr":1,"op":"2026-10-14T08:00:00Z","ingetrokken":{"op":"2026-10-14T12:00:00Z"},"ruiten":{}}]}}'::jsonb);
+update public.projecten set status = 'besteld', data = '{"rijen":[],"info":{"status":"besteld",
+  "besteld":{"op":"2026-10-14T08:00:00Z","ruiten":{}},
+  "bestellingen":[{"nr":1,"op":"2026-10-14T08:00:00Z","ruiten":{}}]}}'::jsonb
+ where id = '00000000-0000-4000-8000-0000000000b2';
+select '20h. intrekking blijft gelden' as test, status, data #>> '{info,status}' as info_status,
+       data #> '{info,bestellingen,0,ingetrokken}' is not null as ingetrokken, data #> '{info,besteld}' is null as geen_besteld
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b2';
+--       20i. v105: aanvullingen. De 1e (K1 a, K2 b, K3 c), dan een aanvulling
+--            (K2 vervangen door b2, K4 nieuw, K3 geannuleerd, K5 bekend maar
+--            niet compleet). Een apparaat zonder de aanvulling slaat op: die
+--            komt terug, en info.besteld = alles wat besteld is.
+--            Verwacht: 2 bestellingen; besteld K1 a, K2 b2, K4 d, K5 e (bekend),
+--            geen K3; aantal 3.
+insert into public.projecten (id, naam, status, data) values
+  ('00000000-0000-4000-8000-0000000000b3', 'Aanvulling', 'besteld',
+   '{"rijen":[],"info":{"status":"besteld","slot":null,
+     "bestellingen":[
+       {"nr":1,"op":"2026-10-14T08:00:00Z","soort":"volledig","ruiten":{"1":{"k":"a","opLijst":true},"2":{"k":"b","opLijst":true},"3":{"k":"c","opLijst":true}}},
+       {"nr":2,"op":"2026-10-15T08:00:00Z","soort":"aanvulling","ruiten":{"2":{"k":"b2","opLijst":true,"vervangt":1},"4":{"k":"d","opLijst":true},"5":{"k":"e","opLijst":false}},
+        "vervallen":{"3":{"k":"c","nr":1,"kort":1}}}]}}'::jsonb);
+update public.projecten set data = '{"rijen":[],"info":{"status":"besteld","slot":null,
+  "bestellingen":[{"nr":1,"op":"2026-10-14T08:00:00Z","soort":"volledig","ruiten":{"1":{"k":"a","opLijst":true},"2":{"k":"b","opLijst":true},"3":{"k":"c","opLijst":true}}}]}}'::jsonb
+ where id = '00000000-0000-4000-8000-0000000000b3';
+select '20i. aanvulling' as test,
+       jsonb_array_length(data #> '{info,bestellingen}') as aantal,
+       data #> '{info,besteld,ruiten}' as besteld,
+       data #>> '{info,besteld,aantal}' as besteld_aantal
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b3';
+--       20j. de aanvulling ingetrokken (bewust, door een apparaat dat hem kende):
+--            besteld = weer de 1e (K1 a, K2 b, K3 c)
+update public.projecten
+   set data = jsonb_set(data, '{info,bestellingen,1,ingetrokken}', '{"op":"2026-10-15T09:00:00Z"}'::jsonb)
+ where id = '00000000-0000-4000-8000-0000000000b3';
+update public.projecten set data = jsonb_set(data, '{info,bestellingen}', '[]'::jsonb)
+ where id = '00000000-0000-4000-8000-0000000000b3';
+select '20j. aanvulling ingetrokken' as test,
+       data #> '{info,besteld,ruiten}' as besteld,
+       data #>> '{info,besteld,aantal}' as besteld_aantal
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000b3';
+-- ─── v106: bewerkslot (24_bewerkslot.sql) ─────────────────────
+--       21a. A slaat op (v106, slot vrij): A krijgt het slot
+--       21b. B slaat op: geweigerd 'Bewerkslot: julian bewerkt …'
+--       21c. A slaat opnieuw op: ok
+--       21d. een app van v105 (geen apparaatcode, versie 105): niet door het
+--            bewerkslot, wel door het versieslot geweigerd (Verouderde …)
+--       21e. alleen de status wijzigen (geen inhoud) door wie dan ook: ok
+--       21f. B 'claim' terwijl A het heeft: blijft A
+--       21g. B 'vraag': A houdt het, overname_naam = bart
+--       21h. B 'hartslag': verandert niets aan het slot (blijft A)
+--       21i. A 'vrijgeven' en B 'claim': B heeft het, het seintje is weg
+--       21j. nu A opslaan: geweigerd; B opslaan: ok
+--       21k. A 'forceer': A heeft het weer, vorige = bart
+--       21l. een project verwijderen haalt zijn slot mee weg
+--       21m. B 'vraag', dan B 'intrekken': het seintje is weg, A houdt het;
+--            'intrekken' door een ander (C) haalt B's vraag niet weg
+--       21n. het project is VRIJ en C komt terug met werk op een oudere stand
+--            (voortgebouwd op 2, terwijl bart intussen opsloeg): geweigerd
+--            'bart heeft dit project intussen gewijzigd'; met de juiste
+--            basis: ok, C heeft het slot; het volgnummer telt door
+--       21o. hetzelfde apparaat met een oude basis (zijn eigen opslag kwam
+--            aan, het antwoord niet): ok
+--       21q. hetzelfde apparaat, ander tabblad (andere sessie), oude basis:
+--            geweigerd (twee tabbladen overschrijven elkaar niet)
+--       21p. de overgang: een app van v105 slaat op vóór de eerste opslag
+--            met v106, terwijl een v106-apparaat het slot heeft. De volgende
+--            opslag van dat apparaat gaat apart (er kwam iets tussen); niets
+--            overschreven
+\i 24_bewerkslot.sql
+\i 24_bewerkslot.sql
+insert into public.projecten (id, naam, status, data) values
+  ('00000000-0000-4000-8000-0000000000c1', 'Slotproject', 'aangemaakt',
+   '{"info":{"status":"aangemaakt"},"rijen":[]}'::jsonb);
+create temp table slot_uitkomst (stap text, uitkomst text);
+do $$
+declare
+  pid uuid := '00000000-0000-4000-8000-0000000000c1';
+  r jsonb;
+begin
+  begin
+    update public.projecten set data = '{"rijen":[1],"_versieNr":106,"_apparaat":"A","_apparaatNaam":"julian","_apparaatSoort":"Mac"}'::jsonb where id = pid;
+    insert into slot_uitkomst select '21a', 'ok, houder ' || apparaat || ' ' || naam || ' ' || omschrijving from public.bewerkslot where project_id = pid;
+  exception when others then insert into slot_uitkomst values ('21a', 'geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[2],"_versieNr":106,"_apparaat":"B","_apparaatNaam":"bart"}'::jsonb where id = pid;
+    insert into slot_uitkomst values ('21b', 'ok');
+  exception when others then insert into slot_uitkomst values ('21b', 'geweigerd: ' || left(sqlerrm, 40)); end;
+  begin
+    update public.projecten set data = '{"rijen":[3],"_versieNr":106,"_apparaat":"A"}'::jsonb where id = pid;
+    insert into slot_uitkomst values ('21c', 'ok');
+  exception when others then insert into slot_uitkomst values ('21c', 'geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[4],"_versieNr":105}'::jsonb where id = pid;
+    insert into slot_uitkomst values ('21d', 'ok');
+  exception when others then insert into slot_uitkomst values ('21d', 'geweigerd: ' || left(sqlerrm, 24)); end;
+  begin
+    update public.projecten set status = 'besteld' where id = pid;
+    insert into slot_uitkomst values ('21e', 'ok');
+  exception when others then insert into slot_uitkomst values ('21e', 'geweigerd: ' || sqlerrm); end;
+  r := public.glas_bewerken(pid, 'B', 'bart', 'iPad', 'claim');
+  insert into slot_uitkomst values ('21f', 'houder ' || (r ->> 'apparaat'));
+  r := public.glas_bewerken(pid, 'B', 'bart', 'iPad', 'vraag');
+  insert into slot_uitkomst values ('21g', 'houder ' || (r ->> 'apparaat') || ', seintje van ' || (r ->> 'overname_naam'));
+  r := public.glas_bewerken(pid, 'B', 'bart', 'iPad', 'hartslag');
+  insert into slot_uitkomst values ('21h', 'houder ' || (r ->> 'apparaat'));
+  r := public.glas_bewerken(pid, 'A', 'julian', 'Mac', 'vrijgeven');
+  r := public.glas_bewerken(pid, 'B', 'bart', 'iPad', 'claim');
+  insert into slot_uitkomst values ('21i', 'houder ' || (r ->> 'apparaat') || ', seintje ' || coalesce(r ->> 'overname_naam', 'weg'));
+  begin
+    update public.projecten set data = '{"rijen":[5],"_versieNr":106,"_apparaat":"A"}'::jsonb where id = pid;
+    insert into slot_uitkomst values ('21j', 'A ok');
+  exception when others then insert into slot_uitkomst values ('21j', 'A geweigerd'); end;
+  begin
+    update public.projecten set data = '{"rijen":[6],"_versieNr":106,"_apparaat":"B","_apparaatNaam":"bart","_basis":"2"}'::jsonb where id = pid;
+    insert into slot_uitkomst values ('21j', 'B ok');
+  exception when others then insert into slot_uitkomst values ('21j', 'B geweigerd: ' || sqlerrm); end;
+  r := public.glas_bewerken(pid, 'A', 'julian', 'Mac', 'forceer');
+  insert into slot_uitkomst values ('21k', 'houder ' || (r ->> 'apparaat') || ', vorige ' || (r ->> 'vorige'));
+  r := public.glas_bewerken(pid, 'B', 'bart', 'iPad', 'vraag');
+  r := public.glas_bewerken(pid, 'C', 'kees', 'Windows-pc', 'intrekken');
+  insert into slot_uitkomst values ('21m', '1 na C: seintje ' || coalesce(r ->> 'overname_naam', 'weg'));
+  r := public.glas_bewerken(pid, 'B', 'bart', 'iPad', 'intrekken');
+  insert into slot_uitkomst values ('21m', '2 na B: houder ' || (r ->> 'apparaat') || ', seintje ' || coalesce(r ->> 'overname_naam', 'weg'));
+  r := public.glas_bewerken(pid, 'A', 'julian', 'Mac', 'vrijgeven');
+  insert into slot_uitkomst select '21n', '0 vrij: houder ' || coalesce(apparaat, 'niemand') || ', stand ' || (p.data ->> '_rev')
+    from public.bewerkslot s join public.projecten p on p.id = s.project_id where s.project_id = pid;
+  begin
+    update public.projecten set data = '{"rijen":[7],"_versieNr":106,"_apparaat":"C","_apparaatNaam":"kees","_basis":"2"}'::jsonb where id = pid;
+    insert into slot_uitkomst values ('21n', '1 C basis 2: ok');
+  exception when others then insert into slot_uitkomst values ('21n', '1 C basis 2: geweigerd: ' || left(sqlerrm, 52)); end;
+  begin
+    update public.projecten set data = '{"rijen":[8],"_versieNr":106,"_apparaat":"C","_apparaatNaam":"kees","_basis":"3"}'::jsonb where id = pid;
+    insert into slot_uitkomst select '21n', '2 C basis 3: ok, houder ' || s.apparaat || ', stand ' || (p.data ->> '_rev')
+      from public.bewerkslot s join public.projecten p on p.id = s.project_id where s.project_id = pid;
+  exception when others then insert into slot_uitkomst values ('21n', '2 C basis 3: geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[9],"_versieNr":106,"_apparaat":"C","_apparaatNaam":"kees","_basis":"3"}'::jsonb where id = pid;
+    insert into slot_uitkomst select '21o', 'C basis 3 (eigen opslag was 4): ok, stand ' || (data ->> '_rev') from public.projecten where id = pid;
+  exception when others then insert into slot_uitkomst values ('21o', 'geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[10],"_versieNr":106,"_apparaat":"C","_apparaatNaam":"kees","_sessie":"tab2","_basis":"4"}'::jsonb where id = pid;
+    insert into slot_uitkomst values ('21q', 'C tab2 basis 4: ok');
+  exception when others then insert into slot_uitkomst values ('21q', 'C tab2 basis 4: geweigerd: ' || left(sqlerrm, 46)); end;
+end $$;
+-- 21p: een nieuw project, v106-apparaat D heeft het slot (nog niet opgeslagen)
+insert into public.projecten (id, naam, status, data) values
+  ('00000000-0000-4000-8000-0000000000c2', 'Overgang', 'aangemaakt',
+   '{"info":{"status":"aangemaakt"},"rijen":[1],"_versieNr":105,"_rev":3}'::jsonb);
+do $$
+declare
+  pid uuid := '00000000-0000-4000-8000-0000000000c2';
+  r jsonb;
+begin
+  r := public.glas_bewerken(pid, 'D', 'julian', 'Mac', 'claim');
+  begin
+    update public.projecten set data = '{"rijen":[1,2],"_versieNr":105}'::jsonb where id = pid;
+    insert into slot_uitkomst select '21p', '1 v105 slaat op: ok, stand ' || (data ->> '_rev') from public.projecten where id = pid;
+  exception when others then insert into slot_uitkomst values ('21p', '1 v105: geweigerd: ' || sqlerrm); end;
+  begin
+    update public.projecten set data = '{"rijen":[9],"_versieNr":106,"_apparaat":"D","_apparaatNaam":"julian","_sessie":"s1","_basis":"3"}'::jsonb where id = pid;
+    insert into slot_uitkomst values ('21p', '2 D (basis 3): ok');
+  exception when others then insert into slot_uitkomst values ('21p', '2 D (basis 3): geweigerd: ' || left(sqlerrm, 50)); end;
+  insert into slot_uitkomst select '21p', '3 eindstand ' || (data -> 'rijen')::text from public.projecten where id = pid;
+end $$;
+delete from public.projecten where id = '00000000-0000-4000-8000-0000000000c2';
+-- 21r: een bestelling alsnog in het project (glas_bestellingen_erbij), terwijl
+--      een ander apparaat (K) het bewerkt: de bestelling komt erin, de status
+--      gaat naar besteld, het slot blijft van K, het volgnummer telt door.
+--      Een tweede keer met een lijst zonder de eerste: die blijft (trigger 23).
+insert into public.projecten (id, naam, status, data) values
+  ('00000000-0000-4000-8000-0000000000c3', 'Erbij', 'bezig met inmeten/verwerken',
+   '{"info":{"status":"bezig met inmeten/verwerken"},"rijen":[1],"_versieNr":106,"_rev":7,"_apparaat":"K","_sessie":"k1"}'::jsonb);
+do $$
+declare
+  pid uuid := '00000000-0000-4000-8000-0000000000c3';
+  r jsonb;
+begin
+  r := public.glas_bewerken(pid, 'K', 'kees', 'Windows-pc', 'claim');
+  r := public.glas_bestellingen_erbij(pid,
+    '[{"op":"2026-10-14T10:12:00Z","nr":1,"soort":"volledig","door":"bart","ruiten":{"1":"k1"}}]'::jsonb,
+    '{"op":"2026-10-14T10:12:00Z","door":"bart","aantal":1,"ruiten":{"1":"k1"}}'::jsonb, 'besteld', null);
+  insert into slot_uitkomst select '21r', '1 ' || jsonb_array_length(p.data #> '{info,bestellingen}') || ' bestelling, status ' ||
+    p.status || ', houder ' || s.apparaat || ', stand ' || (p.data ->> '_rev')
+    from public.projecten p join public.bewerkslot s on s.project_id = p.id where p.id = pid;
+  r := public.glas_bestellingen_erbij(pid,
+    '[{"op":"2026-10-14T11:00:00Z","nr":1,"soort":"aanvulling","door":"bart","ruiten":{}}]'::jsonb, null, 'besteld', null);
+  insert into slot_uitkomst select '21r', '2 ' || jsonb_array_length(data #> '{info,bestellingen}') || ' bestellingen (de 1e bleef)'
+    from public.projecten where id = pid;
+  begin
+    update public.projecten set data = '{"rijen":[2],"_versieNr":106,"_apparaat":"K","_sessie":"k1","_basis":"7"}'::jsonb where id = pid;
+    insert into slot_uitkomst select '21r', '3 K slaat op (zonder de bestellingen): ok, ' ||
+      jsonb_array_length(data #> '{info,bestellingen}') || ' bestellingen' from public.projecten where id = pid;
+  exception when others then insert into slot_uitkomst values ('21r', '3 K: geweigerd: ' || sqlerrm); end;
+end $$;
+delete from public.projecten where id = '00000000-0000-4000-8000-0000000000c3';
+-- 21s: hetzelfde, maar Kees nam het over en sloeg nog niets op (de laatste
+--      opslag in het project is van Bart zelf): ook dan komt de bestelling erin.
+insert into public.projecten (id, naam, status, data) values
+  ('00000000-0000-4000-8000-0000000000c4', 'Erbij2', 'bezig met inmeten/verwerken',
+   '{"info":{"status":"bezig met inmeten/verwerken"},"rijen":[1],"_versieNr":106,"_rev":3,"_apparaat":"B","_sessie":"b1"}'::jsonb);
+do $$
+declare
+  pid uuid := '00000000-0000-4000-8000-0000000000c4';
+  r jsonb;
+begin
+  r := public.glas_bewerken(pid, 'K', 'kees', 'Windows-pc', 'forceer');
+  begin
+    r := public.glas_bestellingen_erbij(pid,
+      '[{"op":"2026-10-14T10:12:00Z","nr":1,"soort":"volledig","door":"bart","ruiten":{"1":"k1"}}]'::jsonb, null, 'besteld', null);
+    insert into slot_uitkomst select '21s', '1 ok: ' || jsonb_array_length(data #> '{info,bestellingen}') || ' bestelling, status ' || status ||
+      ', stand ' || (data ->> '_rev') from public.projecten where id = pid;
+  exception when others then insert into slot_uitkomst values ('21s', '1 geweigerd: ' || left(sqlerrm, 50)); end;
+  -- Kees (die stand 3 laadde) slaat daarna op, zonder de bestelling te kennen.
+  begin
+    update public.projecten set data = '{"rijen":[5],"_versieNr":106,"_apparaat":"K","_apparaatNaam":"kees","_sessie":"k1","_basis":"3"}'::jsonb where id = pid;
+    insert into slot_uitkomst select '21s', '2 Kees slaat op: ok, ' || jsonb_array_length(data #> '{info,bestellingen}') || ' bestelling, status ' || status
+      from public.projecten where id = pid;
+  exception when others then insert into slot_uitkomst values ('21s', '2 Kees: geweigerd: ' || left(sqlerrm, 60)); end;
+end $$;
+delete from public.projecten where id = '00000000-0000-4000-8000-0000000000c4';
+select stap as test, uitkomst from slot_uitkomst order by stap, uitkomst;
+select '21 eindstand' as test, data->'rijen' as rijen, status
+  from public.projecten where id = '00000000-0000-4000-8000-0000000000c1';
+delete from public.projecten where id = '00000000-0000-4000-8000-0000000000c1';
+select '21l. slot weg met het project' as test, count(*) as slotrijen
+  from public.bewerkslot where project_id = '00000000-0000-4000-8000-0000000000c1';

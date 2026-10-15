@@ -115,6 +115,55 @@ De volledige achtergrond staat in de projectkennis op claude.ai
   de prullenbak via `prullenbak_opruimbaar()` (SQL 22).
 * **0 rijen bij opslaan** kan "niet meer ingelogd" zijn (RLS geeft dan geen
   fout). Eerst `sessieCheck()`, dan pas "project weg" (v103).
+* **Bestellingen** (v104, `index.html` blok BESTELLINGEN, `pdf.js` vraagVerstuurd):
+  alleen 'Ja, verstuurd' (of een gelukte bestelmail) legt vast, met de
+  momentopname van de pdf (`res.moment`), in `projectInfo.bestellingen`
+  (lijst, nooit overschrijven; intrekken markeert). `projectInfo.besteld`
+  blijft de oude vorm (kenmerk per ruit) voor oudere apparaten. 'Anders' =
+  `ruitAnders()` (kenmerk + glasmaat); vergelijken met wat (zie Aanvulling). Alles wat `projectInfo` vervangt (zetStaat, undo,
+  samenvoegen) moet `bestellingen` behouden: undo.js lijst, cloud.js
+  `bestellingenErbij`, en `23_bestellingen.sql` in de database.
+* **Aanvulling** (v105, keuze van Jan): na de 1e bestelling is een
+  bestellijst een aanvulling (alleen nieuw en gewijzigd, VERVANGT, ANNULEREN)
+  of, zonder iets nieuws, een overzicht (geen vraag, niets vastgelegd).
+  Vergelijken altijd met `besteldeStand()` (1e + aanvullingen − geannuleerd),
+  nooit met alleen de laatste bestelling. Wat er op de pdf komt: `teBestellen()`
+  / `bestelModus()`. Een **oudere stand** van een ander apparaat
+  (`oudereStand()`: een eerder bestelde of geannuleerde versie, per veld, of
+  een stempel ouder dan `g` van de bestelde versie) gaat nooit stil mee en
+  wordt nooit stil weggezet: `voorControles()` in pdf.js vraagt het, vóór
+  het opslagvenster. Inkorten (`bestellingenOpschonen`) alleen wat niet
+  meer geldt. `23_bestellingen.sql` rekent `info.besteld` op dezelfde manier
+  als `besteldBijwerken()`: verander je de een, verander dan de ander.
+* **Bewerkslot** (v106, `bewerkslot.js`, `24_bewerkslot.sql`): één apparaat
+  tegelijk bewerkt een project, de rest kijkt mee (`glasAlleenKijken()`;
+  dan is alles op slot via `invoerOpSlot` en `kijkWeigert`). Het echte slot
+  zit in de database: een opslag van een apparaat dat het project niet heeft,
+  of die voortbouwt op een oudere stand (`data._basis` ≠ `data._rev`, terwijl
+  een ander apparaat intussen opsloeg), wordt geweigerd; de app bewaart het
+  werk dan apart (`apartEnLaden`). Elke opslag draagt daarom
+  `glasBewerkslotVelden()` én `_basis` (cloud.js `basisRev`). Een nieuwe
+  manier om de inhoud op te slaan? Die moet dat ook meesturen, anders
+  weigert de database hem. Een nieuwe functie die iets wijzigt buiten de
+  invoer om: begin met `kijkWeigert()`.
+  - Het volgnummer kijkt per apparaat **én sessie** (`_sessie`): alleen
+    `synchroniseer` doet een `update` van `data`; een apart project gaat via
+    `insert`. Houd dat zo.
+  - Geweigerd werk gaat alleen apart als het echt iets anders bevat
+    (`inhoudVan` in cloud.js). Komt er een nieuw veld bovenin `data`? Neem het
+    daar mee, anders telt een geweigerde wijziging in dat veld niet.
+  - Een bestelling van een geweigerd apparaat gaat alsnog in het project via
+    `glas_bestellingen_erbij` (alleen het bestel-deel, buiten het slot om).
+* **Na offline eerst lezen** (v104, cloud.js `naOffline` /
+  `voorlezenEnVersturen`): de eerste opslag na een fout, offline of
+  achtergrond haalt eerst status en bestellingen van de server en voegt
+  samen. `synchroniseer` vraagt `bestellingen:data->info->bestellingen`
+  terug en voegt ook dat samen.
+* **Telefoon of tablet?** Altijd `glasMobiel()` (index.html), niet alleen
+  `maxTouchPoints`: Windows-laptops hebben ook een aanraakscherm (v104).
+* **Bestanden naar de gebruiker**: `bestandAfleveren()` (index.html) of
+  `afleveren()` (pdf.js). Excel: liever `.xlsx` (exportXlsx) dan csv; een
+  csv maakt van 4-12-4 een datum.
 * **De Edge Function `mail` is nog niet uitgerold** (stand oktober 2026): de
   code staat in `supabase/functions/mail/`, maar in Supabase staat geen
   functie, geen Resend en geen geheimen. Jan stelt dat later in (handover
@@ -153,6 +202,9 @@ node test-v98.js && python3 test-v98.py
 node test-v99.js
 node test-v102.js
 node test-v103.js                     # en: node test-v103.js --mutaties
+node test-v104.js                     # en: node test-v104.js --mutaties (stopt per mutatie bij de eerste FOUT)
+node test-v105.js                     # en: node test-v105.js --mutaties
+OUD105=/tmp/v105werk node test-v106.js   # §22 draait v105 ernaast; en: --mutaties (alleen de onderdelen per mutatie)
 OUD=/tmp/live node test-overgang.js   # OUD = wat nu live staat (git archive)
 bun test-mailfunctie.ts
 ```

@@ -61,7 +61,9 @@
            '-' + d.getFullYear();
   }
 
-  function isAanraakapparaat() { return (navigator.maxTouchPoints || 0) > 1; }
+  // Zie glasMobiel in index.html (v104): een Windows-laptop met
+  // aanraakscherm is geen tablet.
+  function isAanraakapparaat() { return window.glasMobiel ? glasMobiel() : (navigator.maxTouchPoints || 0) > 1; }
 
   // Zelfde volgorde als pdf.js: op een computer met Chrome of Edge eerst
   // het opslagvenster (moet direct na de klik), op een tablet of telefoon

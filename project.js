@@ -370,6 +370,9 @@
   }
 
   window.projectVeld = function (id, waarde) {
+    // Alleen kijken (een collega bewerkt het, v106): niets wijzigen, ook
+    // niet de status of de opmerkingen.
+    if (window.kijkWeigert && kijkWeigert()) { if (window.renderProject) renderProject(); return; }
     if (KLANT_IDS.indexOf(id) >= 0 && opSlot()) return;
     var oud = info()[id];
     if (id === 'status' && waarde !== oud) {
@@ -420,6 +423,7 @@
   var opnemerBezig = false;
   window.opnemerWijzig = async function () {
     if (opnemerBezig) return;
+    if (window.kijkWeigert && kijkWeigert()) return;
     opnemerBezig = true;
     try {
       if (!window.glasWachtwoordKlopt || !window.glasGebruiker || !glasGebruiker().id) {
@@ -465,9 +469,26 @@
   };
 
   window.projectNotitie = function (waarde) {
+    if (window.kijkWeigert && kijkWeigert()) { if (window.renderProject) renderProject(); return; }   // v106
     info().notities = waarde;
     opslaan();
   };
+
+  // Welke kaarten-app (v104). Tot v103 altijd Apple Kaarten; op Android
+  // en Windows opent dat hooguit een webpagina zonder routeplanner. Apple-
+  // apparaten (ook een iPad, die zich als Mac voordoet) krijgen Apple
+  // Kaarten; de rest de universele link van Google Maps, die op Android
+  // de Maps-app opent en op Windows de website.
+  function isApple() {
+    var ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod|Macintosh|Mac OS X/.test(ua);
+  }
+  function kaartLink(adres) {
+    var q = encodeURIComponent(adres);
+    return isApple() ? 'https://maps.apple.com/?q=' + q
+                     : 'https://www.google.com/maps/search/?api=1&query=' + q;
+  }
+  window.glasKaartLink = kaartLink;
 
   // Adres opzoeken in kaarten — scheelt overtypen op de telefoon.
   function toonKaartknop() {
@@ -484,9 +505,7 @@
         // Geen lege strook onder de velden als er nog geen adres is.
         if (knop.parentNode) knop.parentNode.style.display = adres ? '' : 'none';
       }
-      knop.onclick = function () {
-        window.open('https://maps.apple.com/?q=' + encodeURIComponent(adres), '_blank');
-      };
+      knop.onclick = function () { window.open(kaartLink(adres), '_blank'); };
     });
   }
 

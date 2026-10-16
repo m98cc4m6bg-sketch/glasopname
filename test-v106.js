@@ -154,6 +154,9 @@ const MUTATIES = {
   // de database beslissen. Zonder die regel gaat het werk ook apart, maar via
   // een wedloop in de app; een mutatie daarop is niet betrouwbaar rood te
   // krijgen, dus die staat er niet. §14 toetst de uitkomst.)
+  // 42. (v107) Het apparaat dat het project kwijtraakte, krijgt alleen een kort berichtje onderin (zag Jan niet).
+  overgenomenvenster: ['cloud.js', "    if (window.appMelding) appMelding(tekst, { kop: 'Project overgenomen', soort: 'letop' });\n    else toonMelding(tekst);",
+                                   "    toonMelding(tekst);"],
   // 20. Annuleren bij de ander sluit het seintje niet.
   seintjedicht: ['bewerkslot.js', "      } else if (!nieuw.overname_apparaat && seintje && !seintje.bezig) {",
                                   "      } else if (false) {"]
@@ -164,7 +167,7 @@ const MUTATIE_INIT = {};
 // anders duurt de proef uren; de hele reeks draait in de batterij).
 const WAAR = { oudvraag: '7-11', intrekken: '7-11', laat: '7-11', seintjedicht: '7-11', script24: '13', ander: '15',
   nietgelukt: '16', vrijmislukt: '17', sprong: '18', achtergrond: '21', eigenfout: '19', basisweg: '14',
-  eerstopslaan: '7-11', apart: '23', knopachter: '21', export: '21', tabblad: '7-11', erbij: '24', erbijweg: '24', herlaad: '7-11', basisbij: '25', erbijrev: '24' };
+  eerstopslaan: '7-11', apart: '23', knopachter: '21', export: '21', tabblad: '7-11', erbij: '24', erbijweg: '24', herlaad: '7-11', basisbij: '25', erbijrev: '24', overgenomenvenster: '26' };
 Object.keys(MUTATIES).forEach(k => { if (!WAAR[k]) WAAR[k] = '1-6'; });
 if (process.argv.indexOf('--mutaties') >= 0) {
   // Eerst: past elke mutatie nog (in een paar seconden)? Anders is de proef
@@ -1575,6 +1578,40 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
     JSON.stringify([dbRuit(1, 'K2').hoogte, apartBewaard().length, S.log.filter(l => l.wat === 'geweigerd')]));
   await i25.close();
 
+  }
+  if (doe('26')) {
+  /* ══ 26 ═══════════════════════════════════════════════════════ */
+  // De test van Jan (15 oktober 2026, v107): zelfde account op iPhone en Mac.
+  // De iPhone bewerkt, gaat in vliegtuigmodus (wijzigt niets), de Mac neemt
+  // over en wijzigt een bestaande maat; de iPhone komt terug. Tot v106 zag
+  // hij alleen de gegevens veranderen; het "overgenomen" stond als kort
+  // berichtje onderin, en dat viel niet op.
+  console.log('\n26. iPhone bewerkt, gaat in vliegtuigmodus; de Mac neemt over en wijzigt; de iPhone komt terug');
+  resetDb();
+  const TEL_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+  const f26 = await apparaatCtx('f26', JULIAN, { userAgent: TEL_UA, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, T);
+  const m26 = await apparaatCtx('m26', JULIAN, { userAgent: UA.mac }, T);
+  const pf26 = await nieuwePagina(f26); await open(pf26, 1);
+  await wachtTot(async () => await modus(pf26) === 'bewerken', 5000);
+  const pm26 = await nieuwePagina(m26); await open(pm26, 1);
+  await wachtTot(async () => await modus(pm26) === 'kijken', 5000);
+  S.weg.f26 = true; await f26.setOffline(true);
+  await tochBewerken(pm26);
+  await wachtOpMelding(pm26, /julian reageert niet/, 12000);
+  await knop(pm26, 'Overnemen');
+  await wachtTot(async () => await modus(pm26) === 'bewerken', 6000);
+  await vulIn(pm26, 'breedte-input', 0, '1234');
+  await wachtTot(() => dbRuit(1, 'K1').breedte === '1234', 8000);
+  S.weg.f26 = false; await f26.setOffline(false);
+  m = await wachtOpMelding(pf26, /Project overgenomen/, 25000);
+  check('iPhone: een venster "Project overgenomen — julian (Mac) heeft dit project om HH:MM overgenomen. Je kunt meekijken …"',
+    m.ok && /julian \(Mac\) heeft dit project om \d\d:\d\d overgenomen\. Je kunt meekijken; met ‹Toch bewerken› neem je het weer terug\./.test(m.tekst),
+    m.tekst.slice(0, 200));
+  check('…de iPhone kijkt mee (balk bovenaan), en toont de maat van de Mac (K1 1234)',
+    await modus(pf26) === 'kijken' && !!(await balk(pf26)) && (await schermRuit(pf26, 'K1')).breedte === '1234', await balk(pf26));
+  check('niets apart bewaard (op de iPhone was niets gewijzigd)', !apartBewaard().length);
+  if (plaatjes) await pf26.screenshot({ path: path.join(plaatjes, 'v107-iphone-overgenomen.png') });
+  await f26.close(); await m26.close();
   }
   /* ══ ═══════════════════════════════════════════════════════════ */
   console.log('\nGeen fouten in de console');

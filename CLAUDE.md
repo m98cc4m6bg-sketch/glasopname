@@ -154,6 +154,13 @@ De volledige achtergrond staat in de projectkennis op claude.ai
     daar mee, anders telt een geweigerde wijziging in dat veld niet.
   - Een bestelling van een geweigerd apparaat gaat alsnog in het project via
     `glas_bestellingen_erbij` (alleen het bestel-deel, buiten het slot om).
+  - Wie het project kwijtraakt (overgenomen), krijgt een venster "Project
+    overgenomen" (`overgenomenMelding`, v107), geen kort berichtje: dat zag
+    Jan op de iPhone niet.
+* **Opleveren: kijk na of alles in de repo staat.** Bij v106 kwamen vier
+  bestanden niet mee in Jans commit; het slot deed daardoor niets. De repo is
+  openbaar: `git clone --depth 1 https://github.com/m98cc4m6bg-sketch/glasopname`
+  en vergelijk met het pakket (`diff -rq`).
 * **Na offline eerst lezen** (v104, cloud.js `naOffline` /
   `voorlezenEnVersturen`): de eerste opslag na een fout, offline of
   achtergrond haalt eerst status en bestellingen van de server en voegt
@@ -205,7 +212,7 @@ node test-v103.js                     # en: node test-v103.js --mutaties
 node test-v104.js                     # en: node test-v104.js --mutaties (stopt per mutatie bij de eerste FOUT)
 node test-v105.js                     # en: node test-v105.js --mutaties
 OUD105=/tmp/v105werk node test-v106.js   # §22 draait v105 ernaast; en: --mutaties (alleen de onderdelen per mutatie)
-OUD=/tmp/live node test-overgang.js   # OUD = wat nu live staat (git archive)
+OUD=/tmp/live106 node test-overgang.js   # OUD = wat nu live staat (git archive; sinds 15-10-2026: v106)
 bun test-mailfunctie.ts
 ```
 

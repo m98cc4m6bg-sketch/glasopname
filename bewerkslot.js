@@ -218,8 +218,9 @@
       // Overgenomen terwijl dit apparaat het had.
       sluitSeintje();
       zetModus('kijken');
-      var melding = (nieuw.naam || 'Een collega') + ' heeft dit project overgenomen' +
-        (nieuw.sinds ? ' om ' + tijd(nieuw.sinds) : '') + '.';
+      // Wie (en op welk apparaat) en wanneer, v107.
+      var melding = wie(nieuw) + ' heeft dit project' +
+        (nieuw.sinds ? ' om ' + tijd(nieuw.sinds) : '') + ' overgenomen.';
       if (window.glasNaOvername) glasNaOvername(melding);
       return;
     }

@@ -538,9 +538,11 @@
   // heeft het overgenomen" kunnen tegelijk komen), dan niet nog eens: anders
   // kwam de stand van de server als tweede "apart" project in de lijst.
   var apartLoopt = null;
-  function apartEnLaden(reden, melding) {
+  // alsNiets: de melding als er niets apart hoefde (het werk was gelijk aan
+  // de server), bijvoorbeeld "julian heeft dit project overgenomen" (v107).
+  function apartEnLaden(reden, melding, alsNiets) {
     if (apartLoopt) return apartLoopt;
-    apartLoopt = apartEnLadenNu(reden, melding);
+    apartLoopt = apartEnLadenNu(reden, melding, alsNiets);
     apartLoopt.then(function () { apartLoopt = null; }, function () { apartLoopt = null; });
     return apartLoopt;
   }
@@ -562,20 +564,21 @@
                        speling: n.speling, bijtelling: n.bijtelling });
   }
 
-  function apartEnLadenNu(reden, melding) {
+  function apartEnLadenNu(reden, melding, alsNiets) {
     var pid = projectId;
-    if (!sb || !pid) return Promise.resolve(apartBewarenEnLaden(reden, melding, null));
+    if (!sb || !pid) return Promise.resolve(apartBewarenEnLaden(reden, melding, null, alsNiets));
     // Eerst de stand van de server: is er wel iets dat anders is?
     return sb.from('projecten').select('data,status').eq('id', pid).maybeSingle().then(function (res) {
       var server = (pid === projectId && res && !res.error && res.data) ? res.data : null;
-      return apartBewarenEnLaden(reden, melding, server);
-    }, function () { return apartBewarenEnLaden(reden, melding, null); });
+      return apartBewarenEnLaden(reden, melding, server, alsNiets);
+    }, function () { return apartBewarenEnLaden(reden, melding, null, alsNiets); });
   }
 
   // server: de rij van de server (of null als ophalen niet lukte).
-  function apartBewarenEnLaden(reden, melding, server) {
+  function apartBewarenEnLaden(reden, melding, server, alsNiets) {
     var nodig = !server || inhoudVan(huidigeStaat()) !== inhoudVan(server.data || {});
     if (!nodig) {
+      if (alsNiets) overgenomenMelding(alsNiets);
       vuil = false;
       kijkWijziging = false;
       try { localStorage.removeItem(LS_PENDING); } catch (e) {}
@@ -704,14 +707,23 @@
     }
     var openstaand = false;
     try { openstaand = localStorage.getItem(LS_PENDING) === '1'; } catch (e) {}
+    var kijken = melding + ' Je kunt meekijken; met ‹Toch bewerken› neem je het weer terug.';
     if (vuil || bezig || kijkWijziging || openstaand) {
       apartEnLaden('bewerkslot', melding + ' Wat je daarna nog wijzigde, kon niet meer in het project. ' +
-        'Het is niet weg: het staat apart in de projectenlijst.');
+        'Het is niet weg: het staat apart in de projectenlijst.', kijken);
       return;
     }
     window.glasHerlaad('');
-    toonMelding(melding + ' Je kunt meekijken.');
+    overgenomenMelding(kijken);
   };
+
+  // Een ander nam het project over (v107). Een venster, geen kort berichtje
+  // onderin: dat zag Jan op de iPhone niet, na het terugkomen uit
+  // vliegtuigmodus. Wie het overnam en wanneer staat erin.
+  function overgenomenMelding(tekst) {
+    if (window.appMelding) appMelding(tekst, { kop: 'Project overgenomen', soort: 'letop' });
+    else toonMelding(tekst);
+  }
 
   // In het logboek: wie het project overnam (Jans keuze: iedereen mag het,
   // en het komt in het logboek).

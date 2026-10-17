@@ -263,3 +263,22 @@ harde eis wint.
   - les: controleer vóór de lange mutatieproef of elke mutatie nog past; de
     runner doet dat nu zelf, en telt alleen een eigen FOUT-regel als
     gevangen (geen crash of time-out).
+  - les (v108): **toets op elk scherm waar de belofte geldt.** In v106 stond
+    "Alleen kijken, op elk tabblad" in de test, maar hij keek alleen op
+    Invoer. Het label zat in de werkbalk van Invoer, die op de andere
+    tabbladen verborgen is: het stond alleen op Invoer, dubbel met de balk
+    (Jan zag het). Nu toetst §2 Invoer én Project info, en §27 op
+    telefoonbreedte.
+  - les (v108): de vraag van de browser om een wachtwoord te bewaren
+    (macOS, iOS, Android, Windows) is hier **niet** te zien; Chromium in de
+    test toont hem niet. §29 toetst wat de browser te horen krijgt: bij
+    Chrome/Edge `navigator.credentials.store` (nagebootst), bij
+    Safari/Firefox een echte verzending van het formulier naar het
+    verborgen kader (PasswordCredential weggehaald), en bij een fout
+    wachtwoord geen van beide.
+  - les (v108): een mutatie die "toevallig" niet rood wordt, kan betekenen
+    dat iets anders het later toch rechtzet (hier: het label werd ook bij
+    elke schermwijziging bijgewerkt). Toets dan op het moment zelf
+    (`toon()` en meteen kijken). De mutatie `ander` (drie apparaten) hangt af
+    van de volgorde bij de server en wordt niet elke keer gevangen (4 van 5);
+    draai hem bij twijfel los een paar keer.

@@ -64,6 +64,14 @@
              'aria-label="' + esc(o.kop || soort.kop) + '" style="border-top-color:' + soort.kleur + '">' +
           '<h3 style="color:' + soort.kleur + '">' + esc(o.kop || soort.kop) + '</h3>' +
           '<div class="melding-tekst">' + alineas(tekst) + '</div>' +
+          // Bij een wachtwoord (Ontgrendelen e.d.) ook het e-mailadres, onzichtbaar
+          // (v108). Zonder dat zag Safari een los wachtwoord zonder naam, en vroeg
+          // het later, op een willekeurig moment, of het bewaard moest worden.
+          (o.invoer && o.invoer.soort === 'wachtwoord'
+            ? '<input type="text" name="username" autocomplete="username" tabindex="-1" aria-hidden="true" readonly ' +
+              'class="melding-gebruiker" value="' +
+              esc((window.glasGebruiker && glasGebruiker() && glasGebruiker().email) || '') + '">'
+            : '') +
           (o.invoer ? '<input type="' + (o.invoer.soort === 'wachtwoord' ? 'password' : 'text') + '" ' +
              'class="melding-invoer" ' +
              'value="' + esc(o.invoer.waarde || '') + '" ' +

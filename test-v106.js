@@ -128,7 +128,29 @@ const MUTATIES = {
   vooraf: ['pdf.js', "    if (bm.modus !== 'overzicht' && window.glasAlleenKijken && glasAlleenKijken() && window.appKeuze) {",
                      "    if (false) {"],
   // 29. Geen kijk-label op de andere tabbladen.
-  chip: ['index.html', "    if (chip.hidden !== !kijken) chip.hidden = !kijken;", ''],
+  chip: ['index.html', "      chip.hidden = !tonen;\n", ''],
+  // 43. (v108) Het label ook op Invoer: "alleen kijken" staat er dan twee keer (Jans schermafdruk).
+  chipinvoer: ['index.html', "    const tonen = kijken && !opInvoer;", "    const tonen = kijken;"],
+  // 44. (v108) Bij een ander tabblad het label niet bijwerken.
+  chiptab: ['index.html', "  if (typeof slotToepassen === 'function') slotToepassen();\n  // Het klantblok", "  // Het klantblok"],
+  // 45. (v108) De naam van een apart project zonder wie en welk apparaat.
+  apartwie: ['cloud.js', "tweeCijfers(t.getMinutes()) + (r.wie ? ' - ' + r.wie : '') + ')';", "tweeCijfers(t.getMinutes()) + ')';"],
+  // 46. (v108) Een berichtje zonder knop blijft staan ("Je kunt dit project nu bewerken").
+  berichtweg: ['cloud.js', "    if (!knopTekst) {\n      meldingKlok = setTimeout(", "    if (false) {\n      meldingKlok = setTimeout("],
+  // 47. (v108) Ook een berichtje mét knop (‹Hun versie laden›) verdwijnt vanzelf.
+  knopblijft: ['cloud.js', "    if (!knopTekst) {\n      meldingKlok = setTimeout(", "    if (true) {\n      meldingKlok = setTimeout("],
+  // 48. (v108) Na een geslaagde inlog de browser niets laten weten (Chrome/Edge/Android: geen vraag).
+  aanbieden: ['cloud.js', "      wachtwoordAanbieden(email, pw);\n", ''],
+  // 49. (v108) Safari/Firefox: het formulier niet echt versturen na de inlog.
+  kader: ['cloud.js', "        loginEcht = true;\n        if (form.requestSubmit) form.requestSubmit(); else form.submit();", "        if (false) form.submit();"],
+  // 50. (v108) Het formulier meteen echt versturen, nog vóór Supabase het wachtwoord goedkeurde.
+  vooraf2: ['cloud.js', "    if (loginEcht) { loginEcht = false; return true; }    // de echte, na de inlog",
+                        "    if (true) { login(); return true; }"],
+  // (51. De oude Enter-afhandeling terugzetten maakt geen fout: login() zet
+  // de knop meteen uit, en dan verstuurt de browser het formulier bij Enter
+  // niet nog eens. Toch weggehaald, want overbodig. Geen mutatie.)
+  // 52. (v108) De wachtwoordvraag in de app zonder e-mailadres erbij.
+  gebruikerveld: ['melding.js', "          (o.invoer && o.invoer.soort === 'wachtwoord'\n            ? '<input", "          (false\n            ? '<input"],
   // 30. Het volgnummer na een opslag niet bijhouden: de volgende opslag na een overname wordt geweigerd.
   basisbij: ['cloud.js', "        basisRev = revVan({ _rev: terug.rev });\n", ''],
   // 31. Het volgnummer niet meesturen: een iPad met een oude stand komt erdoor als het project vrij is (in de nabootsing: zonder controle).
@@ -167,7 +189,8 @@ const MUTATIE_INIT = {};
 // anders duurt de proef uren; de hele reeks draait in de batterij).
 const WAAR = { oudvraag: '7-11', intrekken: '7-11', laat: '7-11', seintjedicht: '7-11', script24: '13', ander: '15',
   nietgelukt: '16', vrijmislukt: '17', sprong: '18', achtergrond: '21', eigenfout: '19', basisweg: '14',
-  eerstopslaan: '7-11', apart: '23', knopachter: '21', export: '21', tabblad: '7-11', erbij: '24', erbijweg: '24', herlaad: '7-11', basisbij: '25', erbijrev: '24', overgenomenvenster: '26' };
+  eerstopslaan: '7-11', apart: '23', knopachter: '21', export: '21', tabblad: '7-11', erbij: '24', erbijweg: '24', herlaad: '7-11', basisbij: '25', erbijrev: '24', overgenomenvenster: '26',
+  apartwie: '27', berichtweg: '27', knopblijft: '28', aanbieden: '29', kader: '29', vooraf2: '29', gebruikerveld: '30' };
 Object.keys(MUTATIES).forEach(k => { if (!WAAR[k]) WAAR[k] = '1-6'; });
 if (process.argv.indexOf('--mutaties') >= 0) {
   // Eerst: past elke mutatie nog (in een paar seconden)? Anders is de proef
@@ -605,7 +628,15 @@ async function apparaatCtx(naam, wie, opties, tijden) {
   await ctx.exposeFunction('__opslag', s => JSON.stringify(S.weg[naam] ? { data: null, error: GEEN_BEREIK } : opslagVraag(JSON.parse(s))));
   await ctx.exposeFunction('__sessie', () => JSON.stringify(
     { data: { session: S.sessie[naam] ? { access_token: 't0k', user: S.sessie[naam] } : null }, error: null }));
-  await ctx.exposeFunction('__login', () => JSON.stringify({ data: { user: wie, session: { access_token: 't0k', user: wie } }, error: null }));
+  // Inloggen (v108): het wachtwoord 'fout' wordt geweigerd; elk ander lukt
+  // en geeft dit apparaat een sessie. S.logins telt de pogingen.
+  await ctx.exposeFunction('__login', s => {
+    const g = JSON.parse(s || '{}');
+    S.logins = (S.logins || 0) + 1;
+    if (g.password === 'fout') return JSON.stringify({ data: { user: null, session: null }, error: { message: 'Invalid login credentials' } });
+    S.sessie[naam] = wie;
+    return JSON.stringify({ data: { user: wie, session: { access_token: 't0k', user: wie } }, error: null });
+  });
   ctx.__naam = naam;
   return ctx;
 }
@@ -726,9 +757,26 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
   check('de balk: "julian (Mac) heeft dit project open (nu actief). Je kunt alleen kijken." met ‹Toch bewerken›',
     /julian \(Mac\) heeft dit project open \(nu actief\)\. Je kunt alleen kijken\. Toch bewerken/.test(bk), bk);
   check('het project blijft op naam van Julian', houder(1) === 'julian');
-  check('bovenin (op elk tabblad) "👁 Alleen kijken — julian" met ‹Toch bewerken›',
+  // v108: op Invoer alleen de balk (Jan zag "alleen kijken" er twee keer);
+  // het label bovenin is voor de andere tabbladen.
+  check('op Invoer: alleen de balk, geen tweede "Alleen kijken" bovenin (v108)', !(await pi.isVisible('#kijkChip')));
+  if (plaatjes) await pi.screenshot({ path: path.join(plaatjes, 'v108-kijken-invoer.png') });
+  await pi.click('.tab-btn:has-text("Project info")');
+  await wacht(150);
+  if (plaatjes) await pi.screenshot({ path: path.join(plaatjes, 'v108-kijken-projectinfo.png') });
+  check('op Project info: bovenin "👁 Alleen kijken — julian" met ‹Toch bewerken›',
     await pi.isVisible('#kijkChip') && /Alleen kijken — julian/.test(await pi.$eval('#kijkChip', e => e.innerText)));
   check('…en bij Julian niet', !(await pm.isVisible('#kijkChip')));
+  await pi.click('.tab-btn:has-text("Naslag")');
+  check('op Naslag ook', await pi.isVisible('#kijkChip'));
+  // toon() werkt het label zelf bij, op hetzelfde moment (niet pas als er
+  // toevallig iets anders op het scherm verandert).
+  check('…en meteen bij het wisselen (toon() zelf, niet toevallig later)', await pi.evaluate(() => {
+    toon('invoer'); const opInvoer = document.getElementById('kijkChip').hidden;
+    toon('samenvatting'); return opInvoer && !document.getElementById('kijkChip').hidden; }));
+  await pi.click('.tab-btn:has-text("Invoer")');
+  await wacht(150);
+  check('terug op Invoer: het label weer weg', !(await pi.isVisible('#kijkChip')));
   let dl2 = 0;
   pi.on('download', () => { dl2++; });
   await pi.click('button:has-text("⬇ Exporteren")');
@@ -1173,6 +1221,8 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
   let ap14 = apartBewaard();
   check('…en Barts werk is niet weg: apart bewaard met K1 1300 (één keer)', ap14.length === 1 &&
     ap14[0].data.rijen.find(r => r.merk === 'K1').breedte === '1300', ap14.length);
+  check('…als "Kerkstraat 1 (apart bewaard dd-mm uu:mm - bart, iPad)" (v108)',
+    ap14.length === 1 && /^Kerkstraat 1 \(apart bewaard \d\d-\d\d \d\d:\d\d - bart, iPad\)$/.test(ap14[0].naam), ap14[0] && ap14[0].naam);
   check('Barts scherm toont nu Julians stand', (await schermRuit(pB, 'K3')).hoogte === '950' &&
     (await schermRuit(pB, 'K1')).breedte === '1200');
   // Daarna kan Bart gewoon verder (het project is vrij).
@@ -1497,6 +1547,8 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
     dbRuit(1, 'K1').breedte === '1200' && apartBewaard().length === 1 &&
     apartBewaard()[0].data.rijen.find(r => r.merk === 'K1').breedte === '1234' &&
     await wachtTot(async () => await modus(pm23) === 'kijken', 5000));
+  check('de naam van het aparte project zegt van wie en welk apparaat: "… - julian, Mac)" (v108)',
+    apartBewaard().length === 1 && / - julian, Mac\)$/.test(apartBewaard()[0].naam), apartBewaard().map(p => p.naam).join(' | '));
   await m23.close(); await p23.close();
   S.geenLive = {};
   }
@@ -1612,6 +1664,200 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
   check('niets apart bewaard (op de iPhone was niets gewijzigd)', !apartBewaard().length);
   if (plaatjes) await pf26.screenshot({ path: path.join(plaatjes, 'v107-iphone-overgenomen.png') });
   await f26.close(); await m26.close();
+  }
+
+  if (doe('27')) {
+  /* ══ 27 ═══════════════════════════════════════════════════════ */
+  // Jans test van 16 oktober (v107): de iPhone wijzigt iets in vliegtuigmodus,
+  // de Mac neemt over en wijzigt ook; de iPhone komt terug. Zijn werk gaat
+  // apart. Zijn wensen (v108): (1) in de naam staat van wie en welk
+  // apparaat; (2) "Je kunt dit project nu bewerken" verdwijnt vanzelf.
+  console.log('\n27. iPhone wijzigt offline, de Mac neemt over: de naam van het aparte project en het berichtje onderin');
+  resetDb();
+  const TEL27 = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+  const f27 = await apparaatCtx('f27', JULIAN, { userAgent: TEL27, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, T);
+  const m27 = await apparaatCtx('m27', JULIAN, { userAgent: UA.mac }, T);
+  const pf27 = await nieuwePagina(f27); await open(pf27, 1);
+  await wachtTot(async () => await modus(pf27) === 'bewerken', 5000);
+  const pm27 = await nieuwePagina(m27); await open(pm27, 1);
+  await wachtTot(async () => await modus(pm27) === 'kijken', 5000);
+  S.weg.f27 = true; await f27.setOffline(true);
+  await vulIn(pf27, 'breedte-input', 0, '1777');
+  await wacht(800);
+  await tochBewerken(pm27);
+  await wachtOpMelding(pm27, /julian reageert niet/, 12000);
+  await knop(pm27, 'Overnemen');
+  await wachtTot(async () => await modus(pm27) === 'bewerken', 6000);
+  const bericht = /Je kunt dit project nu bewerken\./;
+  const zagBericht = await wachtTot(async () => bericht.test(await alleTekst(pm27)), 4000);
+  const t27 = Date.now();
+  check('Mac: "Je kunt dit project nu bewerken." onderin', zagBericht);
+  await vulIn(pm27, 'hoogte-input', 0, '1555');
+  await wachtTot(() => dbRuit(1, 'K1').hoogte === '1555', 8000);
+  const weg27 = await wachtTot(async () => !bericht.test(await alleTekst(pm27)), 11000);
+  const na27 = Math.round((Date.now() - t27) / 1000);
+  check('…en dat berichtje verdwijnt vanzelf (na ongeveer 8 seconden; was ' + na27 + ' s)', weg27 && na27 >= 6,
+    (await alleTekst(pm27)).slice(-120));
+  S.weg.f27 = false; await f27.setOffline(false);
+  await wachtTot(() => apartBewaard().length >= 1, 25000);
+  const ap27 = apartBewaard();
+  check('het offline werk van de iPhone (K1 1777) staat apart, niet in het project',
+    ap27.length === 1 && ap27[0].data.rijen.find(r => r.merk === 'K1').breedte === '1777' && dbRuit(1, 'K1').breedte !== '1777',
+    ap27.map(p => p.naam).join(' | '));
+  check('…met de naam "Kerkstraat 1 (apart bewaard dd-mm uu:mm - julian, iPhone)"',
+    ap27.length === 1 && /^Kerkstraat 1 \(apart bewaard \d\d-\d\d \d\d:\d\d - julian, iPhone\)$/.test(ap27[0].naam),
+    ap27[0] && ap27[0].naam);
+  if (plaatjes) await pf27.screenshot({ path: path.join(plaatjes, 'v108-iphone-apart.png') });
+  // De iPhone kijkt nu mee. Op een ander tabblad: de strook "Alleen kijken"
+  // onder de tabbladen, op één regel (telefoonbreedte).
+  await sluitMeldingen(pf27);
+  await wachtTot(async () => await modus(pf27) === 'kijken', 5000);
+  await pf27.click('.tab-btn:has-text("Project info")');
+  await wacht(200);
+  const strook = await pf27.evaluate(() => { const c = document.getElementById('kijkChip'); const r = c.getBoundingClientRect();
+    return { zicht: !c.hidden && r.height > 0, h: Math.round(r.height), b: Math.round(r.width), tekst: c.innerText.replace(/\s+/g, ' ') }; });
+  check('iPhone, Project info: de strook "👁 Alleen kijken — julian ‹Toch bewerken›", op één regel over de breedte',
+    strook.zicht && strook.h <= 50 && strook.b >= 380 && /Alleen kijken — julian Toch bewerken/.test(strook.tekst), JSON.stringify(strook));
+  if (plaatjes) await pf27.screenshot({ path: path.join(plaatjes, 'v108-iphone-projectinfo-kijken.png') });
+  await f27.close(); await m27.close();
+  }
+  if (doe('28')) {
+  /* ══ 28 ═══════════════════════════════════════════════════════ */
+  // Een berichtje mét knop moet blijven: "Een collega heeft dit project
+  // gewijzigd" met ‹Hun versie laden›. Dat komt als er van elders een
+  // wijziging binnenkomt terwijl je in een veld staat (dan overschrijft de
+  // app niets onder je cursor). Met het bewerkslot is dat zeldzaam
+  // geworden; hier nagebootst met een wijziging die rechtstreeks in de
+  // database komt (zoals van een apparaat met een oude versie).
+  console.log('\n28. Julian staat in een veld en er komt een wijziging van elders: ‹Hun versie laden› blijft staan');
+  resetDb();
+  const m28 = await apparaatCtx('m28', JULIAN, { userAgent: UA.mac }, T);
+  const pm28 = await nieuwePagina(m28); await open(pm28, 1);
+  await wachtTot(async () => await modus(pm28) === 'bewerken', 5000);
+  await pm28.locator('#invoerBody input.breedte-input').nth(1).focus();
+  const rij28 = rijVan(1);
+  rij28.data = JSON.parse(JSON.stringify(rij28.data));
+  rij28.data._sessie = 'elders';
+  rij28.data.rijen[0].opmerking = 'van elders';
+  live('projecten', rij28);
+  const zag28 = await wachtTot(async () => /Een collega heeft dit project gewijzigd/.test(await alleTekst(pm28)), 8000);
+  check('Julian: "Een collega heeft dit project gewijzigd." met ‹Hun versie laden›', zag28 &&
+    await pm28.isVisible('#syncMelding button:has-text("Hun versie laden")'), (await alleTekst(pm28)).slice(-160));
+  await wacht(10000);
+  check('…en dat blijft staan (na 10 seconden nog), want er moet iets gekozen worden',
+    await pm28.isVisible('#syncMelding button:has-text("Hun versie laden")'));
+  await m28.close();
+  }
+  if (doe('29')) {
+  /* ══ 29 ═══════════════════════════════════════════════════════ */
+  // Inloggen (v108). Jan: op de Mac vroeg macOS pas later, bij een ander
+  // tabblad, of het wachtwoord bewaard moest worden. Belofte: de browser
+  // hoort het direct na een GESLAAGDE inlog, en bij een fout wachtwoord niet.
+  //  a. Chrome/Edge/Android (kennen PasswordCredential): navigator.credentials.store.
+  //  b. Safari/Firefox (kennen dat niet): het formulier echt versturen, naar
+  //     een verborgen leeg kader; de pagina zelf blijft staan.
+  // Hier kan dat alleen in Chromium: in (b) halen we PasswordCredential weg.
+  // Wat macOS/iOS zelf dan toont, is hier niet te zien.
+  console.log('\n29. Inloggen: de browser hoort het direct na een geslaagde inlog (en niet bij een fout wachtwoord)');
+  async function loginCtx(naam, zonderAPI) {
+    const ctx = await apparaatCtx(naam, JULIAN, { userAgent: zonderAPI ? UA.mac : UA.win });
+    S.sessie[naam] = null;
+    await ctx.addInitScript(z => {
+      window.__bewaard = []; window.__verstuurd = [];
+      if (z) { try { delete window.PasswordCredential; } catch (e) {} window.PasswordCredential = undefined; }
+      else if (navigator.credentials) {
+        navigator.credentials.store = c => { window.__bewaard.push({ id: c.id, pw: c.password, soort: c.type }); return Promise.resolve(c); };
+      }
+      document.addEventListener('submit', e => {
+        setTimeout(() => window.__verstuurd.push({ echt: !e.defaultPrevented, doel: e.target.target }), 0);
+      }, true);
+      window.__merk = 'zelfde pagina';
+    }, !!zonderAPI);
+    return ctx;
+  }
+  async function stand(page) {
+    return page.evaluate(() => ({ bewaard: window.__bewaard, verstuurd: window.__verstuurd, merk: window.__merk,
+      login: getComputedStyle(document.getElementById('cloudLogin')).display,
+      fout: document.getElementById('cloudLoginFout').textContent, pw: document.getElementById('cloudWachtwoord').value,
+      adres: location.href }));
+  }
+  for (const zonder of [false, true]) {
+    const soort = zonder ? 'Safari/Firefox (zonder PasswordCredential)' : 'Chrome/Edge/Android';
+    const ctx = await loginCtx(zonder ? 'l29s' : 'l29c', zonder);
+    const pg = await nieuwePagina(ctx);
+    const kaderNav = [];
+    pg.on('framenavigated', f => { if (f.name() === 'cloudLoginKader') kaderNav.push(f.url()); });
+    await pg.goto(adres);
+    await pg.waitForSelector('#cloudLogin', { state: 'visible', timeout: 10000 });
+    await wacht(400);
+    const adresVoor = pg.url();
+    if (plaatjes && !zonder) await pg.screenshot({ path: path.join(plaatjes, 'v108-inlogscherm.png') });
+    kaderNav.length = 0;
+    S.logins = 0;
+    await pg.fill('#cloudEmail', 'julian@jelierbouw.nl');
+    await pg.fill('#cloudWachtwoord', 'fout');
+    await pg.press('#cloudWachtwoord', 'Enter');
+    await wachtTot(async () => /mislukt/.test((await stand(pg)).fout), 5000);
+    await wacht(500);
+    let st = await stand(pg);
+    check(soort + ': fout wachtwoord → "Inloggen mislukt", één poging, en de browser hoort niets (niets bewaard, niet echt verstuurd)',
+      /Inloggen mislukt/.test(st.fout) && S.logins === 1 && !st.bewaard.length && !st.verstuurd.some(v => v.echt) && !kaderNav.length,
+      JSON.stringify([S.logins, st.bewaard, st.verstuurd, kaderNav]));
+    await pg.fill('#cloudWachtwoord', 'geheim');
+    S.logins = 0;
+    if (zonder) await pg.click('#cloudLoginKnop'); else await pg.press('#cloudWachtwoord', 'Enter');
+    await wachtTot(async () => (await stand(pg)).login === 'none', 6000);
+    await wacht(400);
+    st = await stand(pg);
+    check(soort + ': goed wachtwoord (' + (zonder ? 'knop' : 'Enter') + ') → ingelogd, precies één keer',
+      st.login === 'none' && S.logins === 1, JSON.stringify([st.login, S.logins, st.fout]));
+    if (!zonder) {
+      check(soort + ': de browser krijgt het direct aangeboden (credentials.store, één keer, julian@…)',
+        st.bewaard.length === 1 && st.bewaard[0].id === 'julian@jelierbouw.nl' && st.bewaard[0].pw === 'geheim',
+        JSON.stringify(st.bewaard));
+    } else {
+      check(soort + ': het formulier gaat direct na de inlog echt "verzonden", naar het verborgen kader',
+        st.verstuurd.filter(v => v.echt).length === 1 && st.verstuurd.filter(v => v.echt)[0].doel === 'cloudLoginKader',
+        JSON.stringify([st.verstuurd, kaderNav]));
+    }
+    check(soort + ': de pagina zelf bleef staan (niet herladen, zelfde adres)', st.merk === 'zelfde pagina' && pg.url() === adresVoor,
+      JSON.stringify([st.merk, pg.url()]));
+    await wacht(1500);
+    check(soort + ': daarna staat het wachtwoord niet meer in het veld', (await stand(pg)).pw === '');
+    await ctx.close();
+  }
+  }
+  if (doe('30')) {
+  /* ══ 30 ═══════════════════════════════════════════════════════ */
+  // De wachtwoordvraag in de app ("Opgenomen door wijzigen", "Invoer
+  // ontgrendelen"). Tot v108 een los wachtwoordveld zonder naam: daar kan
+  // Safari later, op een willekeurig moment, over beginnen. Nu met het
+  // e-mailadres erbij, onzichtbaar, zodat de browser het herkent als het
+  // wachtwoord dat hij al kent.
+  console.log('\n30. De wachtwoordvraag in de app heeft het e-mailadres erbij (onzichtbaar)');
+  resetDb();
+  const m30 = await apparaatCtx('m30', JULIAN, { userAgent: UA.mac }, T);
+  const pm30 = await nieuwePagina(m30); await open(pm30, 1);
+  await wachtTot(async () => await modus(pm30) === 'bewerken', 5000);
+  await pm30.click('.tab-btn:has-text("Project info")');
+  await pm30.click('button:has-text("Wijzigen…")');
+  await pm30.waitForSelector('.melding-laag input[type=password]', { timeout: 5000 });
+  const v30 = await pm30.evaluate(() => {
+    const l = document.querySelector('.melding-laag:last-of-type') || document.querySelectorAll('.melding-laag')[document.querySelectorAll('.melding-laag').length - 1];
+    const g = l.querySelector('input[autocomplete=username]');
+    const w = l.querySelector('input[type=password]');
+    const r = g && g.getBoundingClientRect();
+    return { g: !!g, waarde: g && g.value, opacity: g && getComputedStyle(g).opacity, breed: r && r.width,
+             voor: !!(g && w && (g.compareDocumentPosition(w) & Node.DOCUMENT_POSITION_FOLLOWING)),
+             focus: document.activeElement === w };
+  });
+  check('in de vraag: een veld met het e-mailadres (julian@jelierbouw.nl), vóór het wachtwoord',
+    v30.g && v30.waarde === 'julian@jelierbouw.nl' && v30.voor, JSON.stringify(v30));
+  check('…onzichtbaar voor het oog (doorzichtig, 1 px), en de cursor staat in het wachtwoord',
+    v30.opacity === '0' && v30.breed <= 1 && v30.focus, JSON.stringify(v30));
+  if (plaatjes) await pm30.screenshot({ path: path.join(plaatjes, 'v108-wachtwoordvraag.png') });
+  await pm30.locator('.melding-laag').last().locator('.melding-knoppen button', { hasText: 'Annuleren' }).click();
+  await m30.close();
   }
   /* ══ ═══════════════════════════════════════════════════════════ */
   console.log('\nGeen fouten in de console');

@@ -157,6 +157,25 @@ De volledige achtergrond staat in de projectkennis op claude.ai
   - Wie het project kwijtraakt (overgenomen), krijgt een venster "Project
     overgenomen" (`overgenomenMelding`, v107), geen kort berichtje: dat zag
     Jan op de iPhone niet.
+  - "Alleen kijken": op Invoer de grote balk (`#slotBalk`), op de andere
+    tabbladen een strook onder de tabbladen (`#kijkChip`, in de vaste kop).
+    Nooit allebei (v108). De werkbalk `.toolbar` is alleen op Invoer
+    zichtbaar: zet daar niets in dat op elk tabblad moet staan.
+  - Een apart project heet "<naam> (apart bewaard dd-mm uu:mm - julian,
+    iPhone)": `reddingBewaar` onthoudt wie en welk apparaat (v108).
+* **Korte berichtjes onderin** (`toonMelding` in cloud.js, `#syncMelding`):
+  zonder knop verdwijnen ze na 8 s vanzelf; mét knop (‹Hun versie laden›)
+  blijven ze staan tot er gekozen is (v108). Iets wat de gebruiker móét
+  zien: een venster (`appMelding`), geen berichtje.
+* **Inloggen is een echt `<form>`** (`#cloudLoginForm`, v108), zodat de
+  browser weet wanneer er ingelogd wordt en het wachtwoord meteen daarna
+  aanbiedt (en niet later, bij een tabblad: Jan op de Mac). De eerste
+  verzending houdt `cloudLoginVerstuur` tegen; pas na een geslaagde inlog
+  biedt `wachtwoordAanbieden` het aan: `PasswordCredential` (Chrome, Edge,
+  Android), anders een echte verzending naar het verborgen kader
+  `cloudLoginKader` (`about:blank`, Safari en Firefox). Geen eigen
+  Enter-afhandeling erbij (dan twee keer inloggen). Een wachtwoordvraag in
+  de app (`appWachtwoord`) heeft een onzichtbaar veld met het e-mailadres.
 * **Opleveren: kijk na of alles in de repo staat.** Bij v106 kwamen vier
   bestanden niet mee in Jans commit; het slot deed daardoor niets. De repo is
   openbaar: `git clone --depth 1 https://github.com/m98cc4m6bg-sketch/glasopname`
@@ -212,7 +231,7 @@ node test-v103.js                     # en: node test-v103.js --mutaties
 node test-v104.js                     # en: node test-v104.js --mutaties (stopt per mutatie bij de eerste FOUT)
 node test-v105.js                     # en: node test-v105.js --mutaties
 OUD105=/tmp/v105werk node test-v106.js   # §22 draait v105 ernaast; en: --mutaties (alleen de onderdelen per mutatie)
-OUD=/tmp/live106 node test-overgang.js   # OUD = wat nu live staat (git archive; sinds 15-10-2026: v106)
+OUD=/tmp/live107 node test-overgang.js   # OUD = wat nu live staat (git archive; sinds 16-10-2026: v107)
 bun test-mailfunctie.ts
 ```
 

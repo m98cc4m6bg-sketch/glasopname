@@ -492,7 +492,7 @@ const apartBewaard = () => S.db.projecten.filter(p => /apart bewaard/.test(p.naa
   const apart2 = apartBewaard();
   check('het getypte staat als apart project op de server', apart2.length === 1 &&
     apart2[0].data.rijen.some(r => r.opmerking === 'getypt zonder bereik'), apart2.map(p => p.naam).join(', '));
-  check('met een naam die zegt wat het is', apart2[0] && /^Kerkstraat 1 \(apart bewaard \d\d-\d\d \d\d:\d\d\)$/.test(apart2[0].naam),
+  check('met een naam die zegt wat het is', apart2[0] && /^Kerkstraat 1 \(apart bewaard \d\d-\d\d \d\d:\d\d( - [^)]+)?\)$/.test(apart2[0].naam),
     apart2[0] && apart2[0].naam);
   check('het scherm toont nu de Molenweg zelf', await page.evaluate(() => rijen.some(r => r.merk === 'B1') &&
     !rijen.some(r => r.opmerking === 'getypt zonder bereik')));

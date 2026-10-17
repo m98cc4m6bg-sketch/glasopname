@@ -385,7 +385,7 @@
      Werk dat niet bij het open project hoort, mag dat project nooit
      overschrijven. Maar weggooien mag ook niet (harde eis van Jan). Het
      gaat daarom als APART project naar de server: "<naam> (apart bewaard
-     13-10 14:05)". Zo staat het gewoon in de projectenlijst en kan Jan
+     13-10 14:05 - julian, iPhone)" (wie en welk apparaat: sinds v108). Zo staat het gewoon in de projectenlijst en kan Jan
      het openen, vergelijken of naar de prullenbak slepen.
      Eerst op het apparaat (glasopname_redding, een lijst), dan omhoog.
      Lukt omhoog niet (geen bereik), dan blijft het op het apparaat staan
@@ -409,7 +409,11 @@
       return true;    // niets ingevuld: niets te redden
     }
     var lijst = reddingen();
-    lijst.push({ op: Date.now(), reden: reden || '', data: data });
+    // Wie en op welk apparaat (v108, wens van Jan): dat komt in de naam van
+    // het aparte project, zodat je ziet van wie het werk is.
+    var app = window.glasBewerkslotVelden ? glasBewerkslotVelden() : {};
+    var wie = [gebruikersNaam(), app._apparaatSoort].filter(Boolean).join(', ');
+    lijst.push({ op: Date.now(), reden: reden || '', data: data, wie: wie });
     try {
       localStorage.setItem(LS_REDDING, JSON.stringify(lijst));
       return true;
@@ -438,7 +442,7 @@
         var t = new Date(r.op || Date.now());
         var naam = (d.project || '(naamloos)') + ' (apart bewaard ' + tweeCijfers(t.getDate()) + '-' +
                    tweeCijfers(t.getMonth() + 1) + ' ' + tweeCijfers(t.getHours()) + ':' +
-                   tweeCijfers(t.getMinutes()) + ')';
+                   tweeCijfers(t.getMinutes()) + (r.wie ? ' - ' + r.wie : '') + ')';
         function invoegen(n, poging) {
           d.project = n;
           return sb.from('projecten').insert({
@@ -2127,10 +2131,20 @@
   }
 
   window.glasToonMelding = function (t) { toonMelding(t); };
+  // Een berichtje zonder knop verdwijnt na 8 seconden vanzelf (v108: "Je kunt
+  // dit project nu bewerken" bleef anders staan). Met een knop (‹Hun versie
+  // laden›) blijft het staan tot er gekozen is: daar moet iets gebeuren.
+  var meldingKlok = null;
   function toonMelding(tekst, knopTekst, actie) {
     var balk = el('syncMelding');
     if (!balk) return;
+    clearTimeout(meldingKlok);
     if (!tekst) { balk.style.display = 'none'; balk.innerHTML = ''; return; }
+    if (!knopTekst) {
+      meldingKlok = setTimeout(function () {
+        if (balk.textContent.indexOf(tekst) >= 0) { balk.style.display = 'none'; balk.innerHTML = ''; }
+      }, window.GLAS_MELDING_MS || 8000);
+    }
     balk.style.display = 'flex';
     balk.innerHTML = '<span>↻ ' + tekst + '</span>';
     if (knopTekst) {
@@ -2323,9 +2337,47 @@
       el('cloudLoginKnop').disabled = false;
       if (res.error) { el('cloudLoginFout').textContent = 'Inloggen mislukt: ' + res.error.message; return; }
       gebruiker = res.data.user;
+      wachtwoordAanbieden(email, pw);
       verbergLogin();
       start();
     });
+  }
+
+  // Het inlogformulier (v108). De eerste keer verstuurt het niet echt: eerst
+  // controleren bij Supabase. Pas na een geslaagde inlog laat
+  // wachtwoordAanbieden() het formulier echt "versturen" (naar het lege
+  // kader), zodat de browser op dát moment vraagt of hij het wachtwoord
+  // mag bewaren, en niet bij een verkeerd wachtwoord.
+  var loginEcht = false;
+  window.cloudLoginVerstuur = function (e) {
+    if (loginEcht) { loginEcht = false; return true; }    // de echte, na de inlog
+    if (e && e.preventDefault) e.preventDefault();
+    login();
+    return false;
+  };
+
+  // De browser het wachtwoord laten aanbieden, meteen na het inloggen.
+  // - Chrome, Edge, Samsung Internet (Android en Windows): met de
+  //   Credential Management API; die vraagt het direct.
+  // - Safari (Mac, iPhone, iPad) en Firefox kennen die niet: daar het
+  //   formulier echt versturen (naar about:blank in een verborgen kader).
+  //   Daaraan herkennen ze een inlog. Zonder dat raadde macOS het moment
+  //   zelf, en vroeg het pas later, bijvoorbeeld bij een ander tabblad.
+  // Daarna het wachtwoord uit het veld halen.
+  window.glasWachtwoordAanbieden = wachtwoordAanbieden;
+  function wachtwoordAanbieden(email, pw) {
+    var form = el('cloudLoginForm');
+    try {
+      if (window.PasswordCredential && navigator.credentials && navigator.credentials.store) {
+        Promise.resolve(navigator.credentials.store(new window.PasswordCredential({ id: email, password: pw, name: email })))
+          .catch(function () {});
+      } else if (form) {
+        loginEcht = true;
+        if (form.requestSubmit) form.requestSubmit(); else form.submit();
+        loginEcht = false;
+      }
+    } catch (e) { loginEcht = false; console.warn('[cloud] wachtwoord aanbieden', e); }
+    setTimeout(function () { var v = el('cloudWachtwoord'); if (v) v.value = ''; }, 1500);
   }
 
   async function uitloggen() {
@@ -2929,7 +2981,7 @@
   };
   window.cloudSluitProjecten = function () { el('cloudProjecten').style.display = 'none'; };
   window.cloudUitloggen = uitloggen;
-  window.cloudLogin = login;
+  window.cloudLogin = login;   // (oude naam; het formulier gebruikt cloudLoginVerstuur)
 
   /* ─── opstarten ────────────────────────────────────────────── */
 
@@ -3336,9 +3388,8 @@
 
     if (el('projectNaam')) el('projectNaam').addEventListener('blur', controleerNaam);
 
-    el('cloudWachtwoord').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') login();
-    });
+    // Enter in het wachtwoordveld: dat doet het formulier nu zelf (v108).
+    // Hier niet nog eens login(), anders werd er twee keer ingelogd.
 
     var herlaadt = false;
     var stilleOvername = false;

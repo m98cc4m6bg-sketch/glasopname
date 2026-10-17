@@ -1092,15 +1092,17 @@
   .bs-op-de-achtergrond .melding-tekst p { font-size: 12px; line-height: 1.4; }
   .bs-op-de-achtergrond .melding-knoppen { display: none; }
   body.bs-achtergrond .melding-laag:not(.bewerkslot-laag) { padding-top: calc(max(8px, env(safe-area-inset-top)) + var(--bs-balk, 84px)); }
-  /* Alleen kijken, op elk tabblad zichtbaar (v106). */
-  .kijk-chip { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; padding: 4px 6px 4px 10px;
-    background: #e8f0fb; border: 1px solid #9db8e0; color: #17325a; border-radius: 999px; font-size: 12px; }
+  /* Alleen kijken, een smalle strook onder de tabbladen, op elk tabblad
+     behalve Invoer (daar staat de grote balk) (v108). */
+  .kijk-chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 20px;
+    background: #e8f0fb; border-bottom: 1px solid #9db8e0; color: #17325a; font-size: 13px; }
   .kijk-chip[hidden] { display: none; }
   .kijk-chip > span { white-space: nowrap; }
-  /* Telefoon: de werkbalk staat dan onder elkaar; het label over de volle
-     breedte, op één regel (v106). */
+  /* Het e-mailadres bij de wachtwoordvraag: voor de wachtwoordbeheerder, niet
+     voor het oog (melding.js, v108). Niet display:none: dat negeert Safari. */
+  .melding-gebruiker { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
   @media (max-width: 760px) {
-    .kijk-chip { margin-left: 0; align-self: stretch; justify-content: space-between; border-radius: var(--radius); }
+    .kijk-chip { padding: 6px 14px; }
   }
   .slot-balk strong { color: inherit; }
   /* Vastgezette velden: zichtbaar, maar duidelijk niet te bewerken. */
@@ -2240,6 +2242,11 @@
   <button class="tab-btn" onclick="toon('bestellijst')">📦 Bestellijst</button>
   <button class="tab-btn" onclick="toon('naslag')">📖 Naslag</button>
 </div>
+<!-- Alleen kijken, op de tabbladen buiten Invoer (v108). Tot v107 stond dit
+     label in de werkbalk van Invoer; die is op de andere tabbladen
+     verborgen, dus het stond alleen op Invoer, dubbel met de grote balk. -->
+<div id="kijkChip" class="kijk-chip" hidden><span>👁 Alleen kijken<span class="kijk-wie"></span></span>
+  <button type="button" class="btn btn-primary btn-sm" onclick="bewerkslotTochBewerken()">Toch bewerken</button></div>
 
 <div class="actiebalk" id="actieBalk">
   <button class="btn btn-secondary btn-sm" onclick="importMenu(event)">⬆ Importeren</button>
@@ -2269,8 +2276,6 @@
     <i class="info-icon" onclick="toonInfo(this)" data-info="De bijtelling geldt <b>rondom</b>: hij komt er aan beide zijden bij, dus 2× bij de breedte en 2× bij de hoogte.<br><br>Bij 11 mm bijtelling wordt een dagmaat van 1000 × 2000 dus een glasmaat van <b>1022 × 2022</b>.">i</i>
       </span>
 </div>
-  <span id="kijkChip" class="kijk-chip" hidden><span>👁 Alleen kijken<span class="kijk-wie"></span></span>
-    <button type="button" class="btn btn-primary btn-sm" onclick="bewerkslotTochBewerken()">Toch bewerken</button></span>
 </div>
 
 
@@ -2610,15 +2615,25 @@
       <h2>Glasopname — inloggen</h2>
       <div class="sub">Jelier Bouw B.V. · <span class="app-versie"></span></div>
     </header>
-    <div class="cloud-body">
+    <!-- Een echt formulier (v108): dan weten Safari, Chrome, Edge en Firefox
+         wannéér er ingelogd wordt, en vragen ze direct daarna of ze het
+         wachtwoord mogen bewaren (en niet ergens later, bij een ander
+         tabblad). Het wachtwoord gaat alleen naar Supabase; het formulier
+         "verstuurt" na een geslaagde inlog naar een leeg, verborgen kader
+         (about:blank), zonder dat er iets over het net gaat. -->
+    <form class="cloud-body" id="cloudLoginForm" method="post" action="about:blank" target="cloudLoginKader"
+          autocomplete="on" onsubmit="return cloudLoginVerstuur(event)">
       <img src="logo.png" alt="Jelier Bouw" class="login-logo">
       <label for="cloudEmail">E-mailadres</label>
-      <input type="email" id="cloudEmail" autocomplete="username" inputmode="email">
+      <input type="email" id="cloudEmail" name="username" autocomplete="username" inputmode="email"
+             autocapitalize="none" spellcheck="false">
       <label for="cloudWachtwoord">Wachtwoord</label>
-      <input type="password" id="cloudWachtwoord" autocomplete="current-password">
+      <input type="password" id="cloudWachtwoord" name="password" autocomplete="current-password">
       <div class="cloud-fout" id="cloudLoginFout"></div>
-      <button class="btn btn-primary" id="cloudLoginKnop" style="width:100%" onclick="cloudLogin()">Inloggen</button>
-    </div>
+      <button type="submit" class="btn btn-primary" id="cloudLoginKnop" style="width:100%">Inloggen</button>
+    </form>
+    <iframe name="cloudLoginKader" id="cloudLoginKader" src="about:blank" title="" aria-hidden="true" tabindex="-1"
+            style="display:none"></iframe>
   </div>
 </div>
 
@@ -2946,7 +2961,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v107';
+const APP_VERSIE = 'v108';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -3020,6 +3035,8 @@ function toon(tabNaam) {
     event.currentTarget.classList.add('active');
   }
   toonMaatinstelling(tabNaam);
+  // Het label "alleen kijken" alleen buiten Invoer (v108).
+  if (typeof slotToepassen === 'function') slotToepassen();
   // Het klantblok dicht zodra het ingevuld is (v98, keuze van Jan).
   if (tabNaam === 'invoer' && window.klantBlokBijTonen) klantBlokBijTonen();
   if (tabNaam === 'project') {
@@ -3619,9 +3636,17 @@ function slotToepassen() {
   if (chip) {
     const st = kijken && window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
     const wie = st.naam ? ' — ' + st.naam : '';
-    if (chip.hidden !== !kijken) chip.hidden = !kijken;
+    // Op Invoer staat de grote balk al; het label is voor de andere
+    // tabbladen (v108: anders stond "alleen kijken" er twee keer).
+    const opInvoer = !!(document.getElementById('panel-invoer') || {}).classList?.contains('active');
+    const tonen = kijken && !opInvoer;
     const w = chip.querySelector('.kijk-wie');
     if (w && w.textContent !== wie) w.textContent = wie;
+    if (chip.hidden !== !tonen) {
+      chip.hidden = !tonen;
+      // De strook zit in de vaste kop; die is dan hoger of lager.
+      if (typeof meetVasteKop === 'function') meetVasteKop();
+    }
   }
 
   const balk = document.getElementById('slotBalk');

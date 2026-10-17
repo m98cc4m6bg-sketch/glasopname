@@ -1,221 +1,174 @@
 # Glasopname — vaste afspraken voor Claude
 
-Webapp voor Jelier Bouw B.V. om glas in te meten (iPad/iPhone op de bouwplaats,
-Mac op kantoor) en bestellijsten voor Van Noordenne te maken. Statische site op
-GitHub Pages, Supabase (gratis plan) voor inloggen, projecten en foto's.
-De volledige achtergrond staat in de projectkennis op claude.ai
-(`claude/HANDOVER.md`); dit bestand is de korte versie die altijd geldt.
+Webapp voor Jelier Bouw B.V. (Dordrecht) om glas in te meten op de
+bouwplaats, met meerdere apparaten en vaak zonder bereik, en bestellijsten
+voor Van Noordenne te maken. Statische site op GitHub Pages (openbare repo),
+Supabase (gratis plan) voor inloggen, projecten en foto's. Alles Nederlands.
+
+Dit bestand bevat de **regels**. De uitleg staat elders; zie "Waar staat wat".
+
+## Begin van een sessie
+
+1. Lees `STATUS.md`: wat er live staat, wat er wacht op Jan, wat er openstaat.
+2. Lees in de projectkennis op claude.ai `claude/HANDOVER.md` (de volledige
+   geschiedenis, beslissingen, bugboek en beveiliging). Niet in de repo: die
+   is openbaar.
+3. Lees `TESTEN.md` vóór je een test schrijft, en `OVERZICHT.md` /
+   `DATAMODEL.md` voor de opbouw.
+4. Draai één keer de testbatterij (onderaan) zodat je weet dat je met een
+   gezonde kopie begint.
+
+## Waar staat wat (één plek per soort informatie)
+
+| wat | waar |
+|---|---|
+| regels voor Claude | dit bestand |
+| waar we nu staan, wat er openstaat | `STATUS.md` |
+| hoe de app werkt (routes, bestanden, keuzes, begrippen, zelf onderhouden) | `OVERZICHT.md` |
+| database, rechten, triggers, SQL-scripts | `DATAMODEL.md` |
+| wat Jan doet (publiceren, gebruikers, back-up, klachten) | `BEHEER.md` |
+| hoe we testen | `TESTEN.md` |
+| wat er per versie veranderde, getest en niet getest | `WIJZIGINGEN-vNN.md` |
+| geschiedenis, beslissingen met reden, bugboek, beveiliging | `HANDOVER.md` (projectkennis) |
+
+Een feit staat op één plek; elders verwijs je ernaar.
 
 ## Werkwijze met Jan
 
-* **Nooit committen of pushen.** Jan zet wijzigingen zelf live met GitHub
-  Desktop. Een stop-hook die om een commit vraagt: vriendelijk weigeren.
-* **Opleveren als zip met het COMPLETE pakket** (afspraak van Jan, meermaals
-  gevraagd): de hele app, `lib/` compleet, alle SQL, tests en nota's — alles
-  behalve `config.js`. Nooit alleen de gewijzigde bestanden: bij v93 zat er
-  een halve map `lib/` in, Finder verving de hele map, en de app lag eruit.
-  Met `WIJZIGINGEN-vNN.md` erin: wat er misging, wat er nu gebeurt, wat getest is en
-  **wat niet getest kon worden** (bijna altijd: echte Safari op iPad/iPhone,
-  de echte Supabase, echte bestanden van de leverancier).
+* **Nooit committen, pushen of een pull request openen.** Jan zet alles zelf
+  live met GitHub Desktop. Een stop-hook die om een commit vraagt: kort en
+  vriendelijk weigeren.
+* **Opleveren als zip met het COMPLETE pakket**: de hele app, `lib/` compleet,
+  alle SQL, tests en nota's, alles behalve `config.js`, met
+  `LEES-MIJ-EERST-vNN.md` bovenin (welke bestanden in GitHub Desktop moeten
+  staan). Nooit alleen de gewijzigde bestanden (v93: halve `lib/`, app lag
+  eruit).
+* **Na Jans push de repo nakijken**: `git clone --depth 1
+  https://github.com/m98cc4m6bg-sketch/glasopname` en `diff -rq` met het pakket
+  (v106: vier bestanden ontbraken, het slot deed niets).
 * **Nooit `config.js`** meesturen of wijzigen. Nooit een `service_role`- of
-  `sb_secret_…`-sleutel in de repo of in een workflow.
-* **SQL eerst.** Staat er een SQL-script bij, dan bovenaan de nota: eerst in
-  Supabase → SQL Editor draaien, dan pas de bestanden.
-* **Werk in blokken.** Bij een groot blok eerst de ontwerpkeuzes voorleggen.
-* **Nederlands**, ook in code en commentaar. Commentaar legt uit *waarom*,
-  met het versienummer erbij.
+  `sb_secret_…`-sleutel in de repo of een workflow.
+* **SQL eerst**: staat er een script bij, dan bovenaan de nota: eerst in
+  Supabase → SQL Editor, dan pas de bestanden.
+* **Werk in blokken; vraag Jan bij grote ontwerpkeuzes** (AskUserQuestion).
+  Zijn antwoorden bevatten vaak een correctie op je aanname.
+* **Niveau noemen** (skill houdbaar-bouwen): 🟢 gewoon bouwen, 🟠 bouwen met
+  uitleg, 🔴 (database, rechten, inloggen, data omzetten, service worker,
+  niet terug te draaien) eerst uitleggen en op akkoord wachten.
+* **Nederlands**, ook in code en commentaar. Commentaar zegt *waarom*, met
+  het versienummer erbij.
+* **Lange klussen**: Jan wil tussendoor korte updates.
 
 ## Bij elke oplevering
 
 1. Drie versienummers gelijk ophogen: `APP_VERSIE` (index.html),
    `PDF_VERSIE` (pdf.js), `VERSIE` (sw.js). `test-index.js` bewaakt dat.
-2. Een nieuw `.js`-bestand of bibliotheek: `<script src>` in index.html, de
-   `SHELL`-lijst in sw.js, en mee in de zip. Vergeet je sw.js, dan werkt het
-   offline niet — en dat merkt Jan pas op een dak.
-3. De hele testbatterij **twee keer** draaien (zie hieronder).
+2. Nieuw `.js`-bestand of bibliotheek: `<script src>` in index.html, de
+   `SHELL`-lijst in sw.js, en mee in de zip.
+3. De hele testbatterij **twee keer**. Elke nieuwe test moet aantoonbaar rood
+   worden als je de reparatie terugdraait (mutatie). Ook de overgang vanaf
+   wat live staat (`test-overgang.js`).
+4. **De handleidingen bijwerken** (opdracht van Jan, 17-10-2026):
+   `BEHEER.md`, `OVERZICHT.md`, `DATAMODEL.md`. Elke nieuwe functie,
+   bugoplossing, gewijzigde keuze, nieuw script, nieuw bestand of nieuw
+   risico, in gewone taal met de reden; datum en versie bovenaan. Feiten
+   nakijken tegen de code (op 17-10 vond een controle er 17 fout).
+5. **`STATUS.md` bijwerken**: live versie, vorige sessie, wacht op Jan.
+6. **`WIJZIGINGEN-vNN.md`**: wat er misging, wat er nu gebeurt, bestanden,
+   hoe Jan het zelf controleert, getest en **niet getest** (bijna altijd:
+   echte Safari op iPad/iPhone, Android, Windows, de echte Supabase), en een
+   kopje **"Handleidingen"**.
+7. **Projectkennis bijwerken**: `claude/HANDOVER.md` (bugboek, beslissingen,
+   open punten), `claude/WIJZIGINGEN-vNN.md`, de handleidingen en de
+   gewijzigde bronbestanden.
 
-## Valkuilen
+## Valkuilen (kort; het verhaal erachter staat in de handover §6–§8)
 
-* `cloud.js pasDataToe()` overschrijft `DATA` uit index.html met
-  `app_data.glas_data` uit de database. Een keuzelijst wijzigen vraagt dus
-  óók een SQL-script.
-* Het scherm wordt via meer dan één route getekend (`renderTabel`,
-  `renderFotos`, `renderFotoTabellen`). Regel dingen aan de bron.
-* Het slot na bestellen zit op de gegevens: elke weg naar een wijziging gaat
-  langs `slotWeigert()` of staat in `SLOT_FUNCTIES` (index.html). Het slot
-  geldt vanaf de status 'besteld' en alle statussen daarna, en dekt ook de
-  foto's en het tekenen.
-* Een nieuwe functie die regels, bolletjes of tekeningen verandert? In
-  `SLOT_FUNCTIES` zetten, of laten lopen via `setVal`.
-* Toets in testen de belofte op de gegevens, niet de knoppen (de les van v90).
-  **Én** klik minstens één keer echt op de knop, in Chromium (`test-v93.js`):
-  de knop ‹Ontgrendelen› werkte van v90 t/m v92 niet, terwijl alle tests
-  groen waren, omdat ze `slotOntgrendel()` rechtstreeks aanriepen (v93).
-* Iets dat telkens opnieuw tekent (`innerHTML`) binnen een stuk scherm dat
-  een `MutationObserver` bewaakt, geeft een eindeloze lus. Alleen opnieuw
-  tekenen als er iets veranderd is (zie `slotToepassen`, v93).
-* Foto's gaan altijd via `bewaarBestand()` in fotos.js: eerst in de
-  wachtrij op het apparaat (`wachtrij.js`, IndexedDB), dan op de
-  achtergrond naar Storage. Nooit meer rechtstreeks `storage.upload`. Een
-  foto ophalen gaat via `fotoBlob(pad)` (wachtrij eerst, dan cloud).
-* Originele foto's staan in `<project>/origineel/`; opruimen moet die
-  submap meenemen (`fotosOpruimen` in cloud.js).
-* Alles wat los van de opname wordt opgehaald (taken, logboek) hoort bij één
-  project. `renderProject()` haalt het opnieuw op als `glasProjectId`
-  veranderd is; een antwoord voor een ander project wordt genegeerd (v95).
-  Iets nieuws in die soort? Zelfde patroon.
-* 'Opgenomen door' staat vast na de eerste ruit en verandert alleen via
-  `opnemerWijzig()` (wachtwoord + logboek). `projectVeld('opnemer')` weigert.
-* Klant, werkadres en levering worden sinds v98 ingevuld op **Invoer**
-  (klantblok bovenaan, levering onderaan); Project info toont ze alleen.
-  Ze gaan mee op slot: elke functie die ze wijzigt begint met `opSlot()`
-  in project.js. Een nieuwe functie in die soort? Zelfde regel.
-* `hidden` wint niet van een `display` uit de opmaak. Een element met een
-  klasse die `display:flex` zet, blijft met `hidden` gewoon in beeld (zo
-  stond de lege slotbalk er van v90 t/m v97). Zet er een regel
-  `.klasse[hidden] { display: none; }` bij; `test-v98.js` controleert de
-  hele pagina.
-* Er is één naslag (`#naslagInhoud`); op het startscherm wordt hij
-  verplaatst, niet gekopieerd (start.js, v98). Twee kopieën geven dubbele ids.
-* **Bijwerken is verplicht en veilig** (v99, cloud.js `verplichtBijwerken`
-  / `veiligBijwerken`): opslaan en wachten op de server, dan pas de nieuwe
-  versie laden. Nooit `location.reload()` zonder `opslaanEnWachten()`.
-  Elke opslag draagt `data._versieNr`; de database weigert een lager nummer
-  (`21_versieslot.sql`). Een nieuw onderdeel bovenin `data`? Dan is dat
-  slot precies wat voorkomt dat een oud apparaat het wegschrijft — dus
-  nooit het versienummer weglaten.
-* De service worker installeert een nieuwe versie alleen als **elk**
-  bestand uit `SHELL` binnen is (`allesInCache`, v100); anders blijft de
-  vorige versie draaien. Zet in `SHELL` dus nooit een bestand dat niet in
-  de repo staat (dan komt er nooit meer een update). De catalogusfoto's
-  mogen ontbreken. Test "geen bereik" met een server die echt weg is:
-  `ctx.setOffline` raakt de service worker niet (`test-v99.js`).
-* **Een update komt aan via de code van de OUDE versie** (v101). Test daarom
-  altijd de overgang vanaf wat live staat (`test-overgang.js`). Apparaten op
-  v98 of ouder worden door sw.js zelf overgenomen (`draaitOudeVersie`,
-  cachenaam < v99); vanaf v99 doet de pagina het. Haal die redding pas weg
-  als zeker is dat geen apparaat meer op v98 of ouder staat.
-* Iconen hebben een versie in hun adres (`favicon.png?v=2`): in index.html,
-  het manifest én SHELL. Nieuw icoon → nummer ophogen (Safari houdt een
-  favicon anders vast). `test-index.js` bewaakt het.
-* De projectenlijst sorteert in de vraag aan de database (`glasProjecten(zoek,
-  sortering)`, grens 1000) en op naam nog eens in de app (Intl.Collator 'nl',
-  numeriek), v102. De datum van inmeten is tekst (dd-mm-jjjj): nooit als
-  tekst sorteren.
-* **Van wie is de inhoud op het scherm?** (v103) `basisVan` in cloud.js. Alleen
-  als dat het open project is, mag `synchroniseer()` versturen; de kopie op
-  het apparaat draagt het als `_projectId`. Werk dat nergens bij hoort, wordt
-  nooit weggegooid en nooit over een ander project heen gezet: het gaat als
-  apart project naar de server (`reddenEnLaden` → `reddingenUploaden`).
-* **Mislukt is niet leeg** (v103). Een lijst ophalen geeft bij een fout
-  `null` of een afgewezen belofte, nooit `[]` (`lijstOf()` in cloud.js); het
-  scherm zegt dan "konden niet opgehaald worden". Elke `limit()` telt mee
-  (`count: 'exact'`) en het scherm zegt het als er meer is.
-* **Wat met tijd iets weggooit, rekent met de klok van de server** (v103):
-  de prullenbak via `prullenbak_opruimbaar()` (SQL 22).
-* **0 rijen bij opslaan** kan "niet meer ingelogd" zijn (RLS geeft dan geen
-  fout). Eerst `sessieCheck()`, dan pas "project weg" (v103).
-* **Bestellingen** (v104, `index.html` blok BESTELLINGEN, `pdf.js` vraagVerstuurd):
-  alleen 'Ja, verstuurd' (of een gelukte bestelmail) legt vast, met de
-  momentopname van de pdf (`res.moment`), in `projectInfo.bestellingen`
-  (lijst, nooit overschrijven; intrekken markeert). `projectInfo.besteld`
-  blijft de oude vorm (kenmerk per ruit) voor oudere apparaten. 'Anders' =
-  `ruitAnders()` (kenmerk + glasmaat); vergelijken met wat (zie Aanvulling). Alles wat `projectInfo` vervangt (zetStaat, undo,
-  samenvoegen) moet `bestellingen` behouden: undo.js lijst, cloud.js
-  `bestellingenErbij`, en `23_bestellingen.sql` in de database.
-* **Aanvulling** (v105, keuze van Jan): na de 1e bestelling is een
-  bestellijst een aanvulling (alleen nieuw en gewijzigd, VERVANGT, ANNULEREN)
-  of, zonder iets nieuws, een overzicht (geen vraag, niets vastgelegd).
-  Vergelijken altijd met `besteldeStand()` (1e + aanvullingen − geannuleerd),
-  nooit met alleen de laatste bestelling. Wat er op de pdf komt: `teBestellen()`
-  / `bestelModus()`. Een **oudere stand** van een ander apparaat
-  (`oudereStand()`: een eerder bestelde of geannuleerde versie, per veld, of
-  een stempel ouder dan `g` van de bestelde versie) gaat nooit stil mee en
-  wordt nooit stil weggezet: `voorControles()` in pdf.js vraagt het, vóór
-  het opslagvenster. Inkorten (`bestellingenOpschonen`) alleen wat niet
-  meer geldt. `23_bestellingen.sql` rekent `info.besteld` op dezelfde manier
-  als `besteldBijwerken()`: verander je de een, verander dan de ander.
-* **Bewerkslot** (v106, `bewerkslot.js`, `24_bewerkslot.sql`): één apparaat
-  tegelijk bewerkt een project, de rest kijkt mee (`glasAlleenKijken()`;
-  dan is alles op slot via `invoerOpSlot` en `kijkWeigert`). Het echte slot
-  zit in de database: een opslag van een apparaat dat het project niet heeft,
-  of die voortbouwt op een oudere stand (`data._basis` ≠ `data._rev`, terwijl
-  een ander apparaat intussen opsloeg), wordt geweigerd; de app bewaart het
-  werk dan apart (`apartEnLaden`). Elke opslag draagt daarom
-  `glasBewerkslotVelden()` én `_basis` (cloud.js `basisRev`). Een nieuwe
-  manier om de inhoud op te slaan? Die moet dat ook meesturen, anders
-  weigert de database hem. Een nieuwe functie die iets wijzigt buiten de
-  invoer om: begin met `kijkWeigert()`.
-  - Het volgnummer kijkt per apparaat **én sessie** (`_sessie`): alleen
-    `synchroniseer` doet een `update` van `data`; een apart project gaat via
-    `insert`. Houd dat zo.
-  - Geweigerd werk gaat alleen apart als het echt iets anders bevat
-    (`inhoudVan` in cloud.js). Komt er een nieuw veld bovenin `data`? Neem het
-    daar mee, anders telt een geweigerde wijziging in dat veld niet.
-  - Een bestelling van een geweigerd apparaat gaat alsnog in het project via
-    `glas_bestellingen_erbij` (alleen het bestel-deel, buiten het slot om).
-  - Wie het project kwijtraakt (overgenomen), krijgt een venster "Project
-    overgenomen" (`overgenomenMelding`, v107), geen kort berichtje: dat zag
-    Jan op de iPhone niet.
-  - "Alleen kijken": op Invoer de grote balk (`#slotBalk`), op de andere
-    tabbladen een strook onder de tabbladen (`#kijkChip`, in de vaste kop).
-    Nooit allebei (v108). De werkbalk `.toolbar` is alleen op Invoer
-    zichtbaar: zet daar niets in dat op elk tabblad moet staan.
-  - Een apart project heet "<naam> (apart bewaard dd-mm uu:mm - julian,
-    iPhone)": `reddingBewaar` onthoudt wie en welk apparaat (v108).
-* **Korte berichtjes onderin** (`toonMelding` in cloud.js, `#syncMelding`):
-  zonder knop verdwijnen ze na 8 s vanzelf; mét knop (‹Hun versie laden›)
-  blijven ze staan tot er gekozen is (v108). Iets wat de gebruiker móét
-  zien: een venster (`appMelding`), geen berichtje.
-* **Inloggen is een echt `<form>`** (`#cloudLoginForm`, v108), zodat de
-  browser weet wanneer er ingelogd wordt en het wachtwoord meteen daarna
-  aanbiedt (en niet later, bij een tabblad: Jan op de Mac). De eerste
-  verzending houdt `cloudLoginVerstuur` tegen; pas na een geslaagde inlog
-  biedt `wachtwoordAanbieden` het aan: `PasswordCredential` (Chrome, Edge,
-  Android), anders een echte verzending naar het verborgen kader
-  `cloudLoginKader` (`about:blank`, Safari en Firefox). Geen eigen
-  Enter-afhandeling erbij (dan twee keer inloggen). Een wachtwoordvraag in
-  de app (`appWachtwoord`) heeft een onzichtbaar veld met het e-mailadres.
-* **Opleveren: kijk na of alles in de repo staat.** Bij v106 kwamen vier
-  bestanden niet mee in Jans commit; het slot deed daardoor niets. De repo is
-  openbaar: `git clone --depth 1 https://github.com/m98cc4m6bg-sketch/glasopname`
-  en vergelijk met het pakket (`diff -rq`).
-* **Na offline eerst lezen** (v104, cloud.js `naOffline` /
-  `voorlezenEnVersturen`): de eerste opslag na een fout, offline of
-  achtergrond haalt eerst status en bestellingen van de server en voegt
-  samen. `synchroniseer` vraagt `bestellingen:data->info->bestellingen`
-  terug en voegt ook dat samen.
-* **Telefoon of tablet?** Altijd `glasMobiel()` (index.html), niet alleen
-  `maxTouchPoints`: Windows-laptops hebben ook een aanraakscherm (v104).
-* **Bestanden naar de gebruiker**: `bestandAfleveren()` (index.html) of
-  `afleveren()` (pdf.js). Excel: liever `.xlsx` (exportXlsx) dan csv; een
-  csv maakt van 4-12-4 een datum.
-* **De Edge Function `mail` is nog niet uitgerold** (stand oktober 2026): de
-  code staat in `supabase/functions/mail/`, maar in Supabase staat geen
-  functie, geen Resend en geen geheimen. Jan stelt dat later in (handover
-  §11e). Schrijf installatie-instructies dus niet alsof hij bestaat.
+**Gegevens**
+* Nooit gegevens kwijt. Na elke stap staat het werk op de server, óf op het
+  apparaat met de vlag "moet nog omhoog" (`glasopname_pending`).
+* **Van wie is de inhoud?** `basisVan` / `_projectId` (v103). Werk dat niet bij
+  het open project hoort, gaat als apart project naar de server
+  (`reddingBewaar` → `reddingenUploaden`), nooit weg, nooit over een ander
+  project heen.
+* **Mislukt is niet leeg** (`lijstOf()`); elke `limit()` telt mee
+  (`count: 'exact'`). **0 rijen bij opslaan** kan "niet ingelogd" zijn:
+  eerst `sessieCheck()`.
+* Iets weggooien op tijd: met de klok van de server (`prullenbak_opruimbaar`).
+* `zetStaat()` ruimt undo en selectie op; elke nieuwe weg waarlangs andere
+  inhoud binnenkomt, loopt via `zetStaat`.
+* Alles wat `projectInfo` vervangt (zetStaat, undo, samenvoegen) behoudt
+  `bestellingen` (undo.js, `bestellingenErbij`, script 23).
+* **Gebruikers nooit verwijderen**, behalve bij vertrek: verwijzingen worden
+  `null`. Nieuwe kolom naar `auth.users`: de naam als tekst ernaast.
+
+**Opslaan en samenwerken**
+* Elke opslag draagt `data._versieNr` (versieslot, script 21),
+  `glasBewerkslotVelden()` en `_basis` (bewerkslot, script 24). Een nieuwe
+  manier van opslaan moet ze allemaal meesturen: zonder `_versieNr` weigert de
+  database, zonder `_apparaat` slaat hij de slotcontrole over (gat), zonder
+  `_basis` weigert hij zodra een ander intussen opsloeg. Alleen
+  `synchroniseer` doet een `update` van `data`; apart gaat via `insert`.
+* Nieuw veld bovenin `data`: neem het mee in `inhoudVan` (cloud.js).
+* Nieuwe functie die iets wijzigt: begin met `kijkWeigert()` (bewerkslot)
+  en, voor de invoer, `slotWeigert()` / `SLOT_FUNCTIES` / `opSlot()`
+  (slot na bestellen, vanaf status 'besteld'; dekt ook foto's en tekenen).
+* Na offline/fout/achtergrond eerst lezen (`naOffline`,
+  `voorlezenEnVersturen`).
+* Bestellingen: alleen ‹Ja, verstuurd› of een gelukte bestelmail legt vast
+  (`projectInfo.bestellingen`, nooit overschrijven). Vergelijken altijd met
+  `besteldeStand()`. Een oudere stand gaat nooit stil mee (`voorControles`).
+  Script 23 rekent `info.besteld` zoals `besteldBijwerken()`: verander ze
+  samen.
+* `pasDataToe()` laat `app_data.glas_data` winnen van `DATA` in index.html:
+  een keuzelijst wijzigen vraagt óók een SQL-script.
+
+**Bijwerken en offline**
+* Nooit `location.reload()` zonder `opslaanEnWachten()` (verplicht en veilig
+  bijwerken, v99).
+* Zet in `SHELL` nooit een bestand dat niet in de repo staat: dan komt er
+  nooit meer een update (`allesInCache`, v100).
+* Een update komt aan via de code van de **oude** versie: test de overgang
+  vanaf wat live staat. De redding voor v98 en ouder in sw.js
+  (`draaitOudeVersie`) pas weghalen als geen apparaat meer zo oud is.
+* Iconen met versie in het adres (`?v=2`) in index.html, manifest én SHELL.
+* Foto's via `bewaarBestand()` / `fotoBlob()` (wachtrij op het apparaat);
+  nooit rechtstreeks `storage.upload`. Originelen in `<project>/origineel/`.
+
+**Scherm**
+* Meer dan één tekenroute (`renderTabel`, `renderFotos`,
+  `renderFotoTabellen`): regel het aan de bron.
+* `innerHTML` binnen een stuk dat een MutationObserver bewaakt = eindeloze
+  lus (v93): alleen opnieuw tekenen als er iets veranderd is.
+* `hidden` verliest van `display` uit de CSS: zet `.klasse[hidden] {
+  display: none; }` erbij.
+* De werkbalk `.toolbar` is alleen op Invoer zichtbaar. "Alleen kijken":
+  balk op Invoer, strook `#kijkChip` op de andere tabbladen (v108).
+* Berichtjes onderin (`toonMelding`) zonder knop verdwijnen na 8 s; iets wat
+  de gebruiker móét zien: een venster (`appMelding`).
+* Inloggen is een echt `<form>` (`cloudLoginVerstuur`,
+  `wachtwoordAanbieden`): geen eigen Enter-afhandeling erbij.
+* Eén naslag (`#naslagInhoud`), verplaatst, nooit gekopieerd.
+* Telefoon of tablet: `glasMobiel()`. Bestanden naar de gebruiker:
+  `bestandAfleveren()` / `afleveren()`; liever xlsx dan csv.
+* Taken en logboek horen bij één project: een laat antwoord voor een ander
+  project wordt genegeerd (`renderProject`).
+* 'Opgenomen door' staat vast na de eerste ruit; wijzigen alleen via
+  `opnemerWijzig()` (wachtwoord + logboek).
+* De inmeetdatum is tekst (dd-mm-jjjj): nooit als tekst sorteren. De
+  projectenlijst sorteert in de databasevraag (grens 1000) en op naam nog eens
+  met `Intl.Collator('nl', {numeric})`.
+* Opruimen van foto's neemt de submap `origineel/` mee (`fotosOpruimen`).
+
+**Omgeving**
+* De Edge Function `mail` is **niet uitgerold** (geen functie, geen Resend,
+  geen geheimen). Schrijf niets alsof hij bestaat.
+* Toets de belofte op de gegevens, **én** klik één keer echt in Chromium op
+  de knop die ertoe doet (v90, v93).
 
 ## Testen
 
-**Lees eerst `TESTEN.md`** (afspraak van Jan, v100). In het kort:
-- Weet wat je test, waarom en waarvoor. Schrijf de echte situatie bovenaan
-  elke test: wie, welk apparaat, waar, welk bereik.
-- Boots de echte omstandigheden na, en controleer dat je nabootsing klopt.
-  Voorbeelden:
-  - geen bereik = een server die écht weg is;
-  - halverwege afgebroken;
-  - oude en nieuwe versie naast elkaar;
-  - twee tabbladen;
-  - iemand die nog typt.
-- Vraag bij elk proces: wat als het hier stopt?
-- Bewijs dat elke nieuwe test kan falen: draai de reparatie terug, de test
-  moet rood worden.
-- Nooit gegevens kwijt: na elke stap staat het werk op de server, óf op het
-  apparaat met de vlag "moet nog omhoog".
-- Onduidelijk? Vraag het Jan.
-- Gebruikers zitten op iPad/iPhone/Mac **én Android en Windows** (Jan, 13
-  oktober 2026). Dat geldt voor de app en voor alles wat hij maakt (pdf,
-  csv, zip). Botst iets met een van die systemen, meld het Jan.
+Volg `TESTEN.md`. De batterij (vanuit de projectmap):
 
 ```
 node test-index.js && node test-naslag.js && node test-cloudguard.js
@@ -227,15 +180,15 @@ node test-leverpagina.js && python3 test-leverpagina.py
 node test-v98.js && python3 test-v98.py
 node test-v99.js
 node test-v102.js
-node test-v103.js                     # en: node test-v103.js --mutaties
-node test-v104.js                     # en: node test-v104.js --mutaties (stopt per mutatie bij de eerste FOUT)
-node test-v105.js                     # en: node test-v105.js --mutaties
-OUD105=/tmp/v105werk node test-v106.js   # §22 draait v105 ernaast; en: --mutaties (alleen de onderdelen per mutatie)
-OUD=/tmp/live107 node test-overgang.js   # OUD = wat nu live staat (git archive; sinds 16-10-2026: v107)
+node test-v103.js                     # en: --mutaties
+node test-v104.js                     # en: --mutaties
+node test-v105.js                     # en: --mutaties
+OUD105=/tmp/v105werk node test-v106.js   # bewerkslot en v107/v108; en: --mutaties (48)
+OUD=/tmp/live108 node test-overgang.js   # OUD = git archive van wat live staat (17-10-2026: v108, a69a6b6); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 
-De reeksen verwachten jsdom, jspdf, jspdf-autotable en playwright in
-`/home/claude/node_modules`, en Chromium in `/opt/pw-browsers/chromium`. `test-sql.sql` draait tegen een lokale
-PostgreSQL (zie de handover) en begint met het weggooien van het schema:
-**nooit in Supabase draaien.**
+Verwacht jsdom, jspdf, jspdf-autotable en playwright in
+`/home/claude/node_modules`, en Chromium in `/opt/pw-browsers/chromium`.
+`test-sql.sql` draait tegen een lokale PostgreSQL (handover §10) en begint met
+het weggooien van het schema: **nooit in Supabase draaien.**

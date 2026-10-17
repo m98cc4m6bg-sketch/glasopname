@@ -110,7 +110,7 @@ wachtwoordvraag.
 | `index.html` | inlogformulier en verborgen kader; de strook "Alleen kijken" onder de tabbladen; versie v108 |
 | `melding.js` | het e-mailadres (onzichtbaar) bij de wachtwoordvraag |
 | `pdf.js`, `sw.js` | versie v108 |
-| `test-v106.js` | §2 (Invoer én Project info), §14 en §23 (de naam), §27–§30 nieuw, 10 nieuwe mutaties |
+| `test-v106.js` | §2 (Invoer én Project info), §14 en §23 (de naam), §27–§30 nieuw, 9 nieuwe mutaties (en `chip` herschreven; 48 in totaal) |
 | `test-v103.js` | de naamcontrole kent het nieuwe achtervoegsel |
 
 ## Hoe je het zelf controleert
@@ -197,3 +197,38 @@ wachtwoordvraag.
 - **Verborgen kader** (`iframe`): een onzichtbaar venstertje in de pagina.
   Het inlogformulier "verstuurt" daarheen, zodat de pagina zelf blijft
   staan.
+
+## Handleidingen (17 oktober 2026, na v108)
+
+Geen wijziging aan de app. Nieuw in de repo:
+
+- `BEHEER.md`: wat je doet. Publiceren, gebruikers (bovenaan: **nooit
+  verwijderen, behalve bij vertrek**), wachtwoord vergeten, SQL, keuzelijsten,
+  Supabase wakker houden, back-up (die er niet is), ruimte, klachten.
+- `OVERZICHT.md`: hoe de app in elkaar zit, per handeling de route van scherm
+  naar database, de bestanden, de keuzes en waarom, begrippen, en een
+  hoofdstuk **"Zelf onderhouden, zonder AI"**: wat je zelf kunt (met stappen)
+  en wat beter niet (met de reden).
+- `DATAMODEL.md`: alle tabellen en velden, wie wat mag, de controles in de
+  database, de SQL-scripts 01 t/m 24.
+
+Later die dag, na een vraag van Jan over het "handoff"-patroon:
+- `STATUS.md` (**nieuw**, in de repo): één pagina met wat er live staat, wat
+  er op Jan wacht en wat er openstaat. Elke sessie begint hier.
+- `CLAUDE.md` korter: alleen de regels, met een tabel "waar staat wat" (elk
+  soort informatie op één plek) en de stappen voor het begin van een sessie.
+- De handover (alleen in de projectkennis, want de repo is openbaar) helemaal
+  bijgewerkt en opnieuw ingedeeld: doel en voorwaarden, huidige stand,
+  opgeloste fouten (nieuwste bovenaan), zwakke plekken, open punten, en hoe je
+  de testomgeving opnieuw opzet.
+
+Vanaf nu worden deze drie bij elke versie bijgewerkt, met hier een kopje
+"Handleidingen" (afspraak, vastgelegd in `CLAUDE.md` en de handover).
+
+Bij het schrijven nagelopen tegen de code door een aparte controle: die vond
+17 onjuistheden in de eerste versie. Die zijn verbeterd. Twee kleine
+bevindingen in de app zelf, geen gevolgen nu:
+- script 12 mist "Figuurglas — Canale mat blank" (zonder accent, zo staat het in de code) in de bewerkingen; de app vangt dat op
+  met zijn eigen lijst (`DATAMODEL.md`, onderaan);
+- de tests verwachten vaste paden in de werkomgeving van Claude; op je Mac
+  draaien ze niet zomaar (`OVERZICHT.md` §9).

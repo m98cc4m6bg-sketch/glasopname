@@ -3084,7 +3084,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v111';
+const APP_VERSIE = 'v112';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -4483,12 +4483,29 @@ function bestelMomentopname(lijst, tbPdf) {
     const verschil = !aanvulling || !al ? null
       : tb.extra[r.id] ? tb.extra[r.id]
       : tb.minder.some(m => m.rij === r) ? aantalVerschil(st.ruiten[r.id], r) : null;
+    // v112: alleen de bediening anders (ook naast EXTRA of minder).
+    const bv = aanvulling && al ? (tb.bediening || []).find(b => String(b.rij.id) === String(r.id)) : null;
+    const metBediening = o => {
+      if (!bv) return;
+      const oud = st.ruiten[r.id] || {};
+      o.bedieningVan = {};
+      BEDIENING_VELDEN.forEach(v => { if (oud[v] !== undefined) o.bedieningVan[v] = oud[v]; });
+      o.bedieningUit = besteldInTekst(r.id, st) || '1e';
+    };
     if (aanvulling && al && !opLijst[r.id]) {
-      if (!verschil || verschil.soort !== 'minder') return;
-      const om = ruitMomentopname(r, true);
-      om.minder = verschil.was;
-      om.minderUit = besteldInTekst(r.id, st) || '1e';
-      ruiten[r.id] = om;
+      if (verschil && verschil.soort === 'minder') {
+        const om = ruitMomentopname(r, true);
+        om.minder = verschil.was;
+        om.minderUit = besteldInTekst(r.id, st) || '1e';
+        metBediening(om);
+        ruiten[r.id] = om;
+      } else if (bv) {
+        // Telt als besteld (de bediening is besteld), maar het glas blijft
+        // uit de lijsten waar het al in zat (standVan: herkomst).
+        const om = ruitMomentopname(r, true);
+        metBediening(om);
+        ruiten[r.id] = om;
+      }
       return;
     }
     const o = ruitMomentopname(r, opLijst[r.id]);
@@ -4497,6 +4514,7 @@ function bestelMomentopname(lijst, tbPdf) {
     if (verschil && verschil.soort === 'extra' && opLijst[r.id]) {
       o.extra = verschil.was;
       o.extraBij = besteldInTekst(r.id, st) || '1e';
+      metBediening(o);
     } else if (aanvulling && al) {
       o.vervangt = st.nr[r.id] || 1;
       // Uit welke lijsten de vervangen ruiten komen (v110: na een EXTRA meer
@@ -4538,7 +4556,8 @@ function korteRuit(o) {
   if (o.vervangt) kort.vervangt = o.vervangt;
   // v110: ook ingekort moet het overzicht nog weten wat er extra of minder
   // gevraagd is (gevraagdTeAnnuleren, kolom Besteld).
-  ['extra', 'extraBij', 'minder', 'minderUit', 'vervangtUit'].forEach(v => { if (o[v] !== undefined) kort[v] = o[v]; });
+  ['extra', 'extraBij', 'minder', 'minderUit', 'vervangtUit', 'bedieningVan', 'bedieningUit']   // bediening: v112
+    .forEach(v => { if (o[v] !== undefined) kort[v] = o[v]; });
   if (o.g) kort.g = o.g;
   KORT_VELDEN.forEach(v => { if (o[v] !== undefined) kort[v] = o[v]; });
   return kort;
@@ -4562,7 +4581,7 @@ function korteRuit(o) {
 //           lijst; "B uit de 1e (3) en de 2e (+1)")
 //   minderIn: { id: [ { nr, n } ] }  waar er minder gevraagd is (v110)
 function standVan(lijst) {
-  let ruiten = {}, nr = {}, bron = {}, geannuleerd = {}, leeg = {}, herkomst = {}, minderIn = {};
+  let ruiten = {}, nr = {}, bron = {}, geannuleerd = {}, leeg = {}, herkomst = {}, minderIn = {}, bedieningIn = {};
   const eerder = {}, eerderVersies = {};
   let laatste = null, laatsteIndex = -1;
   (lijst || []).forEach((b, i) => {
@@ -4575,7 +4594,7 @@ function standVan(lijst) {
         if (typeof o === 'object') (eerderVersies[id] = eerderVersies[id] || []).push({ versie: o, nr: b.nr || i + 1 });
       }
     });
-    if (b.soort !== 'aanvulling') { ruiten = {}; nr = {}; bron = {}; geannuleerd = {}; leeg = {}; herkomst = {}; minderIn = {}; }
+    if (b.soort !== 'aanvulling') { ruiten = {}; nr = {}; bron = {}; geannuleerd = {}; leeg = {}; herkomst = {}; minderIn = {}; bedieningIn = {}; }
     const rs = b.ruiten || {};
     Object.keys(rs).forEach(id => {
       const o = rs[id];
@@ -4606,20 +4625,42 @@ function standVan(lijst) {
           geldt.k = ruitKenmerk(geldt);
         }
       }
+      // v112: of deze lijst de bediening (opnieuw) bestelt: niet bij alleen
+      // meer of minder glas met dezelfde bediening.
+      let bedZet = true;
       if (typeof o === 'object' && o.extra && herkomst[id]) {
+        bedZet = !!o.bedieningVan;
         herkomst[id] = herkomst[id].concat([{ nr: dezeNr, n: stuks != null ? stuks - o.extra : null }]);
       } else if (typeof o === 'object' && o.minder && herkomst[id]) {
+        bedZet = !!o.bedieningVan;
         minderIn[id] = (minderIn[id] || []).concat([{ nr: dezeNr, n: stuks != null ? o.minder - stuks : null }]);
+      } else if (typeof o === 'object' && o.bedieningVan && herkomst[id]) {
+        // v112: alleen de bediening; het glas blijft uit dezelfde lijsten. En
+        // het glas zelf blijft wat er al gold: bestelde een collega tussen de
+        // pdf en ‹Ja, verstuurd› iets anders aan deze ruit (EXTRA, VERVANGT),
+        // dan geldt dat glas, met de nieuwe bediening (controle v112).
+        const vorigO = ruiten[id];
+        if (vorigO && typeof vorigO === 'object' && !vorigO.kort && !o.kort) {
+          geldt = Object.assign({}, vorigO);
+          BEDIENING_VELDEN.forEach(v => { if (o[v] === undefined) delete geldt[v]; else geldt[v] = o[v]; });
+          if (o.g) geldt.g = o.g;
+          geldt.k = ruitKenmerk(geldt);
+        }
       } else {
         herkomst[id] = [{ nr: dezeNr, n: stuks }];
         delete minderIn[id];
       }
       ruiten[id] = geldt; nr[id] = dezeNr; bron[id] = i;
       delete geannuleerd[id];
+      // v112: in welke lijst de bediening die nu geldt besteld is (kan een
+      // andere zijn dan die van het glas). Een "minder" bestelt geen bediening.
+      if (typeof o === 'object' && o && bedZet) {
+        if (o.bediening) bedieningIn[id] = dezeNr; else delete bedieningIn[id];
+      }
     });
     Object.keys(b.vervallen || {}).forEach(id => {
       geannuleerd[id] = { nr: b.nr || i + 1, oud: b.vervallen[id] };
-      delete ruiten[id]; delete nr[id]; delete bron[id]; delete herkomst[id]; delete minderIn[id];
+      delete ruiten[id]; delete nr[id]; delete bron[id]; delete herkomst[id]; delete minderIn[id]; delete bedieningIn[id];
     });
     laatste = b; laatsteIndex = i;
   });
@@ -4637,7 +4678,7 @@ function standVan(lijst) {
     if (eerderVersies[id]) eerderVersies[id] = eerderVersies[id].filter(e => e.versie !== ruiten[id] && e.versie.k !== kenmerkVan(ruiten[id]));
   });
   return { ruiten: ruiten, nr: nr, bron: bron, geannuleerd: geannuleerd, leeg: leeg, herkomst: herkomst, minderIn: minderIn,
-           eerder: eerder, eerderVersies: eerderVersies, bekend: bekend, laatste: laatste, laatsteIndex: laatsteIndex };
+           bedieningIn: bedieningIn, eerder: eerder, eerderVersies: eerderVersies, bekend: bekend, laatste: laatste, laatsteIndex: laatsteIndex };
 }
 
 // De velden die een leverancier maakt (maat, aantal, glas). Daarop letten
@@ -4682,8 +4723,9 @@ function oudereStand(rij, st, oud) {
   // ouder stempel: dat blijft de vraag "Oudere stand?" geven. Bewust niet
   // "gewijzigd ná de bestelling": een wijziging zonder bereik krijgt pas een
   // stempel bij het versturen (tweede controle v110).
-  if (oud && typeof oud === 'object' && st.ruiten[rij.id] === oud && aantalVerschil(oud, rij) && rij.gewOp && oud.g &&
-      Date.parse(rij.gewOp) >= Date.parse(oud.g)) return false;
+  // v112: idem voor alleen een andere bediening.
+  if (oud && typeof oud === 'object' && st.ruiten[rij.id] === oud && (aantalVerschil(oud, rij) || bedieningVerschil(oud, rij)) &&
+      rij.gewOp && oud.g && Date.parse(rij.gewOp) >= Date.parse(oud.g)) return false;
   const k = ruitKenmerk(rij);
   const ev = st.eerder[rij.id];
   if (ev && ev[k]) return true;
@@ -4737,6 +4779,20 @@ function besteldInTekst(id, st) {
 }
 window.besteldInTekst = besteldInTekst;
 
+// v112 (controle): is de bediening die nu geldt in een ándere lijst besteld
+// dan het glas (bijv. glas in de 1e, stang erbij in de 2e)? Dan "2e", anders
+// ''. Wie de stang laat annuleren of vervangen, moet die lijst noemen; anders
+// zoekt de leverancier hem in de 1e en blijft hij staan.
+function bedieningInTekst(id, st) {
+  st = st || besteldeStand();
+  const n = st.bedieningIn && st.bedieningIn[id];
+  if (!n) return '';
+  const h = st.herkomst && st.herkomst[id];
+  const glas = h && h.length ? h.map(x => x.nr) : (st.nr[id] ? [st.nr[id]] : []);
+  return glas.length === 1 && glas[0] === n ? '' : n + 'e';
+}
+window.bedieningInTekst = bedieningInTekst;
+
 // Waarmee een ruit vergeleken wordt: wat er van hem besteld is, of (nooit
 // besteld) hoe hij er bij de laatste bestelling uitzag.
 function bestelOud(id) {
@@ -4752,17 +4808,51 @@ window.bestelOud = bestelOud;
 // (die verandert ook door de speling van een blok). Anders null: dan blijft
 // het VERVANGT, zoals sinds v105. Van een bestelling zonder bewaard aantal
 // (vóór v104 alleen een kenmerk) weten we het niet: ook null.
+// v112: de ruit met de bediening zoals die besteld was. Daarmee kijken we of
+// er naast de bediening nog iets anders aan het glas veranderde.
+function metBedieningVan(rij, oud) {
+  const r = Object.assign({}, rij);
+  BEDIENING_VELDEN.forEach(v => { if (oud[v] === undefined) delete r[v]; else r[v] = oud[v]; });
+  return r;
+}
 function aantalVerschil(oud, rij) {
   if (!oud || typeof oud !== 'object' || oud.aantal === undefined || !rij) return null;
   const was = parseInt(oud.aantal, 10), nu = parseInt(rij.aantal, 10);
   if (!(was > 0) || !(nu > 0) || was === nu) return null;
-  if (ruitKenmerk(Object.assign({}, rij, { aantal: oud.aantal })) !== kenmerkVan(oud)) return null;
+  // v112: een andere bediening erbij telt hier niet mee (die staat apart, in
+  // het blok ALLEEN BEDIENING); het glas moet verder gelijk zijn.
+  if (ruitKenmerk(Object.assign(metBedieningVan(rij, oud), { aantal: oud.aantal })) !== kenmerkVan(oud)) return null;
   if (('glasBreedte' in oud || 'glasHoogte' in oud) &&
       (maatGetal(oud.glasBreedte) !== maatGetal(rij.glasBreedte) ||
        maatGetal(oud.glasHoogte) !== maatGetal(rij.glasHoogte))) return null;
   return { was: was, nu: nu, verschil: nu - was, soort: nu > was ? 'extra' : 'minder' };
 }
 window.aantalVerschil = aantalVerschil;
+
+// Is alleen de BEDIENING anders dan besteld (v112, keuze van Jan: "nooit glas
+// vervangen alleen om de bediening toe te voegen; dat levert dubbele
+// leveringen en onduidelijkheid")? Dan komt de ruit niet als VERVANGT in de
+// glastabel, maar in een eigen blok "ALLEEN BEDIENING – glas NIET opnieuw
+// maken". Het glas (alles behalve de bediening en het aantal) moet gelijk
+// zijn; een ander aantal tegelijk kan (dat wordt EXTRA of "N annuleren", en
+// de bediening voor de al bestelde ruiten staat in het blok).
+//   { was: tekst van de bestelde bediening ('' = geen), nu: tekst nu,
+//     stuks: voor hoeveel al bestelde ruiten (het kleinste aantal) }
+function bedieningVerschil(oud, rij) {
+  if (!oud || typeof oud !== 'object' || !oud.k || !rij) return null;
+  const bo = bedieningTekst(oud), bn = bedieningTekst(rij);
+  if (bo === bn) return null;
+  const test = metBedieningVan(rij, oud);
+  if (oud.aantal !== undefined) test.aantal = oud.aantal;
+  if (ruitKenmerk(test) !== kenmerkVan(oud)) return null;
+  if (('glasBreedte' in oud || 'glasHoogte' in oud) &&
+      (maatGetal(oud.glasBreedte) !== maatGetal(rij.glasBreedte) ||
+       maatGetal(oud.glasHoogte) !== maatGetal(rij.glasHoogte))) return null;
+  const was = parseInt(oud.aantal, 10) > 0 ? parseInt(oud.aantal, 10) : 1;
+  const nu = parseInt(rij.aantal, 10) > 0 ? parseInt(rij.aantal, 10) : 1;
+  return { was: bo, nu: bn, stuks: Math.min(was, nu) };
+}
+window.bedieningVerschil = bedieningVerschil;
 
 // Wat er op de volgende bestellijst komt (v105). Nog niets besteld: alles
 // wat compleet is. Wel besteld: een aanvulling met alleen de complete
@@ -4773,26 +4863,33 @@ function teBestellen() {
   const w = wijzigingenSindsBestelling();
   if (!w.bestelling) {
     const regels = alle.filter(bestelbaar);
-    return { aanvulling: false, regels: regels, vervallen: [], gewijzigd: [], minder: [], extra: {},
+    return { aanvulling: false, regels: regels, vervallen: [], gewijzigd: [], minder: [], extra: {}, bediening: [],
              aantal: regels.length, w: w };
   }
   const ids = {};
   // v110: alleen een ander aantal. Meer = EXTRA, op de lijst met het
   // verschil; minder = niet op de lijst, wel onder ANNULEREN.
   const minder = [], extra = {};
+  // v112: alleen de bediening anders = niet in de glastabel, wel in het blok
+  // ALLEEN BEDIENING (ook naast een EXTRA of "N annuleren").
+  const bediening = [];
   w.nieuw.forEach(r => { if (bestelbaar(r)) ids[r.id] = true; });
   w.gewijzigd.forEach(g => {
     if (!bestelbaar(g.rij)) return;
     const v = aantalVerschil(g.oud, g.rij);
+    const b = bedieningVerschil(g.oud, g.rij);
+    if (b) bediening.push({ rij: g.rij, oud: g.oud, nr: g.nr, nrTekst: g.nrTekst, was: b.was, nu: b.nu, stuks: b.stuks,
+                            bedTekst: bedieningInTekst(g.rij.id) });
     if (v && v.soort === 'minder') { minder.push({ rij: g.rij, oud: g.oud, nr: g.nr, nrTekst: g.nrTekst, was: v.was, nu: v.nu }); return; }
     if (v) extra[g.rij.id] = v;
+    else if (b) return;            // alleen de bediening: het glas blijft
     ids[g.rij.id] = true;
   });
   const regels = alle.filter(r => ids[r.id]);
   return { aanvulling: true, regels: regels, vervallen: w.vervallen,
            gewijzigd: w.gewijzigd.filter(g => ids[g.rij.id]),
-           minder: minder, extra: extra,
-           aantal: regels.length + w.vervallen.length + minder.length, w: w };
+           minder: minder, extra: extra, bediening: bediening,
+           aantal: regels.length + w.vervallen.length + minder.length + bediening.length, w: w };
 }
 window.teBestellen = teBestellen;
 
@@ -5169,6 +5266,7 @@ function bestellingVastleggen(lijst, via, moment) {
     ruiten: m.ruiten
   };
   const nAnnuleren = Object.keys(m.vervallen || {}).length;
+  const alleenBed = Object.keys(m.ruiten || {}).filter(id => m.ruiten[id] && m.ruiten[id].bedieningVan).length;
   if (nAnnuleren) nieuw.vervallen = m.vervallen;
   vorige.push(nieuw);
   projectInfo.bestellingen = bestellingenOpschonen(vorige);
@@ -5183,6 +5281,8 @@ function bestellingVastleggen(lijst, via, moment) {
       (via === 'mail' ? ' (bestelmail)' : '') + ', ' + nieuw.aantal +
       (nieuw.aantal === 1 ? ' positie' : ' posities') +
       (nAnnuleren ? ', ' + nAnnuleren + ' te annuleren' : '') +
+      // v112: een lijst met alleen een andere bediening is ook iets.
+      (alleenBed ? ', ' + alleenBed + ' met alleen een andere bediening' : '') +
       (wasRang < 2 ? '; status op "besteld"' : ''));
   }
   if (window.glasMarkeerWerk) glasMarkeerWerk();
@@ -5362,9 +5462,11 @@ function bestellingenBlok() {
       regel('●', 'Gewijzigd', 'komt op de aanvulling; de oude annuleren als dat nog kan', w.gewijzigd.map(g => {
         // v110: alleen een ander aantal is geen "oude annuleren".
         const v = bestelbaar(g.rij) ? aantalVerschil(g.oud, g.rij) : null;
-        const hoe = !v ? '' : v.soort === 'extra'
+        const b = bestelbaar(g.rij) ? bedieningVerschil(g.oud, g.rij) : null;   // v112
+        const hoe = (!v ? '' : v.soort === 'extra'
           ? ' — op de aanvulling als ' + v.verschil + ' extra; de ' + v.was + ' bestelde blijven'
-          : ' — op de aanvulling: ' + (v.was - v.nu) + ' annuleren; de andere ' + v.nu + ' blijven';
+          : ' — op de aanvulling: ' + (v.was - v.nu) + ' annuleren; de andere ' + v.nu + ' blijven') +
+          (!b ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ALLEEN BEDIENING, het glas wordt niet opnieuw gemaakt');
         return '<li>' + naam(g.rij) + ': ' +
           esc(g.verschil.join('; ')) + (g.nr ? ' (besteld in de ' + esc(g.nrTekst || g.nr + 'e') + ')' : '') + esc(hoe) +
           (bestelbaar(g.rij) ? '' : ' — nog niet compleet') + '</li>';
@@ -5385,9 +5487,11 @@ function bestellingenBlok() {
       (t.aantal
         ? '<p>Maak de bestellijst-pdf: dat wordt de <b>' + esc(volgende) + ', een aanvulling</b> met alleen ' +
           // v110: alleen iets te annuleren (bijvoorbeeld één ruit minder).
-          (t.regels.length ? t.regels.length + (t.regels.length === 1 ? ' nieuwe of gewijzigde ruit' : ' nieuwe of gewijzigde ruiten') +
-            ((t.vervallen.length + t.minder.length) ? ' en ' : '') : '') +
-          ((t.vervallen.length + t.minder.length) ? (t.vervallen.length + t.minder.length) + ' te annuleren' : '') +
+          [t.regels.length ? t.regels.length + (t.regels.length === 1 ? ' nieuwe of gewijzigde ruit' : ' nieuwe of gewijzigde ruiten') : '',
+           (t.vervallen.length + t.minder.length) ? (t.vervallen.length + t.minder.length) + ' te annuleren' : '',
+           // v112
+           (t.bediening || []).length ? t.bediening.length + (t.bediening.length === 1 ? ' ruit' : ' ruiten') + ' met alleen een andere bediening' : '']
+            .filter(Boolean).join(' en ') +
           '. Kies daarna <b>Ja, verstuurd</b>.</p>'
         : '<p>Er is nu niets bij te bestellen: vul eerst aan wat niet compleet is.</p>');
   }

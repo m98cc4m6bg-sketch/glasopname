@@ -16,7 +16,7 @@
    - Toebehoren rekent zoals afgesproken (sponningmaat + 20 mm verstek,
      zaagplan over 4 m met 5 mm zaagsnede, 10 % als controle; band 2 ×
      omtrek + 4 × breedte bij rooster; kit 4 × 5 mm binnen en buiten,
-     265 ml per koker; tape 1 strook per kant per roede);
+     290 ml per koker, alles bruikbaar (v112); tape 1 strook per kant per roede);
    - instellingen per project aan te passen, afwijkingen zichtbaar, terug
      naar standaard;
    - Toebehoren staat in de PDF invoer, NIET op de bestellijst;
@@ -66,7 +66,6 @@ const MUTATIES = {
   kenmerkNooit: ["index.html", "    (rij.bediening && rij.rooster === 'Ja' ? '|bed:' + rij.bediening", "    (0 ? '|bed:' + rij.bediening"],
   bulkRooster: ["bulk.js", "          delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; } },", "          } },"],
   zonderRooster: ["index.html", "  if (!r || !roosterJa || !r.bediening", "  if (!r || !r.bediening"],
-  wasBediening: ["pdf.js", "    if (bedOud !== bedNu) was += ', ' + (bedOud || 'zonder bediening');", ""],
   undoBediening: ["undo.js", "    omhul('setBediening', 'Bediening gewijzigd');", ""],
   kortRooster: ["index.html", " || (r.kort && !('rooster' in r))", ""],
   kenmerkRooster: ["index.html", "    (rij.bediening && rij.rooster === 'Ja' ? '|bed:'", "    (rij.bediening ? '|bed:'"],
@@ -75,6 +74,7 @@ const MUTATIES = {
   duizendtal: ["index.html", "  const n = /^\\d{1,3}(\\.\\d{3})+$/.test(tekst) ? parseInt(tekst.replace(/\\./g, ''), 10) :", "  const n = 0 ? 0 :"],
   omzetten: ["pdf.js", "      .replace(/\\u0142/g, 'l')", "      .replace(/\\u0142/g, '')"],
   winAnsi: ["pdf.js", "\\u0160\\u0161", ""],
+  koker290: ["toebehoren.js", "kit[kleur] / g.KOKER_ML - 1e-9", "kit[kleur] / (g.KOKER_ML - 25) - 1e-9"],
   emoji: ["pdf.js", "|(?![\\u00a9\\u00ae\\u2122])\\p{Extended_Pictographic}/gu, '')", "/gu, '')"],
   roosterNee: ["index.html", "    if (r && r.bediening && !invoerOpSlot()) { delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; }", ""],
   lengteLeeg: ["index.html", "  if (tekst === '') delete r.bedieningLengte;", "  if (tekst === '') {}"],
@@ -97,8 +97,8 @@ const WAAR = {
   alleOnderlat: '2', kijken: '6', kijkenScherm: '6', waardeTekst: '2', pdfInvoer: '3', kenmerkAltijd: '4', kenmerkNooit: '5',
   roosterNee: '4', lengteLeeg: '4', slotBediening: '5', letOp: '4', bestelKolom: '4', invoerKolom: '4', samenvatting: '4',
   bestelTab: '4', export: '4', verschil: '5', favicon: '6', pijl: '3', metRooster: '3', opDeRuit: '2', latRol: '2', komma: '2',
-  geenGetal: '2', bulkRooster: '4', zonderRooster: '4', wasBediening: '5', undoBediening: '4', emoji: '3',
-  kortRooster: '4', kenmerkRooster: '4', terugRooster: '5', lengteControle: '4', duizendtal: '4', omzetten: '3', winAnsi: '3',
+  geenGetal: '2', bulkRooster: '4', zonderRooster: '4', undoBediening: '4', emoji: '3',
+  koker290: '2', kortRooster: '4', kenmerkRooster: '4', terugRooster: '5', lengteControle: '4', duizendtal: '4', omzetten: '3', winAnsi: '3',
 };
 
 
@@ -795,7 +795,7 @@ async function naarToebehoren(page) {
     // Omtrek glas: X 2×(992+1992) = 5,968 m; Y 2×(892+1492) × 2 = 9,536 m → 15,504 m per kant, 2 kanten.
     check('glasband wit 3 mm: 2 × 15,504 = 31,008 m, 1 rol (100 m)', u.band.length === 1 && Math.abs(band.meters - 31.008) < 1e-6 &&
       band.rollen === 1 && band.kleur === 'wit' && band.dikte === 3, JSON.stringify(u.band));
-    check('glaskit: 31,008 m × 20 ml/m = 620,16 ml ÷ 265 → 3 kokers', u.kit.length === 1 && Math.abs(kit.ml - 620.16) < 1e-6 &&
+    check('glaskit: 31,008 m × 20 ml/m = 620,16 ml ÷ 290 → 3 kokers', u.kit.length === 1 && Math.abs(kit.ml - 620.16) < 1e-6 &&
       kit.kokers === 3, JSON.stringify(u.kit));
     // Tape: Y heeft 2 horizontale (892) en 2 verticale (1492) roeden, 1 strook per kant, ×2 ruiten.
     check('tape: (2×892 + 2×1492) × 2 kanten × 2 ruiten = 19,072 m, 1 rol', Math.abs(u.tape.meters - 19.072) < 1e-6 && u.tape.rollen === 1,
@@ -804,7 +804,7 @@ async function naarToebehoren(page) {
     check('op het tabblad: "4 × 4,0 m Glaslat", "1 × 4,0 m Neuslat", "31,0 m Glasband wit 3 mm", "3 kokers"',
       /4 × 4,0 m Glaslat \(boven en zijkanten\)/.test(t) && /1 × 4,0 m Neuslat \(onder\)/.test(t) && /31,0 m Glasband wit 3 mm/.test(t) &&
       /3 kokers Glaskit wit/.test(t), t.slice(0, 400));
-    check('met de rekenregel eronder (narekenbaar)', /620 ml ÷ 265 ml bruikbaar per koker → 3 kokers/.test(t) &&
+    check('met de rekenregel eronder (narekenbaar)', /620 ml ÷ 290 ml per koker → 3 kokers/.test(t) &&
       /Controle: 13,0 m \+ 10 % = 14,3 m → 4 lengtes/.test(t), t.slice(0, 900));
     check('en "Gerekend met de standaardwaarden"', /Gerekend met de standaardwaarden/.test(t));
     // Randgevallen van het zaagplan en de sponningmaat (los gerekend, dan het project terug).
@@ -904,6 +904,14 @@ async function naarToebehoren(page) {
     check('kitvoeg 0 wordt niet bewaard (gaf "NaN m voeg")', kit0[0] === 6 && !kit0[1], JSON.stringify(kit0));
     await page.evaluate(() => toebehorenGetal('KITVOEG_BREEDTE_MM', '5'));
     // Een staaflengte van 0 (getypt, of van een ander apparaat) telt niet: anders "oneindig veel lengtes".
+    // v112 (Jan): een koker van 290 ml is helemaal bruikbaar. Hier is buiten grijs, dus per kleur 15,504 m voeg;
+    // kitvoeg 4 × 4,5 = 18 ml/m → 279,1 ml per kleur ÷ 290 → 1 koker (met de oude 265 ml "bruikbaar": 2).
+    m = await page.evaluate(() => { const was = JSON.stringify(projectInfo.toebehoren);
+      toebehorenGetal('KITVOEG_BREEDTE_MM', '4'); toebehorenGetal('KITVOEG_DIEPTE_MM', '4,5');
+      const k = toebehorenBerekenen().kit; projectInfo.toebehoren = JSON.parse(was); renderToebehoren();
+      return k.map(c => [c.kleur, Math.round(c.ml * 10) / 10, c.kokers]); });
+    check('290 ml per koker helemaal bruikbaar: 279,1 ml per kleur → 1 koker', m.length === 2 &&
+      m.every(c => c[1] === 279.1 && c[2] === 1), JSON.stringify(m));
     const nulBewaard = await page.evaluate(() => { toebehorenGetal('STAAF_MM', '0'); return 'STAAF_MM' in ((projectInfo.toebehoren || {}).afwijkingen || {}); });
     check('staaflengte 0 typen: wordt niet bewaard', !nulBewaard);
     u = await page.evaluate(() => { const kort = x => JSON.stringify([x.latten.map(l => l.staven + '/' + l.controle), x.tape.rollen]);
@@ -1109,8 +1117,11 @@ async function naarToebehoren(page) {
     t = await bestelTekst(page);
     check('Bestellijst: Z gewijzigd met "bediening (geen) → 2× bedieningsstang std. lengte"',
       /Z: bediening \(geen\) → 2× bedieningsstang std\. lengte/.test(t), (t.match(/Z:.{0,120}/) || [''])[0] || t.slice(0, 300));
-    w = await page.evaluate(() => { const x = teBestellen(); return { g: x.gewijzigd.map(g => g.rij.merk), r: x.regels.length }; });
-    check('de aanvulling: alleen Z (de toebehoren van X en Y tellen niet)', JSON.stringify(w.g) === '["Z"]' && w.r === 1, JSON.stringify(w));
+    w = await page.evaluate(() => { const x = teBestellen(); return { g: x.gewijzigd.map(g => g.rij.merk), r: x.regels.length,
+      b: (x.bediening || []).map(b => b.rij.merk) }; });
+    // v112 (keuze Jan): alleen de bediening = niet in de glastabel, maar onder ALLEEN BEDIENING (test-v112.js).
+    check('de aanvulling: alleen Z, onder ALLEEN BEDIENING (de toebehoren van X en Y tellen niet)',
+      JSON.stringify(w.b) === '["Z"]' && !w.g.length && w.r === 0, JSON.stringify(w));
     m = await page.evaluate(() => { const echt = window.oudereStand; window.oudereStand = () => ['rooster'];
       const x = rijen[0]; x.rooster = 'Ja'; x.ducoType = 'DucoTon 10'; x.bediening = 'stang'; x.bedieningAantal = 1;
       try { ruitenTerugZoalsBesteld([x.id]); } finally { window.oudereStand = echt; }
@@ -1119,9 +1130,9 @@ async function naarToebehoren(page) {
     check('alleen het rooster terug zoals besteld (Nee): dan ook geen bediening meer', m[0] === 'Nee' && m[1] === '', JSON.stringify(m));
     const pb = await bestellijstPdf(page, ONVOLLEDIG);
     t = plat(pdfTekst(pb));
-    check('pdf: Z VERVANGT Z uit de 1e (… zonder bediening), met 2x bedieningsstang',
-      /Z VERVANGT Z uit de 1e \(1x 792/.test(t) && /792 x 1192, zonder (lengte )?bediening\)/.test(t) && /2x bedieningsstang std\./.test(t),
-      (t.match(/Z VERVANGT.{0,200}/) || [''])[0] || t.slice(0, 400));
+    check('pdf: Z onder ALLEEN BEDIENING "erbij: 2x bedieningsstang std. lengte", geen VERVANGT',
+      /Z 1 792 1192 DucoTon 10 RAL 9010 1e erbij: 2x bedieningsstang std\. lengte 2 bedieningsstangen/.test(t) && !/VERVANGT Z/.test(t),
+      (t.match(/Z 1 792.{0,120}/) || [''])[0] || t.slice(0, 400));
     await ctx.close();
   }
 

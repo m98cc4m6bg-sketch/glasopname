@@ -2,47 +2,40 @@
 
 *Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens één
 pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 19 oktober 2026,
-bij v111.*
+bij v112.*
 
 ## Live
 
-- **v109** staat live: commit `b306e16` (19-10). Nagekeken: gelijk aan het
-  pakket.
-- **v110 en v111 zijn klaar en wachten op Jan** (v111 bevat v110): geen
-  SQL. Bij v111 gooit Jan ook bestanden weg: alle `WIJZIGINGEN-v*.md` en
-  `favicon.ico`/`favicon.png` (`LEES-MIJ-EERST-v111.md`). Pas na Jans push en
-  het nakijken van de repo geldt v111 als live.
+- **v111** staat live: commit `46d25ac` (19-10). Nagekeken: gelijk aan het
+  pakket (de oude nota's en favicons zijn weg).
+- **v112 is klaar en wacht op Jan**: geen SQL, niets weg te gooien
+  (`LEES-MIJ-EERST-v112.md`).
 - Alle SQL-scripts t/m **25** horen gedraaid te zijn.
 - De bestelmail (Edge Function `mail` + Resend) is **niet ingesteld**.
 
 ## Vorige sessie (19 oktober 2026)
 
-- v110: in een fotoblok volgt het aantal de bolletjes; "EXTRA +1" en "1
-  annuleren" na een bestelling (zie de handover).
-- v111 (Jan: "alles samen in v111"):
-  - de nota's uit de openbare repo (nu in de zip "niet-in-repo" en de
-    projectkennis), verzonnen e-mailadressen in tests, en de afspraak dat
-    zwakke plekken alleen in de handover staan;
-  - de favicon heet `favicon-v3.*` (Safari hield de oude vast);
-  - **bediening bij een rooster**: 1× of 2× stang of koord, met lengte;
-    gaat naar de leverancier;
-  - **tabblad Toebehoren**: glaslatten (zaagplan), glasband, glaskit,
-    wienersprossen-tape; alleen in de PDF invoer.
-- Een onafhankelijke controle vond onder meer: rooster Nee via ⤓ liet de
-  bediening staan, en keuzes op Toebehoren gaven de ruit een nieuw stempel.
-  Alles hersteld en getest.
+- v110 (aantal volgt de bolletjes, EXTRA) en v111 (nota's uit de repo,
+  favicon, bediening bij een rooster, tabblad Toebehoren): zie de handover.
+- v112, keuzes van Jan:
+  - na een bestelling **alleen een andere bediening = nooit VERVANGT**, maar
+    een eigen blok "ALLEEN BEDIENING – glas NIET opnieuw maken en NIET
+    annuleren"; aantal én bediening = EXTRA/"N annuleren" plus het blok;
+  - een koker glaskit van 290 ml is helemaal bruikbaar (de instelling
+    "bruikbaar per koker" is weg).
+- De controle vond o.a.: de bediening kan uit een andere lijst komen dan het
+  glas (nu "1e; bediening: 2e"), en een bestelling van een collega tussen pdf
+  en ‹Ja, verstuurd›. Hersteld en getest.
 
 ## Wacht op Jan
 
-1. **v111 plaatsen** (met het weggooien) en zeggen dat hij gepusht heeft.
-2. **Op de iPad proberen**: stap 1–5 in `WIJZIGINGEN-v110.md` (aantal en
-   bolletjes) en in `WIJZIGINGEN-v111.md` (favicon, bediening, Toebehoren).
-   Daarna: **welke rekenwaarden van Toebehoren moeten anders** (265 ml per
-   koker is een aanname).
-2b. **Vraag uit v111**: een ruit die na bestellen alleen een bediening
-   krijgt (of een andere RAL/Duco), als eigen soort "alleen bediening erbij,
-   glas niet opnieuw" in plaats van VERVANGT? Nu: VERVANGT met "zonder
-   bediening" erbij.
+1. **v112 plaatsen** en zeggen dat hij gepusht heeft. Daarna alle
+   apparaten even bijwerken (↻), vóór de eerste lijst met alleen een andere
+   bediening: een apparaat met v111 leest zo'n lijst nog als "glas uit de 2e".
+2. **Op de iPad proberen**: stap 1–5 in `WIJZIGINGEN-v110.md`, `-v111.md` en
+   `-v112.md`. De rekenwaarden van Toebehoren test Jan zelf in de praktijk
+   en past ze aan waar nodig (per project op het tabblad, of bovenin
+   `toebehoren.js`).
 3. **Site URL in Supabase** (Authentication → URL Configuration). Jan gaat
    dit doen. **Tot hij het bevestigt: uitgaan van "nog niet gedaan"**, en
    het nergens als klaar opschrijven. Steeds navragen.
@@ -53,8 +46,8 @@ bij v111.*
 6. **Nalezen** van `OVERZICHT.md` §8 en `DATAMODEL.md` (Jan gaat dit doen).
 7. **Instructievideo**: hoofdstukken over aanwijzen en het aantal (h03, h04,
    h05, h07) kloppen niet meer met v110; opnieuw opnemen
-   (`claude/INSTRUCTIEVIDEO.md`). Toebehoren en de bediening (v111) zitten er
-   nog niet in.
+   (`claude/INSTRUCTIEVIDEO.md`). Toebehoren en de bediening (v111/v112)
+   zitten er nog niet in. Jan pakt dit binnenkort op (19-10).
 
 ## In de volgende ronde aan Jan voorleggen (zijn verzoek, 17-10)
 

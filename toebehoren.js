@@ -45,8 +45,7 @@
     BAND_ROOSTER_FACTOR: 4,         // extra glasband bij een rooster: zoveel × de glasbreedte
     KITVOEG_BREEDTE_MM: 4,          // de kitvoeg: breedte …
     KITVOEG_DIEPTE_MM: 5,           // … × diepte; 4 × 5 = 20 mm² = 20 ml per meter voeg
-    KOKER_ML: 290,                  // inhoud van een koker glaskit
-    KOKER_BRUIKBAAR_ML: 265,        // wat je er in de praktijk uit krijgt (er blijft altijd een rest)
+    KOKER_ML: 290,                  // inhoud van een koker glaskit; alles is bruikbaar (Jan, v112)
     TAPE_ROL_M: 25,                 // meters wienersprossen-tape op een rol
     TAPE_STROKEN_PER_KANT: 1        // stroken tape per roede, per kant van het glas
   };
@@ -72,7 +71,6 @@
     KITVOEG_BREEDTE_MM: ['Kitvoeg breedte', 'mm'],
     KITVOEG_DIEPTE_MM: ['Kitvoeg diepte', 'mm'],
     KOKER_ML: ['Inhoud koker', 'ml'],
-    KOKER_BRUIKBAAR_ML: ['Bruikbaar per koker', 'ml'],
     TAPE_ROL_M: ['Tape per rol', 'm'],
     TAPE_STROKEN_PER_KANT: ['Tape: stroken per kant', '']
   };
@@ -100,7 +98,7 @@
   // De instellingen van dit project: de standaard, met wat er per project
   // anders is gezet. Alleen de afwijkingen worden bewaard.
   // Waarden waardoor gedeeld wordt (of die een kitvoeg maken): groter dan 0.
-  var DELERS = ['STAAF_MM', 'BAND_ROL_M', 'KOKER_ML', 'KOKER_BRUIKBAAR_ML', 'TAPE_ROL_M', 'KITVOEG_BREEDTE_MM', 'KITVOEG_DIEPTE_MM'];
+  var DELERS = ['STAAF_MM', 'BAND_ROL_M', 'KOKER_ML', 'TAPE_ROL_M', 'KITVOEG_BREEDTE_MM', 'KITVOEG_DIEPTE_MM'];
   function projectDeel() {
     var p = (typeof projectInfo === 'object' && projectInfo && projectInfo.toebehoren) || {};
     return p;
@@ -264,7 +262,7 @@
       return { kleur: d[0], dikte: +d[1], meters: band[sleutel], rollen: Math.ceil(band[sleutel] / g.BAND_ROL_M - 1e-9) };
     });
     var kitLijst = Object.keys(kit).map(function (kleur) {
-      return { kleur: kleur, ml: kit[kleur], kokers: Math.ceil(kit[kleur] / g.KOKER_BRUIKBAAR_ML - 1e-9) };
+      return { kleur: kleur, ml: kit[kleur], kokers: Math.ceil(kit[kleur] / g.KOKER_ML - 1e-9) };
     });
     return {
       instellingen: ins, mlPerM: mlPerM, latten: latten, band: bandLijst, kit: kitLijst,
@@ -295,7 +293,7 @@
     });
     u.kit.forEach(function (c) {
       regels['kit:' + c.kleur] = nl(c.ml / u.mlPerM, 1) + ' m voeg × ' + u.mlPerM + ' ml/m (' + g.KITVOEG_BREEDTE_MM + ' × ' +
-        g.KITVOEG_DIEPTE_MM + ' mm) = ' + nl(c.ml) + ' ml ÷ ' + g.KOKER_BRUIKBAAR_ML + ' ml bruikbaar per koker → ' + c.kokers +
+        g.KITVOEG_DIEPTE_MM + ' mm) = ' + nl(c.ml) + ' ml ÷ ' + g.KOKER_ML + ' ml per koker → ' + c.kokers +
         (c.kokers === 1 ? ' koker.' : ' kokers.');
     });
     regels.tape = nl(u.tape.meters, 1) + ' m (elke roede ' + g.TAPE_STROKEN_PER_KANT + '× aan elke kant van het glas) ÷ ' +

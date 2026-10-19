@@ -369,6 +369,17 @@ harde eis wint.
     (bestaand gedrag, `bijBetreden = null`); verlaat in de test eerst het vak.
     Een omhulde functie (`omhul`) én focusin/focusout op hetzelfde vak geeft
     twee stappen: alleen omhullen wat zijn eigen vak vervangt.
+- `test-v112.js` (alleen een andere bediening na een bestelling):
+  - drie bestellijsten na elkaar, met de echte knoppen; daarna ook het
+    overzicht. Toets niet alleen de eerste aanvulling: de fout "glas uit de
+    1e, stang uit de 2e" zie je pas bij de 3e lijst;
+  - onderdeel 4 rekent `standVan` met een zelfgemaakte reeks (een collega
+    bestelt tussen de pdf en ‹Ja, verstuurd›), zonder browserklikken: dat
+    geval is met twee apparaten nauwelijks op tijd na te spelen;
+  - les: de mutatie `glasGelijk` (de kenmerkcontrole weg) bleef eerst groen,
+    want de test veranderde een maat, en die vangt de glasmaatcontrole al.
+    Een andere RAL-kleur verandert het kenmerk zonder de glasmaat: die raakt
+    precies deze controle.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

@@ -149,6 +149,11 @@ Een feit staat op één plek; elders verwijs je ernaar.
   ruit; telt in `ruitKenmerk` alleen mee als hij gekozen is, met de kale
   velden (nooit de schermtekst). Rooster op Nee (ook doorvoeren in bulk.js)
   haalt hem weg; `bedieningTekst` toont niets zonder rooster.
+  Na een bestelling alleen de bediening anders (v112, keuze Jan) = nooit
+  VERVANGT: `bedieningVerschil` → blok ALLEEN BEDIENING (`teBestellen().bediening`,
+  `bedieningVan` in de momentopname, `bedieningTabel`). Glas en bediening
+  kunnen uit verschillende lijsten komen: noem ze met `besteldInTekst` en
+  `bedieningInTekst`.
 * **Toebehoren** (v111, `toebehoren.js`) gaat nooit naar de leverancier:
   alleen in de PDF invoer (`toebehorenPagina`), nooit op de bestellijst of
   in de mail. Keuzes per ruit in `info.toebehoren.perRuit`, **niet op de
@@ -239,7 +244,8 @@ OUD105=/tmp/v105werk node test-v106.js   # bewerkslot en v107/v108; en: --mutati
 node test-v109.js                     # inloggen, wachtwoord vergeten, herstellink, script 25; en: --mutaties (22, ±25 min)
 node test-v110.js                     # aantal en bolletjes, EXTRA/annuleren; en: --mutaties (43, ±45 min); PLAATJES=map voor schermafdrukken
 node test-v111.js                     # bediening, Toebehoren; en: --mutaties (±50, ±40 min); PLAATJES=map; OUD=map van live (kenmerk)
-OUD=/tmp/live109 node test-overgang.js   # OUD = git archive van wat live staat (19-10-2026: v109, b306e16); ook vanaf v98
+node test-v112.js                     # alleen een andere bediening na bestellen; en: --mutaties (21, ±15 min)
+OUD=/tmp/live111 node test-overgang.js   # OUD = git archive van wat live staat (19-10-2026: v111, 46d25ac); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 

@@ -2,7 +2,7 @@
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
 Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 19 oktober 2026,
-bij v111.*
+bij v112.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -318,9 +318,11 @@ Daarna:
   rooster heeft. Kies 1× of 2× stang of koord; de lengte in mm, of leeg
   voor de standaardlengte. Het gewone knopje op het rooster hoef je niet in
   te vullen.
-- *"Na de bestelling heb ik een stang toegevoegd; nu staat de ruit als
-  VERVANGT."* Klopt, zo werkt het nu: de leverancier ziet erbij "zonder
-  bediening". Zie de vraag aan Jan in `STATUS.md`.
+- *"Na de bestelling heb ik een stang toegevoegd; waar staat die op de
+  aanvulling?"* Sinds v112 niet in de glastabel, maar onder de tabel in het
+  blok **ALLEEN BEDIENING – glas NIET opnieuw maken en NIET annuleren**, met
+  het totaal aantal stangen of koorden. Is er tegelijk iets aan het glas of
+  het rooster veranderd (maat, RAL, Duco-type), dan blijft het VERVANGT.
 - *"Ik kan op Toebehoren niets kiezen."* Dan kijk je mee (een collega
   bewerkt het project). Na een bestelling kan het wel gewoon: het gaat niet
   naar de leverancier.

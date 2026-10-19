@@ -173,10 +173,15 @@
       try { toenStaat = JSON.parse(stapels.terug[i].staat); } catch (e) { continue; }
       toen = toenStaat.rijen || [];
       var toenBlok = toen.filter(function (r) { return (r.fotoId || null) === (fotoId || null); });
-      if (zelfdeRegels(toenBlok, nu)) continue;
-
       var toenFoto = (toenStaat.fotos || []).find(function (f) { return f.id === fotoId; });
       var nuFoto = fotos.find(function (f) { return f.id === fotoId; });
+      // Ook alleen de bolletjes tellen als wijziging (v110): "het bolletje
+      // weg" uit de strook onder de foto veranderde geen regel, en dan
+      // draaide ↶ een oudere wijziging terug in plaats van deze.
+      var zelfdeBollen = JSON.stringify((toenFoto && toenFoto.markeringen) || []) ===
+                         JSON.stringify((nuFoto && nuFoto.markeringen) || []);
+      if (zelfdeRegels(toenBlok, nu) && zelfdeBollen) continue;
+
       (vooruitPerBlok[id] = vooruitPerBlok[id] || []).push({
         regels: JSON.parse(JSON.stringify(nu)),
         markeringen: nuFoto ? JSON.parse(JSON.stringify(nuFoto.markeringen || [])) : null

@@ -1,7 +1,7 @@
 # Glasopname — overzicht: hoe de app in elkaar zit
 
 *Voor wie wil begrijpen hoe de app werkt, en hem zonder AI wil kunnen
-onderhouden. Bijgewerkt op 17 oktober 2026, bij v109.*
+onderhouden. Bijgewerkt op 19 oktober 2026, bij v110.*
 
 Wordt bij elke nieuwe versie bijgewerkt, net als `BEHEER.md` en
 `DATAMODEL.md` (zie "Handleidingen" in `WIJZIGINGEN-vNN.md`).
@@ -101,15 +101,18 @@ terugvindt (Cmd+F).
 | **Meekijken / overnemen** | `bewerkslot.js`: balk "… heeft dit project open" met ‹Toch bewerken› → vraag aan de bewerker (10 s aftellen) → `geefVrij()`; reageert die niet: ‹Overnemen› |
 | **Foto of tekening** | `fotos.js` `bewaarBestand()` → `wachtrij.js` (eerst op het apparaat, IndexedDB) → op de achtergrond naar Storage `projectfotos/<project>/…`. Ophalen: `fotoBlob()` |
 | **Tekenen op een foto** | `teken.js` (pen, vormen, tekst); de merkbolletjes in `fotos.js` |
-| **Bestellijst** | ⬇ Exporteren → `pdf.js` `exportBestellijstPdf()` → `voorControles()` (oudere stand? annuleren?) → pdf → `afleveren()` (opslaan/delen) → vraag "Naar de leverancier?" (`vraagVerstuurd`) → Ja: bestelling vastgelegd in `info.bestellingen`, status besteld, invoer op slot |
-| **Volgende bestellijst** | altijd een **aanvulling**: alleen nieuw en gewijzigd, VERVANGT, ANNULEREN (`teBestellen()` in index.html, `bestelModus()` in pdf.js) |
+| **Ruit op de foto aanwijzen** | tik op de foto → `fotos.js` `fotoTik`: een nieuwe ruit met de volgende letter, of (na ‹🎯 Ruiten aanwijzen›, `fotoAanwijzen`) een bolletje voor een bestaande regel die er nog niet genoeg heeft. Het aanwijzen verandert nooit het aantal: een ingelezen maatstaat is de waarheid |
+| **Het aantal in een fotoblok** (v110, keuze Jan) | heeft een regel minstens één bolletje, dan staat het aantal-vak vast (`index.html` `aantalCel`, `aantalVolgtBolletjes`; `setVal` weigert). Een ruit erbij: tik op een bolletje → ‹＋ Nog een ruit met deze letter› (`markErbij`) → de volgende tik op de foto zet het bolletje én het aantal +1, in één stap (één Cmd+Z). Eraf: ‹Één ruit minder› (`markEenMinder`). Doorvoeren (⤓, `bulk.js`) en gelijktrekken (`kopie.js`) slaan het aantal van zulke regels over en zeggen dat. Een regel zonder bolletjes houdt een vrij aantal |
+| **Aantal en bolletjes kloppen niet** (oud project, of half aangewezen) | strook onder de foto (`fotos.js` `scheefHTML`), per regel een keuze: ‹Er zijn er N› (`markAantalNaarBollen`), ‹… het gestreepte bolletje weg› (`markTeveelWeg`), ‹Aanwijzen› (`markAanwijzenRij`). Niets gaat vanzelf; een lager aantal vraagt eerst even (het kan uit een maatstaat komen); tijdens het aanwijzen blijven de regels die nog aangewezen worden uit de strook. Een bolletje te veel (rode stippelrand) heeft in zijn menu alleen "weghalen" |
+| **Bestellijst** | ⬇ Exporteren → `pdf.js` `exportBestellijstPdf()` → `voorControles()` (oudere stand? annuleren? en sinds v110 als laatste `aantalControle`: "Klopt het aantal?" als aantal en bolletjes niet gelijk zijn) → pdf → `afleveren()` (opslaan/delen) → vraag "Naar de leverancier?" (`vraagVerstuurd`) → Ja: bestelling vastgelegd in `info.bestellingen`, status besteld, invoer op slot |
+| **Volgende bestellijst** | altijd een **aanvulling**: alleen nieuw en gewijzigd, VERVANGT, ANNULEREN (`teBestellen()` in index.html, `bestelModus()` in pdf.js). Alleen een ander aantal (v110, `aantalVerschil()`): meer = **EXTRA** in de tabel met alleen het verschil als aantal; minder = niet in de tabel, wel onder ANNULEREN ("1 annuleren, de andere 2 blijven"). Verandert er ook iets anders (maat, glas, opmerking), dan blijft het VERVANGT. Na een EXTRA noemt de app bij elke ruit alle lijsten waar hij in zit ("uit de 1e en 2e", `besteldInTekst()`) |
 | **Ontgrendelen na bestellen** | `index.html` `slotOntgrendel()` → eigen wachtwoord (`melding.js` `appWachtwoord`) → `cloud.js` `glasWachtwoordKlopt()` → logboek |
 | **Overzicht (PDF invoer)** | `pdf.js` `exportFotoPdf()` |
 | **Importeren (maten uit pdf, Excel, csv)** | `import.js`, ⬆ Importeren |
 | **Naslag (catalogus, roosters)** | `naslag.js`; foto's in `catalogus/` en `roosters/` |
 | **Taken, logboek, klant, levering** | `project.js` (klantblok en levering staan op Invoer; Project info toont ze) → tabellen `taken`, `projectgeschiedenis` |
 | **Prullenbak** | `cloud.js` `cloudVerwijder()` → `verwijderd_op` gevuld; terugzetten of na 30 dagen definitief (`definitiefVerwijderen`, ook de foto's) |
-| **Ongedaan maken** | `undo.js` (Cmd/Ctrl+Z, Ctrl+Y) |
+| **Ongedaan maken** | `undo.js` (Cmd/Ctrl+Z, Ctrl+Y); per tabel ↶ en ↷ in de balk boven de tabel (`blokbalk.js` `blokOngedaan`; ziet sinds v110 ook een wijziging van alleen de bolletjes) |
 | **Nieuwe versie** | `sw.js` haalt de nieuwe bestanden op (alleen als **alle** binnen zijn: `allesInCache`) → `cloud.js` `zoekUpdate()` → eerst het werk opslaan en wachten (`veiligBijwerken`), dan pas herladen |
 | **Keuzelijsten** | `DATA` bovenin `index.html`, overschreven door `app_data.glas_data` uit de database (`cloud.js` `pasDataToe()`) |
 
@@ -117,25 +120,25 @@ terugvindt (Cmd+F).
 
 | bestand | regels | wat erin staat |
 |---|---|---|
-| `index.html` | 5.406 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
+| `index.html` | 5.626 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
 | `cloud.js` | 4.020 | inloggen, nieuw wachtwoord via een herstellink, projecten openen/opslaan/synchroniseren, live bijwerken, nieuwe versies, prullenbak, apart bewaren, taken en logboek ophalen |
-| `pdf.js` | 2.148 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
+| `pdf.js` | 2.268 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
 | `teken.js` | 1.777 | tekenlaag op foto's |
-| `fotos.js` | 1.573 | foto's en tekeningen, merkbolletjes, tabel per foto |
+| `fotos.js` | 1.794 | foto's en tekeningen, merkbolletjes, tabel per foto, het aantal samen met de bolletjes (v110) |
 | `project.js` | 1.168 | klant, werkadres, levering, taken, logboek, Opgenomen door |
 | `naslag.js` | 1.071 | glascatalogus, leverbaarheid, roeden, roosters |
 | `import.js` | 1.042 | maten inlezen uit pdf, Excel, csv, geplakte tekst |
 | `bewerkslot.js` | 755 | wie bewerkt, meekijken, overnemen |
 | `start.js` | 489 | het startscherm |
 | `wachtrij.js` | 437 | foto's eerst op het apparaat, dan naar de server |
-| `bulk.js` | 361 | waarden doorvoeren, selecteren |
+| `bulk.js` | 375 | waarden doorvoeren, selecteren |
 | `sw.js` | 258 | service worker: offline, nieuwe versies (lijst `SHELL`) |
 | `undo.js` | 255 | ongedaan maken |
 | `melding.js` | 226 | vensters en vragen in de huisstijl |
 | `originelen.js` | 222 | originele foto's als zip |
 | `merken.js` | 208 | merkletters uniek houden |
-| `blokbalk.js` | 206 | per tabel: ongedaan, leegmaken, speling |
-| `kopie.js` | 191 | regels kopiëren |
+| `blokbalk.js` | 211 | per tabel: ongedaan, leegmaken, speling |
+| `kopie.js` | 198 | regels kopiëren |
 | `config.js` | — | adres van Supabase + openbare sleutel. **Niet wijzigen** |
 | `leeg.html` | — | bewust leeg pagina'tje: de inlogformulieren "versturen" hierheen, zodat Safari en Firefox meteen vragen het wachtwoord te bewaren (v109). Niet weghalen; hoeft niet offline (inloggen kan toch alleen met bereik) |
 | `lib/` | — | de bibliotheken (Supabase, pdf, Excel, zip), met versienummer in de mapnaam |
@@ -162,6 +165,8 @@ omgooien.
 | Nooit weggooien: apart bewaren (v103) | harde eis: nooit gegevens kwijt | soms een apart project dat iemand moet opruimen |
 | Bestellingen in de database samenvoegen (v104) | een bestelling mag nooit verdwijnen, ook niet door een oud apparaat | |
 | Volgende bestellijst = aanvulling (v105, keuze Jan) | de leverancier krijgt alleen wat nieuw of anders is | |
+| In een fotoblok volgt het aantal de bolletjes (v110, keuze Jan: optie A) | de bestelling en de foto zeggen altijd hetzelfde; tot v109 kon je het aantal typen en liepen ze stil uit elkaar (te veel of te weinig besteld, monteur zoekt) | een ruit erbij gaat via het bolletje, niet via het vak; een oud project met een verschil vraagt één keuze per regel |
+| Alleen een ander aantal = EXTRA of "N annuleren" (v110, keuze Jan) | bij VERVANGT annuleerde de leverancier alle bestelde en maakte hij alles opnieuw | |
 | Alles in het Nederlands, ook de code | Jan moet het kunnen lezen | |
 | Openbare repo | gratis GitHub Pages | de opzet is zichtbaar (de sleutel in `config.js` is toch al openbaar) |
 | Gebruikers nooit verwijderen, behalve bij vertrek | koppelingen (taken, besteld door, logboek) raken anders los | zie `BEHEER.md` |
@@ -185,6 +190,9 @@ omgooien.
 | **service_role / sb_secret** | de geheime sleutel van Supabase; mag nooit in de repo |
 | **herstellink** | de link in de mail die Jan vanuit Supabase stuurt als iemand zijn wachtwoord kwijt is. Werkt één keer, een uur lang; opent de app met het venster "Kies een nieuw wachtwoord" |
 | **PasswordCredential** | de manier van Chrome, Edge en Android om een wachtwoord aan de wachtwoordbeheerder aan te bieden |
+| **bolletje (merkbolletje)** | het gele rondje met de merkletter op een foto of tekening: waar die ruit zit. Een regel ×3 heeft drie bolletjes met dezelfde letter |
+| **het aantal volgt de bolletjes** (v110) | heeft een regel bolletjes, dan gaan het aantal en de bolletjes alleen samen omhoog of omlaag (via het bolletje). Een **open plek**: minder bolletjes dan het aantal (nog aan te wijzen, gele rand). **Te veel**: meer bolletjes dan het aantal (gestreepte rand) |
+| **EXTRA** (v110) | op een aanvulling: maak er zoveel bij van een eerder bestelde ruit; de bestelde blijven |
 | **APP_VERSIE / PDF_VERSIE / VERSIE** | het versienummer, op drie plekken, altijd gelijk (zie §8) |
 
 ## 8. Zelf onderhouden, zonder AI
@@ -290,7 +298,7 @@ Bij elke versie draait Claude een reeks tests (in de repo: `test-*.js`),
 twee keer. Ze bootsen de echte situatie na: meerdere apparaten, geen bereik,
 een oude versie naast een nieuwe. Van elke nieuwe test wordt bewezen dat hij
 rood wordt als je de reparatie terugdraait (`--mutaties` in test-v103 t/m
-test-v106, en test-v109).
+test-v106, test-v109 en test-v110).
 
 **Zelf draaien kan nu nog niet zomaar**: de tests verwachten de hulpmiddelen
 op een vaste plek in de werkomgeving van Claude (`/home/claude/node_modules`)

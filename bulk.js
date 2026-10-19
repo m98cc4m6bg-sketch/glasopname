@@ -116,7 +116,11 @@
       { kop: 'Aantal', titel: 'Aantal', html: function (v) {
           return '<input type="number" id="bulkVeld" min="1" max="999" value="' + (v || 1) + '">'; },
         zet: function (r, v) { r.aantal = +v || 1; },
-        leeg: function (r) { return !r.aantal || r.aantal === 1; } },
+        leeg: function (r) { return !r.aantal || r.aantal === 1; },
+        // v110: een regel met bolletjes op de foto houdt zijn aantal; dat
+        // gaat alleen samen met de bolletjes (optie A, keuze van Jan).
+        mag: function (r) { return !(window.aantalVolgtBolletjes && aantalVolgtBolletjes(r)); },
+        nietReden: 'aantal volgt de bolletjes op de foto' },
 
       // Merk staat hier bewust niet tussen: een merkletter hoort bij
       // precies één ruit, dus dezelfde waarde over meerdere regels
@@ -266,7 +270,7 @@
     var veld = popover._veld;
     var bereik = popover.querySelector('input[name="bulkBereik"]:checked').value;
     var doel = doelen(bereik);
-    var gewijzigd = 0, overgeslagen = 0;
+    var gewijzigd = 0, overgeslagen = 0, vast = 0;
 
     if (veld.glas) {
       var type = document.getElementById('bulkType').value;
@@ -289,6 +293,7 @@
       if (waarde === '' && !veld.leegMag) { sluitPopover(); return; }
       doel.forEach(function (r) {
         if (bereik === 'leeg' && !veld.leeg(r)) { overgeslagen++; return; }
+        if (veld.mag && !veld.mag(r)) { vast++; return; }
         veld.zet(r, waarde);
         gewijzigd++;
       });
@@ -299,7 +304,16 @@
     var s = document.getElementById('statusBar');
     if (s) {
       s.textContent = veld.titel + ' doorgevoerd op ' + gewijzigd + ' ruit' + (gewijzigd === 1 ? '' : 'en') +
-        (overgeslagen ? ' (' + overgeslagen + ' overgeslagen)' : '');
+        (overgeslagen ? ' (' + overgeslagen + ' overgeslagen)' : '') +
+        (vast ? ' — ' + vast + ' niet: ' + veld.nietReden : '');
+    }
+    // Ook als venster (v110): de statusregel valt op een iPad weg onder de
+    // balk, en dan lijkt het of alles is doorgevoerd.
+    if (vast && window.appMelding) {
+      appMelding(vast + (vast === 1 ? ' regel heeft' : ' regels hebben') + ' bolletjes op de foto; daar ' +
+        'is het aantal niet veranderd. Bij een regel met bolletjes gaat het aantal samen met de bolletjes: ' +
+        'tik op een bolletje voor een ruit erbij of eraf.', { kop: 'Aantal doorgevoerd op ' + gewijzigd +
+        (gewijzigd === 1 ? ' regel' : ' regels') });
     }
   };
 

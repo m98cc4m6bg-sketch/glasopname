@@ -127,10 +127,9 @@ const MUTATIES = {
   geldig: ['pdf.js', "        var geldig = st && st.ruiten[id] && typeof st.ruiten[id] === 'object' ? st.ruiten[id] : o;",
                      "        var geldig = o;"],
   // 28c. Alles exporteren slaat na Stoppen de foto-pdf toch op.
-  alles: ['pdf.js', "        if (stap.gestopt) return;\n", "        if (0) return;\n"],
-  // 28. Ook vervangen ruiten met alleen een ander aantal op "gevraagd te annuleren".
-  zelfdemaat: ['pdf.js', "            String(was.glasHoogte) === String(o.glasHoogte) && was.glasType === o.glasType && was.opbouw === o.opbouw) return;",
-               "            false) return;"]
+  alles: ['pdf.js', "        if (stap.gestopt) return;\n", "        if (0) return;\n"]
+  // 28. (zelfdemaat) staat sinds v110 in test-v110.js: alleen een ander
+  // aantal is nu EXTRA, en dit scenario maakt geen VERVANGT meer.
 };
 
 
@@ -673,7 +672,7 @@ const idVan = merk => String((rijVan(1).data.rijen.find(r => r.merk === merk) ||
   check('de pdf heet AANVULLING en zegt waar hij op volgt', /Bestellijst glas - AANVULLING/.test(t1) &&
     /2e BESTELLIJST = AANVULLING op de eerdere bestelling \(1e van \d\d-\d\d-\d{4}\)/.test(t1), t1.slice(0, 250));
   check('en hoe hij te lezen is (NIEUW, VERVANGT, de rest blijft zoals besteld)',
-    /blijft zoals besteld/.test(t1) && /NIEUW = extra ruit/.test(t1) && /VERVANGT = maak deze in plaats van/.test(t1));
+    /blijft zoals besteld/.test(t1) && /NIEUW = nieuwe ruit/.test(t1) && /VERVANGT = maak deze in plaats van/.test(t1));
   check('K1: VERVANGT K1 uit de 1e (1x 1192 x 592), met de nieuwe glasmaat 1202', /K1 VERVANGT K1 uit de 1e \(1x 1192 x 592\) 1202/.test(t1),
     (t1.match(/K1 VERV.{0,60}/) || [''])[0]);
   check('K4: NIEUW', /K4 NIEUW 492 692/.test(t1), (t1.match(/K4.{0,40}/) || [''])[0]);
@@ -732,7 +731,11 @@ const idVan = merk => String((rijVan(1).data.rijen.find(r => r.merk === merk) ||
   const t2 = plat(pdfTekst(p2.pad));
   check('de balk noemt beide eerdere bestellingen', /AANVULLING op de eerdere bestelling \(1e van [\d-]+, 2e van [\d-]+\)/.test(t2),
     t2.slice(0, 250));
-  check('K3: VERVANGT K3 uit de 1e (1x …)', /K3 VERVANGT K3 uit de 1e \(1x 892 x 892\)/.test(t2), (t2.match(/K3.{0,50}/) || [''])[0]);
+  // v110 (keuze van Jan): alleen een ander aantal is EXTRA, niet meer
+  // VERVANGT. Een VERVANGT met dezelfde maat (zo legden v105–v109 dit vast)
+  // test test-v110.js, onderdeel 9.
+  check('K3: EXTRA bij K3 uit de 1e: +1 (samen 2x), met aantal 1', /1 K3 EXTRA bij K3 uit de 1e: \+1 \(samen 2x\)/.test(t2),
+    (t2.match(/.{0,4}K3.{0,50}/) || [''])[0]);
   check('K4: VERVANGT K4 uit de 2e (1x 492 x 692)', /K4 VERVANGT K4 uit de 2e \(1x 492 x 692\)/.test(t2), (t2.match(/K4.{0,50}/) || [''])[0]);
   check('K1 (al vervangen in de 2e, sindsdien gelijk) staat er niet op', !/K1/.test(t2));
   m = await vraagOpScherm(page);
@@ -766,9 +769,10 @@ const idVan = merk => String((rijVan(1).data.rijen.find(r => r.merk === merk) ||
     /K2 1 792 1392 .{0,30}1e vervallen, gevraagd in de 2e/.test(gv3) &&
     /K1 1 1192 592 .{0,30}1e oude maat, vervangen in de 2e; geldig is nu K1 1202 x 592 uit de 2e \(die NIET annuleren\)/.test(gv3) &&
     /K4 1 492 692 .{0,30}2e oude maat, vervangen in de 3e; geldig is nu K4 492 x 702 uit de 3e/.test(gv3), gv3);
-  check('maar niet K3 (alleen het aantal veranderde: zelfde maat, de leverancier zou de geldige annuleren)',
+  check('maar niet K3 (alleen het aantal veranderde: EXTRA, niets te annuleren)',
     !/K3 1 892 892/.test(gv3), gv3);
-  check('kolom Besteld: K1 in de 2e, K3 en K4 in de 3e', /Besteld/.test(t3) && /K1 2e/.test(t3) && /K3 3e/.test(t3) && /K4 3e/.test(t3),
+  check('kolom Besteld: K1 in de 2e, K3 1e + 3e (1 + 1, v110), K4 in de 3e', /Besteld/.test(t3) && /K1 2e/.test(t3) &&
+    /K3 1e \+ 3e \(1 \+ 1\)/.test(t3) && /K4 3e/.test(t3),
     (t3.match(/Pos.{0,200}/) || [''])[0]);
   check('alles wat besteld is staat erop (3 posities, 4 ruiten)', /3 posities \| 4 ruiten/.test(t3) && /alles wat besteld is/.test(t3),
     (t3.match(/\d+ posities.{0,80}/) || [''])[0]);

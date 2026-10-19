@@ -125,6 +125,20 @@ Een feit staat op één plek; elders verwijs je ernaar.
   `besteldeStand()`. Een oudere stand gaat nooit stil mee (`voorControles`).
   Script 23 rekent `info.besteld` zoals `besteldBijwerken()`: verander ze
   samen.
+* **In een fotoblok volgt het aantal de bolletjes** (v110, keuze Jan): heeft
+  een regel bolletjes, dan veranderen `aantal` en `markeringen` alleen samen
+  (`markErbij`, `markEenMinder`, de strook `scheefHTML`). Nieuwe code die
+  `aantal` zet (doorvoeren, gelijktrekken, import, terugzetten): eerst
+  `aantalVolgtBolletjes(rij)`. Nooit stil rechtzetten; ook niet bij openen.
+  Aanwijzen verandert nooit het aantal (een maatstaat is de waarheid).
+* Alleen een ander aantal na een bestelling = EXTRA / "N annuleren"
+  (`aantalVerschil`, v110), anders VERVANGT. `teBestellen()` deelt in;
+  `bestelMomentopname()` en de pdf volgen die indeling: verander ze samen.
+  Na een EXTRA zit een ruit in méér lijsten: noem ze met `besteldInTekst()`
+  ("1e en 2e"), nooit alleen `st.nr` (dat is de laatste lijst; de leverancier
+  liet dan de rest staan en maakte te veel).
+  Een EXTRA/minder is een verschil: `standVan` rekent het totaal vanaf wat
+  er dán geldt (`andereBasis`), niet vanaf `o.aantal`.
 * `pasDataToe()` laat `app_data.glas_data` winnen van `DATA` in index.html:
   een keuzelijst wijzigen vraagt óók een SQL-script.
 
@@ -202,7 +216,8 @@ node test-v104.js                     # en: --mutaties
 node test-v105.js                     # en: --mutaties
 OUD105=/tmp/v105werk node test-v106.js   # bewerkslot en v107/v108; en: --mutaties (48); zonder v105-map: OUD105=/tmp/v103live
 node test-v109.js                     # inloggen, wachtwoord vergeten, herstellink, script 25; en: --mutaties (22, ±25 min)
-OUD=/tmp/live108 node test-overgang.js   # OUD = git archive van wat live staat (17-10-2026: v108, a69a6b6); ook vanaf v98
+node test-v110.js                     # aantal en bolletjes, EXTRA/annuleren; en: --mutaties (43, ±45 min); PLAATJES=map voor schermafdrukken
+OUD=/tmp/live109 node test-overgang.js   # OUD = git archive van wat live staat (19-10-2026: v109, b306e16); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 

@@ -750,6 +750,12 @@
   window.renderFotos = function () {
     var houder = el('fotoHouder');
     if (!houder) return;
+    // Het hele scherm opnieuw (ander project, Cmd+Z, ander tabblad, een
+    // collega): een half gekozen "nog een ruit" vervalt, anders verhoogde
+    // de volgende tik stil een aantal zonder balk die het zei (beoordeling
+    // v110). Gewoon aanwijzen blijft, maar alleen op een foto die er nog is;
+    // de balk wordt onderaan opnieuw getekend.
+    if (aanwijzen && (aanwijzen.erbij || !fotoVan(aanwijzen.fotoId))) aanwijzen = null;
 
     var lijst = werkFotos();
     if (!lijst.length) {
@@ -800,11 +806,16 @@
           '<button class="btn btn-primary btn-sm" onclick="fotoAanGroep(\'' + f.id + '\')">+ Foto toevoegen</button></div>';
 
       var aantal = rijenVan(f.id).length;
+      // Ruiten tellen, niet regels (v110): tot v109 stond hier bij het
+      // openen "5 ruiten" voor vijf regels met samen acht ruiten; pas na een
+      // wijziging kwam telBlok met de juiste telling.
+      var telling = window.ruitenTelling ? ruitenTelling(rijenVan(f.id), 'nog geen ruiten')
+        : (aantal ? aantal + ' ruiten' : 'nog geen ruiten');
       var balk =
         '<div class="blok-balk" onclick="blokKlap(\'' + f.id + '\')">' +
           '<span class="blok-pijl" id="pijl-' + f.id + '">▾</span>' +
           '<h3>' + esc(f.titel || (f.pad ? soortNaam(f, true) + ' ' + (i + 1) : 'Groep ' + (i + 1))) + '</h3>' +
-          '<span class="blok-telling">' + (aantal ? aantal + ' ruiten' : 'nog geen ruiten') + '</span>' +
+          '<span class="blok-telling">' + esc(telling) + '</span>' +
         '</div>';
 
       return '<section class="foto-blok' + (f.pad ? '' : ' zonder-foto') + '" id="blok-' + f.id + '">' +
@@ -839,6 +850,7 @@
     // Zie renderFotoTabellen: ook hier komen er verse invoervelden bij, en
     // die moeten dicht blijven als het project besteld is (v90).
     if (window.slotToepassen) slotToepassen();
+    tekenAanwijsbalk();
   };
 
   window.fotoLaadFout = function (fotoId) {
@@ -909,6 +921,9 @@
       telBlok(f.id);
       var wrap = el('tabel-' + f.id);
       var voet = wrap && wrap.querySelector('.foto-voet');
+      // De strook 'klopt niet' (v110) staat vlak boven de voet en gaat mee.
+      var scheef = wrap && wrap.querySelector('.foto-scheef');
+      if (scheef) scheef.remove();
       if (voet) voet.outerHTML = voetHTML(f.id);
     });
     tekenAanwijsbalk();
@@ -1020,10 +1035,65 @@
   }
   window.openPlekken = openPlekken;
 
+  // Regels in deze groep waar het aantal en de bolletjes niet kloppen
+  // (v110). Sinds v110 kan dat niet meer ontstaan door het aantal te typen,
+  // maar wel in een project van vóór v110, of als een ruit nog half is
+  // aangewezen. Niets wordt stil rechtgezet (afspraak met Jan): per regel
+  // kies je zelf wat klopt.
+  // Elke regel staat in precies één strook: die van de foto met zijn eerste
+  // bolletje (meestal zijn eigen groep; een oud project kan bolletjes op een
+  // andere foto hebben, beoordeling v110). Tijdens het aanwijzen op deze
+  // foto blijven de regels die nog aangewezen worden weg: dat is geen fout,
+  // en een misser op "aantal wordt 1" zou een ingelezen aantal verlagen.
+  function eersteFotoVan(rijId) {
+    for (var i = 0; i < fotos.length; i++) {
+      if ((fotos[i].markeringen || []).some(function (m) { return m.rijId === rijId; })) return fotos[i].id;
+    }
+    return null;
+  }
+  function scheefIn(fotoId) {
+    return rijen.map(function (r) {
+      return { rij: r, bol: bollenVan(r.id), aantal: aantalVan(r) };
+    }).filter(function (x) {
+      if (!(x.bol > 0 && x.bol !== x.aantal)) return false;
+      if (eersteFotoVan(x.rij.id) !== fotoId) return false;
+      if (x.bol < x.aantal && aanwijzen && aanwijzen.fotoId === fotoId &&
+          aanwijzen.wachtrij.indexOf(x.rij.id) >= 0) return false;
+      return true;
+    });
+  }
+  window.scheefIn = scheefIn;
+
+  function scheefHTML(fotoId) {
+    var lijst = scheefIn(fotoId);
+    if (!lijst.length) return '';
+    return '<div class="foto-scheef">' + lijst.map(function (x) {
+      var id = x.rij.id, l = esc(labelVan(x.rij));
+      var bollen = x.bol === 1 ? 'één bolletje' : x.bol + ' bolletjes';
+      if (x.bol > x.aantal) {
+        var teveel = x.bol - x.aantal;
+        return '<div class="foto-scheef-regel"><span><b>' + l + '</b>: aantal ' + x.aantal + ', maar ' + bollen +
+          ' op de foto. Wat klopt?</span>' +
+          '<button class="btn btn-secondary btn-sm" onclick="markAantalNaarBollen(' + id + ')">' +
+            'Er zijn er ' + x.bol + ' (aantal wordt ' + x.bol + ')</button>' +
+          '<button class="btn btn-secondary btn-sm" onclick="markTeveelWeg(' + id + ')">' +
+            'Er ' + (x.aantal === 1 ? 'is er' : 'zijn er') + ' ' + x.aantal + ' (' +
+            (teveel === 1 ? 'het bolletje' : 'de ' + teveel + ' bolletjes') + ' met de rode stippelrand weg)</button></div>';
+      }
+      var open = x.aantal - x.bol;
+      return '<div class="foto-scheef-regel"><span><b>' + l + '</b>: aantal ' + x.aantal + ', ' + bollen +
+        ' op de foto: nog ' + open + ' aan te wijzen.</span>' +
+        '<button class="btn btn-secondary btn-sm" onclick="markAanwijzenRij(\'' + fotoId + '\',' + id + ')">' +
+          'Aanwijzen</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="markAantalNaarBollen(' + id + ')">' +
+          'Er ' + (x.bol === 1 ? 'is er' : 'zijn er') + ' maar ' + x.bol + ' (aantal wordt ' + x.bol + ')</button></div>';
+    }).join('') + '</div>';
+  }
+
   function voetHTML(fotoId) {
     var foto = fotoVan(fotoId);
     var open = openPlekken(fotoId);
-    return '<div class="foto-voet">' +
+    return scheefHTML(fotoId) + '<div class="foto-voet">' +
       '<button class="btn btn-secondary btn-sm" onclick="fotoRegelToevoegen(\'' + fotoId + '\')">' +
       '+ Regel zonder markering</button>' +
       (foto && foto.pad && open.length
@@ -1253,7 +1323,9 @@
   // regels alsnog een plek op de foto te geven. Je tikt ze één voor
   // één aan; de app houdt bij welke aan de beurt is.
 
-  var aanwijzen = null;   // { fotoId, wachtrij: [rijId] }
+  // { fotoId, wachtrij: [rijId] }; met erbij: true (v110) is het één extra
+  // ruit voor een regel die al bolletjes heeft: de tik zet het aantal +1.
+  var aanwijzen = null;
 
   // Na het aanraken van een bolletje stuurt iOS alsnog een klik naar de
   // foto eronder. Zonder deze pauze komt er bij elk sleepje een extra
@@ -1266,12 +1338,27 @@
     if (!open.length) { aanwijzenStop(); return; }
     aanwijzen = { fotoId: fotoId, wachtrij: open };
     tekenAanwijsbalk();
+    voetBijwerken(fotoId);
   };
 
   window.aanwijzenStop = function () {
+    var was = aanwijzen && aanwijzen.fotoId;
     aanwijzen = null;
     tekenAanwijsbalk();
+    if (was) voetBijwerken(was);
   };
+
+  // De strook en de knoppen onder één foto opnieuw (v110): de strook laat
+  // tijdens het aanwijzen de regels weg die nog aangewezen worden.
+  function voetBijwerken(fotoId) {
+    var wrap = el('tabel-' + fotoId);
+    if (!wrap) return;
+    var scheef = wrap.querySelector('.foto-scheef');
+    if (scheef) scheef.remove();
+    var voet = wrap.querySelector('.foto-voet');
+    if (voet) voet.outerHTML = voetHTML(fotoId);
+    if (window.slotToepassen) slotToepassen();
+  }
 
   window.aanwijzenOverslaan = function () {
     if (!aanwijzen) return;
@@ -1289,6 +1376,17 @@
         return;
       }
       var rij = getRij(aanwijzen.wachtrij[0]);
+      if (aanwijzen.erbij) {
+        if (!rij) { aanwijzen = null; tekenAanwijsbalk(); return; }
+        var nu = aantalVan(rij);
+        balk.style.display = 'flex';
+        balk.innerHTML =
+          '<span class="aanwijs-letter">' + esc(labelVan(rij)) + '</span>' +
+          '<span class="aanwijs-tekst">Tik op de foto waar de extra ruit ' + esc(labelVan(rij)) + ' zit' +
+          ' — het aantal wordt dan ' + (nu + 1) + '</span>' +
+          '<button class="btn btn-secondary btn-sm" onclick="aanwijzenStop()">Annuleren</button>';
+        return;
+      }
       // Weg, of het aantal is intussen verlaagd: deze plek overslaan.
       if (!rij || bollenVan(rij.id) >= aantalVan(rij)) {
         aanwijzen.wachtrij.shift(); tekenAanwijsbalk(); return;
@@ -1320,6 +1418,26 @@
 
     // In aanwijsmodus krijgt een bestaande ruit zijn plek, in plaats van
     // dat er een nieuwe ruit met een nieuwe letter bij komt.
+    // Eén ruit erbij voor een regel met bolletjes (v110): het aantal en het
+    // bolletje veranderen in één stap, zodat ze nooit uit elkaar lopen en
+    // Cmd+Z ze ook samen terugzet.
+    if (aanwijzen && aanwijzen.erbij && aanwijzen.fotoId === fotoId) {
+      var erbijRij = getRij(aanwijzen.wachtrij[0]);
+      aanwijzen = null;
+      if (erbijRij) {
+        var was = aantalVan(erbijRij);
+        if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(erbijRij) + ' erbij: aantal ' + was + ' → ' + (was + 1));
+        erbijRij.aantal = was + 1;
+        // Hoort de regel al bij een (bestaande) groep, dan blijft hij daar.
+        if (!erbijRij.fotoId || !fotoVan(erbijRij.fotoId)) erbijRij.fotoId = fotoId;
+        foto.markeringen.push({ rijId: erbijRij.id, x: x, y: y });
+        herbereken();
+        renderTabel();
+        opslaan();
+      }
+      tekenAanwijsbalk();
+      return;
+    }
     if (aanwijzen && aanwijzen.fotoId === fotoId && aanwijzen.wachtrij.length) {
       var bestaandeId = aanwijzen.wachtrij.shift();
       var bestaande = getRij(bestaandeId);
@@ -1453,7 +1571,10 @@
     var rij = getRij(m.rijId);
 
     var st = bolStaat(fotoId, index);
-    var meer = rij && st.aantal > 1;
+    // Een bolletje boven het aantal (rode stippelrand): alleen weghalen. Eén
+    // ruit minder zou het aantal nog verder van de bolletjes brengen.
+    var teveel = rij && st.nr > st.aantal;
+    var meer = rij && st.aantal > 1 && !teveel;
     var d = document.createElement('div');
     d.className = 'mark-menu';
     d.innerHTML =
@@ -1462,12 +1583,24 @@
         (rij && st.nr > st.aantal ? ' <span class="teveel">· te veel</span>' : '') +
       '</div>' +
       (rij ? '<button onclick="markNaarRegel(\'' + fotoId + '\',' + index + ')">Naar de regel</button>' : '') +
-      '<button onclick="markWeg(\'' + fotoId + '\',' + index + ')">Alleen markering verwijderen</button>' +
+      // Een open plek (minder bolletjes dan het aantal): eerst die aanwijzen
+      // (tweede controle v110: wie de ontbrekende ruit zocht, verhoogde
+      // anders het aantal).
+      (rij && !teveel && bollenVan(rij.id) < st.aantal
+        ? '<button onclick="markAanwijzenRij(\'' + fotoId + '\',' + rij.id + ')">🎯 De ontbrekende ' +
+          (st.aantal - bollenVan(rij.id) === 1 ? 'ruit' : st.aantal - bollenVan(rij.id) + ' ruiten') + ' aanwijzen</button>' : '') +
+      // v110: een ruit erbij gaat via het bolletje, want het aantal is in
+      // een fotoblok niet meer te typen (optie A).
+      (rij && !teveel ? '<button onclick="markErbij(\'' + fotoId + '\',' + index + ')">' +
+        '＋ Nog een ruit met deze letter (aantal ' + st.aantal + ' → ' + (st.aantal + 1) + ')</button>' : '') +
+      '<button onclick="markWeg(\'' + fotoId + '\',' + index + ')">' +
+        (teveel ? 'Dit bolletje weghalen (het is er een te veel)'
+          : rij ? 'Alleen het bolletje weghalen (aantal blijft ' + st.aantal + ')' : 'Markering verwijderen') + '</button>' +
       // Bij een regel ×3 wil je meestal één van de drie kwijt, niet de
       // hele bestelregel. Dat haalt dit bolletje weg én het aantal omlaag.
       (meer ? '<button onclick="markEenMinder(\'' + fotoId + '\',' + index + ')">' +
         'Één ruit minder (aantal ' + st.aantal + ' → ' + (st.aantal - 1) + ')</button>' : '') +
-      (rij ? '<button class="gevaar" onclick="markRuitWeg(\'' + fotoId + '\',' + index + ')">' +
+      (rij && !teveel ? '<button class="gevaar" onclick="markRuitWeg(\'' + fotoId + '\',' + index + ')">' +
         (meer ? 'Hele regel verwijderen (' + st.aantal + ' ruiten)' : 'Ruit verwijderen') + '</button>' : '') +
       '<button onclick="markMenuSluit()">Annuleren</button>';
     document.body.appendChild(d);
@@ -1477,11 +1610,97 @@
     var links = Math.min(r.left + window.scrollX,
       window.scrollX + document.documentElement.clientWidth - d.offsetWidth - 10);
     d.style.left = Math.max(window.scrollX + 8, links) + 'px';
-    d.style.top = (r.bottom + window.scrollY + 6) + 'px';
+    // Past het niet meer onder het bolletje (iPhone liggend), dan erboven.
+    var hoog = window.visualViewport ? window.visualViewport.height : document.documentElement.clientHeight;
+    var onder = r.bottom + 6 + d.offsetHeight <= hoog;
+    var boven = r.top - 6 - d.offsetHeight >= 0;
+    if (!onder && !boven) {
+      // Past nergens (iPhone liggend): bovenin het beeld, en dan schuiven.
+      d.style.maxHeight = Math.max(120, hoog - 16) + 'px';
+      d.style.overflowY = 'auto';
+      d.style.top = (window.scrollY + 8) + 'px';
+    } else {
+      d.style.top = (!onder ? r.top + window.scrollY - 6 - d.offsetHeight
+                            : r.bottom + window.scrollY + 6) + 'px';
+    }
     setTimeout(function () { document.addEventListener('pointerdown', menuBuiten, true); }, 0);
   }
 
   window.markMenuSluit = sluitMenu;
+
+  /* ─── v110: aantal en bolletjes samen ──────────────────────── */
+
+  // ‹＋ Nog een ruit met deze letter›: de volgende tik op de foto zet het
+  // bolletje en verhoogt het aantal, in één stap. Annuleren verandert niets.
+  window.markErbij = function (fotoId, index) {
+    sluitMenu();
+    var foto = fotoVan(fotoId);
+    var m = foto && foto.markeringen[index];
+    var rij = m && getRij(m.rijId);
+    if (!rij) return;
+    aanwijzen = { fotoId: fotoId, wachtrij: [rij.id], erbij: true };
+    tekenAanwijsbalk();
+  };
+
+  // Strook 'klopt niet', "Er zijn er N": het aantal wordt het aantal
+  // bolletjes. Alleen op een tik van de gebruiker, nooit vanzelf.
+  window.markAantalNaarBollen = async function (rijId) {
+    var rij = getRij(rijId);
+    var n = bollenVan(rijId);
+    if (!rij || !n) return;
+    var was = aantalVan(rij);
+    var project = window.glasProjectId;
+    // Lager: het aantal kan uit een ingelezen maatstaat komen (de waarheid,
+    // afspraak met Jan). Eerst even vragen; een misser op een iPad is zo
+    // gemaakt.
+    if (n < was && window.appVraag && !await appVraag('Het aantal van ' + labelVan(rij) + ' van ' + was + ' naar ' + n +
+        '? Er ' + (was - n === 1 ? 'is dan één ruit' : 'zijn dan ' + (was - n) + ' ruiten') + ' minder. Komt het aantal ' +
+        'uit een ingelezen maatstaat, kijk die dan eerst na.', { kop: 'Aantal verlagen', ja: 'Ja, ' + n })) return;
+    rij = getRij(rijId);
+    // Intussen iets veranderd (een collega, ander project)? Dan niets doen.
+    if (!rij || bollenVan(rijId) !== n || aantalVan(rij) !== was || window.glasProjectId !== project) return;
+    // Intussen besteld (een collega) of overgenomen: dan niet meer.
+    if (window.invoerOpSlot && invoerOpSlot()) { if (window.slotWeigert) slotWeigert(); return; }
+    if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(rij) + ': aantal ' + aantalVan(rij) + ' → ' + n);
+    rij.aantal = n;
+    herbereken();
+    renderTabel();
+    opslaan();
+  };
+
+  // Strook 'klopt niet', te veel bolletjes: de gestreepte weg (die boven
+  // het aantal: het laatst geplaatst, en zo ook al niet in de pdf).
+  window.markTeveelWeg = function (rijId) {
+    var rij = getRij(rijId);
+    if (!rij) return;
+    var max = aantalVan(rij);
+    if (bollenVan(rijId) <= max) return;
+    if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(rij) + ': bolletjes te veel weg');
+    var n = 0;
+    fotos.forEach(function (f) {
+      f.markeringen = (f.markeringen || []).filter(function (mk) {
+        if (mk.rijId !== rijId) return true;
+        return ++n <= max;
+      });
+    });
+    herbereken();
+    renderTabel();
+    opslaan();
+  };
+
+  // Strook 'klopt niet', nog aan te wijzen: alleen deze regel aanwijzen.
+  window.markAanwijzenRij = function (fotoId, rijId) {
+    sluitMenu();
+    var rij = getRij(rijId);
+    if (!rij) return;
+    var open = aantalVan(rij) - bollenVan(rijId);
+    if (open < 1) return;
+    var rij2 = [];
+    for (var i = 0; i < open; i++) rij2.push(rijId);
+    aanwijzen = { fotoId: fotoId, wachtrij: rij2 };
+    tekenAanwijsbalk();
+    voetBijwerken(fotoId);
+  };
 
   window.markNaarRegel = function (fotoId, index) {
     sluitMenu();
@@ -1495,7 +1714,9 @@
     if (window.bewaarStap) bewaarStap('Markering verwijderd');
     foto.markeringen.splice(index, 1);
     opslaan();
-    renderFotoTabellen();
+    // renderTabel (v110): zonder bolletje is het aantal weer vrij, ook als de
+    // regel in de losse tabel staat.
+    renderTabel();
   };
 
   // Eén van de gelijke ruiten eruit: dit bolletje weg en het aantal één

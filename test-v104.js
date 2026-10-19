@@ -1269,8 +1269,11 @@ async function bestelTekst(page) {
   const p21 = await bestellijstPdf(page);
   const t21 = pdfTekst(p21).replace(/\s+/g, ' ');
   check('de pdf: K4 NIEUW', /K4 NIEUW/.test(t21), (t21.match(/K4.{0,40}/) || [''])[0]);
-  check('de pdf: K3 VERVANGT K3 uit de 1e (1x ...)', /K3 VERVANGT K3 uit de 1e \(1x /.test(t21), (t21.match(/K3.{0,60}/) || [''])[0]);
-  check('de pdf telt wat erop staat: 1 NIEUW, 1 VERVANGT', /alleen deze aanvulling: 1 NIEUW, 1 VERVANGT/.test(t21),
+  // v110 (keuze van Jan): alleen een ander aantal is EXTRA, geen VERVANGT
+  // meer (de leverancier annuleerde dan de bestelde en maakte alles opnieuw).
+  check('de pdf: K3 EXTRA bij K3 uit de 1e: +1 (samen 2x), aantal 1', /1 K3 EXTRA bij K3 uit de 1e: \+1 \(samen 2x\)/.test(t21),
+    (t21.match(/.{0,4}K3.{0,60}/) || [''])[0]);
+  check('de pdf telt wat erop staat: 1 NIEUW, 0 VERVANGT, 1 EXTRA', /alleen deze aanvulling: 1 NIEUW, 0 VERVANGT, 1 EXTRA/.test(t21),
     (t21.match(/posities.{0,120}/) || [''])[0]);
   check('K1 en K2 (ongewijzigd) staan niet op de aanvulling', !/K1 /.test(t21) && !/K2 /.test(t21));
   m = await vraagOpScherm(page);

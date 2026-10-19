@@ -145,22 +145,29 @@
         { kop: 'Ruiten gelijktrekken', ja: 'Overschrijven', gevaarlijk: true })) return;
 
     if (window.bewaarStap) bewaarStap('Ruiten gelijkgetrokken');
+    // v110: een doelruit met bolletjes op de foto houdt zijn eigen aantal;
+    // dat gaat alleen samen met de bolletjes (optie A, keuze van Jan).
+    var aantalVast = [];
     doelen.forEach(function (r) {
+      var houdAantal = !!(window.aantalVolgtBolletjes && aantalVolgtBolletjes(r));
+      if (houdAantal && String(r.aantal) !== String(bron.aantal)) aantalVast.push(r.merk || '?');
+      var eigen = function (veld) { return NIET_OVERNEMEN[veld] || (houdAantal && veld === 'aantal'); };
       // Eerst weg wat de bron niet heeft. Een eigen correctie (speling)
       // bleef anders in de doelruit staan, terwijl de melding zei dat de
       // ruiten gelijkgetrokken waren — met andere glasmaten tot gevolg (v83).
       Object.keys(r).forEach(function (veld) {
-        if (NIET_OVERNEMEN[veld]) return;
+        if (eigen(veld)) return;
         if (!(veld in bron)) delete r[veld];
       });
       Object.keys(bron).forEach(function (veld) {
-        if (NIET_OVERNEMEN[veld]) return;
+        if (eigen(veld)) return;
         r[veld] = bron[veld];
       });
     });
     if (window.bulkSelectieWissen) bulkSelectieWissen();
     afronden(doelen.length + ' ruiten gelijkgetrokken met ' + (bron.merk || 'de eerste ruit') +
-      ' (' + doelen.map(function (r) { return r.merk; }).join(', ') + ')');
+      ' (' + doelen.map(function (r) { return r.merk; }).join(', ') + ')' +
+      (aantalVast.length ? ' — het aantal niet bij ' + aantalVast.join(', ') + ': dat volgt de bolletjes op de foto' : ''));
   };
 
   /* ─── kopiëren naar een andere groep ───────────────────────── */

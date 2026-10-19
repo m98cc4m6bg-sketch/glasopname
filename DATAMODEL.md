@@ -1,7 +1,7 @@
 # Glasopname — datamodel
 
 *Wat er in Supabase staat, wie wat mag, en welk script wat deed. Bijgewerkt
-op 17 oktober 2026, bij v109. Bron: de SQL-scripts 01 t/m 25 zelf.*
+op 19 oktober 2026, bij v110. Bron: de SQL-scripts 01 t/m 25 zelf.*
 
 Zie ook `OVERZICHT.md` (hoe de app werkt) en `BEHEER.md` (wat je doet).
 Wordt bij elke nieuwe versie bijgewerkt; elk nieuw SQL-script komt in de lijst
@@ -53,8 +53,9 @@ ingelogd is, mag volgens de rechten alles in `projecten` wijzigen.
 | onderdeel | wat |
 |---|---|
 | `rijen[]` | de ruiten: `merk`, `aantal`, `maatsoort`, `breedte`, `hoogte`, `glasType`, `opbouw`, `rooster`, `glasbewerking`, roeden, `opmerking`, en de berekende `glasBreedte`, `glasHoogte`, `totaalDikte`, `kgM2`; per ruit ook wie hem het laatst wijzigde (`gewDoor`, `gewOp`) |
-| `fotos[]` | foto's en tekeningen, met de merkbolletjes en het pad in Storage |
+| `fotos[]` | foto's en tekeningen, met de merkbolletjes (`markeringen[]`: `{rijId, x, y}`, x en y als deel van de breedte/hoogte, 0–1) en het pad in Storage. Een regel ×3 heeft drie bolletjes met dezelfde `rijId`. Sinds v110 houdt de app het `aantal` van een regel met bolletjes gelijk aan het aantal bolletjes (alleen samen te wijzigen); de database controleert dat niet, en een oud project kan nog verschillen |
 | `info` | klant, werkadres, levering, `status`, `opnemer` (opgenomen door), `slot` (leeg = normaal; `{open:true, door, op}` = na bestellen met wachtwoord **ontgrendeld**. Het slot zelf volgt uit de status: vanaf 'besteld' staat de invoer vast), `bestellingen[]` (elke bestelling met momentopname), `besteld` (samenvatting daarvan) |
+| `info.bestellingen[].ruiten` | per ruit de momentopname: de velden, kenmerk `k`, `opLijst` (stond op deze lijst), `g` (stempel). Op een aanvulling ook: `vervangt` (nummer van de laatste bestelling met deze ruit), en sinds v110 `vervangtUit` (tekst: uit welke lijsten de vervangen ruiten komen, bijv. "1e en 2e"), `extra` + `extraBij` (alleen meer van dezelfde ruit: het eerder bestelde aantal, en de tekst van de lijsten) of `minder` + `minderUit` (alleen een lager aantal: het eerder bestelde aantal; staat met `opLijst` = waar, maar op papier onder ANNULEREN). Een vervallen ruit (`vervallen`) krijgt sinds v110 ook `nrTekst`. Uit welke lijsten de ruiten komen die nu gelden, rekent de app uit de hele reeks (`standVan`: `herkomst`, `minderIn`). Script 23 kijkt alleen naar `k` en `opLijst`, dus de nieuwe velden vroegen geen SQL |
 | `project`, `datum`, `speling`, `bijtelling` | kop van het project |
 | `_versieNr` | het versienummer van de app die opsloeg (versieslot, script 21) |
 | `_rev`, `_basis`, `_apparaat`, `_sessie`, `_apparaatNaam`, `_apparaatSoort` | voor het bewerkslot (script 24) |

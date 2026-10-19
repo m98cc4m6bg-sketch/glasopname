@@ -103,7 +103,7 @@ aftikken.
 | **twee tabbladen op één apparaat** | twee pagina's in één context (ze delen `localStorage`) | gedeelde lokale kopie (zie HANDOVER §9) |
 | **oude en nieuwe versie naast elkaar** | het versienummer op de server ophogen tijdens de test (`zetVersie`) | een oud apparaat schrijft weg wat het niet kent (v99) |
 | **iemand is nog bezig** | blijven typen terwijl de app iets automatisch wil doen | niet onderbreken midden in een maat |
-| **telefoonbreedte** | viewport 390 × 844 | knoppen vielen van het scherm (v98) |
+| **telefoonbreedte** | viewport 390 × 844 (met `isMobile`: vergelijk met 390, niet met `innerWidth`) | knoppen vielen van het scherm (v98); de pagina schoof opzij (v110) |
 | **besteld project** | een project met status 'besteld' | het slot moet overal gelden |
 | **leeg en heel vol** | geen gegevens; en veel ruiten, notities, logregels | lege toestand, pagina-overgangen in de pdf |
 | **eerste keer** | een verse browser zonder service worker of opgeslagen gegevens | herladen voor niets (v100) |
@@ -317,6 +317,34 @@ harde eis wint.
     nieuw tabblad, de terug-knop, een antwoord dat verloren gaat nadat de
     server het al deed, en een apparaat waar al iemand anders ingelogd is,
     vonden vier echte fouten die de eerste versie van de reeks niet zag.
+- `test-v110.js` (het aantal en de bolletjes, de aanvulling):
+  - een **echte foto** in het project (`test-gevel.jpg`, een jpeg van een
+    gevel met vier kozijnen), via de nagebootste opslag; tikken op de foto en
+    op een bolletje zijn echte kliks (`tikFoto`, `bolMenu`);
+  - de bolletjes in de pdf worden **geteld**: pdfplumber zoekt de oranje
+    cirkels en leest de letter erin (`pdfBollen`);
+  - begint met een **vangnet**: onderdelen 1–3 toetsen het gedrag van vóór
+    de wijziging (aanwijzen, nieuwe ruit, één ruit minder, de pdf) en waren
+    groen op v109, op één echte fout na (de telling in de balk);
+  - een oud project waar het niet klopt (E aantal 1 met 2 bolletjes, C
+    aantal 2 met 1): de test eist dat openen **niets** verandert;
+  - les: na het aanraken van een bolletje negeert de foto 0,7 s elke tik
+    (de naklik van iOS, `pauzeerFototik`). Een test die meteen na het menu
+    op de foto tikt, ziet "er gebeurt niets"; een mens tikt nooit zo snel;
+  - les: met `isMobile` past Chromium de breedte van de pagina aan de inhoud
+    aan. `innerWidth` 482 op een "telefoon van 390" betekent dat iets te
+    breed is (hier: het omschrijvingsveld van een foto); vergelijk dus met
+    de breedte die je opgaf;
+  - les: een mutatie die maar half terugdraait, bewijst niets. De eerste
+    mutatie `glasmaat` haalde alleen de hoogte uit de controle; de test
+    veranderde de breedte, dus bleef alles groen. En `menuTeveel` raakte
+    alleen een regel met aantal > 1, terwijl de test een regel ×1 had. Kijk bij
+    een gemiste mutatie eerst of hij het geval in de test wel raakt;
+  - les: de beoordelaar vond met alleen de code te lezen twee fouten die
+    geen test had: na een EXTRA noemde de app de verkeerde bestellijst, en
+    een half gekozen "nog een ruit" bleef onzichtbaar aanstaan. Toets bij
+    bestellen altijd **meer lijsten na elkaar** (onderdeel 11), niet alleen
+    de eerste aanvulling.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

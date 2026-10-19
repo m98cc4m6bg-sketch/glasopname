@@ -307,6 +307,13 @@
   /* Vaste maten waar de inhoud dat toelaat, zodat de brede kolommen
      (glastype, bewerking) de ruimte krijgen die ze nodig hebben. */
   .aantal-input { width: 40px !important; text-align: center; }
+  /* v110: in een fotoblok volgt het aantal de bolletjes (keuze van Jan,
+     optie A). Het vak staat dan vast; je ziet aan de kleur dat je het via
+     het bolletje verandert. Open plekken (minder bolletjes dan het aantal)
+     en te veel bolletjes krijgen een rand, net als op de foto. */
+  .aantal-input.aantal-vast { background: var(--grijs-licht); color: var(--grijs-tekst); cursor: pointer; }
+  .aantal-input.aantal-open { box-shadow: inset 0 0 0 2px var(--geel); }
+  .aantal-input.aantal-teveel { box-shadow: inset 0 0 0 2px var(--rood); }
   .breedte-input, .hoogte-input { width: 66px !important; text-align: right; }
   .merk-input { width: 56px !important; }
   /* De keuzevakjes vullen hun kolom, dus die kolommen worden zo breed als
@@ -801,8 +808,11 @@
     width: 26px; height: 26px; background: var(--merk); color: white;
     border-radius: 13px; font-size: 13px; font-weight: 700; flex: 0 0 26px;
   }
+  /* min-width: 0 (v110): een invoerveld is standaard zo'n 150 px breed en
+     krimpt niet; op een telefoon duwde het ‹🗑 Groep› dan buiten beeld en
+     schoof de hele pagina opzij (gevonden met test-v110.js, onderdeel 10b). */
   .foto-balk input {
-    flex: 1; padding: 7px 10px; font-size: 13px; font-family: inherit;
+    flex: 1; min-width: 0; padding: 7px 10px; font-size: 13px; font-family: inherit;
     border: 1px solid var(--grijs-rand); border-radius: var(--radius);
   }
   .foto-doek { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
@@ -836,6 +846,16 @@
     background: var(--grijs-licht); border-radius: var(--radius);
   }
   .foto-voet { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  /* v110: regels waar het aantal en de bolletjes niet kloppen, met per
+     regel de keuze wat klopt. Op een telefoon lopen de knoppen onder de
+     tekst door (flex-wrap). */
+  .foto-scheef { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .foto-scheef-regel {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 10px; border-radius: var(--radius); font-size: 13px;
+    background: #fff6e0; border: 1px solid var(--geel);
+  }
+  .foto-scheef-regel > span { flex: 1 1 220px; }
   .foto-voet-info { font-size: 11px; color: var(--grijs-tekst); }
   tr.gemarkeerd > td { background: #fff3d0 !important; transition: background .4s; }
   @media (max-width: 1200px) {
@@ -3010,7 +3030,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v109';
+const APP_VERSIE = 'v110';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -3331,7 +3351,7 @@ function rijnrTitel(rij) {
   }
   const ouder = nr && kenmerkVan(st.ruiten[rij.id]) !== ruitKenmerk(rij) && oudereStand(rij, st, st.ruiten[rij.id]);
   return (ouder ? 'Oudere stand van een ander apparaat? ' : '') +
-    'Anders dan besteld (' + (nr ? 'in de ' + rangTekst(nr) + ', ' : '') + wanneer + '): ' +
+    'Anders dan besteld (' + (nr ? 'in de ' + besteldInTekst(rij.id, st) + ' bestellijst, ' : '') + wanneer + '): ' +
     ruitVerschil(bestelOud(rij.id), rij).join('; ') + '. ' + ruitSpoor(rij);
 }
 
@@ -3765,6 +3785,8 @@ const SLOT_FUNCTIES = [
   // markEenMinder verlaagde het aantal op de bestelregel.
   'fotoTik', 'fotoRegelToevoegen', 'fotoAanwijzen',
   'markEenMinder', 'markWeg', 'markRuitWeg',
+  // v110: een ruit erbij via het bolletje, en de keuzes bij 'klopt niet'.
+  'markErbij', 'markAantalNaarBollen', 'markTeveelWeg', 'markAanwijzenRij',
   'fotoVerwijder', 'fotoDraaien', 'fotoAanGroep', 'fotoTitelWijzig',
   'tekenModus', 'tekenKies', 'tekenTerug', 'tekenWis', 'selectieWeg', 'selectieTekst'
 ];
@@ -3919,8 +3941,7 @@ function rijHTML(rij, nr) {
   return `
     <td class="rijnr${naBestellingGewijzigd(rij) ? ' na-bestelling' : ''}" title="${esc(rijnrTitel(rij))}"><div class="rijnr-wrap"><input type="checkbox" ${bulkIsGeselecteerd(id) ? 'checked' : ''}
        onchange="bulkToggle(${id}, this.checked)" title="Selecteren"><span>${nr}</span></div></td>
-    <td><input type="number" inputmode="numeric" class="aantal-input" value="${rij.aantal}" min="1" max="999"
-       onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>
+    ${aantalCel(rij)}
     <td><input type="text" class="merk-input" value="${esc(rij.merk)}" placeholder="merk…"
        oninput="setVal(${id},'merk',this.value); opslaan()"></td>
     <td class="kol-maatsoort"><select onchange="setVal(${id},'maatsoort',this.value); herbereken(); opslaan()">${maatsoortOpts}</select></td>
@@ -4022,8 +4043,68 @@ function setVal(id, veld, waarde) {
   // op Invoer, in de tabel onder een foto, of via doorvoeren (v90).
   if (slotWeigert()) return;
   const r = getRij(id);
+  // v110: heeft de regel bolletjes, dan verandert het aantal alleen samen
+  // met de bolletjes (via het bolletje). Het vak staat dan vast; dit is
+  // het vangnet als er toch iets langs komt.
+  if (r && veld === 'aantal' && aantalVolgtBolletjes(r)) {
+    aantalVastUitleg(id);
+    // Het vak terugzetten op wat er echt staat (het kon net getypt zijn).
+    if (window.renderTabel) renderTabel();
+    return;
+  }
   if (r) r[veld] = waarde;
 }
+
+/* ─── v110: het aantal volgt de bolletjes ─────────────────────── */
+// Keuze van Jan (19-10-2026, optie A): zodra een regel minstens één
+// bolletje op een foto of tekening heeft, gaan het aantal en de bolletjes
+// alleen nog samen omhoog of omlaag. Tot v109 kon je het aantal vrij
+// typen; dan kwamen er stil open plekken of te veel bolletjes bij, en
+// bestelde je iets anders dan je op de foto zag.
+// Een regel zonder bolletjes (los, of ingelezen uit een maatstaat en nog
+// niet aangewezen) houdt een vrij aantal: de maatstaat is daar de waarheid,
+// en het aanwijzen vult de plekken op zonder het aantal te veranderen.
+function bollenVanRij(id) {
+  return (fotos || []).reduce((n, f) => n + (f.markeringen || []).filter(m => m.rijId === id).length, 0);
+}
+function aantalVolgtBolletjes(rij) { return !!rij && bollenVanRij(rij.id) > 0; }
+window.bollenVanRij = bollenVanRij;
+window.aantalVolgtBolletjes = aantalVolgtBolletjes;
+
+function aantalCel(rij) {
+  const id = rij.id;
+  const bol = bollenVanRij(id);
+  if (!bol) {
+    return `<td><input type="number" inputmode="numeric" class="aantal-input" value="${esc(rij.aantal)}" min="1" max="999"
+       onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>`;
+  }
+  const aantal = parseInt(rij.aantal, 10) > 0 ? parseInt(rij.aantal, 10) : 1;
+  const extra = bol < aantal ? ' aantal-open' : bol > aantal ? ' aantal-teveel' : '';
+  const titel = bol === aantal
+    ? `${aantal} ${aantal === 1 ? 'ruit' : 'ruiten'}, ${bol === 1 ? 'één bolletje' : bol + ' bolletjes'} op de foto. Een ruit erbij of eraf: tik op een bolletje.`
+    : bol < aantal
+      ? `Aantal ${aantal}, maar ${bol === 1 ? 'één bolletje' : bol + ' bolletjes'}: nog ${aantal - bol} aan te wijzen.`
+      : `Aantal ${aantal}, maar ${bol} bolletjes: kies onder de foto wat klopt.`;
+  // readonly in plaats van disabled: het vak blijft leesbaar en tikbaar
+  // (dan komt de uitleg), en op een iPad komt er geen toetsenbord.
+  return `<td><input type="number" class="aantal-input aantal-vast${extra}" value="${aantal}" readonly
+       title="${esc(titel)}" onclick="aantalVastUitleg(${id})"></td>`;
+}
+
+async function aantalVastUitleg(id) {
+  const rij = getRij(id);
+  if (!rij || (window.appMeldingBezig && appMeldingBezig())) return;
+  const bol = bollenVanRij(id);
+  const merk = rij.merk && String(rij.merk).trim();
+  const aantal = parseInt(rij.aantal, 10) > 0 ? parseInt(rij.aantal, 10) : 1;
+  await appMelding(`${merk || 'Deze regel'} staat op de foto met ${bol === 1 ? 'één bolletje' : bol + ' bolletjes'}. ` +
+    `Het aantal gaat daarom samen met de bolletjes, zodat de bestelling en de foto altijd hetzelfde zeggen.\n\n` +
+    `Een ruit erbij: tik op een bolletje ${merk ? merk : 'van deze regel'} → ‹＋ Nog een ruit met deze letter›, en tik waar hij zit.\n` +
+    (aantal > 1 ? `Een ruit eraf: tik op het bolletje van die ruit → ‹Één ruit minder›.`
+                : `Deze ruit weg: tik op het bolletje → ‹Ruit verwijderen›.`),
+    { kop: 'Het aantal volgt de bolletjes' });
+}
+window.aantalVastUitleg = aantalVastUitleg;
 // String() erbij: een merk of opmerking uit een Excel-import kan een getal
 // zijn, en dan liep .replace stuk (v91).
 function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
@@ -4224,19 +4305,47 @@ window.ruitMomentopname = ruitMomentopname;
 // Een ruit die een eerder bestelde vervangt, draagt 'vervangt' (het nummer
 // van die bestelling). vervallen = wat besteld was en nu weg is: dat staat
 // op de pdf onder 'annuleren', en telt daarna niet meer als besteld.
-function bestelMomentopname(lijst) {
+function bestelMomentopname(lijst, tbPdf) {
   const opLijst = {};
   (lijst || []).forEach(r => { if (r && r.id != null) opLijst[r.id] = true; });
   const st = besteldeStand();
   const aanvulling = !!st.laatste;
+  // De indeling die de pdf gebruikte (v110): dan is vastgelegd precies wat er
+  // op papier staat.
+  const tb = aanvulling ? (tbPdf && tbPdf.aanvulling ? tbPdf : teBestellen()) : null;
   const ruiten = {};
   (typeof rijen === 'undefined' ? [] : rijen).forEach(r => {
     if (!r || r.id == null) return;
     if (!opLijst[r.id] && !heeftRuitInhoud(r)) return;
     const al = st.ruiten[r.id] !== undefined;
-    if (aanvulling && al && !opLijst[r.id]) return;
+    // v110: alleen een lager aantal (B 3 → 2) staat niet in de tabel maar
+    // onder ANNULEREN ("1 annuleren"). Hij telt wel als besteld, met het
+    // nieuwe aantal; minder = wat het was, minderUit = uit welke lijst.
+    // Dezelfde indeling als de pdf (teBestellen), zodat vastgelegd wordt
+    // wat er op papier staat.
+    const verschil = !aanvulling || !al ? null
+      : tb.extra[r.id] ? tb.extra[r.id]
+      : tb.minder.some(m => m.rij === r) ? aantalVerschil(st.ruiten[r.id], r) : null;
+    if (aanvulling && al && !opLijst[r.id]) {
+      if (!verschil || verschil.soort !== 'minder') return;
+      const om = ruitMomentopname(r, true);
+      om.minder = verschil.was;
+      om.minderUit = besteldInTekst(r.id, st) || '1e';
+      ruiten[r.id] = om;
+      return;
+    }
     const o = ruitMomentopname(r, opLijst[r.id]);
-    if (aanvulling && al) o.vervangt = st.nr[r.id] || 1;
+    // v110: alleen een hoger aantal is EXTRA (de bestelde blijven), geen
+    // VERVANGT. extra = het bestelde aantal, extraBij = uit welke lijst.
+    if (verschil && verschil.soort === 'extra' && opLijst[r.id]) {
+      o.extra = verschil.was;
+      o.extraBij = besteldInTekst(r.id, st) || '1e';
+    } else if (aanvulling && al) {
+      o.vervangt = st.nr[r.id] || 1;
+      // Uit welke lijsten de vervangen ruiten komen (v110: na een EXTRA meer
+      // dan één); het overzicht noemt ze later bij "gevraagd te annuleren".
+      o.vervangtUit = besteldInTekst(r.id, st) || (o.vervangt + 'e');
+    }
     ruiten[r.id] = o;
   });
   const uit = {
@@ -4247,14 +4356,18 @@ function bestelMomentopname(lijst) {
     moment: new Date().toISOString(),
     ruiten: ruiten,
     aantal: (lijst || []).length,
-    stuks: (lijst || []).reduce((n, r) => n + (parseInt(r.aantal) || 1), 0)
+    // Bij EXTRA telt alleen wat erbij komt (v110): de bestelde zijn er al.
+    stuks: (lijst || []).reduce((n, r) => {
+      const o = ruiten[r.id];
+      return n + (o && o.extra ? (parseInt(r.aantal) || 1) - o.extra : (parseInt(r.aantal) || 1));
+    }, 0)
   };
   if (aanvulling) {
     const vervallen = {};
     wijzigingenSindsBestelling().vervallen.forEach(v => {
       vervallen[v.id] = typeof v.oud === 'object' && v.oud
-        ? Object.assign(korteRuit(v.oud), { nr: v.nr || 1 })
-        : { k: kenmerkVan(v.oud), nr: v.nr || 1, kort: 1 };
+        ? Object.assign(korteRuit(v.oud), { nr: v.nr || 1, nrTekst: v.nrTekst })
+        : { k: kenmerkVan(v.oud), nr: v.nr || 1, nrTekst: v.nrTekst, kort: 1 };
     });
     if (Object.keys(vervallen).length) uit.vervallen = vervallen;
   }
@@ -4266,6 +4379,9 @@ window.bestelMomentopname = bestelMomentopname;
 function korteRuit(o) {
   const kort = { k: o.k, opLijst: o.opLijst, kort: 1 };
   if (o.vervangt) kort.vervangt = o.vervangt;
+  // v110: ook ingekort moet het overzicht nog weten wat er extra of minder
+  // gevraagd is (gevraagdTeAnnuleren, kolom Besteld).
+  ['extra', 'extraBij', 'minder', 'minderUit', 'vervangtUit'].forEach(v => { if (o[v] !== undefined) kort[v] = o[v]; });
   if (o.g) kort.g = o.g;
   KORT_VELDEN.forEach(v => { if (o[v] !== undefined) kort[v] = o[v]; });
   return kort;
@@ -4284,8 +4400,12 @@ function korteRuit(o) {
 //           (alleen voor projectInfo.besteld, zoals 23_bestellingen.sql)
 //   eerder: { id: { kenmerk: nr } }  eerder bestelde versies van de ruit
 //   eerderVersies: { id: [ { versie, nr } ] }  idem, met de inhoud
+//   herkomst: { id: [ { nr, n } ] }  in welke bestellijsten de ruiten zitten
+//           die nu gelden, met hoeveel (v110: na een EXTRA meer dan één
+//           lijst; "B uit de 1e (3) en de 2e (+1)")
+//   minderIn: { id: [ { nr, n } ] }  waar er minder gevraagd is (v110)
 function standVan(lijst) {
-  let ruiten = {}, nr = {}, bron = {}, geannuleerd = {}, leeg = {};
+  let ruiten = {}, nr = {}, bron = {}, geannuleerd = {}, leeg = {}, herkomst = {}, minderIn = {};
   const eerder = {}, eerderVersies = {};
   let laatste = null, laatsteIndex = -1;
   (lijst || []).forEach((b, i) => {
@@ -4298,7 +4418,7 @@ function standVan(lijst) {
         if (typeof o === 'object') (eerderVersies[id] = eerderVersies[id] || []).push({ versie: o, nr: b.nr || i + 1 });
       }
     });
-    if (b.soort !== 'aanvulling') { ruiten = {}; nr = {}; bron = {}; geannuleerd = {}; leeg = {}; }
+    if (b.soort !== 'aanvulling') { ruiten = {}; nr = {}; bron = {}; geannuleerd = {}; leeg = {}; herkomst = {}; minderIn = {}; }
     const rs = b.ruiten || {};
     Object.keys(rs).forEach(id => {
       const o = rs[id];
@@ -4306,12 +4426,43 @@ function standVan(lijst) {
         // Van vóór v104: alleen een kenmerk; een lege regel is niets besteld.
         if (o === leegKenmerk()) { leeg[id] = o; return; }
       } else if (!o || !o.opLijst) return;
-      ruiten[id] = o; nr[id] = b.nr || i + 1; bron[id] = i;
+      const dezeNr = b.nr || i + 1;
+      // v110: EXTRA komt bij wat er al besteld was; minder haalt er niets
+      // uit de lijst (welke de leverancier annuleerde, weten we niet), maar
+      // wordt erbij genoemd. Al het andere (nieuw, VERVANGT) begint opnieuw.
+      const stuks = typeof o === 'object' && parseInt(o.aantal, 10) > 0 ? parseInt(o.aantal, 10) : null;
+      // Een EXTRA of "minder" is op papier een verschil (+1, of "1
+      // annuleren"), gerekend vanaf wat er toen besteld was (o.extra /
+      // o.minder). Geldt intussen iets anders (de bestelling eronder is
+      // ingetrokken, of een collega bestelde tussen de pdf en ‹Ja, verstuurd›),
+      // dan is het totaal niet o.aantal maar wat er nu geldt plus of min dat
+      // verschil: dát maakt de leverancier. (Tweede controle v110: anders
+      // dacht de app 5 terwijl de leverancier er 4 of 6 maakte, en werd er
+      // niets geel.)
+      let geldt = o;
+      const basis = typeof o === 'object' && o ? (o.extra || o.minder) : 0;
+      const vorig = basis && ruiten[id] && typeof ruiten[id] === 'object' ? parseInt(ruiten[id].aantal, 10) : 0;
+      if (basis && stuks != null && vorig > 0 && vorig !== basis && !o.kort) {
+        const echt = o.extra ? vorig + (stuks - o.extra) : vorig - (o.minder - stuks);
+        if (echt > 0) {
+          geldt = Object.assign({}, o, { aantal: echt, andereBasis: basis });
+          geldt.k = ruitKenmerk(geldt);
+        }
+      }
+      if (typeof o === 'object' && o.extra && herkomst[id]) {
+        herkomst[id] = herkomst[id].concat([{ nr: dezeNr, n: stuks != null ? stuks - o.extra : null }]);
+      } else if (typeof o === 'object' && o.minder && herkomst[id]) {
+        minderIn[id] = (minderIn[id] || []).concat([{ nr: dezeNr, n: stuks != null ? o.minder - stuks : null }]);
+      } else {
+        herkomst[id] = [{ nr: dezeNr, n: stuks }];
+        delete minderIn[id];
+      }
+      ruiten[id] = geldt; nr[id] = dezeNr; bron[id] = i;
       delete geannuleerd[id];
     });
     Object.keys(b.vervallen || {}).forEach(id => {
       geannuleerd[id] = { nr: b.nr || i + 1, oud: b.vervallen[id] };
-      delete ruiten[id]; delete nr[id]; delete bron[id];
+      delete ruiten[id]; delete nr[id]; delete bron[id]; delete herkomst[id]; delete minderIn[id];
     });
     laatste = b; laatsteIndex = i;
   });
@@ -4328,7 +4479,7 @@ function standVan(lijst) {
     if (eerder[id]) delete eerder[id][kenmerkVan(ruiten[id])];
     if (eerderVersies[id]) eerderVersies[id] = eerderVersies[id].filter(e => e.versie !== ruiten[id] && e.versie.k !== kenmerkVan(ruiten[id]));
   });
-  return { ruiten: ruiten, nr: nr, bron: bron, geannuleerd: geannuleerd, leeg: leeg,
+  return { ruiten: ruiten, nr: nr, bron: bron, geannuleerd: geannuleerd, leeg: leeg, herkomst: herkomst, minderIn: minderIn,
            eerder: eerder, eerderVersies: eerderVersies, bekend: bekend, laatste: laatste, laatsteIndex: laatsteIndex };
 }
 
@@ -4367,6 +4518,15 @@ function oudeVelden(rij, st) {
 // (alleen die velden staan terug op een eerder bestelde waarde).
 function oudereStand(rij, st, oud) {
   if (st.laatste && rij.tochBestellen && rij.tochBestellen === st.laatste.op) return false;
+  // v110: alleen het aantal is anders, en de ruit is niet ouder dan de
+  // bestelde versie (stempel gewOp ≥ g). Dan is het een bewuste ruit erbij of
+  // eraf (via het bolletje), ook als dat aantal toevallig eerder besteld was
+  // (B 3 → 4 → 3). Een oud apparaat dat een oudere stand terugzet, heeft een
+  // ouder stempel: dat blijft de vraag "Oudere stand?" geven. Bewust niet
+  // "gewijzigd ná de bestelling": een wijziging zonder bereik krijgt pas een
+  // stempel bij het versturen (tweede controle v110).
+  if (oud && typeof oud === 'object' && st.ruiten[rij.id] === oud && aantalVerschil(oud, rij) && rij.gewOp && oud.g &&
+      Date.parse(rij.gewOp) >= Date.parse(oud.g)) return false;
   const k = ruitKenmerk(rij);
   const ev = st.eerder[rij.id];
   if (ev && ev[k]) return true;
@@ -4404,6 +4564,22 @@ function besteldeStand() {
 }
 window.besteldeStand = besteldeStand;
 
+// "1e", "1e en 2e", "1e, 2e en 3e": in welke bestellijsten de ruit zit die nu
+// geldt (v110). Na een EXTRA is dat meer dan één lijst; wie annuleert of
+// vervangt, moet ze allemaal noemen, anders blijft er een staan (gevonden bij
+// de beoordeling: "VERVANGT B uit de 2e", terwijl er drie in de 1e zaten).
+function rangLijst(nrs) {
+  const t = nrs.filter((n, i) => nrs.indexOf(n) === i).map(n => n + 'e');
+  return t.length < 2 ? (t[0] || '') : t.slice(0, -1).join(', ') + ' en ' + t[t.length - 1];
+}
+function besteldInTekst(id, st) {
+  st = st || besteldeStand();
+  const h = st.herkomst && st.herkomst[id];
+  if (h && h.length) return rangLijst(h.map(x => x.nr));
+  return st.nr[id] ? st.nr[id] + 'e' : '';
+}
+window.besteldInTekst = besteldInTekst;
+
 // Waarmee een ruit vergeleken wordt: wat er van hem besteld is, of (nooit
 // besteld) hoe hij er bij de laatste bestelling uitzag.
 function bestelOud(id) {
@@ -4411,6 +4587,25 @@ function bestelOud(id) {
   return st.ruiten[id] !== undefined ? st.ruiten[id] : st.bekend[id];
 }
 window.bestelOud = bestelOud;
+
+// Is alleen het AANTAL anders dan besteld (v110, keuze van Jan: vraag (a)
+// uit v105)? Dan is het geen "VERVANGT" (de leverancier annuleert dan alles
+// en maakt het opnieuw), maar "+1 extra" of "1 annuleren". Alles behalve het
+// aantal moet gelijk zijn: het kenmerk met het oude aantal, en de glasmaat
+// (die verandert ook door de speling van een blok). Anders null: dan blijft
+// het VERVANGT, zoals sinds v105. Van een bestelling zonder bewaard aantal
+// (vóór v104 alleen een kenmerk) weten we het niet: ook null.
+function aantalVerschil(oud, rij) {
+  if (!oud || typeof oud !== 'object' || oud.aantal === undefined || !rij) return null;
+  const was = parseInt(oud.aantal, 10), nu = parseInt(rij.aantal, 10);
+  if (!(was > 0) || !(nu > 0) || was === nu) return null;
+  if (ruitKenmerk(Object.assign({}, rij, { aantal: oud.aantal })) !== kenmerkVan(oud)) return null;
+  if (('glasBreedte' in oud || 'glasHoogte' in oud) &&
+      (maatGetal(oud.glasBreedte) !== maatGetal(rij.glasBreedte) ||
+       maatGetal(oud.glasHoogte) !== maatGetal(rij.glasHoogte))) return null;
+  return { was: was, nu: nu, verschil: nu - was, soort: nu > was ? 'extra' : 'minder' };
+}
+window.aantalVerschil = aantalVerschil;
 
 // Wat er op de volgende bestellijst komt (v105). Nog niets besteld: alles
 // wat compleet is. Wel besteld: een aanvulling met alleen de complete
@@ -4421,15 +4616,26 @@ function teBestellen() {
   const w = wijzigingenSindsBestelling();
   if (!w.bestelling) {
     const regels = alle.filter(bestelbaar);
-    return { aanvulling: false, regels: regels, vervallen: [], gewijzigd: [], aantal: regels.length, w: w };
+    return { aanvulling: false, regels: regels, vervallen: [], gewijzigd: [], minder: [], extra: {},
+             aantal: regels.length, w: w };
   }
   const ids = {};
+  // v110: alleen een ander aantal. Meer = EXTRA, op de lijst met het
+  // verschil; minder = niet op de lijst, wel onder ANNULEREN.
+  const minder = [], extra = {};
   w.nieuw.forEach(r => { if (bestelbaar(r)) ids[r.id] = true; });
-  w.gewijzigd.forEach(g => { if (bestelbaar(g.rij)) ids[g.rij.id] = true; });
+  w.gewijzigd.forEach(g => {
+    if (!bestelbaar(g.rij)) return;
+    const v = aantalVerschil(g.oud, g.rij);
+    if (v && v.soort === 'minder') { minder.push({ rij: g.rij, oud: g.oud, nr: g.nr, nrTekst: g.nrTekst, was: v.was, nu: v.nu }); return; }
+    if (v) extra[g.rij.id] = v;
+    ids[g.rij.id] = true;
+  });
   const regels = alle.filter(r => ids[r.id]);
   return { aanvulling: true, regels: regels, vervallen: w.vervallen,
            gewijzigd: w.gewijzigd.filter(g => ids[g.rij.id]),
-           aantal: regels.length + w.vervallen.length, w: w };
+           minder: minder, extra: extra,
+           aantal: regels.length + w.vervallen.length + minder.length, w: w };
 }
 window.teBestellen = teBestellen;
 
@@ -4595,7 +4801,7 @@ function wijzigingenSindsBestelling() {
     // Een bestelde ruit die niet meer compleet is, kan niet op een
     // aanvulling: de leverancier maakt hem zoals besteld. Dat moet apart
     // gezegd worden.
-    if (typeof oud === 'object' && !bestelbaar(r)) { uit.vanLijst.push({ rij: r, oud: oud, nr: st.nr[r.id] }); return; }
+    if (typeof oud === 'object' && !bestelbaar(r)) { uit.vanLijst.push({ rij: r, oud: oud, nr: st.nr[r.id], nrTekst: besteldInTekst(r.id, st) }); return; }
     if (!ruitAnders(oud, r)) return;
     // Alleen de ruit zelf telt (het kenmerk): een andere glasmaat door een
     // andere speling is altijd een echte wijziging.
@@ -4605,15 +4811,15 @@ function wijzigingenSindsBestelling() {
         ? os.map(v => VELD_NAAM[v] + ' ' + (oud[v] == null ? '(leeg)' : oud[v]) + ' → ' + (r[v] == null || r[v] === '' ? '(leeg)' : r[v]) +
             ' (een eerder bestelde waarde)')
         : ruitVerschil(oud, r);
-      uit.ouder.push({ rij: r, oud: oud, nr: st.nr[r.id], velden: Array.isArray(os) ? os : null, verschil: verschil });
+      uit.ouder.push({ rij: r, oud: oud, nr: st.nr[r.id], nrTekst: besteldInTekst(r.id, st), velden: Array.isArray(os) ? os : null, verschil: verschil });
       return;
     }
-    uit.gewijzigd.push({ rij: r, oud: oud, nr: st.nr[r.id], verschil: ruitVerschil(oud, r) });
+    uit.gewijzigd.push({ rij: r, oud: oud, nr: st.nr[r.id], nrTekst: besteldInTekst(r.id, st), verschil: ruitVerschil(oud, r) });
   });
   Object.keys(st.ruiten).forEach(id => {
     const oud = st.ruiten[id];
     if (typeof oud === 'object' && oud && !heeftRuitInhoud(oud)) return;
-    if (!nu[id]) uit.vervallen.push({ id: id, oud: oud, nr: st.nr[id] });
+    if (!nu[id]) uit.vervallen.push({ id: id, oud: oud, nr: st.nr[id], nrTekst: besteldInTekst(id, st) });
   });
   uit.aantal = uit.gewijzigd.length + uit.nieuw.length + uit.vanLijst.length + uit.vervallen.length + uit.ouder.length;
   return uit;
@@ -4918,7 +5124,9 @@ window.zelfdeAlsBestelling = zelfdeAlsBestelling;
 // "1× glasmaat 792 × 1392 HR++ (1e)" — een bestelde ruit met waar hij in staat.
 function besteldTekst(oud, nr) {
   if (!oud || typeof oud !== 'object') return 'een ruit van vóór v104 (wat het was, is niet bewaard)';
-  return esc((oud.merk || '(zonder merk)')) + ' ' + esc(maatTekst(oud)) + (nr ? ' (' + nr + 'e)' : '');
+  // nr: een getal (1 → "1e") of al een tekst ("1e en 2e", v110).
+  return esc((oud.merk || '(zonder merk)')) + ' ' + esc(maatTekst(oud)) +
+    (nr ? ' (' + esc(typeof nr === 'string' ? nr : nr + 'e') + ')' : '');
 }
 
 // Het blok op het tabblad Bestellijst: welke bestellingen er zijn, en wat
@@ -4936,6 +5144,9 @@ function bestellingenBlok() {
     (b.aantal ? ', ' + b.aantal + (b.aantal === 1 ? ' positie' : ' posities') : '') +
     (b.vervallen && Object.keys(b.vervallen).length
       ? ', ' + Object.keys(b.vervallen).length + ' geannuleerd' : '') +
+    // v110: een lager aantal ("1 annuleren") van een eerder bestelde ruit.
+    (Object.keys(b.ruiten || {}).some(id => b.ruiten[id] && b.ruiten[id].minder)
+      ? ', ' + Object.keys(b.ruiten).filter(id => b.ruiten[id] && b.ruiten[id].minder).length + ' met een lager aantal' : '') +
     (b.via === 'mail' ? ' (bestelmail)' : b.via === 'oud' ? ' (vastgelegd vóór v104)' : '') +
     (b.ingetrokken ? ' — <b>ingetrokken</b> ' + esc(korteDatum(b.ingetrokken.op)) +
       (b.ingetrokken.door ? ' door ' + esc(b.ingetrokken.door) : '') : '') +
@@ -4977,26 +5188,35 @@ function bestellingenBlok() {
     verschil =
       '<p><strong>Dit is anders dan de leverancier heeft (laatste bestelling: ' + esc(bestellingNaam(laatsteGeldig)) + ', ' +
       esc(bestelMoment()) + '):</strong></p>' +
-      regel('●', 'Gewijzigd', 'komt op de aanvulling; de oude annuleren als dat nog kan', w.gewijzigd.map(g => '<li>' + naam(g.rij) + ': ' +
-        esc(g.verschil.join('; ')) + (g.nr ? ' (besteld in de ' + g.nr + 'e)' : '') +
-        (bestelbaar(g.rij) ? '' : ' — nog niet compleet') + '</li>')) +
+      regel('●', 'Gewijzigd', 'komt op de aanvulling; de oude annuleren als dat nog kan', w.gewijzigd.map(g => {
+        // v110: alleen een ander aantal is geen "oude annuleren".
+        const v = bestelbaar(g.rij) ? aantalVerschil(g.oud, g.rij) : null;
+        const hoe = !v ? '' : v.soort === 'extra'
+          ? ' — op de aanvulling als ' + v.verschil + ' extra; de ' + v.was + ' bestelde blijven'
+          : ' — op de aanvulling: ' + (v.was - v.nu) + ' annuleren; de andere ' + v.nu + ' blijven';
+        return '<li>' + naam(g.rij) + ': ' +
+          esc(g.verschil.join('; ')) + (g.nr ? ' (besteld in de ' + esc(g.nrTekst || g.nr + 'e') + ')' : '') + esc(hoe) +
+          (bestelbaar(g.rij) ? '' : ' — nog niet compleet') + '</li>';
+      })) +
       regel('●', 'Nieuw', 'komt op de aanvulling', w.nieuw.map(r => '<li>' + naam(r) + ' ' + esc(maatTekst(r)) +
         (bestelbaar(r) ? '' : ' — nog niet compleet, gaat pas mee als hij compleet is') + '</li>')) +
       regel('!', 'Niet meer compleet', 'de leverancier maakt hem zoals besteld. Vul hem aan, of verwijder ' +
         'hem als hij moet vervallen', w.vanLijst.map(v => '<li>' + naam(v.rij) +
-        ' is besteld als ' + esc(maatTekst(v.oud)) + (v.nr ? ' (in de ' + v.nr + 'e)' : '') +
+        ' is besteld als ' + esc(maatTekst(v.oud)) + (v.nr ? ' (in de ' + esc(v.nrTekst || v.nr + 'e') + ')' : '') +
         '; nu ontbreekt er een glastype, opbouw of maat</li>')) +
       regel('✕', 'Vervallen', 'komt op de aanvulling onder "annuleren"', w.vervallen.map(v => '<li>' +
-        besteldTekst(v.oud, v.nr) + ' — besteld, nu verwijderd</li>')) +
+        besteldTekst(v.oud, v.nrTekst || v.nr) + ' — besteld, nu verwijderd</li>')) +
       (w.vervallen.length ? knopjes(w.vervallen.map(v => v.id), 'Niet zelf verwijderd? Zet terug zoals besteld', '') : '') +
       regel('⚠', 'Oudere stand', 'anders dan besteld, maar niet gewijzigd sinds de bestelling. Waarschijnlijk heeft een ' +
         'ander apparaat een oudere versie opgeslagen. Kies: terugzetten zoals besteld, of toch zo bestellen', w.ouder.map(o => '<li>' + naam(o.rij) +
-        ': ' + esc(o.verschil.join('; ')) + (o.geannuleerd ? '' : ' (besteld in de ' + o.nr + 'e)') + '</li>')) +
+        ': ' + esc(o.verschil.join('; ')) + (o.geannuleerd ? '' : ' (besteld in de ' + esc(o.nrTekst || o.nr + 'e') + ')') + '</li>')) +
       (w.ouder.length ? knopjes(w.ouder.map(o => o.rij.id), 'Zet terug zoals besteld', 'Nee, toch zo bestellen') : '') +
       (t.aantal
         ? '<p>Maak de bestellijst-pdf: dat wordt de <b>' + esc(volgende) + ', een aanvulling</b> met alleen ' +
-          t.regels.length + (t.regels.length === 1 ? ' nieuwe of gewijzigde ruit' : ' nieuwe of gewijzigde ruiten') +
-          (t.vervallen.length ? ' en ' + t.vervallen.length + ' te annuleren' : '') +
+          // v110: alleen iets te annuleren (bijvoorbeeld één ruit minder).
+          (t.regels.length ? t.regels.length + (t.regels.length === 1 ? ' nieuwe of gewijzigde ruit' : ' nieuwe of gewijzigde ruiten') +
+            ((t.vervallen.length + t.minder.length) ? ' en ' : '') : '') +
+          ((t.vervallen.length + t.minder.length) ? (t.vervallen.length + t.minder.length) + ' te annuleren' : '') +
           '. Kies daarna <b>Ja, verstuurd</b>.</p>'
         : '<p>Er is nu niets bij te bestellen: vul eerst aan wat niet compleet is.</p>');
   }

@@ -1,8 +1,8 @@
 # Glasopname — beheerhandleiding
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
-Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 17 oktober 2026,
-bij v109.*
+Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 19 oktober 2026,
+bij v110.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -264,7 +264,7 @@ overnemen, en het daarna weggooien (🗑 in de projectenlijst).
 
 Vraag eerst:
 
-1. **welke versie** (op het startscherm, bijv. *v109*);
+1. **welke versie** (op het startscherm, bijv. *v110*);
 2. **welk apparaat en welke browser** (iPad, iPhone, Mac, Android, Windows;
    Safari of Chrome; als app op het beginscherm of niet);
 3. **wanneer**, en of er **bereik** was;
@@ -278,6 +278,21 @@ Daarna:
   staat dan alleen op dat apparaat, en is daarna weg. Eerst met bereik openen
   en wachten tot er "Opgeslagen" staat.
 - Geef de antwoorden aan Claude, met de versie erbij.
+
+**Vragen die je kunt verwachten na v110**
+
+- *"Ik kan het aantal niet meer typen."* Klopt, bewust: zodra een regel een
+  bolletje op de foto heeft, gaat het aantal samen met de bolletjes. Een
+  ruit erbij: tik op een bolletje van die letter → ‹＋ Nog een ruit met deze
+  letter› en tik waar hij zit. Eraf: tik op het bolletje → ‹Één ruit minder›.
+  Tikken op het grijze vak geeft dezelfde uitleg. Een regel zonder bolletje
+  (los, of uit een ingelezen maatstaat) is gewoon te typen.
+- *"Onder de foto staat een gele strook 'aantal 2, maar 3 bolletjes'."* Dat
+  is een project van vóór v110 (of een ruit die nog half is aangewezen). De
+  app verandert daar zelf niets aan; kies per regel wat klopt.
+- *"De bestellijst vraagt 'Klopt het aantal?'."* Zelfde oorzaak. Stoppen,
+  onder de foto rechtzetten, en de lijst opnieuw maken. Of ‹Toch bestellen
+  zoals de aantallen› als het aantal klopt en alleen de foto niet af is.
 
 ## 11. Beveiliging in het kort
 

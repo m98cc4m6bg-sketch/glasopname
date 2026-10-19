@@ -28,7 +28,7 @@ Dit bestand bevat de **regels**. De uitleg staat elders; zie "Waar staat wat".
 | database, rechten, triggers, SQL-scripts | `DATAMODEL.md` |
 | wat Jan doet (publiceren, gebruikers, back-up, klachten) | `BEHEER.md` |
 | hoe we testen | `TESTEN.md` |
-| wat er per versie veranderde, getest en niet getest | `WIJZIGINGEN-vNN.md` |
+| wat er per versie veranderde, getest en niet getest | `WIJZIGINGEN-vNN.md`: sinds v111 **niet in de repo**, wel in de zip "niet-in-repo" en de projectkennis |
 | geschiedenis, beslissingen met reden, bugboek, beveiliging | `HANDOVER.md` (projectkennis) |
 
 Een feit staat op één plek; elders verwijs je ernaar.
@@ -48,6 +48,12 @@ Een feit staat op één plek; elders verwijs je ernaar.
   bijgewerkt is: de handover (`HANDOVER.md`), een archief van bestanden die
   uit de repo gingen, en ander materiaal dat niet openbaar hoort. Met een
   korte `LEESMIJ.md`. Zet nooit iets uit die zip in de repo-zip.
+* **De repo is openbaar** (afspraak Jan, 19-10-2026): zwakke plekken in de
+  beveiliging, misbruikmogelijkheden en bevindingen van controles staan
+  **alleen** in de handover, nooit in een nota, handleiding, test of
+  commentaar in de repo. De nota's (`WIJZIGINGEN-vNN.md`) gaan sinds v111 in
+  de zip "niet-in-repo" en de projectkennis. In tests en voorbeelden geen
+  echte e-mailadressen of wachtwoorden: gebruik `naam@voorbeeld.test`.
 * **Na Jans push de repo nakijken**: `git clone --depth 1
   https://github.com/m98cc4m6bg-sketch/glasopname` en `diff -rq` met het pakket
   (v106: vier bestanden ontbraken, het slot deed niets).
@@ -79,7 +85,7 @@ Een feit staat op één plek; elders verwijs je ernaar.
    risico, in gewone taal met de reden; datum en versie bovenaan. Feiten
    nakijken tegen de code (op 17-10 vond een controle er 17 fout).
 5. **`STATUS.md` bijwerken**: live versie, vorige sessie, wacht op Jan.
-6. **`WIJZIGINGEN-vNN.md`**: wat er misging, wat er nu gebeurt, bestanden,
+6. **`WIJZIGINGEN-vNN.md`** (in de zip "niet-in-repo" en de projectkennis, niet in de repo; afspraak Jan, 19-10-2026): wat er misging, wat er nu gebeurt, bestanden,
    hoe Jan het zelf controleert, getest en **niet getest** (bijna altijd:
    echte Safari op iPad/iPhone, Android, Windows, de echte Supabase), en een
    kopje **"Handleidingen"**.
@@ -139,6 +145,21 @@ Een feit staat op één plek; elders verwijs je ernaar.
   liet dan de rest staan en maakte te veel).
   Een EXTRA/minder is een verschil: `standVan` rekent het totaal vanaf wat
   er dán geldt (`andereBasis`), niet vanaf `o.aantal`.
+* **Bediening** (v111): `bediening`/`bedieningAantal`/`bedieningLengte` op de
+  ruit; telt in `ruitKenmerk` alleen mee als hij gekozen is, met de kale
+  velden (nooit de schermtekst). Rooster op Nee (ook doorvoeren in bulk.js)
+  haalt hem weg; `bedieningTekst` toont niets zonder rooster.
+* **Toebehoren** (v111, `toebehoren.js`) gaat nooit naar de leverancier:
+  alleen in de PDF invoer (`toebehorenPagina`), nooit op de bestellijst of
+  in de mail. Keuzes per ruit in `info.toebehoren.perRuit`, **niet op de
+  ruit** (een veld op de ruit geeft een nieuw stempel `gewOp`, en dan werkt
+  "Oudere stand?" niet meer). Wijzigen: `kijkWeigert()`, niet `slotWeigert`.
+* `pdf.js` `schoon()`: een teken buiten het pdf-lettertype (emoji, →, ≥, ł)
+  wordt in jsPDF rommel; nieuwe tekst in een pdf via `schoon` of `pdfTekst`
+  (die zetten om, halen emoji weg en maken van de rest "?").
+* Een ingekorte momentopname (`kort`) heeft alleen `KORT_VELDEN`; zet daar
+  geen veld bij dat oude ingekorte standen niet hebben (dan lijkt alles
+  "gewijzigd"). Lees zo'n stand met een terugval (`bedieningTekst`).
 * `pasDataToe()` laat `app_data.glas_data` winnen van `DATA` in index.html:
   een keuzelijst wijzigen vraagt óók een SQL-script.
 
@@ -217,6 +238,7 @@ node test-v105.js                     # en: --mutaties
 OUD105=/tmp/v105werk node test-v106.js   # bewerkslot en v107/v108; en: --mutaties (48); zonder v105-map: OUD105=/tmp/v103live
 node test-v109.js                     # inloggen, wachtwoord vergeten, herstellink, script 25; en: --mutaties (22, ±25 min)
 node test-v110.js                     # aantal en bolletjes, EXTRA/annuleren; en: --mutaties (43, ±45 min); PLAATJES=map voor schermafdrukken
+node test-v111.js                     # bediening, Toebehoren; en: --mutaties (±50, ±40 min); PLAATJES=map; OUD=map van live (kenmerk)
 OUD=/tmp/live109 node test-overgang.js   # OUD = git archive van wat live staat (19-10-2026: v109, b306e16); ook vanaf v98
 bun test-mailfunctie.ts
 ```

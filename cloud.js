@@ -234,7 +234,7 @@
   }
 
   // De naam waarmee je bent ingelogd: alles vóór de @ uit het
-  // e-mailadres, dus jan@jelierbouw.nl wordt 'jan'.
+  // e-mailadres, dus jan@voorbeeld.nl wordt 'jan'.
   function gebruikersNaam() {
     if (!gebruiker || !gebruiker.email) return '';
     return String(gebruiker.email).split('@')[0].trim();

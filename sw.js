@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v110';
+const VERSIE = 'v111';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -19,6 +19,7 @@ const SHELL = [
   './blokbalk.js',
   './fotos.js',
   './kopie.js',
+  './toebehoren.js',    // v111: tabblad Toebehoren
   './teken.js',
   './project.js',
   './logo.png',
@@ -32,8 +33,8 @@ const SHELL = [
   './wachtrij.js',
   './originelen.js',
   './manifest.webmanifest',
-  './favicon.ico?v=2',
-  './favicon.png?v=2',
+  './favicon-v3.ico',   // v111: nieuwe naam i.p.v. ?v=2 (Safari-faviconopslag)
+  './favicon-v3.png',
   './apple-touch-icon.png?v=2',
   './icon-192.png?v=2',
   './icon-512.png?v=2',

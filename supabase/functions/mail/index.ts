@@ -22,7 +22,7 @@
 //    2. Project Settings → Edge Functions → Secrets:
 //         RESEND_API_KEY = re_...  (van resend.com)
 //         MAIL_VAN       = Jelier Bouw <inmeten@send.jelierbouw.nl>
-//         MAIL_ANTWOORD  = julian@jelierbouw.nl      (optioneel)
+//         MAIL_ANTWOORD  = naam@jelierbouw.nl        (optioneel)
 //    3. Laat "Verify JWT" aan staan: alleen wie is ingelogd mag mailen.
 // ══════════════════════════════════════════════════════════════
 

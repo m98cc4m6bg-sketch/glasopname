@@ -50,13 +50,13 @@ function resetDb() {
     taken: [],
     projectgeschiedenis: [],
     gebruikers: [
-      { id: IK, naam: 'julian', email: 'julian@jelierbouw.nl', actief: true },
-      { id: COLLEGA, naam: 'Bart', email: 'bart@jelierbouw.nl', actief: true }
+      { id: IK, naam: 'julian', email: 'julian@voorbeeld.test', actief: true },
+      { id: COLLEGA, naam: 'Bart', email: 'bart@voorbeeld.test', actief: true }
     ],
     mailadressen: [
       { id: 'm1', soort: 'leverancier', naam: 'Van Noordenne', adres: 'verkoop@noordenne.test',
         standaard: true, actief: true },
-      { id: 'm2', soort: 'intern', naam: 'Kantoor', adres: 'kantoor@jelierbouw.nl',
+      { id: 'm2', soort: 'intern', naam: 'Kantoor', adres: 'kantoor@voorbeeld.test',
         standaard: false, actief: true }
     ],
     mailverzonden: [],
@@ -177,11 +177,11 @@ function maakApp(url, wachtwoord) {
           auth: {
             getSession: function () {
               return Promise.resolve({ data: { session: { access_token: 't0k',
-                user: { id: '${IK}', email: 'julian@jelierbouw.nl' } } } });
+                user: { id: '${IK}', email: 'julian@voorbeeld.test' } } } });
             },
             signInWithPassword: function (g) {
               if (g && g.password === '${wachtwoord || 'geheim'}') {
-                return Promise.resolve({ data: { user: { id: '${IK}', email: 'julian@jelierbouw.nl' } }, error: null });
+                return Promise.resolve({ data: { user: { id: '${IK}', email: 'julian@voorbeeld.test' } }, error: null });
               }
               return Promise.resolve({ data: null, error: { message: 'Invalid login credentials' } });
             },

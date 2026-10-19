@@ -30,9 +30,9 @@ async function wachtTot(voorwaarde, maximaal) {
 }
 
 /* ─── de nagebootste Supabase (node-kant) ─────────────────────── */
-const IK = { id: 'u1', email: 'julian@jelierbouw.nl' };
-const BART = { id: 'u2', email: 'bart@jelierbouw.nl' };
-const WACHTWOORD = { 'julian@jelierbouw.nl': 'geheim', 'bart@jelierbouw.nl': 'bart123' };
+const IK = { id: 'u1', email: 'julian@voorbeeld.test' };
+const BART = { id: 'u2', email: 'bart@voorbeeld.test' };
+const WACHTWOORD = { 'julian@voorbeeld.test': 'geheim', 'bart@voorbeeld.test': 'bart123' };
 const P = n => '00000000-0000-4000-8000-0000000000' + String(n).padStart(2, '0');
 
 const S = {
@@ -87,7 +87,7 @@ function resetDb() {
     // Project 9: dertig regels, de grens van glasGeschiedenis.
     // (De twee hierboven horen bij project 8.)
     mailverzonden: [{ id: 'm1', project_id: P(8), moment: '2026-10-12T15:00:00Z', wie_naam: 'julian', gelukt: true,
-                      soort: 'bestel', aan: 'orders@noordenne.nl' }],
+                      soort: 'bestel', aan: 'bestel@voorbeeld.test' }],
     app_data: [],
     gebruikers: [{ id: 'u1', naam: 'julian', email: IK.email, actief: true },
                  { id: 'u2', naam: 'bart', email: BART.email, actief: true }],

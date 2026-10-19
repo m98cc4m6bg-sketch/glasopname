@@ -13,7 +13,7 @@ function check(naam: string, ok: boolean, extra?: string) {
 const OMGEVING: Record<string, string> = {
   RESEND_API_KEY: 're_test',
   MAIL_VAN: 'Jelier Bouw <inmeten@send.jelierbouw.test>',
-  MAIL_ANTWOORD: 'julian@jelierbouw.test',
+  MAIL_ANTWOORD: 'julian@voorbeeld.test',
   SUPABASE_URL: 'https://test.supabase.co',
   SUPABASE_SERVICE_ROLE_KEY: 'service_test',
 };
@@ -39,7 +39,7 @@ const echteFetch = globalThis.fetch;
 
   if (adres.indexOf('/auth/v1/user') >= 0) {
     if (!gebruikerBekend) return new Response('nee', { status: 401 });
-    return new Response(JSON.stringify({ id: 'u1', email: 'julian@jelierbouw.test' }), { status: 200 });
+    return new Response(JSON.stringify({ id: 'u1', email: 'julian@voorbeeld.test' }), { status: 200 });
   }
   if (adres.indexOf('api.resend.com') >= 0) {
     if (resendFaalt) {
@@ -98,7 +98,7 @@ check('met het bestelmoment en de naam erbij',
 console.log('\n2. Een taakbericht raakt de status niet');
 aanroepen = [];
 res = await behandelaar!(verzoek({ soort: 'taak', projectId: BESTELLING.projectId,
-  aan: ['bart@jelierbouw.test'], onderwerp: 'Taak', tekst: 'Rooster nameten', wieNaam: 'julian' }));
+  aan: ['bart@voorbeeld.test'], onderwerp: 'Taak', tekst: 'Rooster nameten', wieNaam: 'julian' }));
 check('verstuurd', res.status === 200);
 check('geen bijlage', !(naar('api.resend.com')[0].lichaam.attachments));
 check('wel vastgelegd', naar('/rest/v1/mailverzonden').length === 1);

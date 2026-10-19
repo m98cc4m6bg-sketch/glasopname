@@ -12,13 +12,14 @@
 <!-- default in plaats van black-translucent: anders schuift de inhoud onder
      de klok en de dynamic island door, en vervaagt Safari de bovenrand. -->
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<!-- ?v=2: het icoon van v97. Safari (vooral op de Mac) bewaart een favicon
-     in een eigen opslag en haalt hem niet opnieuw op zolang het adres gelijk
-     blijft; na v97 bleef daardoor het oude huisje staan (gemeld door Jan, v101).
-     Verandert het icoon weer, verhoog dan dit nummer — ook in sw.js (SHELL)
-     en manifest.webmanifest. -->
-<link rel="icon" href="favicon.ico?v=2" sizes="16x16 32x32 48x48">
-<link rel="icon" href="favicon.png?v=2" type="image/png" sizes="96x96">
+<!-- Het icoon van v97 (huisje met ruit en rolmaat). Safari (vooral op de
+     Mac) bewaart een favicon in een eigen opslag en haalt hem slecht opnieuw
+     op. ?v=2 achter het adres (v101) was niet genoeg: in v111 zag Jan op de
+     Mac nog steeds het oude icoon. Daarom sinds v111 een nieuwe bestandsnaam
+     (favicon-v3.*). Verandert het icoon weer: nieuwe naam (v4), ook in sw.js
+     (SHELL). -->
+<link rel="icon" href="favicon-v3.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon-v3.png" type="image/png" sizes="96x96">
 <link rel="manifest" href="manifest.webmanifest">
 <!-- Wit, gelijk aan de kopbalk. Let op: Safari 26 op iOS trekt zich hier
      weinig van aan — de wazige band bovenaan is daarmee niet te sturen.
@@ -296,7 +297,15 @@
   /* Geen enkele ruit met een rooster? Dan zeggen Duco type en RAL kleur
      niets en blijven ze weg. Ze komen terug zodra er ergens 'Ja' staat. */
   table.invoer.zonder-rooster .kol-duco,
-  table.invoer.zonder-rooster .kol-ral { display: none; }
+  table.invoer.zonder-rooster .kol-ral,
+  table.invoer.zonder-rooster .kol-bed { display: none; }
+  /* v111: bediening bij een rooster (stang of koord, met lengte). Het
+     lengtevak blijft zijn plek houden als er geen bediening is, zodat de
+     rij niet verspringt. */
+  .kol-bed .bed-wrap { display: flex; gap: 4px; align-items: center; }
+  .kol-bed select { min-width: 92px; }
+  .kol-bed .bed-lengte { width: 62px !important; text-align: right; }
+  .kol-bed .bed-lengte.verborgen { visibility: hidden; }
 
   /* Hetzelfde voor de roeden. De kolom Verdeling blijft altijd staan —
      daar kies je het immers — maar de breedte en de opmerking erover
@@ -846,6 +855,31 @@
     background: var(--grijs-licht); border-radius: var(--radius);
   }
   .foto-voet { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  /* v111: het tabblad Toebehoren. */
+  .tb-strook { padding: 8px 10px; border-radius: var(--radius); font-size: 13px; background: #fff6e0;
+    border: 1px solid var(--geel); margin-bottom: 12px; }
+  .tb-totalen { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .tb-blok { border: 1px solid var(--grijs-rand); border-radius: var(--radius); padding: 10px 12px; background: white; }
+  .tb-getal { font-size: 22px; font-weight: 800; line-height: 1.2; }
+  .tb-wat { font-size: 13px; font-weight: 600; margin-top: 2px; }
+  .tb-reken { font-size: 11px; color: var(--grijs-tekst); margin-top: 6px; line-height: 1.35; }
+  .tb-let { font-size: 12px; color: var(--rood); margin-top: 4px; }
+  .tb-inst-kop { cursor: pointer; padding: 8px 10px; border-radius: var(--radius); background: var(--grijs-licht);
+    font-size: 13px; margin-bottom: 10px; }
+  .tb-inst-kop.afwijkend { background: #fff3e0; border-left: 4px solid #e8890c; }
+  .tb-inst { padding: 4px 2px 12px; }
+  .tb-keuzes, .tb-getallen { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 14px; margin-bottom: 10px; }
+  .tb-keuzes label, .tb-getallen label { font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+  .tb-getallen label span { display: flex; align-items: center; gap: 6px; }
+  /* v111: kleur en dikte van de band naast elkaar */
+  .tb-paar { display: flex; gap: 6px; } .tb-paar select { flex: 1; min-width: 0; }
+  .tb-getallen input { width: 90px; }
+  .tb-getallen label.afwijkend { border-left: 4px solid #e8890c; padding-left: 6px; font-weight: 700; }
+  .tb-getallen small { font-weight: 400; color: var(--grijs-tekst); }
+  .tb-noot { font-size: 11px; color: var(--grijs-tekst); margin-top: 8px; }
+  .tb-perruit-kop { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+  .tb-perruit-kop h3 { margin: 0; font-size: 15px; }
+  .tb-perruit-kop span { font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   /* v110: regels waar het aantal en de bolletjes niet kloppen, met per
      regel de keuze wat klopt. Op een telefoon lopen de knoppen onder de
      tekst door (flex-wrap). */
@@ -2267,6 +2301,7 @@
   <button class="tab-btn" onclick="toon('project')">📋 Project info</button>
   <button class="tab-btn active" onclick="toon('invoer')">📋 Invoer</button>
   <button class="tab-btn" onclick="toon('samenvatting')">📊 Samenvatting</button>
+  <button class="tab-btn" onclick="toon('toebehoren')">🧰 Toebehoren</button>
   <button class="tab-btn" onclick="toon('bestellijst')">📦 Bestellijst</button>
   <button class="tab-btn" onclick="toon('naslag')">📖 Naslag</button>
 </div>
@@ -2421,7 +2456,7 @@
         <th colspan="3" class="groep-glas">Glasspecificatie</th>
         <!-- Duco en RAL vallen weg zodra er geen enkele ruit een rooster
              heeft; roosterKolommen() zet de overspanning dan op 1. -->
-        <th colspan="3" class="groep-vent">Ventilatie</th>
+        <th colspan="4" class="groep-vent">Ventilatie</th>
         <th colspan="2" class="groep-glas">Afwerking</th>
         <!-- Breedte en opmerking vallen weg zolang er nergens een
              roedenverdeling gekozen is; roosterKolommen() past de
@@ -2444,6 +2479,7 @@
         <th>Rooster</th>
         <th class="kol-duco">Duco Type</th>
         <th class="kol-ral">RAL Kleur</th>
+        <th class="kol-bed">Bediening <i class="info-icon" onclick="toonInfo(this)" data-info="Het gewone knopje zit altijd op het rooster. Kies hier alleen een <b>extra</b> bediening: een bedieningsstang of -koord, 1 of 2 per rooster.<br><br>Lengte in mm; leeg = de standaardlengte.">i</i></th>
         <th class="groep-glas kol-bewerking">Bewerking</th>
         <th class="groep-glas">Opm.</th>
         <th class="groep-roeden kol-verdeling">Verdeling</th>
@@ -2496,6 +2532,24 @@
     <h2>Samenvatting Glasopname</h2>
     <div class="info-note">ℹ Glasmaten zijn netto bestelmaten na omrekening. Gewicht per stuk = totale glasdikte (mm) × 2,5 kg/m² × oppervlakte. Spouwen tellen NIET mee voor het gewicht.</div>
     <div id="samenvattingInhoud"><em style="color:var(--grijs-tekst)">Vul regels in op het Invoer tabblad.</em></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════ TOEBEHOREN (v111) ═══════════════════════ -->
+<!-- Glaslatten, glasband, glaskit en wienersprossen-tape: berekend uit de
+     ruiten (toebehoren.js). Alleen voor eigen gebruik: wel in de PDF invoer,
+     niet op de bestellijst. -->
+<div id="panel-toebehoren" class="tab-panel">
+<div class="container">
+  <div class="card">
+    <div class="pi-kop">
+      <div>
+        <h2>Toebehoren</h2>
+        <div class="pi-sub">Wat er naast het glas nodig is. Alleen voor eigen gebruik, niet voor de leverancier.</div>
+      </div>
+    </div>
+    <div id="toebehorenInhoud"><em style="color:var(--grijs-tekst)">Vul regels in op het Invoer tabblad.</em></div>
   </div>
 </div>
 </div>
@@ -3030,7 +3084,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v110';
+const APP_VERSIE = 'v111';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -3116,6 +3170,7 @@ function toon(tabNaam) {
   }
   if (tabNaam === 'fotos') renderFotos();
   if (tabNaam === 'samenvatting') renderSamenvatting();
+  if (tabNaam === 'toebehoren' && window.renderToebehoren) renderToebehoren();
   if (tabNaam === 'naslag') {
     // De naslag kan ook op het startscherm open hebben gestaan (v98); dan
     // hangt de inhoud daar. Eerst terug in dit tabblad.
@@ -3429,7 +3484,7 @@ function roosterKolommen(tbody, lijst) {
   // De groepskop boven Rooster/Duco/RAL moet evenveel kolommen overspannen
   // als er werkelijk staan, anders schuift de hele kop een vak op.
   const groep = tabel.querySelector('th.groep-vent');
-  if (groep) groep.colSpan = tonen ? 3 : 1;
+  if (groep) groep.colSpan = tonen ? 4 : 1;   // Rooster, Duco, RAL, Bediening (v111)
 
   // Hetzelfde voor de roeden: breedte en opmerking komen pas in beeld
   // zodra er ergens een verdeling gekozen is.
@@ -3590,6 +3645,10 @@ function renderTabel() {
   if (window.renderFotoTabellen && document.getElementById('fotoHouder')) renderFotoTabellen();
   slotToepassen();
   renderBestelVerschil();
+  // Staat het tabblad Toebehoren open, dan meteen de nieuwe getallen (v111;
+  // bijvoorbeeld als een collega iets wijzigt).
+  const tb = document.getElementById('panel-toebehoren');
+  if (tb && tb.classList.contains('active') && window.renderToebehoren) renderToebehoren();
 }
 
 // ═══════════════ SLOT NA BESTELLEN ═══════════════
@@ -3787,6 +3846,8 @@ const SLOT_FUNCTIES = [
   'markEenMinder', 'markWeg', 'markRuitWeg',
   // v110: een ruit erbij via het bolletje, en de keuzes bij 'klopt niet'.
   'markErbij', 'markAantalNaarBollen', 'markTeveelWeg', 'markAanwijzenRij',
+  // v111: de bediening bij een rooster (gaat naar de leverancier).
+  'setBediening', 'setBedieningLengte',
   'fotoVerwijder', 'fotoDraaien', 'fotoAanGroep', 'fotoTitelWijzig',
   'tekenModus', 'tekenKies', 'tekenTerug', 'tekenWis', 'selectieWeg', 'selectieTekst'
 ];
@@ -3965,6 +4026,7 @@ function rijHTML(rij, nr) {
     <td class="kol-ral" id="ral-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
       <select onchange="setVal(${id},'ralKleur',this.value); opslaan()">${ralOpts}</select>
     </td>
+    <td class="kol-bed" id="bed-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">${bedieningCel(rij)}</td>
     <td class="kol-bewerking"><select id="bew-${id}" onchange="kiesBewerking(${id},this)">${bewerkingOpts}</select></td>
     <td><input type="text" class="opm-input" value="${esc(rij.opmerking)}" placeholder="opmerking…"
        oninput="setVal(${id},'opmerking',this.value); opslaan()"></td>
@@ -4105,6 +4167,80 @@ async function aantalVastUitleg(id) {
     { kop: 'Het aantal volgt de bolletjes' });
 }
 window.aantalVastUitleg = aantalVastUitleg;
+
+/* ─── v111: bediening bij een ventilatierooster ──────────────────── */
+// Het gewone knopje zit altijd op het rooster. Soms moet er een extra
+// bediening bij: een bedieningsstang of een bedieningskoord, 1 of 2 per
+// rooster, met een lengte (leeg = de standaardlengte). Dat gaat mee naar
+// de leverancier (keuzes van Jan, 19-10-2026). Opgeslagen als
+// bediening ('stang' | 'koord'), bedieningAantal (1 | 2) en
+// bedieningLengte (mm, of weg = standaard). Geen bediening: de velden weg.
+const BEDIENING_SOORTEN = { stang: 'bedieningsstang', koord: 'bedieningskoord' };
+function bedieningTekst(r, kort) {
+  // Zonder rooster geen bediening, ook als er (oud, of via een andere weg)
+  // nog een veld staat: anders kwam er een stang op de bestellijst bij een
+  // ruit zonder rooster (v111, uit de controle).
+  // Een ingekorte momentopname (kort) bewaart het rooster niet, wel de
+  // bediening: daar betekent een bediening dat er een rooster was.
+  const roosterJa = r && (r.rooster === 'Ja' || (r.kort && !('rooster' in r)));
+  if (!r || !roosterJa || !r.bediening || !BEDIENING_SOORTEN[r.bediening]) return '';
+  const n = parseInt(r.bedieningAantal, 10) === 2 ? 2 : 1;
+  const l = parseInt(r.bedieningLengte, 10) > 0 ? parseInt(r.bedieningLengte, 10) + ' mm' : 'std. lengte';
+  return n + '× ' + (kort ? r.bediening : BEDIENING_SOORTEN[r.bediening]) + ' ' + l;
+}
+window.bedieningTekst = bedieningTekst;
+
+function bedieningCel(rij) {
+  const id = rij.id;
+  const waarde = rij.bediening ? (parseInt(rij.bedieningAantal, 10) === 2 ? 2 : 1) + '|' + rij.bediening : '';
+  const keuzes = [['', '—'], ['1|stang', '1× stang'], ['2|stang', '2× stang'], ['1|koord', '1× koord'], ['2|koord', '2× koord']];
+  const lengte = parseInt(rij.bedieningLengte, 10) > 0 ? parseInt(rij.bedieningLengte, 10) : '';
+  return `<div class="bed-wrap"><select class="bed-soort" onchange="setBediening(${id}, this.value)">` +
+    keuzes.map(k => `<option value="${k[0]}" ${k[0] === waarde ? 'selected' : ''}>${k[1]}</option>`).join('') +
+    // Tekstvak (v111, controle): in een getalvak werd "1.500" in Chrome 1 mm,
+    // en gaf een komma in Safari stil "std. lengte". Dit gaat naar de leverancier.
+    `</select><input type="text" inputmode="numeric" class="bed-lengte${rij.bediening ? '' : ' verborgen'}" ` +
+    `value="${lengte}" placeholder="std." title="Lengte in mm; leeg = standaardlengte" ` +
+    `onchange="setBedieningLengte(${id}, this.value)"></div>`;
+}
+
+function setBediening(id, waarde) {
+  if (slotWeigert()) return;
+  const r = getRij(id);
+  if (!r) return;
+  const delen = String(waarde || '').split('|');
+  if (delen.length === 2 && BEDIENING_SOORTEN[delen[1]]) {
+    r.bediening = delen[1];
+    r.bedieningAantal = delen[0] === '2' ? 2 : 1;
+  } else {
+    delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte;
+  }
+  const cel = document.getElementById('bed-' + id);
+  if (cel) cel.innerHTML = bedieningCel(r);
+  opslaan();
+}
+window.setBediening = setBediening;
+
+function setBedieningLengte(id, waarde) {
+  if (slotWeigert()) return;
+  const r = getRij(id);
+  if (!r || !r.bediening) return;
+  const tekst = String(waarde == null ? '' : waarde).replace(/\s|mm/gi, '');
+  // Hele millimeters; een punt als duizendtal ("1.500") mag.
+  const n = /^\d{1,3}(\.\d{3})+$/.test(tekst) ? parseInt(tekst.replace(/\./g, ''), 10) :
+    /^\d+$/.test(tekst) ? parseInt(tekst, 10) : NaN;
+  if (tekst === '') delete r.bedieningLengte;
+  else if (!(n >= 100 && n <= 9999)) {
+    // Niet stil iets anders bestellen: melden en het vak terugzetten.
+    if (window.appFout) appFout('"' + waarde + '" is geen lengte die we kunnen bestellen. Vul de lengte van de ' +
+      'bediening in hele millimeters in (100 tot 9999), of laat het vak leeg voor de standaardlengte.', { kop: 'Lengte bediening' });
+    const cel = document.getElementById('bed-' + id);
+    if (cel) cel.innerHTML = bedieningCel(r);
+    return;
+  } else r.bedieningLengte = n;
+  opslaan();
+}
+window.setBedieningLengte = setBedieningLengte;
 // String() erbij: een merk of opmerking uit een Excel-import kan een getal
 // zijn, en dan liep .replace stuk (v91).
 function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
@@ -4141,7 +4277,15 @@ function toggleDuco(id, val) {
   ducoEl.style.pointerEvents = uit ? 'none' : '';
   ralEl.style.opacity = uit ? '.35' : '1';
   ralEl.style.pointerEvents = uit ? 'none' : '';
-  if (uit) { setVal(id, 'ducoType', ''); setVal(id, 'ralKleur', ''); }
+  const bedEl = document.getElementById('bed-' + id);
+  if (bedEl) { bedEl.style.opacity = uit ? '.35' : '1'; bedEl.style.pointerEvents = uit ? 'none' : ''; }
+  if (uit) {
+    setVal(id, 'ducoType', ''); setVal(id, 'ralKleur', '');
+    // Geen rooster, dan ook geen bediening (v111).
+    const r = getRij(id);
+    if (r && r.bediening && !invoerOpSlot()) { delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; }
+    if (bedEl && r) bedEl.innerHTML = bedieningCel(r);
+  }
   updateBerekendCellen();
   // De twee kolommen komen tevoorschijn zodra de eerste ruit een rooster
   // krijgt, en verdwijnen weer als de laatste hem kwijtraakt.
@@ -4188,6 +4332,7 @@ function renderSamenvatting() {
       <td class="num highlight">${ant}</td>
       <td>${esc(r.ducoType)}</td>
       <td>${esc(r.ralKleur)}</td>
+      <td>${esc(bedieningTekst(r))}</td>
       <td>${esc(r.glasbewerking)}</td>
       <td>${esc(r.roedenverdeling)}</td>
       <td>${esc(r.roedenbreedte)}</td>
@@ -4208,14 +4353,14 @@ function renderSamenvatting() {
         <th>Glas Type</th><th>Opbouw</th><th>Rooster</th>
         <th class="num">Opp.<br>(m²)</th><th class="num">Dikte<br>(mm)</th>
         <th class="num">Gewicht<br>p/stuk (kg)</th><th class="num">Aantal</th>
-        <th>Duco Type</th><th>RAL</th><th>Bewerking</th>
+        <th>Duco Type</th><th>RAL</th><th>Bediening</th><th>Bewerking</th>
         <th>Roedenv.</th><th>Roedenb.</th><th>Opmerking</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr class="totaal-rij">
         <td colspan="13" style="text-align:right;padding-right:8px;">Totalen →</td>
         <td class="num">${totAantal}</td>
-        <td colspan="6"></td>
+        <td colspan="7"></td>
       </tr></tfoot>
     </table>
     </div>
@@ -4234,7 +4379,17 @@ const KENMERK_VELDEN = ['aantal', 'merk', 'maatsoort', 'breedte', 'hoogte', 'cor
   'opmerking', 'roedenverdeling', 'roedenbreedte', 'roedenopmerking'];
 
 function ruitKenmerk(rij) {
-  const tekst = KENMERK_VELDEN.map(v => String(rij[v] === undefined ? '' : rij[v])).join('|');
+  // De bediening (v111) telt alleen mee als hij gekozen is: anders zou het
+  // kenmerk van élke bestaande ruit veranderen en stond na een bestelling
+  // alles als "gewijzigd".
+  // Met de kale velden, niet de schermtekst: anders zou een andere woordkeus
+  // later elke bestelde ruit met bediening "gewijzigd" maken.
+  // Alleen bij een rooster: een overgebleven bediening zonder rooster (van een
+  // ouder apparaat) staat nergens op papier, en mag de ruit dus ook niet
+  // "gewijzigd" maken.
+  const tekst = KENMERK_VELDEN.map(v => String(rij[v] === undefined ? '' : rij[v])).join('|') +
+    (rij.bediening && rij.rooster === 'Ja' ? '|bed:' + rij.bediening + '/' + (parseInt(rij.bedieningAantal, 10) === 2 ? 2 : 1) + '/' +
+      (parseInt(rij.bedieningLengte, 10) > 0 ? parseInt(rij.bedieningLengte, 10) : '') : '');
   let h = 5381;
   for (let i = 0; i < tekst.length; i++) h = ((h * 33) ^ tekst.charCodeAt(i)) >>> 0;
   return h.toString(36);
@@ -4274,11 +4429,13 @@ window.ruitKenmerk = ruitKenmerk;
 // projectInfo.besteld blijft bestaan in de oude vorm (kenmerk per ruit):
 // dat is de besteld stand, voor apparaten die nog een oudere versie
 // draaien tot ze bijgewerkt zijn.
-const MOMENT_VELDEN = KENMERK_VELDEN.concat(['glasBreedte', 'glasHoogte']);
+const MOMENT_VELDEN = KENMERK_VELDEN.concat(['glasBreedte', 'glasHoogte', 'bediening', 'bedieningAantal', 'bedieningLengte']);
+const BEDIENING_VELDEN = ['bediening', 'bedieningAantal', 'bedieningLengte'];
 // Wat er van een óudere bestelling bewaard blijft zodra er een nieuwere
 // bij komt: genoeg om hem te tonen, niet alles (een project gaat bij elke
 // opslag in zijn geheel omhoog).
-const KORT_VELDEN = ['aantal', 'merk', 'breedte', 'hoogte', 'glasBreedte', 'glasHoogte', 'glasType', 'opbouw'];
+const KORT_VELDEN = ['aantal', 'merk', 'breedte', 'hoogte', 'glasBreedte', 'glasHoogte', 'glasType', 'opbouw',
+  'bediening', 'bedieningAantal', 'bedieningLengte'];   // v111
 
 function ruitMomentopname(rij, opLijst) {
   const o = { k: ruitKenmerk(rij), opLijst: !!opLijst };
@@ -4734,6 +4891,12 @@ function ruitVerschil(oud, rij) {
     const b = rij[v] === undefined || rij[v] === null ? '' : String(rij[v]);
     if (a !== b) uit.push(VELD_NAAM[v] + ' ' + (a || '(leeg)') + ' → ' + (b || '(leeg)'));
   });
+  // Bediening (v111): alleen als die bewaard is (een ingekorte bestelling
+  // kent hem niet) of de ruit er nu een heeft.
+  if (!oud.kort || oud.bediening || 'bediening' in rij) {
+    const bo = bedieningTekst(oud), bn = bedieningTekst(rij);
+    if (bo !== bn) uit.push('bediening ' + (bo || '(geen)') + ' → ' + (bn || '(geen)'));
+  }
   const gb = maatGetal(oud.glasBreedte), gh = maatGetal(oud.glasHoogte);
   if (('glasBreedte' in oud || 'glasHoogte' in oud) &&
       (gb !== maatGetal(rij.glasBreedte) || gh !== maatGetal(rij.glasHoogte))) {
@@ -4746,6 +4909,7 @@ function ruitVerschil(oud, rij) {
     // Zo niet, dan is er ook iets anders veranderd dat we niet meer kennen.
     const terug = Object.assign({}, rij);
     velden.forEach(v => { terug[v] = oud[v] === undefined ? '' : oud[v]; });
+    BEDIENING_VELDEN.forEach(v => { if (oud[v] === undefined) delete terug[v]; else terug[v] = oud[v]; });   // v111
     if (ruitKenmerk(terug) !== oud.k) {
       uit.push((uit.length ? 'en ' : '') + 'overige gegevens gewijzigd (de details van die bestelling zijn niet meer bewaard)');
     }
@@ -4855,6 +5019,13 @@ function ruitenTerugZoalsBesteld(ids) {
       if (oud.kort && KORT_VELDEN.indexOf(v) < 0) return;  // niet bewaard: laten staan
       doel[v] = oud[v] === undefined ? (v === 'aantal' ? 1 : '') : oud[v];
     });
+    // De bediening (v111) zit niet in KENMERK_VELDEN; mee terugzetten.
+    if (!Array.isArray(os)) {
+      BEDIENING_VELDEN.forEach(v => { if (oud[v] === undefined) delete doel[v]; else doel[v] = oud[v]; });
+    }
+    // Komt het rooster terug op Nee, dan hoort er geen bediening bij (anders
+    // kwam hij stil terug zodra het rooster later weer op Ja ging).
+    if (doel.rooster !== 'Ja') BEDIENING_VELDEN.forEach(v => { delete doel[v]; });
     if (!bestaand) rijen.push(doel);
     n++;
   });
@@ -5324,6 +5495,7 @@ function renderBestellijst() {
     <td>${r.rooster === 'Ja' ? '<b class="rooster-ja">Ja ▲</b>' : ''}</td>
     <td>${esc(r.ducoType)}</td>
     <td>${esc(r.ralKleur)}</td>
+    <td>${esc(bedieningTekst(r))}</td>
     <td>${esc(r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '')}${isStrijdig(r) ? '<span class="strijdig-teken">*</span>' : ''}</td>
     <td>${esc(r.roedenverdeling !== 'Geen roedenverdeling' ? r.roedenverdeling : '')}</td>
     <td>${esc(r.roedenbreedte)}</td>
@@ -5341,7 +5513,7 @@ function renderBestellijst() {
         <th>Pos.</th><th class="num">Aantal</th><th>Merk</th>
         <th class="num">Glasbreedte (mm)</th><th class="num">Glashoogte (mm)</th>
         <th>Glas Type</th><th>Opbouw</th><th>Rooster</th>
-        <th>Duco Type</th><th>RAL Kleur</th>
+        <th>Duco Type</th><th>RAL Kleur</th><th>Bediening</th>
         <th>Glasbewerking</th><th>Roedenverdeling</th><th>Roedenb.</th><th>Opmerking</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -5462,7 +5634,9 @@ function exportTabel() {
     'Glasbewerking','Opmerking','Roedenverdeling','Roedenbreedte','Opmerking roeden',
     // Achteraan, zodat bestaande kolommen op hun plek blijven staan voor
     // wie dit bestand ergens anders inleest.
-    'Let op'];
+    'Let op',
+    // v111, achteraan om dezelfde reden.
+    'Bediening'];
   const getal = v => {
     if (v === null || v === undefined || v === '') return '';
     const n = Number(String(v).replace(',', '.'));
@@ -5478,7 +5652,8 @@ function exportTabel() {
       r.glasType || '', r.opbouw || '', getal(r.totaalDikte), gew,
       r.rooster==='Ja'?'Ja':'Nee', r.ducoType || '', r.ralKleur || '',
       r.glasbewerking || '', r.opmerking || '', r.roedenverdeling || '', r.roedenbreedte || '', r.roedenopmerking || '',
-      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : ''
+      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',
+      bedieningTekst(r)
     ];
   });
   return { koppen, regels };
@@ -5617,6 +5792,7 @@ window.veiligeBestandsnaam = veiligeBestandsnaam;
 <script src="blokbalk.js"></script>
 <script src="fotos.js"></script>
 <script src="kopie.js"></script>
+<script src="toebehoren.js"></script>
 <script src="teken.js"></script>
 <script src="merken.js"></script>
 <script src="naslag.js"></script>

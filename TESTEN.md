@@ -345,6 +345,30 @@ harde eis wint.
     een half gekozen "nog een ruit" bleef onzichtbaar aanstaan. Toets bij
     bestellen altijd **meer lijsten na elkaar** (onderdeel 11), niet alleen
     de eerste aanvulling.
+- `test-v111.js` (bediening bij een rooster, het tabblad Toebehoren):
+  - het **rekenwerk met de hand nagerekend** in de test zelf (zaagplan per
+    lengte, band, kit, tape) en randgevallen die een zaagsnede of het "past
+    precies" laten verschillen (12 latten van 1,0 m; 2.000 + 1.995). Een
+    gewoon project gaf met en zonder zaagsnede hetzelfde plan, dus die
+    mutaties werden eerst niet gevangen;
+  - het **kenmerk van v109** wordt uit `/tmp/live109/index.html` gelezen en
+    vergeleken (ruiten zonder bediening mogen niet veranderen); `OUD=` wijst
+    een andere map aan;
+  - de pdf's worden teruggelezen: Toebehoren wel in de PDF invoer, niets
+    ervan op de bestellijst;
+  - een mutatie mag sinds v111 **meer dan één paar** (van, naar) hebben,
+    voor een bewaking op twee plekken (`slotBediening`: `SLOT_FUNCTIES` én
+    de functie zelf; met één paar bleef hij groen);
+  - les: controleer bij "weigert" de stand **op het scherm** (in de pagina),
+    niet alleen de database: de opslag weigerde het al, dus een kapotte
+    weigering bleef onzichtbaar (`kijken`);
+  - les: `opgeslagenAls` wacht tot iets waar is. "Wordt niet bewaard" is
+    meteen waar, ook als het even later wél bewaard wordt: lees dan de stand
+    direct in de pagina;
+  - les: ongedaan maken met de aandacht nog in een vak slaat dat vak over
+    (bestaand gedrag, `bijBetreden = null`); verlaat in de test eerst het vak.
+    Een omhulde functie (`omhul`) én focusin/focusout op hetzelfde vak geeft
+    twee stappen: alleen omhullen wat zijn eigen vak vervangt.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

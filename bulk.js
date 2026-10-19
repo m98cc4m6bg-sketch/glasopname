@@ -144,7 +144,9 @@
 
       { kop: 'Rooster', titel: 'Rooster', html: function () {
           return '<select id="bulkVeld">' + LEEGKEUZE + opts(ROOSTER_JA_NEE) + '</select>'; },
-        zet: function (r, v) { r.rooster = v; if (v === 'Nee') { r.ducoType = ''; r.ralKleur = ''; } },
+        // v111: geen rooster = ook geen extra bediening (stang/koord).
+        zet: function (r, v) { r.rooster = v; if (v === 'Nee') { r.ducoType = ''; r.ralKleur = '';
+          delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; } },
         leeg: function (r) { return r.rooster !== 'Ja'; } },
 
       { kop: 'Duco Type', titel: 'Duco type', html: function () {

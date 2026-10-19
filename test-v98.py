@@ -52,7 +52,7 @@ check('notities, met de regelovergang', 'Klant wil graag voor de kerst klaar.\nH
 check('taken met eigenaar en status', 'Rooster nameten bart open' in een and 'Sleutel ophalen julian afgerond' in een)
 check('logboek met moment, wie en wat', 'bart leverweek gekozen' in een and 'julian 1 ruit toegevoegd' in een)
 check('de mail staat in het logboek, zonder ✉ (dat kent het lettertype niet)',
-      'mail bestelmail naar orders@noordenne.nl' in een and '✉' not in ''.join(teksten))
+      'mail bestelmail naar bestel@voorbeeld.test' in een and '✉' not in ''.join(teksten))
 check('nieuwste logboekregel bovenaan', een.index('leverweek gekozen') < een.index('1 ruit toegevoegd'))
 
 fotopag = [i for i, t in enumerate(teksten) if 'Foto leverlocatie' in t]

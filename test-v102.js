@@ -39,9 +39,9 @@ async function wachtTot(voorwaarde, maximaal) {
 }
 
 /* ─── de nagebootste Supabase (node-kant) ─────────────────────── */
-const IK = { id: 'u1', email: 'julian@jelierbouw.nl' };
-const BART = { id: 'u2', email: 'bart@jelierbouw.nl' };
-const WACHTWOORD = { 'julian@jelierbouw.nl': 'geheim', 'bart@jelierbouw.nl': 'bart123' };
+const IK = { id: 'u1', email: 'julian@voorbeeld.test' };
+const BART = { id: 'u2', email: 'bart@voorbeeld.test' };
+const WACHTWOORD = { 'julian@voorbeeld.test': 'geheim', 'bart@voorbeeld.test': 'bart123' };
 const P = n => '00000000-0000-4000-8000-0000000000' + String(n).padStart(2, '0');
 
 const S = {

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <!-- Glasopname-icoon (v97, richting D): het huisje van Jelier Bouw met een
-       ruit en een rolmaat. Bron voor favicon.ico, favicon.png,
+       ruit en een rolmaat. Bron voor favicon-v3.ico, favicon-v3.png,
        apple-touch-icon.png, icon-192.png en icon-512.png. -->
   <polygon fill="#D9014F" points="256,82 338,136 338,186 256,131 141,205 141,388 363,388 363,155 413,186 413,429 98,429 98,187"/>
   <rect x="166" y="204" width="150" height="124" fill="#A9D8EC" stroke="#1D1D1B" stroke-width="12"/>

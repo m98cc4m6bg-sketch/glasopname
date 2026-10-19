@@ -47,13 +47,13 @@ function resetDb() {
     taken: [],
     projectgeschiedenis: [],
     gebruikers: [
-      { id: IK, naam: 'julian', email: 'julian@jelierbouw.nl', actief: true },
-      { id: COLLEGA, naam: 'Bart', email: 'bart@jelierbouw.nl', actief: true }
+      { id: IK, naam: 'julian', email: 'julian@voorbeeld.test', actief: true },
+      { id: COLLEGA, naam: 'Bart', email: 'bart@voorbeeld.test', actief: true }
     ],
     mailadressen: [
       { id: 'm1', soort: 'leverancier', naam: 'Van Noordenne', adres: 'verkoop@noordenne.test',
         standaard: true, actief: true },
-      { id: 'm2', soort: 'intern', naam: 'Kantoor', adres: 'kantoor@jelierbouw.nl',
+      { id: 'm2', soort: 'intern', naam: 'Kantoor', adres: 'kantoor@voorbeeld.test',
         standaard: false, actief: true }
     ],
     mailverzonden: [],
@@ -167,11 +167,11 @@ function maakApp(url, wachtwoord) {
           auth: {
             getSession: function () {
               return Promise.resolve({ data: { session: { access_token: 't0k',
-                user: { id: '${IK}', email: 'julian@jelierbouw.nl' } } } });
+                user: { id: '${IK}', email: 'julian@voorbeeld.test' } } } });
             },
             signInWithPassword: function (g) {
               if (g && g.password === '${wachtwoord || 'geheim'}') {
-                return Promise.resolve({ data: { user: { id: '${IK}', email: 'julian@jelierbouw.nl' } }, error: null });
+                return Promise.resolve({ data: { user: { id: '${IK}', email: 'julian@voorbeeld.test' } }, error: null });
               }
               return Promise.resolve({ data: null, error: { message: 'Invalid login credentials' } });
             },
@@ -264,12 +264,12 @@ function laatsteSpoor() {
   console.log('\n3. Versturen zet het project op besteld');
   // Zonder bijlage: de pdf zelf wordt in test-rook.js (Chromium) nagekeken.
   w.document.getElementById('mailBijlage').checked = false;
-  w.document.getElementById('mailExtra').value = 'extra@jelierbouw.nl';
+  w.document.getElementById('mailExtra').value = 'extra@voorbeeld.test';
   w.document.getElementById('mailVerstuur').click();
   await wachtTot(() => verstuurd.length > 0, 10000);
   check('de mailfunctie is aangeroepen', verstuurd.length === 1);
   check('met het vaste adres én het extra adres',
-    (verstuurd[0].aan || []).join(',') === 'verkoop@noordenne.test,extra@jelierbouw.nl',
+    (verstuurd[0].aan || []).join(',') === 'verkoop@noordenne.test,extra@voorbeeld.test',
     (verstuurd[0].aan || []).join(','));
   check('als soort bestelling', verstuurd[0].soort === 'bestelling', verstuurd[0].soort);
   await wachtTot(() => statusInDb() === 'besteld', 10000);
@@ -349,7 +349,7 @@ function laatsteSpoor() {
   await wachtTot(() => verstuurd.length > mailsVoor, 8000);
   check('de collega krijgt er een mailtje over', verstuurd.length === mailsVoor + 1);
   const m = verstuurd[verstuurd.length - 1];
-  check('naar zijn eigen adres', (m.aan || [])[0] === 'bart@jelierbouw.nl', (m.aan || [])[0]);
+  check('naar zijn eigen adres', (m.aan || [])[0] === 'bart@voorbeeld.test', (m.aan || [])[0]);
   check('als soort taak', m.soort === 'taak', m.soort);
   check('met de taak en een link naar het project in de tekst',
     /Rooster nameten/.test(m.tekst) && m.tekst.indexOf('#project=' + PROJECT) >= 0);

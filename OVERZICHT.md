@@ -1,10 +1,10 @@
 # Glasopname — overzicht: hoe de app in elkaar zit
 
 *Voor wie wil begrijpen hoe de app werkt, en hem zonder AI wil kunnen
-onderhouden. Bijgewerkt op 19 oktober 2026, bij v110.*
+onderhouden. Bijgewerkt op 19 oktober 2026, bij v111.*
 
 Wordt bij elke nieuwe versie bijgewerkt, net als `BEHEER.md` en
-`DATAMODEL.md` (zie "Handleidingen" in `WIJZIGINGEN-vNN.md`).
+`DATAMODEL.md` (zie "Handleidingen" in de nota per versie, `WIJZIGINGEN-vNN.md`; die staat sinds v111 in de zip "niet-in-repo" en in de projectkennis, niet in de openbare repo).
 
 **Waar staat wat** (elk soort informatie op één plek):
 
@@ -14,7 +14,7 @@ Wordt bij elke nieuwe versie bijgewerkt, net als `BEHEER.md` en
 | database en rechten | `DATAMODEL.md` |
 | wat je doet (publiceren, gebruikers, back-up, klachten) | `BEHEER.md` |
 | waar we nu staan, wat er openstaat | `STATUS.md` |
-| wat er per versie veranderde | `WIJZIGINGEN-vNN.md` |
+| wat er per versie veranderde | `WIJZIGINGEN-vNN.md` (zip "niet-in-repo" en projectkennis) |
 | hoe we testen | `TESTEN.md` |
 | regels voor Claude | `CLAUDE.md` |
 | volledige geschiedenis, beslissingen, bugboek, beveiliging | `HANDOVER.md` in de projectkennis op claude.ai (niet in de openbare repo) |
@@ -107,7 +107,9 @@ terugvindt (Cmd+F).
 | **Bestellijst** | ⬇ Exporteren → `pdf.js` `exportBestellijstPdf()` → `voorControles()` (oudere stand? annuleren? en sinds v110 als laatste `aantalControle`: "Klopt het aantal?" als aantal en bolletjes niet gelijk zijn) → pdf → `afleveren()` (opslaan/delen) → vraag "Naar de leverancier?" (`vraagVerstuurd`) → Ja: bestelling vastgelegd in `info.bestellingen`, status besteld, invoer op slot |
 | **Volgende bestellijst** | altijd een **aanvulling**: alleen nieuw en gewijzigd, VERVANGT, ANNULEREN (`teBestellen()` in index.html, `bestelModus()` in pdf.js). Alleen een ander aantal (v110, `aantalVerschil()`): meer = **EXTRA** in de tabel met alleen het verschil als aantal; minder = niet in de tabel, wel onder ANNULEREN ("1 annuleren, de andere 2 blijven"). Verandert er ook iets anders (maat, glas, opmerking), dan blijft het VERVANGT. Na een EXTRA noemt de app bij elke ruit alle lijsten waar hij in zit ("uit de 1e en 2e", `besteldInTekst()`) |
 | **Ontgrendelen na bestellen** | `index.html` `slotOntgrendel()` → eigen wachtwoord (`melding.js` `appWachtwoord`) → `cloud.js` `glasWachtwoordKlopt()` → logboek |
-| **Overzicht (PDF invoer)** | `pdf.js` `exportFotoPdf()` |
+| **Bediening bij een rooster** (v111) | kolom Bediening op Invoer (alleen zichtbaar als er een rooster is): `index.html` `bedieningCel` → `setBediening` (1× of 2× stang of koord) en `setBedieningLengte` (mm; leeg = standaardlengte). Bewaard op de ruit als `bediening`, `bedieningAantal`, `bedieningLengte`. Gaat mee naar de leverancier: kolom op de bestellijst, en een regel "Extra bediening: …" in het LET OP-kader. Rooster op Nee (ook via ⤓ doorvoeren) haalt de bediening weg. Het gewone knopje op het rooster zit er altijd; dit is een aanvulling |
+| **Toebehoren** (v111) | tabblad 🧰 Toebehoren → `toebehoren.js` `renderToebehoren()` → `bereken()`: glaslatten (zaagplan over lengtes van 4 m), glasband, glaskit, wienersprossen-tape. Instellingen per project (inklapbaar blok) en per ruit (onderlat, latten aan twee kanten) in `info.toebehoren`. Mag ook na een bestelling (gaat niet naar de leverancier); niet bij alleen kijken (`kijkWeigert`) |
+| **Overzicht (PDF invoer)** | `pdf.js` `exportFotoPdf()`; sinds v111 achteraan een pagina "Toebehoren - intern" (`toebehorenPagina`). Ook bij "Alles exporteren"; **nooit** op de bestellijst |
 | **Importeren (maten uit pdf, Excel, csv)** | `import.js`, ⬆ Importeren |
 | **Naslag (catalogus, roosters)** | `naslag.js`; foto's in `catalogus/` en `roosters/` |
 | **Taken, logboek, klant, levering** | `project.js` (klantblok en levering staan op Invoer; Project info toont ze) → tabellen `taken`, `projectgeschiedenis` |
@@ -120,10 +122,11 @@ terugvindt (Cmd+F).
 
 | bestand | regels | wat erin staat |
 |---|---|---|
-| `index.html` | 5.626 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
+| `index.html` | 5.781 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
 | `cloud.js` | 4.020 | inloggen, nieuw wachtwoord via een herstellink, projecten openen/opslaan/synchroniseren, live bijwerken, nieuwe versies, prullenbak, apart bewaren, taken en logboek ophalen |
-| `pdf.js` | 2.268 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
+| `pdf.js` | 2.392 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
 | `teken.js` | 1.777 | tekenlaag op foto's |
+| `toebehoren.js` | 505 | tabblad Toebehoren (v111): de rekenwaarden bovenin (`INSTELLINGEN`), het rekenen, het tabblad |
 | `fotos.js` | 1.794 | foto's en tekeningen, merkbolletjes, tabel per foto, het aantal samen met de bolletjes (v110) |
 | `project.js` | 1.168 | klant, werkadres, levering, taken, logboek, Opgenomen door |
 | `naslag.js` | 1.071 | glascatalogus, leverbaarheid, roeden, roosters |
@@ -131,9 +134,9 @@ terugvindt (Cmd+F).
 | `bewerkslot.js` | 755 | wie bewerkt, meekijken, overnemen |
 | `start.js` | 489 | het startscherm |
 | `wachtrij.js` | 437 | foto's eerst op het apparaat, dan naar de server |
-| `bulk.js` | 375 | waarden doorvoeren, selecteren |
-| `sw.js` | 258 | service worker: offline, nieuwe versies (lijst `SHELL`) |
-| `undo.js` | 255 | ongedaan maken |
+| `bulk.js` | 377 | waarden doorvoeren, selecteren |
+| `sw.js` | 259 | service worker: offline, nieuwe versies (lijst `SHELL`) |
+| `undo.js` | 260 | ongedaan maken |
 | `melding.js` | 226 | vensters en vragen in de huisstijl |
 | `originelen.js` | 222 | originele foto's als zip |
 | `merken.js` | 208 | merkletters uniek houden |
@@ -149,8 +152,8 @@ terugvindt (Cmd+F).
 
 **De volgorde van de scripts onderaan `index.html` doet ertoe**: melding →
 cloud → bewerkslot → wachtrij → start → import → bulk → project → blokbalk →
-fotos → kopie → teken → merken → naslag → pdf → originelen → undo. Niet
-omgooien.
+fotos → kopie → toebehoren → teken → merken → naslag → pdf → originelen →
+undo. Niet omgooien.
 
 ## 6. Belangrijke keuzes, en waarom
 
@@ -167,6 +170,10 @@ omgooien.
 | Volgende bestellijst = aanvulling (v105, keuze Jan) | de leverancier krijgt alleen wat nieuw of anders is | |
 | In een fotoblok volgt het aantal de bolletjes (v110, keuze Jan: optie A) | de bestelling en de foto zeggen altijd hetzelfde; tot v109 kon je het aantal typen en liepen ze stil uit elkaar (te veel of te weinig besteld, monteur zoekt) | een ruit erbij gaat via het bolletje, niet via het vak; een oud project met een verschil vraagt één keuze per regel |
 | Alleen een ander aantal = EXTRA of "N annuleren" (v110, keuze Jan) | bij VERVANGT annuleerde de leverancier alle bestelde en maakte hij alles opnieuw | |
+| Bediening telt pas mee in het kenmerk als hij gekozen is (v111) | een nieuw veld in het kenmerk zou na een bestelling álle ruiten "gewijzigd" maken | een ruit die alleen een bediening krijgt, wordt op de aanvulling VERVANGT (met "zonder bediening" erbij); zie `STATUS.md` |
+| Toebehoren is alleen voor onszelf (v111, keuze Jan) | de leverancier hoeft het niet te zien; het mag dus ook na een bestelling veranderen | staat in de PDF invoer, niet op de bestellijst |
+| Toebehoren per ruit bij het project, niet op de ruit (v111) | een wijziging op de ruit geeft hem een nieuw stempel; dan werkte de vraag "Oudere stand?" na een bestelling niet meer | kopieer je een ruit, dan gaat zijn onderlat niet mee |
+| Glaslatten met een zaagplan, 10 % als controle (v111, keuze Jan) | twee latten van 1,5 m uit 4 m geeft 1 m afval (25 %); een vast percentage telt dat niet | |
 | Alles in het Nederlands, ook de code | Jan moet het kunnen lezen | |
 | Openbare repo | gratis GitHub Pages | de opzet is zichtbaar (de sleutel in `config.js` is toch al openbaar) |
 | Gebruikers nooit verwijderen, behalve bij vertrek | koppelingen (taken, besteld door, logboek) raken anders los | zie `BEHEER.md` |
@@ -193,6 +200,11 @@ omgooien.
 | **bolletje (merkbolletje)** | het gele rondje met de merkletter op een foto of tekening: waar die ruit zit. Een regel ×3 heeft drie bolletjes met dezelfde letter |
 | **het aantal volgt de bolletjes** (v110) | heeft een regel bolletjes, dan gaan het aantal en de bolletjes alleen samen omhoog of omlaag (via het bolletje). Een **open plek**: minder bolletjes dan het aantal (nog aan te wijzen, gele rand). **Te veel**: meer bolletjes dan het aantal (gestreepte rand) |
 | **EXTRA** (v110) | op een aanvulling: maak er zoveel bij van een eerder bestelde ruit; de bestelde blijven |
+| **bediening** (v111) | een extra bedieningsstang of -koord bij een ventilatierooster, 1 of 2 per rooster, met een lengte (leeg = standaard). Het gewone knopje zit er altijd |
+| **Toebehoren** (v111) | wat er naast het glas nodig is: glaslatten, glasband, glaskit, wienersprossen-tape. Een schatting voor onszelf |
+| **zaagplan** | de latten echt verdeeld over lengtes van 4 m (langste eerst, met een zaagsnede per lat). Het **controlegetal** ernaast: totale lengte + 10 %, gedeeld door 4 m |
+| **verstek** | de schuine hoek waarin twee glaslatten in de hoek samenkomen; daarom is een lat 20 mm langer dan de sponning |
+| **onderlat** | de onderste lat van een ruit: vaak een ander type (neuslat of ventilatielat). Per project een standaard, per ruit aan te passen |
 | **APP_VERSIE / PDF_VERSIE / VERSIE** | het versienummer, op drie plekken, altijd gelijk (zie §8) |
 
 ## 8. Zelf onderhouden, zonder AI
@@ -212,11 +224,11 @@ omgooien.
 1. **Bij elke wijziging aan de code: de drie versienummers ophogen**, alle
    drie hetzelfde. Anders krijgen de apparaten de wijziging niet (de service
    worker denkt dat er niets nieuws is):
-   - `index.html`: `const APP_VERSIE = 'v109';`
-   - `pdf.js`: `var PDF_VERSIE = 'v109';`
-   - `sw.js`: `const VERSIE = 'v109';`
-   (Bij een wijziging maak je er allebei het volgende nummer van, bijvoorbeeld
-   `v110`.)
+   - `index.html`: `const APP_VERSIE = 'v111';`
+   - `pdf.js`: `var PDF_VERSIE = 'v111';`
+   - `sw.js`: `const VERSIE = 'v111';`
+   (Bij een wijziging maak je er alle drie het volgende nummer van, bijvoorbeeld
+   `v112`.)
 2. **Eén kleine wijziging per keer**, dan publiceren en op een apparaat
    controleren.
 3. **Nooit `config.js`** wijzigen.
@@ -226,7 +238,7 @@ omgooien.
 5. **Ging het mis: terugzetten.** GitHub Desktop → History → rechtsklik →
    *Revert changes in commit* → push (zie `BEHEER.md` §2). Daarna gerust
    opnieuw proberen.
-6. **Schrijf het op** in een nieuwe `WIJZIGINGEN-vNN.md`: wat, waarom, wat je
+6. **Schrijf het op** in een nieuwe `WIJZIGINGEN-vNN.md` (bewaren bij de andere nota's, buiten de repo): wat, waarom, wat je
    controleerde.
 
 ### Wat je zelf kunt doen
@@ -245,6 +257,22 @@ omgooien.
    herstellink`, drie keer).
 4. Controleer op een apparaat: ↻ Bijwerken, en kijk op het startscherm of
    het versienummer klopt.
+
+**De rekenwaarden van Toebehoren aanpassen** (v111; kitvoeg, zaagverlies,
+lengte van een lat, meters op een rol, …)
+- *Eerst proberen, voor één project*: tabblad Toebehoren → ▸ "instellingen
+  voor dit project" → waarde typen (een komma mag: `4,5`). Een afwijkende
+  waarde wordt oranje; ↺ zet hem terug. Geen code, geen nieuwe versie. Het
+  geldt alleen voor dat project en staat in de pdf ("Gerekend met: …").
+- *Voor alle projecten de standaard veranderen*: open `toebehoren.js`;
+  bovenin staat het blok `INSTELLINGEN` met bij elke waarde uitleg.
+  Verander alleen het getal (bijvoorbeeld `KITVOEG_BREEDTE_MM: 4,` →
+  `5,`; een punt als decimaalteken: `4.5`). Versienummers ophogen
+  (regel 1), commit, push. Projecten waarin je de waarde al apart had
+  gezet, houden die.
+- *Een lattype erbij* (naast Glaslat, Neuslat, Ventilatielat): in hetzelfde
+  bestand de lijst `LATTYPES`, tussen aanhalingstekens, met een komma
+  ertussen.
 
 **Een vaste geadresseerde voor de bestelmail**: Supabase → Table Editor →
 `mailadressen` → *Insert row* (`naam`, `adres`, `soort` = `leverancier`).
@@ -298,7 +326,7 @@ Bij elke versie draait Claude een reeks tests (in de repo: `test-*.js`),
 twee keer. Ze bootsen de echte situatie na: meerdere apparaten, geen bereik,
 een oude versie naast een nieuwe. Van elke nieuwe test wordt bewezen dat hij
 rood wordt als je de reparatie terugdraait (`--mutaties` in test-v103 t/m
-test-v106, test-v109 en test-v110).
+test-v106, test-v109, test-v110 en test-v111).
 
 **Zelf draaien kan nu nog niet zomaar**: de tests verwachten de hulpmiddelen
 op een vaste plek in de werkomgeving van Claude (`/home/claude/node_modules`)
@@ -316,6 +344,7 @@ een verbeterpunt (handover §11d: "tests automatisch bij elke push").
 | **Werk alleen op een apparaat** (geen bereik, iPad stuk of gewist) | zo snel mogelijk met bereik openen; nooit websitegegevens wissen met werk erop |
 | **Eén gelekt wachtwoord = toegang tot alles** | sterke eigen wachtwoorden; bij vertrek meteen verwijderen (`BEHEER.md` §3.3) |
 | **Herstellink al "gebruikt"** voordat de collega erop tikt (mailbeveiliging zoals Safe Links opent links vooraf) | nieuwe sturen; gebeurt het steeds, dan aan Claude melden (`BEHEER.md` §3.2) |
+| **Toebehoren is een schatting** (v111) | de uitkomst hangt af van de instellingen; eerst in de praktijk vergelijken en bijstellen (§8) |
 | **Nooit getest in echte Safari** door Claude | Jan test elke versie op iPad/iPhone/Mac; meld afwijkingen met versie en apparaat |
 
 ## 11. Noodplan

@@ -218,6 +218,11 @@
     omhul('verwijderRij', 'Rij verwijderd');
     omhul('clearAlles', 'Alles leeggemaakt');
     omhul('setCorrectie', 'Correctie gewijzigd');
+    // v111: de keuzelijst wordt bij het kiezen vervangen, dan komt er geen
+    // focusout; zonder deze stap nam Cmd+Z de bediening stil mee terug.
+    // (De lengte is een gewoon vak: die stap komt al via focusin/focusout;
+    // omhullen zou hem dubbel geven.)
+    omhul('setBediening', 'Bediening gewijzigd');
     omhul('wijzigGlasType', 'Glastype gewijzigd');
     omhul('voegRijenToe', function (n) { return (n || 1) + ' rijen toegevoegd'; });
     omhul('bulkPasToe', 'Waarde doorgevoerd');

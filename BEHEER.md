@@ -2,7 +2,7 @@
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
 Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 19 oktober 2026,
-bij v110.*
+bij v111.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -15,7 +15,7 @@ vaste afspraken voor Claude in `CLAUDE.md`.
 
 **Deze documenten (en `STATUS.md`) worden bij elke nieuwe versie bijgewerkt** (afspraak
 met Claude, 17 oktober 2026). Wat er veranderde, staat per versie in
-`WIJZIGINGEN-vNN.md` onder "Handleidingen". Klopt er iets niet meer met de
+de nota per versie (`WIJZIGINGEN-vNN.md`, sinds v111 in de zip "niet-in-repo", niet meer in de repo) onder "Handleidingen". Klopt er iets niet meer met de
 app, meld het: dan is dat een fout, net als een fout in de app.
 
 ---
@@ -58,7 +58,7 @@ dienst? Zie [§3.3](#33-iemand-gaat-uit-dienst).
 | de code | GitHub, repo `m98cc4m6bg-sketch/glasopname` (openbaar), op je Mac via **GitHub Desktop** |
 | gegevens, inloggen, foto's | **Supabase** (gratis plan): projecten, gebruikers, foto's |
 | het versienummer | op het startscherm ("Startscherm · v109"), het inlogscherm en de projectenlijst. In een project alleen op een breed scherm (onder "Glasopname"); op iPad en iPhone: even naar het startscherm |
-| uitleg per versie | `WIJZIGINGEN-vNN.md` in de repo |
+| uitleg per versie | `WIJZIGINGEN-vNN.md` in de zip "niet-in-repo" (map `archief-uit-repo/notas/` voor v63 t/m v110) en in de projectkennis; sinds v111 niet meer in de openbare repo |
 
 `config.js` bevat het adres van Supabase en de openbare sleutel. Die mag
 openbaar zijn. **Nooit** een `service_role`- of `sb_secret_…`-sleutel in de
@@ -106,7 +106,7 @@ teruggedraaid. Vraag Claude eerst of dat nodig is.
 
 Supabase → **Authentication → Users → Add user** → e-mailadres en wachtwoord
 (vink *Auto Confirm User* aan). De app maakt van alles vóór de @ de naam:
-`bart@jelierbouw.nl` wordt **bart**. Zelf aanmelden staat uit, en zo moet het
+`bart@voorbeeld.nl` wordt **bart**. Zelf aanmelden staat uit, en zo moet het
 blijven: anders kan iedereen met de openbare sleutel een account maken.
 
 Geef het wachtwoord persoonlijk door. Bij de eerste keer inloggen biedt de
@@ -195,6 +195,23 @@ De keuzelijsten staan **twee keer**: in `index.html` én in de database
 (`app_data`, sleutel `glas_data`). De database wint. Een glastype toevoegen
 kan daarom nu alleen via Claude, met een SQL-script erbij. Een
 beheerscherm hiervoor staat op de lijst (handover §11c).
+
+### 5a. Rekenwaarden van Toebehoren (v111)
+
+Kitvoeg, zaagverlies, zaagsnede, lengte van een glaslat, meters op een rol
+glasband of tape, inhoud van een koker: dat zijn **geen** keuzelijsten uit
+de database. Ze staan bovenin `toebehoren.js` (blok `INSTELLINGEN`, met
+uitleg bij elke waarde) en zijn zonder SQL aan te passen:
+
+- **Eerst proberen**: tabblad Toebehoren → ▸ "instellingen voor dit
+  project". Geldt alleen voor dat project, staat in de pdf, ↺ zet terug.
+- **Klopt het in de praktijk, de standaard aanpassen**: in `toebehoren.js`
+  het getal veranderen, de drie versienummers ophogen, publiceren (zie
+  `OVERZICHT.md` §8, "De rekenwaarden van Toebehoren aanpassen"). Of vraag
+  het Claude.
+
+De uitkomst is een **schatting voor onszelf**; Toebehoren gaat nooit naar de
+leverancier (niet op de bestellijst, niet in de bestelmail).
 
 ## 6. Foto's van de glascatalogus en de roosters
 
@@ -293,6 +310,23 @@ Daarna:
 - *"De bestellijst vraagt 'Klopt het aantal?'."* Zelfde oorzaak. Stoppen,
   onder de foto rechtzetten, en de lijst opnieuw maken. Of ‹Toch bestellen
   zoals de aantallen› als het aantal klopt en alleen de foto niet af is.
+
+**Vragen die je kunt verwachten na v111**
+
+- *"Waar vul ik een bedieningsstang in?"* Op Invoer, kolom **Bediening**
+  (naast RAL kleur). Die kolom is er alleen als minstens één ruit een
+  rooster heeft. Kies 1× of 2× stang of koord; de lengte in mm, of leeg
+  voor de standaardlengte. Het gewone knopje op het rooster hoef je niet in
+  te vullen.
+- *"Na de bestelling heb ik een stang toegevoegd; nu staat de ruit als
+  VERVANGT."* Klopt, zo werkt het nu: de leverancier ziet erbij "zonder
+  bediening". Zie de vraag aan Jan in `STATUS.md`.
+- *"Ik kan op Toebehoren niets kiezen."* Dan kijk je mee (een collega
+  bewerkt het project). Na een bestelling kan het wel gewoon: het gaat niet
+  naar de leverancier.
+- *"De favicon in Safari is nog het oude icoon."* Sinds v111 heeft het
+  icoon een nieuwe bestandsnaam. Eén keer herladen (↻ Bijwerken) is genoeg;
+  helpt dat niet, Safari afsluiten en opnieuw openen.
 
 ## 11. Beveiliging in het kort
 

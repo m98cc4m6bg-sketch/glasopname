@@ -92,7 +92,7 @@ w.supabase = {
     return {
       auth: {
         getSession: function () {
-          return Promise.resolve({ data: { session: { user: { id: 'u1', email: 'julian@jelierbouw.nl' } } } });
+          return Promise.resolve({ data: { session: { user: { id: 'u1', email: 'julian@voorbeeld.test' } } } });
         },
         signOut: function () { return Promise.resolve({}); }
       },

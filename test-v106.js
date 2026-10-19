@@ -234,9 +234,9 @@ async function wachtTot(voorwaarde, maximaal) {
 }
 
 /* ─── de nagebootste Supabase (node-kant) ─────────────────────── */
-const JULIAN = { id: 'u1', email: 'julian@jelierbouw.nl' };
-const BART = { id: 'u2', email: 'bart@jelierbouw.nl' };
-const KEES = { id: 'u3', email: 'kees@jelierbouw.nl' };
+const JULIAN = { id: 'u1', email: 'julian@voorbeeld.test' };
+const BART = { id: 'u2', email: 'bart@voorbeeld.test' };
+const KEES = { id: 'u3', email: 'kees@voorbeeld.test' };
 const P = n => '00000000-0000-4000-8000-0000000000' + String(n).padStart(2, '0');
 const GEEN_BEREIK = { message: 'TypeError: Failed to fetch', code: '', details: '', hint: '' };
 
@@ -1794,7 +1794,7 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
     if (plaatjes && !zonder) await pg.screenshot({ path: path.join(plaatjes, 'v108-inlogscherm.png') });
     kaderNav.length = 0;
     S.logins = 0;
-    await pg.fill('#cloudEmail', 'julian@jelierbouw.nl');
+    await pg.fill('#cloudEmail', 'julian@voorbeeld.test');
     await pg.fill('#cloudWachtwoord', 'fout');
     await pg.press('#cloudWachtwoord', 'Enter');
     await wachtTot(async () => /mislukt/.test((await stand(pg)).fout), 5000);
@@ -1813,7 +1813,7 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
       st.login === 'none' && S.logins === 1, JSON.stringify([st.login, S.logins, st.fout]));
     if (!zonder) {
       check(soort + ': de browser krijgt het direct aangeboden (credentials.store, één keer, julian@…)',
-        st.bewaard.length === 1 && st.bewaard[0].id === 'julian@jelierbouw.nl' && st.bewaard[0].pw === 'geheim',
+        st.bewaard.length === 1 && st.bewaard[0].id === 'julian@voorbeeld.test' && st.bewaard[0].pw === 'geheim',
         JSON.stringify(st.bewaard));
     } else {
       check(soort + ': het formulier gaat direct na de inlog echt "verzonden", naar het verborgen kader',
@@ -1851,8 +1851,8 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
              voor: !!(g && w && (g.compareDocumentPosition(w) & Node.DOCUMENT_POSITION_FOLLOWING)),
              focus: document.activeElement === w };
   });
-  check('in de vraag: een veld met het e-mailadres (julian@jelierbouw.nl), vóór het wachtwoord',
-    v30.g && v30.waarde === 'julian@jelierbouw.nl' && v30.voor, JSON.stringify(v30));
+  check('in de vraag: een veld met het e-mailadres (julian@voorbeeld.test), vóór het wachtwoord',
+    v30.g && v30.waarde === 'julian@voorbeeld.test' && v30.voor, JSON.stringify(v30));
   check('…onzichtbaar voor het oog (doorzichtig, 1 px), en de cursor staat in het wachtwoord',
     v30.opacity === '0' && v30.breed <= 1 && v30.focus, JSON.stringify(v30));
   if (plaatjes) await pm30.screenshot({ path: path.join(plaatjes, 'v108-wachtwoordvraag.png') });

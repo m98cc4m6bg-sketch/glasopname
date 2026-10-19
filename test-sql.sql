@@ -71,16 +71,16 @@ create policy projecten_update on public.projecten for update to authenticated u
 -- Verwachting staat bij elke regel; vergelijk de uitkomst daarmee.
 
 insert into auth.users (id, email) values
-  ('00000000-0000-4000-8000-000000000001', 'julian@jelierbouw.nl');
+  ('00000000-0000-4000-8000-000000000001', 'julian@voorbeeld.test');
 insert into auth.users (id, email, raw_user_meta_data) values
-  ('00000000-0000-4000-8000-000000000002', 'bart@jelierbouw.nl', '{"naam":"Bart"}');
+  ('00000000-0000-4000-8000-000000000002', 'bart@voorbeeld.test', '{"naam":"Bart"}');
 
 -- 1. Een nieuwe gebruiker komt automatisch in `gebruikers`.
 --    verwacht: 2 | julian | Bart
 select '1. gebruikers' as test,
        (select count(*) from public.gebruikers) as aantal,
-       (select naam from public.gebruikers where email = 'julian@jelierbouw.nl') as naam_uit_mail,
-       (select naam from public.gebruikers where email = 'bart@jelierbouw.nl') as naam_uit_meta;
+       (select naam from public.gebruikers where email = 'julian@voorbeeld.test') as naam_uit_mail,
+       (select naam from public.gebruikers where email = 'bart@voorbeeld.test') as naam_uit_meta;
 
 -- 2. Oude statussen worden omgezet.
 --    verwacht: aangemaakt (kolom én json), bezig met inmeten/verwerken
@@ -218,7 +218,7 @@ select '11. ruiten tellen' as test, naam, aantal_ruiten
 --     verwacht: gebruiker 0, in_lijst 0, taak_los t, naam_bewaard weg, project_los t
 \i 16_gebruikers_verwijderen.sql
 insert into auth.users (id, email) values
-  ('00000000-0000-4000-8000-00000000f001', 'weg@jelierbouw.nl');
+  ('00000000-0000-4000-8000-00000000f001', 'weg@voorbeeld.test');
 insert into public.projecten (id, naam, gewijzigd_door)
   values ('00000000-0000-4000-8000-00000000f0aa', 'Project van iemand',
           '00000000-0000-4000-8000-00000000f001');

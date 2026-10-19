@@ -226,7 +226,11 @@ console.log('\nSHELL compleet en iconen (v101)');
   const man = fs.readFileSync('manifest.webmanifest', 'utf8');
   const iconen = Array.from(html.matchAll(/<link rel="(?:icon|apple-touch-icon)" href="([^"]+)"/g)).map(m => m[1])
     .concat(Array.from(man.matchAll(/"src": "([^"]+)"/g)).map(m => m[1]));
-  check('iconen hebben een versie in hun adres (?v=)', iconen.length >= 5 && iconen.every(i => /\?v=\d+$/.test(i)), iconen.join(', '));
+  // v111: de favicon heeft de versie in zijn bestandsnaam (favicon-v3.*):
+  // ?v=2 alleen was voor Safari op de Mac niet genoeg.
+  check('iconen hebben een versie in hun adres (?v=) of naam (-vN.)', iconen.length >= 5 &&
+    iconen.every(i => /\?v=\d+$/.test(i) || /-v\d+\.(ico|png)$/.test(i)) &&
+    iconen.some(i => /^favicon-v\d+\.ico$/.test(i)), iconen.join(', '));
   check('… en precies dat adres staat in SHELL (offline)', iconen.every(i => shell.indexOf('./' + i) >= 0),
         iconen.filter(i => shell.indexOf('./' + i) < 0).join(', '));
 }

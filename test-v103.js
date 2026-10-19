@@ -109,8 +109,8 @@ async function wachtTot(voorwaarde, maximaal) {
 }
 
 /* ─── de nagebootste Supabase (node-kant) ─────────────────────── */
-const IK = { id: 'u1', email: 'julian@jelierbouw.nl' };
-const WACHTWOORD = { 'julian@jelierbouw.nl': 'geheim' };
+const IK = { id: 'u1', email: 'julian@voorbeeld.test' };
+const WACHTWOORD = { 'julian@voorbeeld.test': 'geheim' };
 const P = n => '00000000-0000-4000-8000-0000000000' + String(n).padStart(2, '0');
 const GEEN_BEREIK = { message: 'TypeError: Failed to fetch', code: '', details: '', hint: '' };
 
@@ -778,7 +778,7 @@ const apartBewaard = () => S.db.projecten.filter(p => /apart bewaard/.test(p.naa
   S.db.mailverzonden.push({ project_id: P(1), soort: 'bestelling', gelukt: true, aan: 'glas@leverancier.nl',
                             moment: '2026-09-01T10:00:00Z', wie_naam: 'julian' });
   for (let i = 0; i < 12; i++) {
-    S.db.mailverzonden.push({ project_id: P(1), soort: 'taak', gelukt: true, aan: 'bart@jelierbouw.nl',
+    S.db.mailverzonden.push({ project_id: P(1), soort: 'taak', gelukt: true, aan: 'bart@voorbeeld.test',
                               moment: new Date(Date.UTC(2026, 8, 2) + i * 36e5).toISOString(), wie_naam: 'julian' });
   }
   const best = await page.evaluate(() => glasMailLog(null, 'bestelling'));

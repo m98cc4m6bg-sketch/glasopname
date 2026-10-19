@@ -158,11 +158,11 @@ async function wachtTot(f, ms) {
 }
 
 /* ─── de nagebootste Supabase ───────────────────────────────────── */
-const JULIAN = { id: '11111111-1111-1111-1111-111111111111', email: 'julian@jelierbouw.nl' };
-const BART = { id: '22222222-2222-2222-2222-222222222222', email: 'bart@jelierbouw.nl' };
+const JULIAN = { id: '11111111-1111-1111-1111-111111111111', email: 'julian@voorbeeld.test' };
+const BART = { id: '22222222-2222-2222-2222-222222222222', email: 'bart@voorbeeld.test' };
 const S = {};
 function resetS() {
-  S.wachtwoord = { 'julian@jelierbouw.nl': 'geheim-oud', 'bart@jelierbouw.nl': 'bart-oud-1' };
+  S.wachtwoord = { 'julian@voorbeeld.test': 'geheim-oud', 'bart@voorbeeld.test': 'bart-oud-1' };
   S.tokens = {};          // token → e-mail
   S.weg = false;          // geen bereik
   S.log = [];             // alle verzoeken aan Supabase
@@ -408,7 +408,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
     knop1.tekst === 'Wachtwoord vergeten?' && knop1.onder && knop1.binnen && knop1.hoog >= 30, JSON.stringify(knop1));
   if (plaatjes) await pg.screenshot({ path: path.join(plaatjes, 'v109-inlog-iphone.png') });
   // Met e-mail en wachtwoord al ingevuld: de knop mag NIET inloggen.
-  await pg.fill('#cloudEmail', 'bart@jelierbouw.nl');
+  await pg.fill('#cloudEmail', 'bart@voorbeeld.test');
   await pg.fill('#cloudWachtwoord', 'bart-oud-1');
   const logVoor1 = S.log.length;
   await pg.tap('#cloudVergetenKnop');
@@ -423,7 +423,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
     JSON.stringify([S.logins, st.verstuurd, S.log.slice(logVoor1)]));
   await sluitMelding(pg);
   check('na ‹Oké› staat het inlogscherm er nog, met wat er was ingevuld',
-    await zichtbaar(pg, '#cloudLogin') && await pg.inputValue('#cloudEmail') === 'bart@jelierbouw.nl');
+    await zichtbaar(pg, '#cloudLogin') && await pg.inputValue('#cloudEmail') === 'bart@voorbeeld.test');
   // Enter in het wachtwoord logt gewoon in (de knop staat er niet tussen).
   await pg.press('#cloudWachtwoord', 'Enter');
   await wachtTot(async () => !(await zichtbaar(pg, '#cloudLogin')), 6000);
@@ -452,7 +452,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
       /\/leeg\.html$/.test(vorm.actie) && vorm.zelfde && vorm.methode === 'get' && !vorm.namen.length && vorm.sandbox &&
       vorm.email === 'username' && vorm.pw === 'current-password', JSON.stringify(vorm));
     S.app.length = 0;
-    await pg.fill('#cloudEmail', 'julian@jelierbouw.nl');
+    await pg.fill('#cloudEmail', 'julian@voorbeeld.test');
     await pg.fill('#cloudWachtwoord', 'fout-ww');
     await pg.press('#cloudWachtwoord', 'Enter');
     await wachtTot(async () => /mislukt/.test((await kenmerk(pg)).loginFout), 5000);
@@ -482,7 +482,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
       check(naam + ': het kader is afgeschermd (sandbox: er draait daar geen code, ook niet van de app)', inKader === 'afgeschermd', inKader);
     } else {
       check(naam + ': de browser krijgt het direct aangeboden (credentials.store, julian@…), het formulier gaat niet echt',
-        st.bewaard.length === 1 && st.bewaard[0].id === 'julian@jelierbouw.nl' && st.bewaard[0].pw === 'geheim-oud' &&
+        st.bewaard.length === 1 && st.bewaard[0].id === 'julian@voorbeeld.test' && st.bewaard[0].pw === 'geheim-oud' &&
         !st.verstuurd.some(v => v.echt) && !ctx.__kader.length, JSON.stringify([st.bewaard, st.verstuurd]));
     }
     check(naam + ': het wachtwoord ging alleen naar Supabase (inlog), nergens anders heen',
@@ -515,8 +515,8 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
     start: document.body.classList.contains('op-start'),
     ac: [document.getElementById('cloudHerstelNieuw').autocomplete, document.getElementById('cloudHerstelNogEens').autocomplete],
     focus: document.activeElement && document.activeElement.id }));
-  check('het venster "Kies een nieuw wachtwoord" staat er, met bart@jelierbouw.nl (alleen lezen)',
-    kwam && v3.email === 'bart@jelierbouw.nl' && v3.ro, JSON.stringify(v3));
+  check('het venster "Kies een nieuw wachtwoord" staat er, met bart@voorbeeld.test (alleen lezen)',
+    kwam && v3.email === 'bart@voorbeeld.test' && v3.ro, JSON.stringify(v3));
   check('de herstelcode staat niet meer in het adres (niet te delen; terug-knop: §8)',
     !/access_token|type=recovery/.test(v3.adres), v3.adres);
   check('geen inlogscherm en (nog) geen startscherm; de projecten zijn nog niet opgehaald',
@@ -585,7 +585,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
   pg = await pagina(ctx);
   await pg.goto(adres);
   await pg.waitForSelector('#cloudLogin', { state: 'visible', timeout: 10000 });
-  await pg.fill('#cloudEmail', 'bart@jelierbouw.nl');
+  await pg.fill('#cloudEmail', 'bart@voorbeeld.test');
   await pg.fill('#cloudWachtwoord', 'bart-oud-1');
   await pg.press('#cloudWachtwoord', 'Enter');
   await wachtTot(async () => /mislukt/.test((await kenmerk(pg)).loginFout), 5000);
@@ -635,7 +635,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
   await wacht(500);
   check('na herladen staat het venster er weer (en niet het startscherm)',
     terug && !(await pg.evaluate(() => document.body.classList.contains('op-start'))) &&
-    await pg.inputValue('#cloudHerstelEmail') === 'julian@jelierbouw.nl');
+    await pg.inputValue('#cloudHerstelEmail') === 'julian@voorbeeld.test');
   await pg.fill('#cloudHerstelNieuw', 'Julian-Nieuw-9');
   await pg.fill('#cloudHerstelNogEens', 'Julian-Nieuw-9');
   await pg.press('#cloudHerstelNogEens', 'Enter');
@@ -698,7 +698,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
   const weer = await wachtTot(() => herstelKlaar(pg), 8000);
   await wacht(600);
   check('in een nieuw tabblad: weer het venster "Kies een nieuw wachtwoord" (niet stil in de app), projecten niet opgehaald',
-    weer && await pg.inputValue('#cloudHerstelEmail') === 'bart@jelierbouw.nl' &&
+    weer && await pg.inputValue('#cloudHerstelEmail') === 'bart@voorbeeld.test' &&
     !S.log.some(l => /\/rest\/v1\/projecten/.test(l.pad)), JSON.stringify(S.log.map(l => l.pad)));
   await pg.fill('#cloudHerstelNieuw', 'Bart-Tabblad-7');
   await pg.fill('#cloudHerstelNogEens', 'Bart-Tabblad-7');
@@ -740,7 +740,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
   const nogSteeds = await wachtTot(() => herstelKlaar(pg), 10000);
   await wacht(500);
   check('daarna met bereik: weer het venster "Kies een nieuw wachtwoord" (niet stil in de app)',
-    nogSteeds && await pg.inputValue('#cloudHerstelEmail') === 'bart@jelierbouw.nl' &&
+    nogSteeds && await pg.inputValue('#cloudHerstelEmail') === 'bart@voorbeeld.test' &&
     !(await pg.evaluate(() => document.body.classList.contains('op-start'))));
   await ctx.close();
   }
@@ -815,7 +815,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
     pg = await pagina(ctx);
     await pg.goto(adres);
     await pg.waitForSelector('#cloudLogin', { state: 'visible', timeout: 10000 });
-    await pg.fill('#cloudEmail', 'julian@jelierbouw.nl');
+    await pg.fill('#cloudEmail', 'julian@voorbeeld.test');
     await pg.fill('#cloudWachtwoord', 'geheim-oud');
     await pg.press('#cloudWachtwoord', 'Enter');
     await wachtTot(async () => !(await zichtbaar(pg, '#cloudLogin')), 6000);
@@ -836,8 +836,8 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
         await pg.evaluate(() => !localStorage.getItem('glasopname_herstel')));
     } else {
       const ok = await wachtTot(async () => await zichtbaar(pg, '#cloudHerstel') &&
-        await pg.inputValue('#cloudHerstelEmail') === 'bart@jelierbouw.nl', 15000);
-      check('Opnieuw proberen (met bereik): het venster, voor Bart', ok && await pg.inputValue('#cloudHerstelEmail') === 'bart@jelierbouw.nl',
+        await pg.inputValue('#cloudHerstelEmail') === 'bart@voorbeeld.test', 15000);
+      check('Opnieuw proberen (met bereik): het venster, voor Bart', ok && await pg.inputValue('#cloudHerstelEmail') === 'bart@voorbeeld.test',
         JSON.stringify([await pg.inputValue('#cloudHerstelEmail'), await meldingen(pg), await pg.evaluate(() =>
           [getComputedStyle(document.getElementById('cloudHerstel')).display, document.getElementById('cloudHerstelFout').textContent,
            getComputedStyle(document.getElementById('cloudLogin')).display, document.body.className])]));
@@ -850,7 +850,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
   pg = await pagina(ctx);
   await pg.goto(adres);
   await pg.waitForSelector('#cloudLogin', { state: 'visible', timeout: 10000 });
-  await pg.fill('#cloudEmail', 'julian@jelierbouw.nl');
+  await pg.fill('#cloudEmail', 'julian@voorbeeld.test');
   await pg.fill('#cloudWachtwoord', 'geheim-oud');
   await pg.press('#cloudWachtwoord', 'Enter');
   await wachtTot(async () => !(await zichtbaar(pg, '#cloudLogin')), 6000);
@@ -895,7 +895,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
     if ((await meldingen(pg)).some(m => /geen verbinding/i.test(m))) {
       await pg.locator('.melding-laag').last().locator('.melding-knoppen button', { hasText: 'Opnieuw proberen' }).click();
     }
-    daarna = await wachtTot(async () => await zichtbaar(pg, '#cloudHerstel') && await pg.inputValue('#cloudHerstelEmail') === 'bart@jelierbouw.nl', 5000);
+    daarna = await wachtTot(async () => await zichtbaar(pg, '#cloudHerstel') && await pg.inputValue('#cloudHerstelEmail') === 'bart@voorbeeld.test', 5000);
   }
   check('Opnieuw proberen met bereik: het venster voor Bart, knoppen weer aan',
     daarna && !(await pg.evaluate(() => document.getElementById('cloudHerstelKnop').disabled)));
@@ -917,7 +917,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
   const naStop = await pg.evaluate(() => ({ herstel: getComputedStyle(document.getElementById('cloudHerstel')).display,
     start: document.body.classList.contains('op-start'), email: document.getElementById('cloudHerstelEmail').value }));
   check('‹Stoppen›, terwijl de link op de achtergrond toch lukte: het venster (voor Bart), niet stil in de app',
-    naStop.herstel === 'flex' && !naStop.start && naStop.email === 'bart@jelierbouw.nl', JSON.stringify(naStop));
+    naStop.herstel === 'flex' && !naStop.start && naStop.email === 'bart@voorbeeld.test', JSON.stringify(naStop));
   await ctx.close();
   ctx = await apparaat('iphone', Object.assign({}, devices['iPhone 13'], { userAgent: UA.iphone }), 2500);
   pg = await pagina(ctx);
@@ -964,7 +964,7 @@ const metToken = woord => S.log.filter(l => JSON.stringify(l).indexOf(woord) >= 
     const pgx = await pagina(c);
     await pgx.goto(adres);
     await pgx.waitForSelector('#cloudLogin', { state: 'visible', timeout: 10000 });
-    await pgx.fill('#cloudEmail', 'julian@jelierbouw.nl');
+    await pgx.fill('#cloudEmail', 'julian@voorbeeld.test');
     await pgx.fill('#cloudWachtwoord', 'geheim-oud');
     await pgx.press('#cloudWachtwoord', 'Enter');
     await wachtTot(() => S.log.some(l => l.pad === '/rest/v1/app_data'), 8000);

@@ -286,7 +286,7 @@ async function nieuweContext(opties) {
 const consoleFouten = [];
 async function nieuwePagina(ctx) {
   const page = await ctx.newPage();
-  page.on('pageerror', e => consoleFouten.push(String(e)));
+  page.on('pageerror', e => { if (!/sandboxed/.test(String(e))) consoleFouten.push(String(e)); });  // v109: het afgeschermde inlogkader, zie TESTEN.md
   return page;
 }
 async function open(page, n) {

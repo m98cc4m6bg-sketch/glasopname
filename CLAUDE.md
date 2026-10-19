@@ -41,8 +41,13 @@ Een feit staat op één plek; elders verwijs je ernaar.
 * **Opleveren als zip met het COMPLETE pakket**: de hele app, `lib/` compleet,
   alle SQL, tests en nota's, alles behalve `config.js`, met
   `LEES-MIJ-EERST-vNN.md` bovenin (welke bestanden in GitHub Desktop moeten
-  staan). Nooit alleen de gewijzigde bestanden (v93: halve `lib/`, app lag
-  eruit).
+  staan, en welke Jan zelf moet weggooien: slepen haalt niets weg). Nooit
+  alleen de gewijzigde bestanden (v93: halve `lib/`, app lag eruit).
+* **Plus een tweede zip `glasopname-vNN-niet-in-repo.zip`** (afspraak Jan,
+  17-10-2026): alles wat bewust NIET in de openbare repo mag, maar wel
+  bijgewerkt is: de handover (`HANDOVER.md`), een archief van bestanden die
+  uit de repo gingen, en ander materiaal dat niet openbaar hoort. Met een
+  korte `LEESMIJ.md`. Zet nooit iets uit die zip in de repo-zip.
 * **Na Jans push de repo nakijken**: `git clone --depth 1
   https://github.com/m98cc4m6bg-sketch/glasopname` en `diff -rq` met het pakket
   (v106: vier bestanden ontbraken, het slot deed niets).
@@ -147,7 +152,19 @@ Een feit staat op één plek; elders verwijs je ernaar.
 * Berichtjes onderin (`toonMelding`) zonder knop verdwijnen na 8 s; iets wat
   de gebruiker móét zien: een venster (`appMelding`).
 * Inloggen is een echt `<form>` (`cloudLoginVerstuur`,
-  `wachtwoordAanbieden`): geen eigen Enter-afhandeling erbij.
+  `wachtwoordAanbieden`): geen eigen Enter-afhandeling erbij. Het "verstuurt"
+  na een geslaagde inlog naar `leeg.html` (https, eigen site; `about:blank`
+  gaf in Safari een waarschuwing, v109) in een kader met `sandbox`. De
+  velden hebben bewust **geen `name`**: anders staan e-mail en wachtwoord in
+  het adres (GET). Elke knop in zo'n formulier die niet inlogt: `type="button"`.
+* Een herstellink (v109): `leesHerstelLink()` leest het adres vóór
+  `createClient` en haalt het leeg met `replaceState`; de bibliotheek leest
+  het adres NIET zelf (`detectSessionInUrl: false`, anders komt de code via
+  de terug-knop terug). `herstelSessie()` zet de sessie. Het venster
+  `#cloudHerstel` komt terug (herladen, nieuw tabblad) via localStorage
+  `glasopname_herstel` = id van de gebruiker; een gewone inlog wist die vlag.
+  `same_password` van Supabase = gelukt (het getypte wachtwoord IS het
+  wachtwoord).
 * Eén naslag (`#naslagInhoud`), verplaatst, nooit gekopieerd.
 * Telefoon of tablet: `glasMobiel()`. Bestanden naar de gebruiker:
   `bestandAfleveren()` / `afleveren()`; liever xlsx dan csv.
@@ -183,7 +200,8 @@ node test-v102.js
 node test-v103.js                     # en: --mutaties
 node test-v104.js                     # en: --mutaties
 node test-v105.js                     # en: --mutaties
-OUD105=/tmp/v105werk node test-v106.js   # bewerkslot en v107/v108; en: --mutaties (48)
+OUD105=/tmp/v105werk node test-v106.js   # bewerkslot en v107/v108; en: --mutaties (48); zonder v105-map: OUD105=/tmp/v103live
+node test-v109.js                     # inloggen, wachtwoord vergeten, herstellink, script 25; en: --mutaties (22, ±25 min)
 OUD=/tmp/live108 node test-overgang.js   # OUD = git archive van wat live staat (17-10-2026: v108, a69a6b6); ook vanaf v98
 bun test-mailfunctie.ts
 ```
@@ -191,4 +209,7 @@ bun test-mailfunctie.ts
 Verwacht jsdom, jspdf, jspdf-autotable en playwright in
 `/home/claude/node_modules`, en Chromium in `/opt/pw-browsers/chromium`.
 `test-sql.sql` draait tegen een lokale PostgreSQL (handover §10) en begint met
-het weggooien van het schema: **nooit in Supabase draaien.**
+het weggooien van het schema: **nooit in Supabase draaien.** PostgreSQL 16
+staat in deze omgeving in `/usr/lib/postgresql/16/bin` (draaien als
+`su postgres`, map in `/tmp`). `config.js` zit niet in de zip; voor
+`test-index.js` in de werkmap kopiëren uit de repo-clone (nooit meesturen).

@@ -1,7 +1,7 @@
 # Glasopname — datamodel
 
 *Wat er in Supabase staat, wie wat mag, en welk script wat deed. Bijgewerkt
-op 17 oktober 2026, bij v108. Bron: de SQL-scripts 01 t/m 24 zelf.*
+op 17 oktober 2026, bij v109. Bron: de SQL-scripts 01 t/m 25 zelf.*
 
 Zie ook `OVERZICHT.md` (hoe de app werkt) en `BEHEER.md` (wat je doet).
 Wordt bij elke nieuwe versie bijgewerkt; elk nieuw SQL-script komt in de lijst
@@ -106,7 +106,9 @@ apparaten.
 Eén rij met sleutel `glas_data`: alle glastypes, opbouwen per type,
 bewerkingen, roosters, RAL-kleuren, roeden, spelingen, en de tabel met dikte
 en gewicht per opbouw (`lookup`). **Deze rij wint van de lijst in
-`index.html`.** Alleen lezen voor de app; wijzigen gaat met een SQL-script.
+`index.html`**, behalve als de app een onderdeel als verouderd herkent
+(`pasDataToe` in cloud.js); dan houdt hij zijn eigen lijst. Alleen lezen voor
+de app; wijzigen gaat met een SQL-script.
 
 ### Storage: opslagmap `projectfotos` (privé)
 
@@ -184,8 +186,9 @@ Realtime (live bijwerken) staat aan voor `projecten` (script 07) en
 
 ## Migraties (de SQL-scripts)
 
-Voor zover bekend zijn alle scripts gedraaid (03 was optioneel). 01 t/m 08 staan alleen in de projectkennis op
-claude.ai; 09 t/m 24 ook in de repo. **`test-sql.sql` nooit in Supabase
+Voor zover bekend zijn 01 t/m 24 gedraaid (03 was optioneel); 25 hoort bij v109.
+01 t/m 08 staan alleen in de projectkennis op claude.ai; 09 t/m 25 ook in de
+repo. **`test-sql.sql` nooit in Supabase
 draaien**: dat is voor de tests en begint met alles weggooien.
 
 | nr | versie | wat |
@@ -214,16 +217,17 @@ draaien**: dat is voor de tests en begint met alles weggooien.
 | 22 | v103 | ruimte meten; prullenbak op serverklok |
 | 23 | v104/v105 | bestellingen samenvoegen in de database |
 | 24 | v106 | bewerkslot |
+| 25 | v109 | "Figuurglas — Canale mat blank" alsnog in de lijst Glasbewerking (script 12 vergat hem); daarna gebruikt de app de lijst uit de database weer. Mag vaker gedraaid worden |
 
 **Twee kleine onjuistheden in oude scripts** (gevonden bij het schrijven van
-dit document, geen gevolgen voor de app):
+dit document; voor de gebruiker zonder gevolgen):
 - Script 12 belooft in het commentaar "Figuurglas — Canale mat blank" (zonder accent, zo staat het in de code) als 43e bewerking,
   maar de lijst in het script heeft er 42, zonder die optie. De app vangt dat
   op: ontbreekt die optie in de database, dan gebruikt hij zijn eigen lijst
   uit `index.html` (43, mét Canale mat blank; `pasDataToe` in cloud.js). Gevolg:
   een wijziging van de bewerkingen in de database zou dan genegeerd worden.
-  Controleren: `select jsonb_array_length(waarde->'glasbewerking') from
-  app_data where key='glas_data';` (42 = de app gebruikt zijn eigen lijst).
-  Rechtzetten kan met een klein nieuw script; nog niet gedaan.
+  **Rechtgezet met script 25 (v109).** Controleren: `select
+  jsonb_array_length(waarde->'glasbewerking') from app_data where
+  key='glas_data';` (43 = in orde; 42 = script 25 nog niet gedraaid).
 - Script 15 zegt dat er per project een logboekregel bijkomt; dat gebeurt niet
   (alleen `aantal_ruiten` verandert).

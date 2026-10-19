@@ -591,6 +591,14 @@
     border: 1px solid var(--grijs-rand); border-radius: var(--radius); margin-bottom: 14px;
   }
   .cloud-fout { font-size: 12px; color: var(--rood); min-height: 18px; margin-bottom: 10px; }
+  /* v109: "Wachtwoord vergeten?" en "Niet nu: uitloggen" onder de hoofdknop,
+     als een rustige tekstknop, groot genoeg om op een telefoon te raken. */
+  .login-vergeten {
+    display: block; margin: 12px auto 0; padding: 8px 10px; background: none; border: 0;
+    font: inherit; font-size: 14px; color: var(--blauw); text-decoration: underline; cursor: pointer;
+  }
+  .herstel-uitleg { font-size: 13px; line-height: 1.45; margin: 0 0 14px; color: var(--grijs-tekst); }
+  .cloud-body input[readonly] { background: #f4f5f7; color: var(--grijs-tekst); }
   .cloud-lijst { max-height: 55vh; overflow-y: auto; }
   .cloud-project {
     display: flex; align-items: center; gap: 8px;
@@ -2618,22 +2626,63 @@
     <!-- Een echt formulier (v108): dan weten Safari, Chrome, Edge en Firefox
          wannéér er ingelogd wordt, en vragen ze direct daarna of ze het
          wachtwoord mogen bewaren (en niet ergens later, bij een ander
-         tabblad). Het wachtwoord gaat alleen naar Supabase; het formulier
-         "verstuurt" na een geslaagde inlog naar een leeg, verborgen kader
-         (about:blank), zonder dat er iets over het net gaat. -->
-    <form class="cloud-body" id="cloudLoginForm" method="post" action="about:blank" target="cloudLoginKader"
+         tabblad).
+         v109 (proef van Jan op de Mac): het formulier verstuurde naar
+         about:blank. Safari zag dat als "niet beveiligd" en waarschuwde
+         eerst, en vroeg daarna zelf om de gebruikersnaam. Nu gaat het naar
+         leeg.html: een leeg pagina'tje van de app zelf, via https, dus geen
+         waarschuwing. De velden hebben bewust GEEN name: dan zit er niets in
+         wat er "verstuurd" wordt (geen e-mail, geen wachtwoord in het
+         adres); de browser leest de velden zelf uit het formulier. Het
+         wachtwoord gaat alleen naar Supabase. Het kader heeft sandbox: wat
+         daar ook laadt, er draait nooit code in. -->
+    <form class="cloud-body" id="cloudLoginForm" method="get" action="leeg.html" target="cloudLoginKader"
           autocomplete="on" onsubmit="return cloudLoginVerstuur(event)">
       <img src="logo.png" alt="Jelier Bouw" class="login-logo">
       <label for="cloudEmail">E-mailadres</label>
-      <input type="email" id="cloudEmail" name="username" autocomplete="username" inputmode="email"
+      <input type="email" id="cloudEmail" autocomplete="username" inputmode="email"
              autocapitalize="none" spellcheck="false">
       <label for="cloudWachtwoord">Wachtwoord</label>
-      <input type="password" id="cloudWachtwoord" name="password" autocomplete="current-password">
+      <input type="password" id="cloudWachtwoord" autocomplete="current-password">
       <div class="cloud-fout" id="cloudLoginFout"></div>
       <button type="submit" class="btn btn-primary" id="cloudLoginKnop" style="width:100%">Inloggen</button>
+      <!-- Bewust geen echte "wachtwoord vergeten"-functie in de app (keuze
+           Jan, 17-10-2026): een herstelmail stuurt Jan zelf vanuit Supabase.
+           De knop zegt alleen dat (v109). type="button": hij mag het
+           formulier nooit versturen. -->
+      <button type="button" class="login-vergeten" id="cloudVergetenKnop" onclick="cloudWachtwoordVergeten()">Wachtwoord vergeten?</button>
     </form>
     <iframe name="cloudLoginKader" id="cloudLoginKader" src="about:blank" title="" aria-hidden="true" tabindex="-1"
-            style="display:none"></iframe>
+            sandbox="" style="display:none"></iframe>
+  </div>
+</div>
+
+<!-- ═══════════════ CLOUD: NIEUW WACHTWOORD (v109) ══════════════ -->
+<!-- Komt alleen als de app opent via een herstellink uit Supabase (die
+     stuurt Jan zelf: Authentication → Users → Send password recovery).
+     Ook een echt formulier, met het e-mailadres zichtbaar erbij en
+     autocomplete="new-password": dan biedt de browser aan het NIEUWE
+     wachtwoord te bewaren, bij het goede account. -->
+<div class="cloud-overlay" id="cloudHerstel">
+  <div class="cloud-paneel">
+    <header>
+      <h2>Kies een nieuw wachtwoord</h2>
+      <div class="sub">Jelier Bouw B.V. · <span class="app-versie"></span></div>
+    </header>
+    <form class="cloud-body" id="cloudHerstelForm" method="get" action="leeg.html" target="cloudLoginKader"
+          autocomplete="on" onsubmit="return cloudHerstelVerstuur(event)">
+      <p class="herstel-uitleg">Je bent via de herstellink ingelogd. Kies een nieuw wachtwoord.
+        Daarmee log je voortaan in, ook in de app op je beginscherm en op je andere apparaten.</p>
+      <label for="cloudHerstelEmail">Account</label>
+      <input type="email" id="cloudHerstelEmail" autocomplete="username" readonly>
+      <label for="cloudHerstelNieuw">Nieuw wachtwoord (minstens 8 tekens)</label>
+      <input type="password" id="cloudHerstelNieuw" autocomplete="new-password" passwordrules="minlength: 8;">
+      <label for="cloudHerstelNogEens">Nog een keer</label>
+      <input type="password" id="cloudHerstelNogEens" autocomplete="new-password" passwordrules="minlength: 8;">
+      <div class="cloud-fout" id="cloudHerstelFout"></div>
+      <button type="submit" class="btn btn-primary" id="cloudHerstelKnop" style="width:100%">Wachtwoord opslaan</button>
+      <button type="button" class="login-vergeten" id="cloudHerstelUit" onclick="cloudHerstelUitloggen()">Niet nu: uitloggen</button>
+    </form>
   </div>
 </div>
 
@@ -2961,7 +3010,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v108';
+const APP_VERSIE = 'v109';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,

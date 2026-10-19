@@ -788,3 +788,53 @@ select '21 eindstand' as test, data->'rijen' as rijen, status
 delete from public.projecten where id = '00000000-0000-4000-8000-0000000000c1';
 select '21l. slot weg met het project' as test, count(*) as slotrijen
   from public.bewerkslot where project_id = '00000000-0000-4000-8000-0000000000c1';
+
+-- ══════════════════════════════════════════════════════════════
+-- 22. Script 25 (v109): "Figuurglas — Canale mat blank" alsnog in de lijst
+--     Glasbewerking. Uitgangspunt: precies de lijst die script 12 zette (42).
+--     Verwacht na 25: precies de lijst van de app (DATA.glasbewerking in
+--     index.html, 43), ook na twee keer draaien; de rest van glas_data
+--     ongemoeid. Hard getoetst: bij een afwijking stopt dit script met een fout.
+-- ══════════════════════════════════════════════════════════════
+update public.app_data
+   set waarde = jsonb_set(waarde, '{glasbewerking}', $$["Helder (standaard)","Figuurglas — Byzanthijn fijn blank","Figuurglas — Byzanthijn grof blank","Figuurglas — Canale blank","Figuurglas — Carre blank 13 x 13","Figuurglas — Cathedraal groot gehamerd / Brute blank","Figuurglas — Cathedraal klein Duits blank","Figuurglas — Chinchilla blank","Figuurglas — Cotswold blank","Figuurglas — Crepi blank","Figuurglas — Deltha blank","Figuurglas — Gothic blank","Figuurglas — Guss antiek blank","Figuurglas — Ijsbloemglas","Figuurglas — Jan Hagel blank","Figuurglas — Master carre","Figuurglas — Master ligne","Figuurglas — Master point","Figuurglas — Moire blank","Figuurglas — Niagara blank","Figuurglas — Nylon blank","Figuurglas — Rochelino / Alt Deutch K blank","Figuurglas — Silvit blank","Draadglas — brute","Draadglas — Engels blank","Draadglas — spiegeldraadglas","Gematteerd — Satijnglas","Gematteerd — Satijnglas extra helder","Getint — Float brons","Getint — Float dark blue","Getint — Float grijs","Getint — Float groen","Extra helder — Kristal","Spiegel — Verzilverd blank","Spiegel — Verzilverd brons","Spiegel — Verzilverd grijs","Spiegel — Verzilverd Milano","Gekleurd — Starglass donkerblauw","Gekleurd — Starglass groen","Gekleurd — Starglass oranje","Gekleurd — Starglass rood","Overig (zie opmerking)"]$$::jsonb)
+ where key = 'glas_data';
+create temp table voor25 as select waarde - 'glasbewerking' as rest from public.app_data where key = 'glas_data';
+\i 25_canale_mat.sql
+\i 25_canale_mat.sql
+do $$
+declare w jsonb; rest jsonb;
+begin
+  select waarde into w from public.app_data where key = 'glas_data';
+  select v.rest into rest from voor25 v;
+  if w->'glasbewerking' <> $l$["Helder (standaard)","Figuurglas — Byzanthijn fijn blank","Figuurglas — Byzanthijn grof blank","Figuurglas — Canale blank","Figuurglas — Canale mat blank","Figuurglas — Carre blank 13 x 13","Figuurglas — Cathedraal groot gehamerd / Brute blank","Figuurglas — Cathedraal klein Duits blank","Figuurglas — Chinchilla blank","Figuurglas — Cotswold blank","Figuurglas — Crepi blank","Figuurglas — Deltha blank","Figuurglas — Gothic blank","Figuurglas — Guss antiek blank","Figuurglas — Ijsbloemglas","Figuurglas — Jan Hagel blank","Figuurglas — Master carre","Figuurglas — Master ligne","Figuurglas — Master point","Figuurglas — Moire blank","Figuurglas — Niagara blank","Figuurglas — Nylon blank","Figuurglas — Rochelino / Alt Deutch K blank","Figuurglas — Silvit blank","Draadglas — brute","Draadglas — Engels blank","Draadglas — spiegeldraadglas","Gematteerd — Satijnglas","Gematteerd — Satijnglas extra helder","Getint — Float brons","Getint — Float dark blue","Getint — Float grijs","Getint — Float groen","Extra helder — Kristal","Spiegel — Verzilverd blank","Spiegel — Verzilverd brons","Spiegel — Verzilverd grijs","Spiegel — Verzilverd Milano","Gekleurd — Starglass donkerblauw","Gekleurd — Starglass groen","Gekleurd — Starglass oranje","Gekleurd — Starglass rood","Overig (zie opmerking)"]$l$::jsonb then
+    raise exception '22a FOUT: lijst na script 25 is niet gelijk aan die van de app: %', w->'glasbewerking';
+  end if;
+  if (w - 'glasbewerking') <> rest then
+    raise exception '22b FOUT: script 25 veranderde iets anders dan glasbewerking';
+  end if;
+  raise notice '22a/b ok: 43 opties, gelijk aan de app; rest ongemoeid';
+end $$;
+-- 22c: staat Canale blank er (onverhoopt) niet in, dan komt Canale mat blank achteraan.
+update public.app_data
+   set waarde = jsonb_set(waarde, '{glasbewerking}', '["Helder (standaard)", "Overig (zie opmerking)"]'::jsonb)
+ where key = 'glas_data';
+\i 25_canale_mat.sql
+do $$
+begin
+  if (select waarde->'glasbewerking' from public.app_data where key = 'glas_data')
+     <> '["Helder (standaard)", "Overig (zie opmerking)", "Figuurglas — Canale mat blank"]'::jsonb then
+    raise exception '22c FOUT: %', (select waarde->'glasbewerking' from public.app_data where key = 'glas_data');
+  end if;
+  raise notice '22c ok: zonder Canale blank achteraan';
+end $$;
+-- 22d: zonder glas_data-rij of zonder lijst: niets, en geen fout.
+update public.app_data set waarde = waarde - 'glasbewerking' where key = 'glas_data';
+\i 25_canale_mat.sql
+do $$
+begin
+  if (select waarde ? 'glasbewerking' from public.app_data where key = 'glas_data') then
+    raise exception '22d FOUT: script 25 maakte een lijst aan waar er geen was';
+  end if;
+  raise notice '22d ok: geen lijst, niets gedaan';
+end $$;

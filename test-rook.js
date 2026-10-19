@@ -55,7 +55,7 @@ const server = http.createServer(function (req, res) {
     if (t.indexOf('Failed to load resource') >= 0) return;
     consoleFouten.push(t);
   });
-  page.on('pageerror', function (e) { consoleFouten.push(String(e)); });
+  page.on('pageerror', function (e) { if (!/sandboxed/.test(String(e))) consoleFouten.push(String(e)); });  // v109: zie TESTEN.md
 
   // De bibliotheek van Supabase komt van een CDN; die blokkeren we, zodat
   // de test ook zonder internet draait.

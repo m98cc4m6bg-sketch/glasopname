@@ -1,7 +1,7 @@
 # Glasopname — overzicht: hoe de app in elkaar zit
 
 *Voor wie wil begrijpen hoe de app werkt, en hem zonder AI wil kunnen
-onderhouden. Bijgewerkt op 17 oktober 2026, bij v108.*
+onderhouden. Bijgewerkt op 17 oktober 2026, bij v109.*
 
 Wordt bij elke nieuwe versie bijgewerkt, net als `BEHEER.md` en
 `DATAMODEL.md` (zie "Handleidingen" in `WIJZIGINGEN-vNN.md`).
@@ -90,7 +90,9 @@ terugvindt (Cmd+F).
 
 | handeling | route |
 |---|---|
-| **Inloggen** | inlogscherm (`index.html`, `#cloudLoginForm`) → `cloud.js` `cloudLoginVerstuur` → `login()` → Supabase. Pas na een geslaagde inlog biedt de browser aan het wachtwoord te bewaren (`wachtwoordAanbieden`) |
+| **Inloggen** | inlogscherm (`index.html`, `#cloudLoginForm`) → `cloud.js` `cloudLoginVerstuur` → `login()` → Supabase. Pas na een geslaagde inlog biedt de app het wachtwoord aan de browser aan (`wachtwoordAanbieden`): Chrome/Edge/Android via `PasswordCredential`; Safari/Firefox doordat het formulier "verstuurt" naar `leeg.html` in een verborgen, afgeschermd kader. De velden hebben geen `name`, dus er gaat niets mee (v109) |
+| **Wachtwoord vergeten?** | knop op het inlogscherm → `cloud.js` `cloudWachtwoordVergeten` → alleen een melding: bewust geen herstelfunctie in de app (v109) |
+| **Nieuw wachtwoord via een herstellink** | Jan stuurt vanuit Supabase een herstelmail → de link opent de app met `#access_token=…&type=recovery` → `cloud.js` `init` → `leesHerstelLink()` leest het adres en haalt het meteen leeg (vóór de verbinding; de bibliotheek leest het adres bewust niet zelf: `detectSessionInUrl: false`) → `herstelSessie()` zet de sessie (`setSession`, met ‹Opnieuw proberen› zonder bereik) → venster `#cloudHerstel` (`toonHerstel`) → `herstelOpslaan()` → Supabase `updateUser` → `wachtwoordAanbieden` met het nieuwe wachtwoord → startscherm. Verlopen link: `herstelLinkFout`. Herladen of nieuw tabblad: vlag `glasopname_herstel` (id van de gebruiker) in localStorage (v109) |
 | **Startscherm, projectenlijst** | `start.js` → eerst `prullenbak_opruimbaar` (wat er langer dan 30 dagen in de prullenbak staat), dan `cloud.js` `glasProjecten()` → tabel `projecten` (alleen de samenvattingskolommen, niet de hele inhoud) |
 | **Project openen** | `cloud.js` `cloudOpen(id)` → `zetStaat()` → `index.html` `renderTabel()`. Tegelijk `bewerkslot.js` `glasBewerkslotStart()`: mag ik bewerken, of kijk ik mee? (tabel `bewerkslot`, functie `glas_bewerken`) |
 | **Maat invullen** | invoerveld → `index.html` `herbereken()` / `berekenGlasMaat()` → `opslaan()` (in `cloud.js`; die in `index.html` is alleen de terugval zonder cloud): eerst op het apparaat (`glasopname_v2`) met de vlag "moet nog omhoog" (`glasopname_pending`), dan `synchroniseer()` → `projecten.data`. De database controleert (versieslot, bewerkslot, bestellingen) en schrijft het logboek |
@@ -115,9 +117,9 @@ terugvindt (Cmd+F).
 
 | bestand | regels | wat erin staat |
 |---|---|---|
-| `index.html` | 5.357 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±81.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
-| `cloud.js` | 3.713 | inloggen, projecten openen/opslaan/synchroniseren, live bijwerken, nieuwe versies, prullenbak, apart bewaren, taken en logboek ophalen |
-| `pdf.js` | 2.143 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
+| `index.html` | 5.406 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
+| `cloud.js` | 4.020 | inloggen, nieuw wachtwoord via een herstellink, projecten openen/opslaan/synchroniseren, live bijwerken, nieuwe versies, prullenbak, apart bewaren, taken en logboek ophalen |
+| `pdf.js` | 2.148 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
 | `teken.js` | 1.777 | tekenlaag op foto's |
 | `fotos.js` | 1.573 | foto's en tekeningen, merkbolletjes, tabel per foto |
 | `project.js` | 1.168 | klant, werkadres, levering, taken, logboek, Opgenomen door |
@@ -135,6 +137,7 @@ terugvindt (Cmd+F).
 | `blokbalk.js` | 206 | per tabel: ongedaan, leegmaken, speling |
 | `kopie.js` | 191 | regels kopiëren |
 | `config.js` | — | adres van Supabase + openbare sleutel. **Niet wijzigen** |
+| `leeg.html` | — | bewust leeg pagina'tje: de inlogformulieren "versturen" hierheen, zodat Safari en Firefox meteen vragen het wachtwoord te bewaren (v109). Niet weghalen; hoeft niet offline (inloggen kan toch alleen met bereik) |
 | `lib/` | — | de bibliotheken (Supabase, pdf, Excel, zip), met versienummer in de mapnaam |
 | `catalogus/`, `roosters/` | — | foto's voor de naslag |
 | `NN_*.sql` | — | de databasewijzigingen, genummerd (zie `DATAMODEL.md`) |
@@ -180,6 +183,7 @@ omgooien.
 | **apart bewaard** | werk dat niet over het project heen mocht, als eigen project bewaard |
 | **publishable / anon key** | de openbare sleutel in `config.js`; een naamplaatje, geen wachtwoord |
 | **service_role / sb_secret** | de geheime sleutel van Supabase; mag nooit in de repo |
+| **herstellink** | de link in de mail die Jan vanuit Supabase stuurt als iemand zijn wachtwoord kwijt is. Werkt één keer, een uur lang; opent de app met het venster "Kies een nieuw wachtwoord" |
 | **PasswordCredential** | de manier van Chrome, Edge en Android om een wachtwoord aan de wachtwoordbeheerder aan te bieden |
 | **APP_VERSIE / PDF_VERSIE / VERSIE** | het versienummer, op drie plekken, altijd gelijk (zie §8) |
 
@@ -200,9 +204,11 @@ omgooien.
 1. **Bij elke wijziging aan de code: de drie versienummers ophogen**, alle
    drie hetzelfde. Anders krijgen de apparaten de wijziging niet (de service
    worker denkt dat er niets nieuws is):
-   - `index.html`: `const APP_VERSIE = 'v108';`
-   - `pdf.js`: `var PDF_VERSIE = 'v108';`
-   - `sw.js`: `const VERSIE = 'v108';`
+   - `index.html`: `const APP_VERSIE = 'v109';`
+   - `pdf.js`: `var PDF_VERSIE = 'v109';`
+   - `sw.js`: `const VERSIE = 'v109';`
+   (Bij een wijziging maak je er allebei het volgende nummer van, bijvoorbeeld
+   `v110`.)
 2. **Eén kleine wijziging per keer**, dan publiceren en op een apparaat
    controleren.
 3. **Nooit `config.js`** wijzigen.
@@ -223,6 +229,12 @@ omgooien.
 2. Pas alleen de tekst **tussen de aanhalingstekens** aan. Een `'` in je
    tekst? Schrijf `\'`, of gebruik ’ (een "krul").
 3. Versienummers ophogen (regel 1), commit, push.
+
+   Voorbeeld: de melding achter **Wachtwoord vergeten?** noemt julian. Gaat
+   iemand anders de herstelmails sturen, zoek dan in `cloud.js` naar
+   `vraag julian om een herstel link` en pas de naam aan. Dezelfde naam staat
+   ook in de meldingen over de herstellink (`Vraag julian om een nieuwe
+   herstellink`, drie keer).
 4. Controleer op een apparaat: ↻ Bijwerken, en kijk op het startscherm of
    het versienummer klopt.
 
@@ -260,7 +272,7 @@ GitHub-taak, hoe vol is de opslag: `BEHEER.md` §7 en §9.
 
 | klus | waarom niet |
 |---|---|
-| **Een glastype, opbouw of bewerking toevoegen** | staat op twee plekken: in `index.html` (één regel van ±81.000 tekens) én in de database. De database wint. Mis je er één, dan verdwijnt het weer of klopt de dikte/het gewicht op de bestellijst niet. Er staat een beheerscherm hiervoor op de lijst |
+| **Een glastype, opbouw of bewerking toevoegen** | staat op twee plekken: in `index.html` (één regel van ±80.000 tekens) én in de database. De database wint. Mis je er één, dan verdwijnt het weer of klopt de dikte/het gewicht op de bestellijst niet. Er staat een beheerscherm hiervoor op de lijst |
 | **Iets aan opslaan, synchroniseren, offline, apart bewaren** (`cloud.js`) | hier zit de belofte "nooit gegevens kwijt". Een kleine fout kan werk laten verdwijnen, en dat zie je pas later |
 | **Het bewerkslot** (`bewerkslot.js`, script 24) | werkt samen met regels in de database; fouten geven geweigerde opslag of twee mensen die elkaar overschrijven |
 | **Nieuwe versies, offline** (`sw.js`) | een fout hier kan apparaten op een oude versie laten hangen, of de app zonder bereik onbruikbaar maken. Dat is lastig terug te draaien op een iPad met de app op het beginscherm |
@@ -278,7 +290,7 @@ Bij elke versie draait Claude een reeks tests (in de repo: `test-*.js`),
 twee keer. Ze bootsen de echte situatie na: meerdere apparaten, geen bereik,
 een oude versie naast een nieuwe. Van elke nieuwe test wordt bewezen dat hij
 rood wordt als je de reparatie terugdraait (`--mutaties` in test-v103 t/m
-test-v106).
+test-v106, en test-v109).
 
 **Zelf draaien kan nu nog niet zomaar**: de tests verwachten de hulpmiddelen
 op een vaste plek in de werkomgeving van Claude (`/home/claude/node_modules`)
@@ -295,6 +307,7 @@ een verbeterpunt (handover §11d: "tests automatisch bij elke push").
 | **Supabase op pauze** (na 7 dagen zonder gebruik) | GitHub-taak houdt hem wakker; die gaat uit na 60 dagen zonder commit (`BEHEER.md` §7) |
 | **Werk alleen op een apparaat** (geen bereik, iPad stuk of gewist) | zo snel mogelijk met bereik openen; nooit websitegegevens wissen met werk erop |
 | **Eén gelekt wachtwoord = toegang tot alles** | sterke eigen wachtwoorden; bij vertrek meteen verwijderen (`BEHEER.md` §3.3) |
+| **Herstellink al "gebruikt"** voordat de collega erop tikt (mailbeveiliging zoals Safe Links opent links vooraf) | nieuwe sturen; gebeurt het steeds, dan aan Claude melden (`BEHEER.md` §3.2) |
 | **Nooit getest in echte Safari** door Claude | Jan test elke versie op iPad/iPhone/Mac; meld afwijkingen met versie en apparaat |
 
 ## 11. Noodplan

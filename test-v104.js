@@ -477,10 +477,10 @@ async function nieuweContext(opties, apparaat) {
 const consoleFouten = [];
 async function nieuwePagina(ctx) {
   const page = await ctx.newPage();
-  page.on('pageerror', e => consoleFouten.push(String(e)));
+  page.on('pageerror', e => { if (!/sandboxed/.test(String(e))) consoleFouten.push(String(e)); });  // v109: het afgeschermde inlogkader, zie TESTEN.md
   // Ook console.error: een fout in de pdf-stroom komt via mislukt() in de
   // console, niet als pageerror (opmerking bij de beoordeling).
-  page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) consoleFouten.push('[console] ' + m.text()); });
+  page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR|sandboxed/.test(m.text())) consoleFouten.push('[console] ' + m.text()); });
   return page;
 }
 async function open(page, n) {

@@ -8,8 +8,12 @@
 //  Twee soorten mail:
 //    • 'bestelling' – de bestellijst naar de leverancier. Lukt dat, dan
 //      zet deze functie het project op status 'besteld', met tijdstip
-//      en wie. Dat is het enige wat die status zet: zo betekent
-//      'besteld' altijd "de mail is er echt uit".
+//      en wie (besteld_op, besteld_door).
+//      Sinds v104 is dit niet meer de enige weg naar 'besteld': ook
+//      ‹Ja, verstuurd› in de app (na de bestellijst-pdf) legt de
+//      bestelling vast in data.info.bestellingen en zet de status. Die
+//      weg vult besteld_op/besteld_door niet. 'Besteld' betekent dus:
+//      bevestigd verstuurd, via de app-vraag of via deze mail.
 //    • 'taak'       – een kort bericht aan de collega die een taak krijgt.
 //
 //  Instellen (eenmalig, allemaal in het Supabase-dashboard):
@@ -169,7 +173,8 @@ Deno.serve(async (verzoek) => {
     }),
   }).catch(() => {});
 
-  // Gelukte bestelmail: hier — en alleen hier — gaat de status op besteld.
+  // Gelukte bestelmail: hier gaat de status op besteld (de andere weg is
+  // ‹Ja, verstuurd› in de app, sinds v104; die vult besteld_op niet).
   if (gelukt && soort === 'bestelling' && projectId) {
     await fetch(url + '/rest/v1/projecten?id=eq.' + encodeURIComponent(projectId), {
       method: 'PATCH',

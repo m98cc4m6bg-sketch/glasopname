@@ -282,3 +282,44 @@ harde eis wint.
     (`toon()` en meteen kijken). De mutatie `ander` (drie apparaten) hangt af
     van de volgorde bij de server en wordt niet elke keer gevangen (4 van 5);
     draai hem bij twijfel los een paar keer.
+- `test-v109.js` (inloggen en wachtwoorden):
+  - de **échte** bibliotheek van Supabase (`lib/supabase-js-…`) tegen een
+    nagebootste Supabase-**server** in node (auth en rest, met CORS, op een
+    eigen poort), in plaats van een namaak-bibliotheek. Nodig omdat het juist
+    gaat om wat de bibliotheek zelf doet met de sessie uit een herstellink
+    (`setSession`, verversen, vergrendeling, uitloggen); het adres leest de
+    app sinds v109 zelf. Een nieuwe test rond inloggen of sessies hoort hier;
+  - half bereik = de server antwoordt lang niet en verbreekt dan
+    (`S.hang`), niet alleen "meteen weg". Les: de bibliotheek vergrendelt
+    tijdens `setSession`; een tweede poging wacht tot de eerste opgeeft;
+  - geen bereik = de server verbreekt de verbinding (`S.weg`), ook midden in
+    het opslaan van het nieuwe wachtwoord;
+  - toetsen **waar** het wachtwoord heen gaat: elk verzoek aan de nagebootste
+    Supabase en aan de app wordt gelogd (`S.log`, `S.app`), en het
+    wachtwoord mag alleen in het inlog- of wachtwoordverzoek staan;
+  - les: `minlength` op een wachtwoordveld laat de browser het formulier
+    tegenhouden met een eigen (Engelstalige of systeem-)melding, vóór de app
+    iets kan zeggen. De eigen controle in de app is duidelijker; daarom geen
+    `minlength`, wel `passwordrules` (voor de wachtwoordvoorstellen van
+    Safari);
+  - de tokens van de nagebootste server hebben de vorm van een echte JWT
+    (kop.inhoud.handtekening, met `exp`): de bibliotheek leest de vervaltijd
+    eruit (`setSession`) en weigert anders zonder iets te vragen;
+  - een link uit een mail opent een **nieuwe pagina**. Alleen het `#`-deel
+    veranderen (`goto` naar hetzelfde adres met een ander `#`) laadt de app
+    niet opnieuw; ga eerst naar `about:blank`;
+  - les: een mutatie moet de echte fout nabootsen, niet iets wat erop lijkt.
+    `location.hash = ''` tijdens het laden telt in de browser als
+    *vervangen* (geen nieuwe stap in de geschiedenis); de bibliotheek deed het
+    pas ná het laden, en dán is het een nieuwe stap. De eerste mutatie bleef
+    daardoor groen; de juiste (`historie`) zet de oude werkwijze terug;
+  - les (controle v109): toets ook de stappen ná het normale verloop. Een
+    nieuw tabblad, de terug-knop, een antwoord dat verloren gaat nadat de
+    server het al deed, en een apparaat waar al iemand anders ingelogd is,
+    vonden vier echte fouten die de eerste versie van de reeks niet zag.
+- **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
+  hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
+  `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij
+  localStorage, "Blocked script execution"). Dat is de testopzet, niet de app:
+  in dat kader draait in een echte browser niets. De Chromium-reeksen negeren
+  alleen meldingen met "sandboxed".

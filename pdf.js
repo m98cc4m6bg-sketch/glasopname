@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v108';
+  var PDF_VERSIE = 'v109';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
   // service worker en werkt de eerste pdf na een update ook zonder bereik.
   var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
@@ -1491,8 +1491,13 @@
   // De bestellijst gaat als pdf mee in een mail naar de leverancier. Dat
   // versturen gebeurt door de Edge Function `mail` in Supabase (de sleutel
   // van de maildienst hoort niet in de app), en die functie zet daarna het
-  // project op 'besteld'. Zo betekent die status één ding: de mail is er
-  // echt uit (v88).
+  // project op 'besteld' (v88).
+  // Sinds v104 is dat niet meer de enige weg: ‹Ja, verstuurd› op de vraag
+  // "Naar de leverancier?" na de bestellijst-pdf (vraagVerstuurd, hierboven)
+  // legt de bestelling ook vast en zet ook 'besteld'. 'Besteld' betekent dus:
+  // iemand heeft bevestigd dat de lijst echt naar de leverancier ging, met de
+  // app-vraag of met een gelukte mail. Alleen een pdf maken telt niet.
+  // Let op: de mailfunctie is nog niet ingesteld in Supabase (stand v109).
 
   // Het onderwerp zegt wat het is: bij een leverancier beslist de
   // orderintake vaak op het onderwerp (beoordeling v105).

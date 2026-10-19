@@ -2,7 +2,7 @@
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
 Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 17 oktober 2026,
-bij v108.*
+bij v109.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -57,7 +57,7 @@ dienst? Zie [§3.3](#33-iemand-gaat-uit-dienst).
 | de app (live) | https://m98cc4m6bg-sketch.github.io/glasopname/ |
 | de code | GitHub, repo `m98cc4m6bg-sketch/glasopname` (openbaar), op je Mac via **GitHub Desktop** |
 | gegevens, inloggen, foto's | **Supabase** (gratis plan): projecten, gebruikers, foto's |
-| het versienummer | op het startscherm ("Startscherm · v108"), het inlogscherm en de projectenlijst. In een project alleen op een breed scherm (onder "Glasopname"); op iPad en iPhone: even naar het startscherm |
+| het versienummer | op het startscherm ("Startscherm · v109"), het inlogscherm en de projectenlijst. In een project alleen op een breed scherm (onder "Glasopname"); op iPad en iPhone: even naar het startscherm |
 | uitleg per versie | `WIJZIGINGEN-vNN.md` in de repo |
 
 `config.js` bevat het adres van Supabase en de openbare sleutel. Die mag
@@ -71,17 +71,27 @@ repo zetten: daarmee kan iedereen alles.
 2. Pak de zip uit. Open de map `glasopname`, druk op **Cmd+Shift+.** (dan zie
    je ook de verborgen bestanden), selecteer alles (Cmd+A) en sleep het naar
    je repomap. Kies overal **Vervang**.
-3. Kijk in **GitHub Desktop** of de bestanden uit `LEES-MIJ-EERST-vNN.md`
-   erbij staan. Commit en push.
-4. Zeg tegen Claude dat je gepusht hebt: die kijkt de repo na tegen het
+3. Moeten er bestanden **uit** de repo (dat staat in `LEES-MIJ-EERST-vNN.md`),
+   gooi die dan zelf weg in de repomap: slepen kan alleen toevoegen en
+   vervangen, niet weghalen.
+4. Kijk in **GitHub Desktop** of de bestanden uit `LEES-MIJ-EERST-vNN.md`
+   erbij staan (weggegooide staan er rood bij). Commit en push.
+5. Zeg tegen Claude dat je gepusht hebt: die kijkt de repo na tegen het
    pakket. (Bij v106 ontbraken vier bestanden; daardoor deed een hele functie
    niets.)
-5. De apparaten krijgen de nieuwe versie vanzelf: de app zoekt ernaar en
+6. De apparaten krijgen de nieuwe versie vanzelf: de app zoekt ernaar en
    werkt eerst het open werk weg naar de server. Op een iPhone/iPad met de app
    op het beginscherm kan dat even duren; de knop **↻ Bijwerken** versnelt het.
 
 **Nooit** `config.js` vervangen, en **nooit** `test-sql.sql` in Supabase
 draaien (dat script begint met alles weggooien; het is alleen voor de tests).
+
+**Twee zips** (sinds v109, jouw wens): `glasopname-vNN.zip` is precies wat
+in de repo hoort. `glasopname-vNN-niet-in-repo.zip` hoort er bewust **niet**
+in: de handover (met de zwakke plekken in de beveiliging; de repo is
+openbaar) en een archief van bestanden die uit de repo gehaald zijn. Bewaar
+die op een eigen plek, bijvoorbeeld in OneDrive. De handover staat ook in de
+projectkennis op claude.ai.
 
 ### Een vorige versie terugzetten
 
@@ -104,21 +114,50 @@ browser aan het te bewaren.
 
 ### 3.2 Wachtwoord vergeten
 
-**Stand nu (v108):** de app heeft geen knop "Wachtwoord vergeten", en
-wachtwoord wijzigen kan alleen via een herstelmail die jij vanuit Supabase
-stuurt. In het dashboard zelf kun je geen nieuw wachtwoord intypen.
+**Bewust geen herstelfunctie in de app** (jouw keuze, 17 oktober 2026). Jij
+houdt de controle: jij stuurt een herstelmail, de app stuurt er zelf geen.
+De knop **Wachtwoord vergeten?** op het inlogscherm zegt alleen: "Deze
+functie zit bewust niet in de app, vraag julian om een herstel link!"
+(sinds v109).
 
-- **Eén keer instellen**: Supabase → **Authentication → URL Configuration**:
-  - *Site URL*: `https://m98cc4m6bg-sketch.github.io/glasopname/`
-  - *Redirect URLs*: hetzelfde adres. Geen `*` erin.
+**Eén keer instellen, anders werkt de link niet** — *stand 17-10-2026: nog
+niet gedaan; Claude vraagt ernaar tot je het bevestigt*:
+Supabase → **Authentication → URL Configuration**:
+- *Site URL*: `https://m98cc4m6bg-sketch.github.io/glasopname/`
+- *Redirect URLs*: hetzelfde adres. Geen `*` erin.
 
-  Zonder dit wijst de link in de mail naar `localhost` en werkt hij niet.
-- **Versturen**: Authentication → Users → de collega → **Send password
-  recovery**. De link is één keer bruikbaar en een uur geldig.
-- **Let op:** tot er een venster "Kies een nieuw wachtwoord" in de app zit
-  (voorgesteld, nog niet gebouwd), logt de link de collega alleen in op dat
-  ene apparaat, zonder dat hij een nieuw wachtwoord kiest. Op andere
-  apparaten kan hij dan nog steeds niet inloggen.
+Zonder dit wijst de link in de mail naar `localhost`.
+
+**Een herstelmail sturen**: Authentication → Users → de collega → **Send
+password recovery**. De link werkt één keer en is een uur geldig. Wat je
+collega ziet (sinds v109):
+1. Hij tikt op de link. Op een iPhone opent die in Safari (of, met de
+   Outlook-app, in het browservenster van Outlook), niet in de app op het
+   beginscherm; dat is goed zo.
+2. De app opent met het venster **Kies een nieuw wachtwoord**, met zijn
+   e-mailadres erbij. Hij typt het nieuwe wachtwoord twee keer (minstens 8
+   tekens) en tikt ‹Wachtwoord opslaan›. De browser vraagt of hij het mag
+   bewaren.
+3. Daarna logt hij overal in met het nieuwe wachtwoord, ook in de app op
+   zijn beginscherm en op zijn andere apparaten.
+
+Opende hij de link per ongeluk: ‹Niet nu: uitloggen›; het oude wachtwoord
+blijft dan gewoon gelden. Sluit hij het venster zonder te kiezen, dan komt
+het in die browser terug zodra hij de app weer opent.
+
+Geen bereik op het moment dat hij de link opent: de app vraagt om het
+opnieuw te proberen; laat de pagina dan open (de link zelf werkt maar één
+keer).
+
+**Zegt de app "Deze herstellink werkt niet meer"**: de link is al gebruikt
+of ouder dan een uur. Stuur een nieuwe. Komt die melding **al bij de eerste
+tik**, dan heeft de mailbeveiliging (bij Microsoft 365 bijvoorbeeld *Safe
+Links*) de link vooraf "geopend" om hem te controleren, en is hij daardoor
+al gebruikt. Meld dat aan Claude: daar is een oplossing voor, maar die is
+pas nodig als het echt gebeurt.
+
+Let op: de mail komt van Supabase zelf, in het Engels, en het gratis plan
+mag maar een paar van zulke mails per uur sturen.
 
 En dus: **niet verwijderen en opnieuw aanmaken** (zie bovenaan).
 
@@ -141,8 +180,8 @@ Dit is het enige moment waarop je een gebruiker verwijdert. In deze volgorde:
 
 ## 4. De SQL-scripts
 
-Alle scripts staan genummerd in de repo (`09_…` t/m `24_…`; 01 t/m 08 alleen in
-de projectkennis). Voor zover bekend zijn ze allemaal gedraaid (03 was optioneel); een nieuwe versie zegt het
+Alle scripts staan genummerd in de repo (`09_…` t/m `25_…`; 01 t/m 08 alleen in
+de projectkennis). Voor zover bekend zijn 01 t/m 24 gedraaid (03 was optioneel); 25 hoort bij v109. Een nieuwe versie zegt het
 als er een bij komt. Draai een oud script niet opnieuw zonder het eerst aan
 Claude te vragen.
 
@@ -225,7 +264,7 @@ overnemen, en het daarna weggooien (🗑 in de projectenlijst).
 
 Vraag eerst:
 
-1. **welke versie** (op het startscherm, bijv. *v108*);
+1. **welke versie** (op het startscherm, bijv. *v109*);
 2. **welk apparaat en welke browser** (iPad, iPhone, Mac, Android, Windows;
    Safari of Chrome; als app op het beginscherm of niet);
 3. **wanneer**, en of er **bereik** was;

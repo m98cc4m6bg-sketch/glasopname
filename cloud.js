@@ -1639,8 +1639,9 @@
   /* ─── mail ────────────────────────────────────────────────── */
   // De sleutel van de maildienst staat niet in de app maar als geheim
   // bij de Edge Function `mail`; die verstuurt en legt vast. Lukt een
-  // bestelmail, dan zet diezelfde functie het project op 'besteld' —
-  // zo betekent die status altijd "de mail is er echt uit" (v88).
+  // bestelmail, dan zet diezelfde functie het project op 'besteld' (v88).
+  // Sinds v104 doet ‹Ja, verstuurd› na de bestellijst-pdf dat ook (pdf.js,
+  // vraagVerstuurd). De mailfunctie is nog niet ingesteld (stand v109).
 
   window.glasMailAdressen = function () {
     if (!sb) return Promise.resolve([]);
@@ -2337,6 +2338,7 @@
       el('cloudLoginKnop').disabled = false;
       if (res.error) { el('cloudLoginFout').textContent = 'Inloggen mislukt: ' + res.error.message; return; }
       gebruiker = res.data.user;
+      herstelVlag(false);       // wie gewoon inlogt, kent zijn wachtwoord (v109)
       wachtwoordAanbieden(email, pw);
       verbergLogin();
       start();
@@ -2348,37 +2350,314 @@
   // wachtwoordAanbieden() het formulier echt "versturen" (naar het lege
   // kader), zodat de browser op dát moment vraagt of hij het wachtwoord
   // mag bewaren, en niet bij een verkeerd wachtwoord.
-  var loginEcht = false;
+  // Sinds v109 geldt hetzelfde voor het formulier "Kies een nieuw
+  // wachtwoord" (cloudHerstelVerstuur); vandaar één vlag voor beide.
+  var echtVersturen = false;
   window.cloudLoginVerstuur = function (e) {
-    if (loginEcht) { loginEcht = false; return true; }    // de echte, na de inlog
+    if (echtVersturen) { echtVersturen = false; return true; }    // de echte, na de inlog
     if (e && e.preventDefault) e.preventDefault();
     login();
     return false;
   };
 
-  // De browser het wachtwoord laten aanbieden, meteen na het inloggen.
+  // De browser het wachtwoord laten aanbieden, meteen na het inloggen (of
+  // na het kiezen van een nieuw wachtwoord, v109).
   // - Chrome, Edge, Samsung Internet (Android en Windows): met de
   //   Credential Management API; die vraagt het direct.
   // - Safari (Mac, iPhone, iPad) en Firefox kennen die niet: daar het
-  //   formulier echt versturen (naar about:blank in een verborgen kader).
+  //   formulier echt versturen, naar leeg.html in een verborgen kader.
   //   Daaraan herkennen ze een inlog. Zonder dat raadde macOS het moment
-  //   zelf, en vroeg het pas later, bijvoorbeeld bij een ander tabblad.
-  // Daarna het wachtwoord uit het veld halen.
+  //   zelf, en vroeg het pas later, bijvoorbeeld bij een ander tabblad (v108).
+  //   v108 verstuurde naar about:blank; dat gaf in Safari eerst de
+  //   waarschuwing "niet beveiligd formulier", en daarna moest je zelf de
+  //   gebruikersnaam kiezen (proef van Jan, 17-10). leeg.html is https en van
+  //   de app zelf. De velden hebben geen name, dus er gaat niets mee.
+  // Daarna het wachtwoord uit de velden halen.
   window.glasWachtwoordAanbieden = wachtwoordAanbieden;
-  function wachtwoordAanbieden(email, pw) {
-    var form = el('cloudLoginForm');
+  function wachtwoordAanbieden(email, pw, form, velden) {
+    form = form || el('cloudLoginForm');
+    velden = velden || ['cloudWachtwoord'];
     try {
       if (window.PasswordCredential && navigator.credentials && navigator.credentials.store) {
         Promise.resolve(navigator.credentials.store(new window.PasswordCredential({ id: email, password: pw, name: email })))
           .catch(function () {});
       } else if (form) {
-        loginEcht = true;
+        echtVersturen = true;
         if (form.requestSubmit) form.requestSubmit(); else form.submit();
-        loginEcht = false;
+        echtVersturen = false;
       }
-    } catch (e) { loginEcht = false; console.warn('[cloud] wachtwoord aanbieden', e); }
-    setTimeout(function () { var v = el('cloudWachtwoord'); if (v) v.value = ''; }, 1500);
+    } catch (e) { echtVersturen = false; console.warn('[cloud] wachtwoord aanbieden', e); }
+    setTimeout(function () {
+      velden.forEach(function (id) { var v = el(id); if (v) v.value = ''; });
+    }, 1500);
   }
+
+  // "Wachtwoord vergeten?" op het inlogscherm (v109, keuze Jan): bewust
+  // géén herstelfunctie in de app. Jan houdt de controle en stuurt zelf een
+  // herstelmail vanuit Supabase. De knop zegt alleen dat. Tekst van Jan.
+  window.cloudWachtwoordVergeten = function () {
+    var tekst = 'Deze functie zit bewust niet in de app, vraag julian om een herstel link!';
+    if (window.appMelding) return appMelding(tekst, { kop: 'Wachtwoord vergeten', soort: 'info' });
+    window.alert(tekst);
+  };
+
+  /* ─── nieuw wachtwoord via een herstellink (v109) ──────────── */
+  // Jan stuurt een collega een herstelmail vanuit Supabase (Authentication →
+  // Users → Send password recovery). De link daarin gaat eerst naar
+  // Supabase, en dan naar de app met in het adres:
+  //   #access_token=…&refresh_token=…&type=recovery   (gelukt)
+  //   #error=access_denied&error_code=otp_expired&…   (verlopen of al gebruikt)
+  // Tot v108 logde de link de collega alleen in op dat ene apparaat, zonder
+  // dat hij een nieuw wachtwoord kon kiezen.
+  //
+  // De app leest dat adres zelf (leesHerstelLink), vóór de verbinding met
+  // Supabase bestaat, en haalt het meteen uit het adres met replaceState.
+  // De bibliotheek van Supabase doet dat bewust NIET meer
+  // (detectSessionInUrl: false, zie init): die zette location.hash = '', wat
+  // een nieuwe stap in de geschiedenis maakt; met de terug-knop stond de
+  // herstelcode dan weer in het adres (gevonden bij de controle van v109).
+  // Daarna zet herstelSessie() de sessie zelf (setSession), met ‹Opnieuw
+  // proberen› als er geen bereik is: de code staat dan alleen nog in het
+  // geheugen van deze pagina.
+  //
+  // De vlag in localStorage (met het id van de gebruiker) zorgt dat het
+  // venster terugkomt, ook na herladen en in een nieuw tabblad: zolang je
+  // via de herstellink binnen bent en nog geen nieuw wachtwoord koos, kom je
+  // niet stil in de app.
+  var LS_HERSTEL = 'glasopname_herstel';
+  function leesHerstelLink() {
+    var p;
+    try {
+      var h = String(location.hash || '').replace(/^#/, '');
+      p = new URLSearchParams(h);
+      var q = new URLSearchParams(String(location.search || '').replace(/^\?/, ''));
+      ['error', 'error_code', 'error_description'].forEach(function (k) {
+        if (!p.get(k) && q.get(k)) p.set(k, q.get(k));
+      });
+    } catch (e) { return null; }
+    var r = null;
+    if (p.get('error') || p.get('error_code')) {
+      r = { soort: 'fout', code: p.get('error_code') || p.get('error') || '', tekst: p.get('error_description') || '' };
+    } else if (p.get('access_token') && p.get('refresh_token')) {
+      // Ook een andere soort link van Supabase (bijv. een uitnodiging) zet
+      // gewoon de sessie; alleen 'recovery' vraagt om een nieuw wachtwoord.
+      r = { soort: p.get('type') === 'recovery' ? 'herstel' : 'sessie',
+            access_token: p.get('access_token'), refresh_token: p.get('refresh_token'),
+            sub: tokenGebruiker(p.get('access_token')) };
+    }
+    if (r) herstelAdresLeeg();
+    return r;
+  }
+  // Van wie is de link? Het id van de gebruiker staat in het token zelf (een
+  // JWT: kop.inhoud.handtekening). Alleen lezen, niet controleren: dat doet
+  // Supabase. Nodig om te weten of de sessie op dit apparaat bij de link hoort
+  // (en niet bij wie er al ingelogd was), ook als het zetten van de sessie
+  // pas ná de tijdsgrens lukte.
+  function tokenGebruiker(tok) {
+    try {
+      var deel = String(tok).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (deel.length % 4) deel += '=';
+      return JSON.parse(atob(deel)).sub || null;
+    } catch (e) { return null; }
+  }
+  function herstelVlag(aan, id) {
+    try {
+      if (aan === undefined) return localStorage.getItem(LS_HERSTEL) || '';
+      if (aan) localStorage.setItem(LS_HERSTEL, id || '?'); else localStorage.removeItem(LS_HERSTEL);
+    } catch (e) {}
+    return '';
+  }
+  // Het herstel- of foutdeel uit het adres, zonder nieuwe stap in de
+  // geschiedenis (replaceState), zodat de terug-knop het niet terugbrengt en
+  // herladen het niet opnieuw meldt.
+  function herstelAdresLeeg() {
+    try {
+      var q = new URLSearchParams(String(location.search || '').replace(/^\?/, ''));
+      ['error', 'error_code', 'error_description'].forEach(function (k) { q.delete(k); });
+      var zoek = q.toString();
+      history.replaceState(history.state, '', location.pathname + (zoek ? '?' + zoek : ''));
+    } catch (e) {}
+  }
+  function herstelLinkFout(f) {
+    var verlopen = /otp_expired|expired|invalid|bad_jwt|jwt|401|403/i.test(f.code + ' ' + f.tekst);
+    var tekst = verlopen
+      ? 'Deze herstellink werkt niet meer: hij is al gebruikt of verlopen. Een herstellink werkt één keer en is ' +
+        'een uur geldig.\nVraag julian om een nieuwe herstellink.'
+      : 'De herstellink kon niet gebruikt worden (' + (f.tekst || f.code || 'onbekende fout') + ').\n' +
+        'Vraag julian om een nieuwe herstellink.';
+    if (window.appMelding) return appMelding(tekst, { kop: 'Herstellink', soort: 'letop' });
+    return Promise.resolve();
+  }
+  function isNetwerkFout(err) {
+    var s = String((err && (err.name || '')) + ' ' + (err && (err.message || '')) + ' ' + (err && (err.status || '')));
+    return /fetch|network|Retryable|Load failed|NetworkError/i.test(s) && !/\b40[0-9]\b/.test(s);
+  }
+  // De sessie uit de link zetten. Geeft de sessie, of null (link ongeldig of
+  // de gebruiker gaf het op). Zonder bereik: vragen om het opnieuw te proberen.
+  // Met een tijdsgrens: een verbinding die blijft hangen, telt als geen bereik
+  // (anders zag de collega minutenlang niets; tweede controle v109).
+  var HERSTEL_WACHT_MS = window.GLAS_HERSTEL_WACHT_MS || 20000;
+  async function herstelSessie(link) {
+    for (;;) {
+      toonHerstelBezig();
+      var r;
+      try {
+        r = await Promise.race([
+          sb.auth.setSession({ access_token: link.access_token, refresh_token: link.refresh_token }),
+          new Promise(function (klaar) {
+            setTimeout(function () { klaar({ error: { name: 'AuthRetryableFetchError', message: 'geen antwoord (tijdsgrens)' } }); },
+                       HERSTEL_WACHT_MS);
+          })
+        ]);
+      } catch (err) { r = { error: err }; }
+      verbergHerstelBezig();
+      if (r && !r.error && r.data && r.data.session) return r.data.session;
+      if (!isNetwerkFout(r && r.error)) {
+        herstelLinkFout({ code: String((r && r.error && (r.error.code || r.error.status)) || 'invalid'),
+                                tekst: String((r && r.error && r.error.message) || '') });
+        return null;
+      }
+      var nogEens = window.appVraag ? await appVraag(
+        'De herstellink kon niet verwerkt worden: er is geen verbinding.\n' +
+        'Laat deze pagina open, zorg voor bereik en kies ‹Opnieuw proberen›. ' +
+        '(De link in de mail werkt niet nog een keer.)',
+        { kop: 'Herstellink', ja: 'Opnieuw proberen', nee: 'Stoppen' }) : false;
+      if (!nogEens) return null;
+    }
+  }
+
+  // Het venster alvast tonen terwijl de link verwerkt wordt, zonder adres en
+  // zonder knoppen: "Herstellink verwerken…". De vlag blijft hier buiten.
+  function toonHerstelBezig() {
+    el('cloudLogin').style.display = 'none';
+    el('cloudHerstelEmail').value = '';
+    el('cloudHerstelFout').textContent = 'Herstellink verwerken…';
+    el('cloudHerstelKnop').disabled = true;
+    el('cloudHerstelUit').disabled = true;
+    el('cloudHerstel').style.display = 'flex';
+  }
+  function verbergHerstelBezig() {
+    el('cloudHerstelKnop').disabled = false;
+    el('cloudHerstelUit').disabled = false;
+    el('cloudHerstelFout').textContent = '';
+    el('cloudHerstel').style.display = 'none';
+  }
+
+  window.glasHerstelOpen = function () {
+    var h = el('cloudHerstel');
+    return !!(h && h.style.display === 'flex');
+  };
+  function toonHerstel() {
+    herstelVlag(true, gebruiker && gebruiker.id);
+    el('cloudLogin').style.display = 'none';
+    el('cloudHerstelEmail').value = (gebruiker && gebruiker.email) || '';
+    el('cloudHerstelFout').textContent = '';
+    el('cloudHerstelKnop').disabled = false;
+    el('cloudHerstelUit').disabled = false;
+    el('cloudHerstel').style.display = 'flex';
+    try { el('cloudHerstelNieuw').focus(); } catch (e) {}
+    toonGebruiker();
+  }
+  function verbergHerstel() {
+    herstelVlag(false);
+    el('cloudHerstel').style.display = 'none';
+  }
+
+  window.cloudHerstelVerstuur = function (e) {
+    if (echtVersturen) { echtVersturen = false; return true; }    // de echte, na het opslaan
+    if (e && e.preventDefault) e.preventDefault();
+    herstelOpslaan();
+    return false;
+  };
+
+  function herstelFoutTekst(err) {
+    var code = String((err && (err.code || err.name)) || '');
+    var m = String((err && err.message) || '');
+    if (/weak_password|weak|at least|characters/i.test(code + ' ' + m)) return 'Dit wachtwoord is te zwak. Kies een langer wachtwoord, met letters en cijfers.';
+    if (isNetwerkFout(err)) return 'Geen verbinding. Probeer het opnieuw zodra je bereik hebt (laat dit venster open).';
+    if (/session|missing|expired|jwt|reauthentication/i.test(code + ' ' + m)) {
+      return 'De herstellink is niet meer geldig. Vraag julian om een nieuwe herstellink.';
+    }
+    return 'Opslaan mislukt: ' + (m || code || 'onbekende fout');
+  }
+
+  var herstelBezig = false;
+  // Een poging waarvan het antwoord niet aankwam (geen bereik): misschien
+  // heeft Supabase het wél opgeslagen. Alleen nog voor de tekst bij "Niet nu".
+  var herstelOnbeslist = null;
+  async function herstelOpslaan() {
+    if (herstelBezig) return;
+    var pw = el('cloudHerstelNieuw').value;
+    var pw2 = el('cloudHerstelNogEens').value;
+    var fout = el('cloudHerstelFout');
+    if (pw.length < 8) { fout.textContent = 'Kies een wachtwoord van minstens 8 tekens.'; return; }
+    if (pw !== pw2) { fout.textContent = 'De twee wachtwoorden zijn niet gelijk.'; return; }
+    herstelBezig = true;
+    el('cloudHerstelKnop').disabled = true;
+    fout.textContent = 'Bezig met opslaan…';
+    var res;
+    try { res = await sb.auth.updateUser({ password: pw }); } catch (err) { res = { error: err }; }
+    herstelBezig = false;
+    el('cloudHerstelKnop').disabled = false;
+    var err = res ? res.error : { message: 'geen antwoord' };
+    // "Dat is je oude wachtwoord" (same_password) betekent: wat je net typte,
+    // IS nu je wachtwoord. Dat is dus goed, en zo behandelen we het ook.
+    // Waarom: kwam het antwoord op een eerdere poging niet aan (of herhaalde
+    // de browser het verzoek zelf na een haperende verbinding), dan had
+    // Supabase het al opgeslagen, en zou de app ten onrechte "kies een
+    // ander" zeggen; de collega zat dan buitengesloten (controle v109).
+    var alGelukt = err && /same_password|different from the old/i.test(String(err.code || '') + ' ' + String(err.message || ''));
+    if (err && !alGelukt) {
+      if (isNetwerkFout(err)) herstelOnbeslist = pw;
+      fout.textContent = herstelFoutTekst(err);
+      return;
+    }
+    herstelOnbeslist = null;
+    var wie = (res && res.data && res.data.user) || gebruiker;
+    if (wie) gebruiker = wie;
+    var email = (wie && wie.email) || el('cloudHerstelEmail').value;
+    fout.textContent = '';
+    // Eerst de browser laten horen dat er een (nieuw) wachtwoord is, dan pas
+    // het venster weg: Safari leest de velden op het moment van versturen.
+    wachtwoordAanbieden(email, pw, el('cloudHerstelForm'), ['cloudHerstelNieuw', 'cloudHerstelNogEens']);
+    verbergHerstel();
+    toonGebruiker();
+    start();
+    if (window.appMelding) {
+      appMelding('Je nieuwe wachtwoord is opgeslagen. Log daarmee voortaan in, ook in de app op je beginscherm ' +
+        'en op je andere apparaten.', { kop: 'Wachtwoord opgeslagen', soort: 'info' });
+    }
+  }
+
+  // Niet nu: alleen op dit apparaat uitloggen (scope 'local': lukt ook zonder
+  // bereik). Lokaal werk dat nog omhoog moet, blijft staan (geen
+  // LS_PENDING weghalen, anders dan bij gewoon uitloggen).
+  window.cloudHerstelUitloggen = function () {
+    // Eerst alleen het venster weg; de vlag pas als de sessie echt van het
+    // apparaat is. signOut vraagt eerst de server; bij een haperende
+    // verbinding kan dat duren. Sluit iemand intussen het tabblad, dan komt
+    // het venster de volgende keer terug in plaats van stil binnen te zijn
+    // (tweede controle v109). Na 4 s tonen we het inlogscherm alvast.
+    el('cloudHerstel').style.display = 'none';
+    var twijfel = herstelOnbeslist !== null;
+    herstelOnbeslist = null;
+    var getoond = false;
+    var klaar = function () {
+      if (getoond) return;
+      getoond = true;
+      gebruiker = null;
+      toonLogin(twijfel
+        ? 'Uitgelogd. Let op: je laatste poging kwam misschien toch aan. Lukt inloggen met je oude wachtwoord ' +
+          'niet, probeer dan het nieuwe.'
+        : 'Uitgelogd. Je wachtwoord is niet gewijzigd.');
+    };
+    var weg;
+    try {
+      weg = Promise.resolve(sb.auth.signOut({ scope: 'local' }))
+        .then(function () { herstelVlag(false); }, function () {});
+    } catch (e) { weg = Promise.resolve(); }
+    Promise.race([weg, new Promise(function (r) { setTimeout(r, 4000); })]).then(klaar);
+  };
 
   async function uitloggen() {
     if (!await magVerlaten('uitloggen')) return;
@@ -3373,18 +3652,42 @@
       var k = el('cloudProjectKnop'); if (k) k.style.display = 'none';
       return;
     }
-    sb = window.supabase.createClient(cfg.url, cfg.anonKey);
+    // Een herstellink (v109)? Eerst zelf lezen en uit het adres halen, vóór
+    // de verbinding bestaat (zie leesHerstelLink). detectSessionInUrl: false:
+    // de bibliotheek mag het adres niet zelf lezen (hij liet de code via de
+    // terug-knop terugkomen). De app gebruikt geen andere links van Supabase.
+    var herstelLink = leesHerstelLink();
+    sb = window.supabase.createClient(cfg.url, cfg.anonKey, { auth: { detectSessionInUrl: false } });
     window.glasSupabase = sb;
 
-    sb.auth.getSession().then(function (res) {
-      if (res.data && res.data.session) {
-        gebruiker = res.data.session.user;
+    (async function () {
+      var linkSessie = null;
+      if (herstelLink && herstelLink.soort === 'fout') herstelLinkFout(herstelLink);
+      if (herstelLink && herstelLink.access_token) linkSessie = await herstelSessie(herstelLink);
+      var res = await sb.auth.getSession();
+      var sessie = res && res.data && res.data.session;
+      var vlag = herstelVlag();
+      var vanLink = !!(sessie && herstelLink && herstelLink.soort === 'herstel' &&
+        (herstelLink.sub ? sessie.user.id === herstelLink.sub : !!linkSessie));
+      if (sessie && (vanLink || (vlag && vlag === sessie.user.id))) {
+        // Via de herstellink binnen (of terug terwijl het venster nog
+        // openstond, ook in een ander tabblad): eerst een nieuw wachtwoord,
+        // dan pas het startscherm.
+        gebruiker = sessie.user;
+        toonHerstel();
+      } else if (sessie) {
+        if (vlag) herstelVlag(false);
+        gebruiker = sessie.user;
         verbergLogin();
         start();
       } else {
+        // Geen sessie: de vlag laten staan. Zonder bereik kan een verlopen
+        // sessie even "geen sessie" lijken terwijl hij er nog is; wist je de
+        // vlag dan, dan zat je later met bereik stil in de app (tweede
+        // controle v109). Een gewone inlog wist hem (login()).
         toonLogin('');
       }
-    });
+    })();
 
     if (el('projectNaam')) el('projectNaam').addEventListener('blur', controleerNaam);
 
@@ -3522,8 +3825,12 @@
         // Niet midden in je werk: wacht tot je even niets doet en er geen
         // venster openstaat (een vraag, het wachtwoord). Wel met een grens,
         // anders houdt een vergeten venster de update eeuwig tegen.
+        // Ook niet terwijl iemand een nieuw wachtwoord kiest (v109); komt het
+        // toch tot herladen, dan komt dat venster daarna terug (herstelVlag,
+        // in localStorage).
         var rustig = nu - laatsteActie >= UPDATE_STIL &&
-                     !document.querySelector('.melding-laag');
+                     !document.querySelector('.melding-laag') &&
+                     !(window.glasHerstelOpen && glasHerstelOpen());
         if (!rustig && nu < uiterst) { toonUpdateBalk('wachten'); return; }
         clearInterval(updateKlok);
         updateKlok = null;

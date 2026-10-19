@@ -1,58 +1,60 @@
 # Glasopname — stand van zaken
 
 *Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens één
-pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 17 oktober 2026.*
+pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 17 oktober 2026,
+bij v109.*
 
 ## Live
 
-- **v108** staat live (commit `a69a6b6`, 17 oktober 2026 09:24, door Jan
-  gepusht en door Claude nagekeken tegen het pakket).
-- Daarna, nog **niet** gepusht (alleen documenten, geen code):
-  `BEHEER.md`, `OVERZICHT.md`, `DATAMODEL.md`, `STATUS.md`, `CLAUDE.md`,
-  `WIJZIGINGEN-v108.md` (kopje "Handleidingen"). Zitten in
-  `glasopname-v108-handleidingen-compleet.zip`.
-- Alle SQL-scripts t/m **24** horen gedraaid te zijn. Het startscherm meldt het
-  als 23 of 24 ontbreekt.
+- **v108** staat live: de code sinds commit `a69a6b6` (17-10, 09:24), de
+  handleidingen sinds `2279fe2` "V108.1". Nagekeken: gelijk aan het pakket.
+- **v109 is klaar en wacht op Jan**: eerst `25_canale_mat.sql` in Supabase,
+  dan de bestanden, en vier oude bestanden zelf weggooien
+  (`LEES-MIJ-EERST-v109.md`). Pas na Jans push en het nakijken van de repo
+  geldt v109 als live.
+- Alle SQL-scripts t/m **24** horen gedraaid te zijn; **25** hoort bij v109.
 - De bestelmail (Edge Function `mail` + Resend) is **niet ingesteld**.
 
-## Vorige sessie (15–17 oktober 2026)
+## Vorige sessie (17 oktober 2026)
 
-- v107: venster "Project overgenomen" op het apparaat dat het project
-  kwijtraakte.
-- v108: apart project met wie en apparaat in de naam; berichtjes onderin weg
-  na 8 s; "Alleen kijken" niet meer dubbel (strook onder de tabbladen, alleen
-  buiten Invoer); inloggen als echt formulier zodat de browser direct na de
-  inlog vraagt het wachtwoord te bewaren.
-- Handleidingen geschreven (`BEHEER`, `OVERZICHT`, `DATAMODEL`) en de afspraak
-  dat ze met elke versie meegaan. Gebruikers worden nooit verwijderd, behalve
-  bij vertrek.
+- v109: wachtwoord bewaren in Safari zonder de waarschuwing "niet beveiligd"
+  (formulier naar `leeg.html` i.p.v. `about:blank`); knop "Wachtwoord
+  vergeten?" die alleen een melding geeft; venster "Kies een nieuw
+  wachtwoord" bij een herstellink; script 25 (Canale mat blank in de
+  database); verouderd commentaar over 'besteld'; `OVERDRACHT.md` en
+  `LEES-DIT-EERST.md` (en de oude `LEES-MIJ-EERST-v94/v106`) uit de repo.
+- Nieuwe afspraak: **twee zips** per oplevering (repo / niet-in-repo).
 
 ## Wacht op Jan
 
-1. **Proef 4 van v108**: komt "Wachtwoord bewaren?" nu direct na het inloggen,
-   op Mac, iPhone, en zo mogelijk Android/Windows? (Niet te testen in
-   Chromium.)
-2. **Akkoord op v109**: venster "Kies een nieuw wachtwoord" als de app via een
-   herstellink uit Supabase opent. Geen openbare knop "Wachtwoord vergeten"
-   (Jan verstuurt de herstelmail zelf). 🔴 inloggen.
-3. **Site URL instellen** in Supabase (Authentication → URL Configuration),
-   anders wijst de herstelmail naar localhost.
-4. **Nalezen** van `OVERZICHT.md` §8 ("Zelf onderhouden") en `DATAMODEL.md`.
-5. Vragen bij de vervolglijst (v105): ander aantal = VERVANGT of "+1 extra";
-   merk van een vervanging; annulering laten bevestigen.
-6. Aangeboden, geen antwoord: de bestelmail (als die ooit ingesteld wordt)
-   alleen laten versturen naar `mailadressen` plus `@jelierbouw.nl`.
+1. **v109 plaatsen** (SQL eerst) en zeggen dat hij gepusht heeft.
+2. **De wachtwoordproef in Safari opnieuw** (Mac en iPhone; zo mogelijk
+   Android/Windows): geen waarschuwing meer, het e-mailadres meteen goed,
+   bij een fout wachtwoord geen vraag. Stap 2 in `WIJZIGINGEN-v109.md`.
+3. **Site URL in Supabase** (Authentication → URL Configuration). Jan gaat
+   dit doen. **Tot hij het bevestigt: uitgaan van "nog niet gedaan"**, en
+   het nergens als klaar opschrijven. In een volgende ronde navragen.
+4. **De herstellink proberen** (na 3): stap 4 in `WIJZIGINGEN-v109.md`.
+   Let op mailbeveiliging (Safe Links) die de link vooraf "gebruikt".
+5. **Nalezen** van `OVERZICHT.md` §8 en `DATAMODEL.md` (Jan gaat dit doen).
+
+## In de volgende ronde aan Jan voorleggen (zijn verzoek, 17-10)
+
+- **Herinneren aan de vragen bij de vervolglijst** (v105), **met meer uitleg
+  en de mogelijkheden per vraag**: (a) alleen een ander aantal: "VERVANGT"
+  of "+1 extra"; (b) het merk van een vervanging ("K1" of "K1 (2e)");
+  (c) vastleggen of de leverancier een annulering bevestigde; (d) Van
+  Noordenne de eerste aanvulling laten bevestigen.
+- **Herinneren aan het aanbod over de bestelmail**: alleen versturen naar
+  `mailadressen` plus `@jelierbouw.nl` (handover §11e), met uitleg.
+- **Alle punten van "Groter, op de lijst" hieronder, elk met betere uitleg
+  en onderbouwing** (wat het risico is, wat het oplevert, wat het kost, de
+  keuzes).
+- **Navragen of de Site URL is ingesteld** (punt 3 hierboven).
 
 ## Klein, kan mee in de volgende versie
 
-- Script 25: "Figuurglas — Canale mat blank" (zonder accent, zo staat het in
-  de code) in `app_data.glas_data.glasbewerking`; script 12 vergat hem. De app
-  vangt het op met zijn eigen lijst.
-- Verouderd commentaar: `pdf.js` (rond `vraagVerstuurd`) en
-  `supabase/functions/mail/index.ts` zeggen nog dat alleen de mail 'besteld'
-  zet; sinds v104 doet ‹Ja, verstuurd› dat ook.
-- `OVERDRACHT.md` (v65) en `LEES-DIT-EERST.md` (v74→v78) zijn verouderd en
-  kunnen uit de repo.
+- (niets openstaand)
 
 ## Groter, op de lijst (handover §11)
 
@@ -71,4 +73,4 @@ instellen (Jan, later) · rest van de controles van v90 en v103.
 | hoe we testen | `TESTEN.md` |
 | wat er per versie veranderde | `WIJZIGINGEN-vNN.md` |
 | waar we nu staan | dit bestand |
-| volledige geschiedenis, beslissingen, bugboek, beveiliging | `HANDOVER.md` in de projectkennis op claude.ai (bewust **niet** in de openbare repo) |
+| volledige geschiedenis, beslissingen, bugboek, beveiliging | `HANDOVER.md` in de projectkennis op claude.ai, en in de zip "niet-in-repo" (bewust **niet** in de openbare repo) |

@@ -142,9 +142,9 @@ const MUTATIES = {
   // 48. (v108) Na een geslaagde inlog de browser niets laten weten (Chrome/Edge/Android: geen vraag).
   aanbieden: ['cloud.js', "      wachtwoordAanbieden(email, pw);\n", ''],
   // 49. (v108) Safari/Firefox: het formulier niet echt versturen na de inlog.
-  kader: ['cloud.js', "        loginEcht = true;\n        if (form.requestSubmit) form.requestSubmit(); else form.submit();", "        if (false) form.submit();"],
+  kader: ['cloud.js', "        echtVersturen = true;\n        if (form.requestSubmit) form.requestSubmit(); else form.submit();", "        if (false) form.submit();"],
   // 50. (v108) Het formulier meteen echt versturen, nog vóór Supabase het wachtwoord goedkeurde.
-  vooraf2: ['cloud.js', "    if (loginEcht) { loginEcht = false; return true; }    // de echte, na de inlog",
+  vooraf2: ['cloud.js', "    if (echtVersturen) { echtVersturen = false; return true; }    // de echte, na de inlog",
                         "    if (true) { login(); return true; }"],
   // (51. De oude Enter-afhandeling terugzetten maakt geen fout: login() zet
   // de knop meteen uit, en dan verstuurt de browser het formulier bij Enter
@@ -646,9 +646,9 @@ async function nieuwePagina(ctx) {
   const p = { page: page, apparaat: ctx.__naam, dicht: false };
   PAGINAS.push(p);
   page.on('close', () => { p.dicht = true; });
-  page.on('pageerror', e => consoleFouten.push(ctx.__naam + ': ' + String(e)));
+  page.on('pageerror', e => { if (!/sandboxed/.test(String(e))) consoleFouten.push(ctx.__naam + ': ' + String(e)); });  // v109: het afgeschermde inlogkader, zie TESTEN.md
   page.on('console', m => {
-    if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) consoleFouten.push('[console ' + ctx.__naam + '] ' + m.text());
+    if (m.type() === 'error' && !/Failed to load resource|net::ERR|sandboxed/.test(m.text())) consoleFouten.push('[console ' + ctx.__naam + '] ' + m.text());
   });
   return page;
 }

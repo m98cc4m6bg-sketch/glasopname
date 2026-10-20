@@ -2,7 +2,7 @@
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
 Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 20 oktober 2026,
-bij v114.*
+bij v115.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -363,21 +363,51 @@ Daarna:
   latkeuzes (zijde, onderlat, standaardlat) dan op slot, net als de maten.
   Ontgrendelen via de balk bovenaan Invoer. Band, kit en verlies blijven
   vrij.
-- *"Waar vul ik de sponningdiepte in?"* (v113) Op Invoer, groep Sponning,
-  kolom **Diepte**: de maat loodrecht op het glas, van de aanslag tot de
-  buitenkant van het kozijn. Het label ernaast zegt of glas + band + lat
-  erin past. Tik erop voor de tekening, het band binnen, uitfrezen en wat
-  wel past. De lat kies je in de kolom **Glaslat**; tik op de foto om hem
-  groot te zien, met de tekening eronder. Na een bestelling op slot (v114).
+- *"Waar vul ik de sponningdiepte in?"* Op Invoer, groep Sponning: kolom
+  **Diepte** (zij en boven: de bruikbare maat loodrecht op het glas, van de
+  aanslag tot de buitenkant van het kozijn) en **Onder** (de onderdorpel;
+  leeg = gelijk, het grijze getal). Sinds v115 kies je **de latten op
+  Toebehoren**: per foto, met de foto en de merkletters erbij. Daar zie je
+  ook of het past (kolom Oordeel; tik erop voor de tekening en wat wel
+  past). Na een bestelling op slot (v114).
 - *"Er staat 'krap −1'. Is dat erg?"* Nee: tot 1 mm te krap vangt het band
-  op. Bij "past niet" of "te ruim" vraagt de app bij de bestellijst of je
-  door wilt.
+  op. Bij "past niet" (of bij een opdeklat "te ruim") vraagt de app bij de
+  bestellijst of je door wilt.
 - *"Er staat 'maat nog niet nagemeten'."* Sinds v114 zijn alle latten
   nagekeken op de tekeningen van Jongeneel. Zie je het toch, dan is er een
   lat bijgekomen met `zeker: false` (`GLASLATTEN.md` §8).
 - *"Waarom staat er een neuslat maat N30?"* De app kiest de kleinste
   neuslat die past bij de sponningdiepte (`GLASLATTEN.md` §6). Zonder
   diepte staat er "maat nog onbekend".
+**Vragen die je kunt verwachten na v115**
+
+- *"Waar zijn de kolommen Glaslat en Latzijde op Invoer?"* Verhuisd naar
+  **Toebehoren** (wens van Jan: Invoer compact). Op Invoer staan alleen nog
+  Diepte en Onder.
+- *"Er staat 'past · 4 mm in zicht'. Moet ik iets doen?"* Nee. De lat schuift
+  verder de sponning in, tegen het glas, en er blijft 4 mm sponning in het
+  zicht. Wil je dat niet, kies dan een bredere lat (de kiezer zet die met
+  weinig zicht bovenaan).
+- *"Wat betekent 'omgekeerd' bij een opdeklat?"* Een opdeklat met een eigen
+  sponning (E7, E22, GLD1, GLD2) kun je twee kanten op monteren. Normaal
+  geeft hij extra ruimte (+3, +5 …); omgekeerd steekt het dikke deel de
+  sponning in en neemt hij die ruimte juist in (−3, −5 …). De kiezer toont
+  beide, met een tekentje.
+- *"Welke neuslat?"* De app toont alleen de neuslatten die passen, met de
+  **ventilatie** (ruimte tussen kozijn en neus, minstens 5 mm) en de
+  **uitsteek** (hoe ver de lat voor het kozijn uitsteekt; handig als je
+  bestaande latten wilt volgen). Automatisch de kleinste die past.
+- *"Bij nieuwe kozijnen zitten de latten erbij."* Kies latzijde **geen
+  (meegeleverd)**. Na een csv-import staat dat er al. Toebehoren telt dan
+  alleen band, kit en tape.
+- *"Kan ik op Toebehoren ook het glas veranderen?"* Ja, glastype en opbouw.
+  Dat zijn dezelfde gegevens als op Invoer (het verandert overal, ook op de
+  bestellijst).
+- *"Er staat 'standaard' bij Bediening."* Dat is het gewone knopje (geen
+  extra stang of koord). Op de bestellijst komt dan niets.
+- *"Waar is de kolom Merk op de bestellijst?"* Een kolom zonder waarden
+  komt er sinds v115 niet meer op (bijv. als geen enkele ruit een merk heeft).
+
 **Vragen die je kunt verwachten na v114**
 
 - *"Wat moet ik invullen bij Latzijde?"* Per ruit: **binnen** (latten
@@ -385,10 +415,11 @@ Daarna:
   passende neuslat) of **beide** (glas tussen twee latten, zonder aanslag).
   Er is bewust geen standaard: een nieuwe ruit staat op **?**, en
   Toebehoren en de bestellijst melden welke ruiten nog geen keuze hebben.
-  Ook te kiezen op Toebehoren en via doorvoeren (⤓ in de kop).
-- *"De sponning is onderin minder diep."* Tik op het oordeel in de kolom
-  Diepte en vul **Diepte onderdorpel** in. Het label toont het slechtste
-  van boven en onder ("onder: past niet −4").
+  Sinds v115 kies je het op Toebehoren (per ruit, per foto, of voor alle
+  ruiten); beide = onderin dezelfde lat.
+- *"De sponning is onderin anders."* Vul op Invoer de kolom **Onder** in.
+  Het oordeel op Toebehoren toont het slechtste van boven en onder
+  ("onder: past niet −4").
 - *"Kan ik het advies overnemen?"* Ja: tik in het venster op een advies
   (bijv. "Lat A5 …"). Eén keer ongedaan maken zet het terug.
 - *"Ik zie bij het zijwaarts schuiven niet meer welke ruit het is."* Het

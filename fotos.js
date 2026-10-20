@@ -1791,4 +1791,70 @@
     });
     origVerwijder(id);
   };
+
+  /* ─── v115: voorbeeld van een foto (alleen kijken) ─────────────── */
+  // Op Toebehoren en in de vensters van de latten (wens Jan): de foto of
+  // tekening met de merkletters (en de tekening erop), zodat je ziet over
+  // welke ruit het gaat. Alleen kijken: geen tikken op de foto, geen slepen.
+  // opties: { klein: true } voor een duimnagel, { rijId } om de bolletjes van
+  // die ruit op te laten lichten.
+  function voorbeeldInhoud(f, url, opties) {
+    opties = opties || {};
+    var marks = (f.markeringen || []).map(function (m) {
+      var rij = getRij(m.rijId);
+      var label = rij ? labelVan(rij) : '?';
+      var licht = opties.rijId != null && m.rijId === opties.rijId;
+      return '<span class="fv-mark' + (licht ? ' licht' : '') + (label.length > 2 ? ' lang' : '') + '" style="left:' + (m.x * 100) + '%;top:' + (m.y * 100) +
+        '%">' + esc(label) + '</span>';
+    }).join('');
+    return '<img src="' + esc(url) + '" alt="">' + (window.inktSVGHTML ? inktSVGHTML(f) : '') + marks;
+  }
+  window.fotoVoorbeeldHTML = function (fotoId, opties) {
+    opties = opties || {};
+    var f = fotoVan(fotoId);
+    if (!f || !f.pad) return '';
+    var url = linkCache[f.pad];
+    return '<span class="fv' + (opties.klein ? ' fv-klein' : '') + '" data-fv="' + esc(fotoId) + '"' +
+      (opties.rijId != null ? ' data-rij="' + esc(opties.rijId) + '"' : '') + ' role="button" tabindex="0" title="Groter bekijken" ' +
+      'onclick="event.stopPropagation(); fotoGroot(\'' + esc(fotoId) + '\'' + (opties.rijId != null ? ', ' + (+opties.rijId) : '') + ')">' +
+      (url ? voorbeeldInhoud(f, url, opties) : '<span class="fv-laden">foto…</span>') + '</span>';
+  };
+  // De voorbeelden zonder afbeelding (link nog niet bekend) alsnog vullen.
+  window.fotoVoorbeeldenVullen = function (houder) {
+    if (!houder || !houder.querySelectorAll) return;
+    Array.prototype.forEach.call(houder.querySelectorAll('.fv[data-fv]'), function (vak) {
+      if (vak.querySelector('img')) return;
+      var f = fotoVan(vak.getAttribute('data-fv'));
+      if (!f || !f.pad) return;
+      var rijAttr = vak.getAttribute('data-rij');
+      var opties = { klein: vak.classList.contains('fv-klein'), rijId: rijAttr != null ? +rijAttr : null };
+      link(f.pad).then(function (url) {
+        if (!vak.isConnected) return;
+        vak.innerHTML = url ? voorbeeldInhoud(f, url, opties) : '<span class="fv-laden">foto niet beschikbaar</span>';
+      });
+    });
+  };
+  // Groot: over het hele scherm (sluit met een tik of Escape, zoals de foto
+  // van een lat; latten.js ruimt .lat-groot op bij Escape).
+  window.fotoGroot = function (fotoId, rijId) {
+    var f = fotoVan(fotoId);
+    if (!f || !f.pad) return;
+    var oud = document.querySelector('.lat-groot');
+    if (oud && oud.parentNode) oud.parentNode.removeChild(oud);
+    var g = document.createElement('div');
+    g.className = 'lat-groot fv-groot';
+    g.innerHTML = '<div class="lat-groot-inhoud fv-groot-inhoud">' +
+      window.fotoVoorbeeldHTML(fotoId, { rijId: rijId }).replace('onclick=', 'data-x=') +
+      '<p><b>' + esc(f.titel || soortNaam(f, true)) + '</b></p><button type="button" class="btn btn-secondary btn-sm">Sluiten</button></div>';
+    var weg = function (e) {
+      if (e && e.type === 'keydown' && e.key !== 'Escape') return;
+      if (g.parentNode) g.parentNode.removeChild(g);
+      document.removeEventListener('keydown', weg, true);
+    };
+    g.addEventListener('click', weg);
+    // Zonder een venster van de latten eronder moet Escape het zelf doen.
+    if (!(window.latVensterOpen && document.querySelector('.lat-laag'))) document.addEventListener('keydown', weg, true);
+    document.body.appendChild(g);
+    window.fotoVoorbeeldenVullen(g);
+  };
 })();

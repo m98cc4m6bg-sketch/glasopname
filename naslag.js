@@ -725,8 +725,13 @@ function roosterFotoFout(img, slug) {
 function ducoTabel() {
   return '<table class="legenda legenda-foto">' +
     '<thead><tr><th>Foto</th><th>Roostertype</th><th>Min. glasdikte</th>' +
-    '<th>Max. glasdikte</th><th>Toelichting</th></tr></thead><tbody>' +
+    '<th>Max. glasdikte</th><th>Glasaftrek</th><th>Toelichting</th></tr></thead><tbody>' +
     DUCO_ROOSTERS.map(function (r) {
+      // v115 (Jan, ter info): de glasaftrek per rooster. Uit dezelfde bron
+      // waarmee de app rekent (DATA.roosters, ducoAftrek in index.html), en
+      // dus niet nog eens hier in de toelichting.
+      var aftrek = typeof ducoAftrek === 'function' ? ducoAftrek(r.naam) : null;
+      var uitleg = String(r.uitleg || '').replace(/\s*[|,]\s*(minimale\s+)?glasaftrek\s+\d+\s*mm/i, '');
       return '<tr>' +
         '<td class="lg-foto"><img src="roosters/' + r.foto + '.jpg" alt="' + naslagEsc(r.naam) +
           '" loading="lazy" onclick="naslagGroot(\'' + r.foto + '\',\'' + naslagEsc(r.naam) +
@@ -735,14 +740,60 @@ function ducoTabel() {
         '<td>' + naslagEsc(r.naam) + '</td>' +
         '<td>\u2265 ' + r.min + ' mm</td>' +
         '<td>\u2264 ' + r.max + ' mm</td>' +
-        '<td>' + naslagEsc(r.uitleg) + '</td>' +
+        '<td>' + (aftrek != null ? aftrek + ' mm' : '\u2014') + '</td>' +
+        '<td>' + naslagEsc(uitleg) + '</td>' +
       '</tr>';
     }).join('') +
     '</tbody></table>' +
     '<div class="info-note" style="margin-top:10px">Foto\u2019s van Duco. Is er geen bereik en ' +
     'staan de foto\u2019s nog niet in de map <code>roosters/</code>, dan zie je een eigen ' +
     'doorsnedetekening van het profiel. De glasdiktes zijn dezelfde waarden waarop de app ' +
-    'in de invoertabel controleert.</div>';
+    'in de invoertabel controleert. Glasaftrek: zoveel gaat er voor het rooster van de glashoogte af ' +
+    '(ter info; de app rekent ermee, bijv. bij de tape voor wienersprossen).</div>';
+}
+
+// v115 (wens Jan): alle glaslatten met foto, maattekening en maten. Eén bron:
+// de lijst in latten.js (GlasLatten.LATTEN). Een maat of foto verander je
+// daar; deze tabel, de keuzelijsten en de berekening volgen vanzelf.
+function lattenVoorZoeken() {
+  var G = window.GlasLatten;
+  if (!G) return [];
+  var z = String(naslagZoek || '').trim().toLowerCase();
+  return G.LATTEN.filter(function (l) {
+    if (!z) return true;
+    return [l.id, l.naam, l.maat, G.SOORT_NAAM[l.soort], l.artikel].join(' ').toLowerCase().indexOf(z) >= 0;
+  });
+}
+function lattenTabel() {
+  var G = window.GlasLatten;
+  if (!G) return '<em>De latten zijn niet geladen.</em>';
+  var getoond = lattenVoorZoeken();
+  var soorten = ['glaslat', 'glaslat-sponning', 'ventilatie', 'opdek', 'neuslat'];
+  var uitleg = {
+    'glaslat': 'In de sponning. Maat a×b: a = hoogte langs het glas, b = wat hij in de sponning inneemt. Ruimte over? Dan schuift de lat verder in en blijft er wat sponning in zicht (gewoon goed).',
+    'glaslat-sponning': 'Met een sponninkje dat over de kozijnrand valt: minder in de sponning, handig als het krap is.',
+    'ventilatie': 'Onderin bij buitenbeglazing: gaatjes of sleuven ventileren de sponning.',
+    'opdek': 'Op het kozijn, niet in de sponning. Met een eigen sponning kan hij twee kanten op: normaal (sponning van de lat naar het glas, meer ruimte) of omgekeerd (het dikke deel steekt de sponning in, minder ruimte).',
+    'neuslat': 'Onderin over de dorpel. Het nummer is de breedte over de dorpel (N35 = 35 mm), daarvoor zit een neus van 9 mm (maattekening). De maat 18x50 is de handelsmaat (ruw hout), niet het profiel. De neus moet minstens 5 mm voor het kozijn blijven (ventilatie); meer mag. Welke past, rekent de app per ruit uit (Toebehoren).'
+  };
+  return soorten.map(function (s) {
+    var lijst = G.LATTEN.filter(function (l) { return l.soort === s && getoond.indexOf(l) >= 0; });
+    if (!lijst.length) return '';
+    return '<h4 class="nsl-lat-kop">' + naslagEsc(G.SOORT_NAAM[s] || s) + '</h4><p class="nsl-uitleg">' + naslagEsc(uitleg[s] || '') + '</p>' +
+      '<table class="legenda legenda-foto nsl-latten"><thead><tr><th>Foto</th><th>Maattekening</th><th>Lat</th><th>Maten</th><th>Artikel</th></tr></thead><tbody>' +
+      lijst.map(function (l) {
+        return '<tr><td class="lg-foto"><button type="button" class="nsl-lat-foto" onclick="GlasLatten.groot(\'' + naslagEsc(l.id) + '\')" title="Groot bekijken">' +
+            G.plaatje(l, 64) + '</button></td>' +
+          '<td class="lg-foto">' + (l.tekening ? '<img src="' + naslagEsc(l.tekening) + '" alt="Maattekening ' + naslagEsc(l.id) + '" loading="lazy" ' +
+            'onclick="GlasLatten.groot(\'' + naslagEsc(l.id) + '\')" onerror="this.remove()">' : '') + '</td>' +
+          '<td><b>' + naslagEsc(l.id) + '</b> ' + naslagEsc(l.maat) + '<br><small>' + naslagEsc(l.hout) + ', ' +
+            String(l.lengte / 1000).replace('.', ',') + ' m</small></td>' +
+          '<td>' + G.latInfo(l) + (G.draaibaar(l) ? '<div class="nsl-montage">' + G.montageSVG(l, false, 70) + G.montageSVG(l, true, 70) + '</div>' : '') +
+            (l.opm ? '<br><i>' + naslagEsc(l.opm) + '</i>' : '') + (l.zeker ? '' : '<br><b>maat nog niet nagemeten</b>') + '</td>' +
+          '<td><small>' + naslagEsc(l.artikel) + '</small></td></tr>';
+      }).join('') + '</tbody></table>';
+  }).join('') + '<div class="info-note" style="margin-top:10px">Maten en foto\u2019s van Jongeneel (productpagina en maattekening). ' +
+    'Dezelfde lijst gebruikt de app bij het kiezen van de latten op Toebehoren.</div>';
 }
 
 // ═══════════════ TABELLEN (voorheen tabblad Legenda) ═══════════════
@@ -860,6 +911,15 @@ const NASLAG_CSS = `
   /* De tabel met roosters heeft een kolom met kleine foto's; tikken maakt
      ze groot, net als bij de glassoorten. */
   table.legenda-foto td.lg-foto { width: 84px; padding: 4px 6px; }
+  /* v115: glaslatten */
+  .nsl-lat-kop { margin: 14px 0 2px; font-size: 14px; }
+  .nsl-lat-foto { border: 0; background: none; padding: 0; cursor: zoom-in; }
+  /* Twee klassen op de tabel: wint van de regel voor de roosterfoto's
+     hieronder (die snijdt bij tot 72 × 54; controle v115). */
+  table.legenda-foto.nsl-latten td.lg-foto img { width: 110px; height: auto; max-height: 90px; object-fit: contain; background: white; }
+  table.legenda-foto.nsl-latten td.lg-foto .lat-plaatje { width: 64px; height: 64px; }
+  table.legenda-foto.nsl-latten td.lg-foto .lat-plaatje img { width: 100%; height: 100%; max-height: none; object-fit: contain; border: 0; border-radius: 0; }
+  .nsl-montage { display: flex; gap: 10px; margin-top: 4px; }
   table.legenda-foto td.lg-foto img {
     width: 72px; height: 54px; object-fit: cover; display: block;
     border-radius: 4px; border: 1px solid var(--grijs-rand); cursor: zoom-in;
@@ -987,6 +1047,17 @@ function renderNaslag() {
     secties += naslagSectie(groep.groep, groep.groep, items.length + ' soorten', raster, groep.uitleg);
   });
 
+  // v115: de glaslatten (uit latten.js), vóór de tabellen; ook te zoeken
+  // ("A4", "neuslat"; controle v115).
+  if (window.GlasLatten) {
+    const latGevonden = lattenVoorZoeken().length;
+    if (naslagZoek && latGevonden) { naslagOpen['Glaslatten'] = true; gevonden += latGevonden; }
+    if (!naslagZoek || latGevonden) {
+      secties += naslagSectie('Glaslatten', 'Glaslatten (Jongeneel)', latGevonden + ' latten',
+        '<div class="nsl-tabelblok">' + lattenTabel() + '</div>',
+        'Alle latten die de app kent, met foto, maattekening en maten. Tik op een foto voor groot.');
+    }
+  }
   // De tabellen blijven buiten het zoeken: die zoek je niet op naam.
   if (!naslagZoek) {
     NASLAG_TABELLEN.forEach(t => {

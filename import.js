@@ -985,6 +985,7 @@
       rijen.pop();
     }
     rijen = rijen.concat(nieuw);
+    geenLatten(nieuw);
     afronden(nieuw.length + ' regels toegevoegd');
   };
 
@@ -993,8 +994,17 @@
         { kop: 'Rijen vervangen', ja: 'Vervangen', gevaarlijk: true })) return;
     var nieuw = verwerkMerken(bouwRijen());
     rijen = nieuw;
+    geenLatten(nieuw);
     afronden(nieuw.length + ' regels ingelezen (lijst vervangen)');
   };
+
+  // v115 (keuze Jan): ingelezen ruiten zijn meestal nieuwe kozijnen, en die
+  // komen met hun latten. Latzijde staat dan op "geen (meegeleverd)": op
+  // Toebehoren telt alleen band, kit en tape. Per ruit te veranderen.
+  function geenLatten(nieuw) {
+    if (!window.toebehorenZetRuit) return;
+    nieuw.forEach(function (r) { toebehorenZetRuit(r.id, 'latZijde', 'geen'); });
+  }
 
   function verwerkMerken(nieuw) {
     var splitsen = document.getElementById('impSplits');

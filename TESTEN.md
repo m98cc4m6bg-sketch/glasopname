@@ -156,6 +156,89 @@ Een test die nooit rood wordt, is geen test. Doe na het schrijven:
 4. **Noem het in de WIJZIGINGEN-nota:** wat je stukmaakte, en dat de test
    het ving.
 
+## Hoeveel testen: naar het niveau van de wijziging
+
+*Afspraak Jan, 20-10-2026.* Een kleine wijziging kostte uren: de hele
+batterij aan het begin van een sessie en twee keer aan het eind (samen
+±75 min op de 2 kernen van de cloudomgeving), plus een mutatieproef van
+15–45 min, en na elke reparatie alles opnieuw. Dat leverde weinig extra
+zekerheid op. Daarom volgt het testwerk het niveau (🟢🟠🔴 uit
+houdbaar-bouwen). Bij twijfel kies je het hogere niveau.
+
+| niveau | wat draai je | ongeveer |
+|---|---|---|
+| 🟢 tekst, lay-out, kleur | snelle kern + de reeks van wat je raakt + één echte klik + schermafdruk op telefoonbreedte | 2–5 min |
+| 🟠 functie, berekening, knoppen, keuzelijsten | 🟢 + een nieuwe test die aantoonbaar rood kan worden (met de hand) + de volledige batterij **één keer** | 30–40 min |
+| 🔴 database, rechten, inloggen, service worker, data omzetten | 🟠 + de mutatieproef van de reeks die je raakt | 1–1,5 uur |
+
+De lijsten "snelle kern" en "volledige batterij" staan in `CLAUDE.md`
+onder Testen.
+
+- **Snelle kern = altijd.** Hij bewaakt de dingen die nooit stuk mogen,
+  en is goedkoop: dat de app laadt, de versienummers en de offline-lijst
+  (`SHELL`), opslag en herstel, offline werken, en de overgang vanaf wat
+  live staat. Die overgang draait dus ook bij 🟢: hij kost ±20 s en ving
+  in v101 een echt probleem.
+- **Een batterij één keer.** Een tweede keer alleen als een test wisselend
+  rood en groen is; zoek dan uit waarom hij wisselt.
+- **Reparatie na de batterij:** opnieuw de test die faalde en de reeks van
+  wat de reparatie raakt. De hele batterij opnieuw alleen bij 🔴, of als de
+  reparatie in gedeelde code zit (`cloud.js`, opslaan, `zetStaat`,
+  `teBestellen`, `pdf.js`).
+- **Beoordelaars** (controle door aparte agents): na een ronde de snelle
+  kern en de geraakte reeks, niet de volledige batterij.
+- **Testtijd vooraf noemen.** Zeg bij de start het niveau en de verwachte
+  testtijd. Meer dan 15 min testen: vraag Jan eerst.
+- **Oudere mutaties opnieuw (les v114): gericht.** Verandert een bewuste
+  gedragswijziging het voorbeeld waar een oudere proefmutatie op leunt
+  (zoals RAL-kleur → ALLEEN ROOSTER bij `glasGelijk`), draai dan alleen
+  díe mutaties opnieuw (`ALLEEN=`), niet de hele proef van die reeks.
+- **Een bewuste verandering is geen fout.** Wordt een vergelijking met een
+  oude stand rood omdat je dat gedrag bewust veranderde, werk de test bij en
+  noem het in de nota. Zoek het niet uit alsof het een fout is.
+
+## Onderhoud van de batterij
+
+*Stand 20-10-2026 (doorlichting op v113, nagekeken op v114). Pak deze punten op als Jan
+er akkoord op geeft; gegevensbewaking (opslaan, offline, overgang,
+meerdere apparaten) blijft altijd staan.*
+
+Moet eerst (anders vals rood):
+- De mutatieproeven van `test-v104.js` (`vervallen`, `zelfde`, `vanlijst`)
+  en `test-v105.js` (`cumulatief`, `vervangt`, `momentalles`) passen niet
+  meer op de code (die kreeg o.a. `nrTekst`). De proef is daardoor altijd
+  rood. Bijwerken, en de controle vooraf uit `test-v106.js` overnemen.
+- `test-v106.js` §22 wil `/tmp/v105werk`, `test-v111.js` §4 wil
+  `/tmp/live109`. Die mappen moeten elke sessie opnieuw klaargezet worden.
+  Liever de benodigde oude stukken vast in de test opnemen.
+
+Grootste tijdwinst:
+- **Vaste wachttijden** (`wacht(…)`, `waitForTimeout`) vervangen door
+  wachten op een signaal (`wachtTot`) of de klok van Playwright. In
+  `test-v106.js` alleen al ±108 s; `open()` wacht in elke reeks vast 700 ms
+  (±100 keer). Vooral `test-v106` (341 s), `v105` (160 s), `v104` (152 s),
+  `v110` (129 s), `v99` (86 s) en `test-verbinding` (38 s).
+- **Mutatieproef gericht:** `test-v103.js` stopt niet bij de eerste FOUT,
+  en `test-v104`, `v105` en `v112` hebben geen `WAAR`/`ALLEEN`, dus elke
+  mutatie draait de hele reeks. De runners van v110–v113 tellen ook een
+  crash of time-out als "gevangen"; alleen een eigen FOUT-regel telt.
+- **Eén gedeelde testhulp** voor de nagebootste Supabase (`dbVraag`,
+  `NAMAAK`, `opslagVraag`), script 23 (`triggerBestellingen`, nu 6×
+  gekopieerd) en de mutatie-runner (5×). Ruim daarbij de tijdelijke mappen
+  op: een volledige mutatieronde laat ±1,2 GB in /tmp achter.
+
+Dubbel, kan weg (na controle):
+- `test-v106.js` §29 (inloggen en wachtwoord bewaren): `test-v109.js` §2
+  doet hetzelfde en meer. Eerst de mutaties `aanbieden`, `kader` en
+  `vooraf2` naar v109 verhuizen.
+- `test-v111.js` §6 (favicon, `SHELL`) en de mutatie `swShell` in v113:
+  `test-index.js` bewaakt dat al.
+- `test-slot.js` §5–6 en `test-mail-en-slot.js` §4–6: roepen
+  `slotOntgrendel()` rechtstreeks aan (de valkuil van v93); `test-v93.js`
+  §1 en `test-v98.js` §4 doen het met een echte klik.
+- Bestellijst-stroom: `test-v104.js` §4–6, §22 en §24 overlappen met
+  `test-v105.js` §1–4 en §11. Samenvoegen.
+
 ## Eerlijk zijn over wat niet getest is
 
 Zeg in elke nota wat niet getest kon worden en waarom. Hier is dat bijna
@@ -426,6 +509,31 @@ harde eis wint.
   - les: bij de proef `ducoAftrek` hield de diktecontrole van het rooster
     de fout toch tegen (23 mm past niet in een DucoTon 18). Isoleer wat je
     test: K2 heeft daarom 22 mm glas.
+- `test-v115.js` (latten op Toebehoren, omgekeerd, zicht, neuslat
+  ventilatie/uitsteek, geen (meegeleverd), lege kolommen, naslag):
+  - 1 rekent zonder klikken; 2 typt Diepte en Onder op Invoer (met Tab,
+    ongedaan maken en ↶ van de tabel onder de foto); 3 klikt op Toebehoren:
+    per foto met merkletters, glastype/opbouw heen en terug met Invoer, Tab
+    van Diepte naar Onder (de focus blijft), typen en meteen op het oordeel
+    klikken, "latzijde hier", "Alle ruiten", iPad-breedte, de telefoon; 4 de
+    kiezers en het venster; 5 het slot; 6 een echte csv-import; 7 de
+    bestellijst en PDF invoer; 8 de Naslag; 9 versie en `.gitignore`;
+  - de oudere reeksen test-v111, test-v113 en test-v114 zijn bijgewerkt waar
+    het gedrag bewust veranderde (geen kolommen Glaslat/Latzijde op Invoer,
+    "zicht" in plaats van "ruim"/"te ruim", beide = onderin dezelfde lat).
+    Alleen de mutaties die daarop leunen zijn opnieuw verankerd en gericht
+    opnieuw gedraaid (`ALLEEN=`), niet de hele proef (afspraak 20-10-2026);
+  - les: **een tabel die na elke wijziging opnieuw wordt getekend, slikt de
+    klik die al begonnen was** (mousedown → blur → change → nieuw knopje →
+    mouseup op iets anders). Test daarom "typen en meteen klikken" zonder
+    Tab, en teken pas na de klik (`later()` wacht op pointerup);
+  - les: **een klik van Playwright duurt 0 ms**, een echte tik ±100–150 ms.
+    De mutatie die de wacht in `later()` weghaalt werd daardoor niet
+    gevangen. Klik in zo'n test met `click({ delay: 150 })`;
+  - les: een mutatie die "past niet" meldt is **niet** gevangen: na een
+    wijziging in de code eerst kijken of de ankers nog kloppen;
+  - niet getest: het toetsenbord op een echte iPad na Tab (Playwright kan
+    dat niet nabootsen).
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

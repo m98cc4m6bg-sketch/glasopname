@@ -196,7 +196,7 @@
       // waarde, en leeg = wissen (controle v113). Een ongeldige waarde wordt
       // geweigerd vóór er iets verandert (controle()).
       // De waarden staan bij Toebehoren per ruit (latten.js rw()).
-      { kop: 'Diepte', groep: 'kol-spon', titel: 'Sponningdiepte (mm)', leegMag: true, html: function () {
+      { kop: 'Diepte', groep: 'kol-spon', titel: 'Sponningdiepte zij en boven (mm)', leegMag: true, html: function () {
           return '<input type="text" id="bulkVeld" inputmode="decimal" placeholder="mm (leeg = wissen)">'; },
         controle: function (v) {
           return window.GlasLatten && GlasLatten.diepteVan(v) === undefined
@@ -208,35 +208,20 @@
         },
         leeg: function (r) { return !(window.GlasLatten && GlasLatten.ruit(r).sponningDiepte > 0); } },
 
-      { kop: 'Glaslat', groep: 'kol-lat', titel: 'Glaslat', leegMag: true, html: function () {
-          var G = window.GlasLatten;
-          if (!G) return '<select id="bulkVeld"></select>';
-          var groepen = {};
-          G.LATTEN.forEach(function (l) {
-            if (l.soort === 'neuslat' || l.soort === 'ventilatie') return;
-            (groepen[l.soort] = groepen[l.soort] || []).push(l);
-          });
-          return '<select id="bulkVeld"><option value="">Projectstandaard</option>' +
-            Object.keys(groepen).map(function (s) {
-              return '<optgroup label="' + esc2(G.SOORT_NAAM[s] || s) + '">' + groepen[s].map(function (l) {
-                return '<option value="' + esc2(l.id) + '">' + esc2(l.naam) + '</option>';
-              }).join('') + '</optgroup>';
-            }).join('') + '</select>'; },
-        zet: function (r, v) {
-          if (window.toebehorenZetRuit) toebehorenZetRuit(r.id, 'glaslat', v && window.GlasLatten && GlasLatten.latVan(v) ? v : '');
+      // v115: op Invoer alleen nog de diepten (Jan). Onder = de onderdorpel
+      // (leeg = gelijk aan Diepte). Glaslat en latzijde kies je op Toebehoren
+      // (daar ook voor alle ruiten tegelijk, of per foto).
+      { kop: 'Onder', groep: 'kol-sponon', titel: 'Sponningdiepte onder (mm)', leegMag: true, html: function () {
+          return '<input type="text" id="bulkVeld" inputmode="decimal" placeholder="mm (leeg = gelijk aan Diepte)">'; },
+        controle: function (v) {
+          return window.GlasLatten && GlasLatten.diepteVan(v) === undefined
+            ? '"' + v + '" is geen diepte. Vul de diepte onderin in mm in, of laat het vak leeg (= gelijk aan Diepte).' : '';
         },
-        leeg: function (r) { return !(window.GlasLatten && GlasLatten.ruit(r).glaslat); } },
-
-      // v114: de latzijde (binnen/buiten/beide), per ruit; leeg = "?".
-      { kop: 'Latzijde', groep: 'kol-zijde', titel: 'Latzijde (binnen, buiten, beide)', leegMag: true, html: function () {
-          return '<select id="bulkVeld"><option value="">? (nog niet gekozen)</option><option value="binnen">binnen</option>' +
-            '<option value="buiten">buiten</option><option value="beide">beide (glas tussen twee latten)</option></select>'; },
         zet: function (r, v) {
-          if (!window.toebehorenZetRuit) return;
-          toebehorenZetRuit(r.id, 'latZijde', ['binnen', 'buiten', 'beide'].indexOf(v) >= 0 ? v : '');
-          toebehorenZetRuit(r.id, 'tweeKanten', '');
+          var n = window.GlasLatten ? GlasLatten.diepteVan(v) : undefined;
+          if (n !== undefined && window.toebehorenZetRuit) toebehorenZetRuit(r.id, 'diepteOnder', n == null ? '' : n);
         },
-        leeg: function (r) { return !(window.GlasLatten && GlasLatten.zijde(r)); } },
+        leeg: function (r) { return !(window.GlasLatten && GlasLatten.ruit(r).diepteOnder > 0); } },
 
       { kop: 'Opm.', groep: 'groep-glas', titel: 'Opmerking', leegMag: true, html: function () {
           return '<input type="text" id="bulkVeld" placeholder="opmerking…">'; },

@@ -42,19 +42,19 @@ const { chromium, devices } = require('/home/claude/node_modules/playwright');
 
 /* ─── de reparaties terugdraaien (proef op de som) ─────────────── */
 const MUTATIES = {
-  zijdeBuiten: ["latten.js", "    var keuze = eigen || (zijde(r) === 'buiten' || zijde(r) === 'beide' ? 'NEUS' : boven.id);", "    var keuze = eigen || 'NEUS';"],
+  zijdeBuiten: ["latten.js", "    var keuze = eigen === 'ZELFDE' ? boven.id : eigen || (zijde(r) === 'buiten' ? 'NEUS' : boven.id);", "    var keuze = eigen === 'ZELFDE' ? boven.id : eigen || 'NEUS';"],
   zijdeBeide: ["latten.js", "zijde(r) === 'beide') ? 2 : 1;", "zijde(r) === 'beide') ? 1 : 1;"],
   oudeVink: ["latten.js", "    return e.tweeKanten ? 'beide' : '';", "    return '';"],
   onderDiepte: ["latten.js", "      : anders.plek === 'onder' && getal(e.diepteOnder) > 0 ? e.diepteOnder : e.sponningDiepte);", "      : e.sponningDiepte);"],
   slechtste: ["latten.js", "    if (onder && ERNST[onder.status] > ERNST[boven.status]) { slechtste = onder; waar = 'onder'; }", ""],
-  adviesActie: ["latten.js", "    if (actie.lat && OPNAAM[actie.lat]) zetRw(id, 'glaslat', actie.lat === project().lat ? '' : actie.lat);", ""],
+  adviesActie: ["latten.js", "      zetRw(id, 'glaslat', actie.lat === project().lat ? '' : actie.lat);\n      zetRw(id, 'latOmgekeerd'", "      zetRw(id, 'latOmgekeerd'"],
   merkLabel: ["index.html", "merkInRijnr(this); ", ""],
   // Twee bewakingen (SLOT_FUNCTIES en magKiezen); allebei weg = de zijde mag op slot.
   zijdeSlot: ["latten.js", "  function magKiezen() {\n    if (window.slotWeigert && slotWeigert()) return false;", "  function magKiezen() {\n    if (0) return false;"],
   onderlatSlot: ["toebehoren.js", "    if (magNiet() || latSlot()) { renderToebehoren(); return; }\n    var r = typeof getRij", "    if (magNiet()) { renderToebehoren(); return; }\n    var r = typeof getRij"],
   zonderZijdeControle: ["pdf.js", "    var zonder = zonderZijde(bm);", "    var zonder = [];"],
   zonderZijdeStrook: ["toebehoren.js", "    if (zonderZijde.length && u.perRuit.some(", "    if (0 && u.perRuit.some("],
-  inklappen: ["toebehoren.js", "return '<tr' + (open ? '' : ' class=\"dicht\"') + '>", "return '<tr>"],
+  inklappen: ["toebehoren.js", "    return '<tr class=\"tb-ruit' + (open ? '' : ' dicht')", "    return '<tr class=\"tb-ruit' + (0 ? '' : '')"],
   exportZijde: ["index.html", "      G ? G.zijde(r) : '', G ? getal(G.ruit(r).diepteOnder) : '',", "      '', '',"],
   biKenmerk: ["index.html", "    (rij.biColor === 'Ja' && rij.rooster === 'Ja' ? '|bi:' + (rij.ralBinnen || '') : '');", "    '';"],
   biPdf: ["pdf.js", "      { kop: 'RAL kleur',  w: 30, haal: function (r) { return window.ralTekst ? ralTekst(r) : r.ralKleur; } },", "      { kop: 'RAL kleur',  w: 30, haal: function (r) { return r.ralKleur; } },"],
@@ -729,7 +729,8 @@ async function gevelOpen(extra, apparaat) {
 
 
 /* ─── hulp voor v114 ──────────────────────────────────────────── */
-const tbRij = (page, merk) => page.locator('.tb-tabel tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp('^' + merk + '$') }) });
+// v115: het merk staat vet in de eerste cel (met ×2 erachter), en er zijn kopregels per foto.
+const tbRij = (page, merk) => page.locator('.tb-tabel tbody tr.tb-ruit').filter({ has: page.locator('td.tb-merk b', { hasText: new RegExp('^' + merk + '$') }) });
 const tbTekst = page => page.$eval('#toebehorenInhoud', e => e.innerText.replace(/\s+/g, ' '));
 async function naarToebehoren(page) { await page.click('.tab-btn:has-text("Toebehoren")'); await wacht(300); }
 async function naarInvoer(page) { await page.click('.tab-btn:has-text("Invoer")'); await wacht(300); }
@@ -810,15 +811,16 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     check('binnen: onderin dezelfde lat als boven (A4), geen neuslat', m.onder === 'A4' && !m.isNeus, JSON.stringify(m));
     await zetPR(page, 'X', { latZijde: 'beide', sponningDiepte: 59 });   // 23 + 6 + 2 × 15 = 59
     m = await G(page, 'X');
-    check('beide: glas tussen twee latten, de lat telt twee keer (59 past), onderin de neuslat', m.boven === 'past' && m.isNeus, JSON.stringify(m));
+    // v115 (keuze Jan): bij beide onderin dezelfde lat, geen neuslat.
+    check('beide: glas tussen twee latten, de lat telt twee keer (59 past), onderin dezelfde lat (v115)', m.boven === 'past' && !m.isNeus && m.onder === 'A4', JSON.stringify(m));
     // Een bepaalde neuslat gekozen als onderlat (Toebehoren): als neuslat beoordeeld (controle v114).
     await zetPR(page, 'X', { latZijde: 'buiten', sponningDiepte: 45, onderlat: 'N30' });
     m = await G(page, 'X');
-    check('onderlat N30 gekozen (sponning 45): beoordeeld als neuslat, past', m.isNeus && m.onder === 'N30' && m.slechtste === 'ruim' || m.isNeus && m.onder === 'N30' && /past|ruim/.test(m.slechtste),
+    check('onderlat N30 gekozen (sponning 45): beoordeeld als neuslat, past', m.isNeus && m.onder === 'N30' && /past|ruim|zicht/.test(m.slechtste),
       JSON.stringify(m));
     await zetPR(page, 'X', { sponningDiepte: 50, onderlat: 'N25' });
     m = await G(page, 'X');
-    check('onderlat N25 bij sponning 50 (nodig 26 mm over de dorpel): "onder: N25 te smal"', m.isNeus && m.kort === 'onder: N25 te smal', JSON.stringify(m));
+    check('onderlat N25 bij sponning 50 (nodig 26 mm over de dorpel): "onder: N25 te klein"', m.isNeus && m.kort === 'onder: N25 te klein', JSON.stringify(m));
     await zetPR(page, 'X', { onderlat: null, latZijde: null, sponningDiepte: null });
     // Een oude vink "latten twee kanten" (v111–v113) telt als beide.
     m = await page.evaluate(() => { const r = rijen.find(x => x.merk === 'Y'); toebehorenZetRuit(r.id, 'tweeKanten', true);
@@ -840,32 +842,35 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
         uit[z] = { latM: Math.round(p.latM * 100) / 100, onder: p.onderlat, zijde: p.zijde }; });
       return uit; });
     // X 1000 × 2000: boven 1020 + 2 × 2020 + onder 1020 = 6,08 m. Buiten: onder is de neuslat (niet in latM? wel: alle latten).
-    check('Toebehoren: binnen = onder dezelfde lat (A4), buiten = N30, beide = een neuslat en alle latten twee keer',
-      u.binnen.onder === 'A4' && u.buiten.onder === 'N30' && /^N\d\d$/.test(u.beide.onder) && u.beide.latM === u.buiten.latM * 2 &&
+    check('Toebehoren: binnen = onder dezelfde lat (A4), buiten = N30, beide = onderin A4 (v115) en alle latten twee keer',
+      u.binnen.onder === 'A4' && u.buiten.onder === 'N30' && u.beide.onder === 'A4' && u.beide.latM === u.buiten.latM * 2 &&
       u.binnen.zijde === 'binnen' && u.beide.zijde === 'beide', JSON.stringify(u));
     await ctx.close();
   }
 
   /* ══ 2 ════════════════════════════════════════════════════════ */
   if (doe('2')) {
-    console.log('\n2. Op Invoer: kolom Latten, merk in beeld, advies aantikken, telefoon');
+    console.log('\n2. Latzijde (v115: op Toebehoren), merk in beeld, advies aantikken, telefoon');
     latProject(p => { p.data.info.toebehoren = { perRuit: { 1: { sponningDiepte: 40 } } }; });   // X past niet −4
     ({ ctx, page } = await openProject());
     const idX = idVan('X');
-    m = await page.evaluate(id => { const s = document.querySelector('#zijde-' + id + ' select');
-      return [s.value, s.classList.contains('leeg'), [...s.options].map(o => o.text)]; }, idX);
-    check('kolom Latzijde: "?" (leeg, opvallend), te kiezen binnen / buiten / beide', m[0] === '' && m[1] &&
-      JSON.stringify(m[2]) === '["?","binnen","buiten","beide"]', JSON.stringify(m));
-    // Zoals op een tablet: het vak krijgt focus, de keuze, en weer weg (undo.js legt de stap vast).
-    const zijdeVak = page.locator('#zijde-' + idX + ' select');
-    await zijdeVak.focus(); await zijdeVak.selectOption('buiten'); await zijdeVak.press('Tab'); await wacht(300);
+    await naarToebehoren(page);
+    const zijdeSel = '[data-sleutel="zijde-' + idX + '"]';
+    m = await page.evaluate(sel => { const s = document.querySelector(sel);
+      return [s.value, s.classList.contains('leeg'), [...s.options].map(o => o.text)]; }, zijdeSel);
+    check('kolom Latzijde: "?" (leeg, opvallend), te kiezen binnen / buiten / beide / geen (v115)', m[0] === '' && m[1] &&
+      JSON.stringify(m[2]) === '["?","binnen","buiten","beide","geen (meegeleverd)"]', JSON.stringify(m));
+    const zijdeVak = page.locator(zijdeSel);
+    await zijdeVak.selectOption('buiten'); await wacht(400);
     check('gekozen: bewaard bij het project (perRuit), de ruit zelf houdt zijn stempel', await opgeslagenAls(() =>
       perRuitDb('X').latZijde === 'buiten') && dbRij('X').gewOp === INGEMETEN.gewOp && !('latZijde' in dbRij('X')),
       JSON.stringify([perRuitDb('X'), dbRij('X').gewOp]));
-    check('en niet meer "leeg"', !(await page.$eval('#zijde-' + idX + ' select', s => s.classList.contains('leeg'))));
+    check('en niet meer "leeg"', !(await page.$eval(zijdeSel, s => s.classList.contains('leeg'))));
+    await page.evaluate(() => document.activeElement && document.activeElement.blur());
     await page.keyboard.press('Control+z'); await wacht(500);
     check('ongedaan maken (Ctrl+Z): weer "?"', await page.evaluate(id => GlasLatten.zijde(rijen.find(r => String(r.id) === id)), idX) === '');
     // Merk in beeld: in de vaste eerste kolom.
+    await naarInvoer(page);
     m = await page.evaluate(id => { const c = document.querySelector('#rij-' + id + ' td.rijnr');
       return [c.querySelector('.rijnr-merk').textContent, getComputedStyle(c).position]; }, idX);
     check('het merk staat ook in de vaste eerste kolom (schuift niet weg)', m[0] === 'X' && m[1] === 'sticky', JSON.stringify(m));
@@ -879,8 +884,9 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await merkVak.fill('X1'); await wacht(300);
     check('merk wijzigen: de eerste kolom loopt mee', await page.$eval('#rij-' + idX + ' .rijnr-merk', e => e.textContent) === 'X1');
     await merkVak.fill('X'); await merkVak.press('Tab'); await wacht(300);
-    // Het venster: advies aantikken.
-    await page.click('#pk-' + idX + ' .pk-chip');
+    // Het venster (v115: via het oordeel op Toebehoren): advies aantikken.
+    await naarToebehoren(page);
+    await tbRij(page, 'X').locator('td.tb-oordeel button').click();
     await page.waitForSelector('.lat-venster', { timeout: 3000 });
     m = await page.$$eval('.lat-venster .pk-advies-knop', l => l.map(b => b.textContent));
     check('het venster: adviezen als knoppen (bijv. "Band binnen 2 mm" of een andere lat)', m.length >= 2, JSON.stringify(m));
@@ -894,7 +900,7 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await page.keyboard.press('Control+z'); await wacht(500);
     check('ongedaan maken: één stap terug (weer de standaardlat)', await page.evaluate(id => !GlasLatten.ruit(rijen.find(r => String(r.id) === id)).glaslat, idX));
     // Onderdorpel in het venster.
-    await page.click('#pk-' + idX + ' .pk-chip');
+    await tbRij(page, 'X').locator('td.tb-oordeel button').click();
     await page.waitForSelector('.lat-venster .pk-onderdiepte', { timeout: 3000 });
     await page.fill('.lat-venster .pk-onderdiepte', '38');
     await page.dispatchEvent('.lat-venster .pk-onderdiepte', 'change');
@@ -913,12 +919,12 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     ({ ctx, page } = await openProject({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }));
     await naarToebehoren(page);
     if (PLAATJES) await page.screenshot({ path: path.join(PLAATJES, 'v114-telefoon-toebehoren-dicht.png'), fullPage: true });
-    m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel tbody tr')].map(tr => [tr.className, Math.round(tr.getBoundingClientRect().height)]));
+    m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel tbody tr.tb-ruit')].map(tr => [tr.className, Math.round(tr.getBoundingClientRect().height)]));
     check('telefoon: elke ruit dicht, kort (≤ 120 px: merk, maat, lat en oordeel, dan een tikregel van 44 px)', m.length === 3 && m.every(x => /dicht/.test(x[0]) && x[1] <= 120), JSON.stringify(m));
     t = await tbRij(page, 'X').locator('.tb-kort-knop').innerText();
-    check('de regel zegt de zijde, de onderlat en de meters ("buiten · onder N30 · … m latten")', /buiten · onder N30 · [\d,]+ m latten/.test(t), t);
+    check('de regel zegt de zijde, de lat en de onderlat ("buiten · A4 · onder N30 · 9 mm vent.")', /buiten · A4 · onder N30 · 9 mm vent\./.test(t), t);
     await tbRij(page, 'X').locator('.tb-kort-knop').click(); await wacht(300);
-    m = await tbRij(page, 'X').evaluate(tr => [tr.className, tr.querySelector('select.tb-onderlat').offsetParent !== null]);
+    m = await tbRij(page, 'X').evaluate(tr => [tr.className, tr.querySelector('[data-sleutel^="olat-"]').offsetParent !== null]);
     check('tik: open, met de keuzes', !/dicht/.test(m[0]) && m[1], JSON.stringify(m));
     if (PLAATJES) await page.screenshot({ path: path.join(PLAATJES, 'v114-telefoon-toebehoren-open.png'), fullPage: true });
     const breed = await page.evaluate(() => document.documentElement.scrollWidth);
@@ -973,9 +979,12 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await eersteBestelling(page);
     check('besteld en op slot', await opSlot(page));
     const idX = idVan('X');
-    m = await page.evaluate(id => [document.querySelector('#zijde-' + id + ' select').disabled, document.querySelector('#pk-' + id + ' .spon-input').disabled,
-      document.querySelector('#lat-' + id + ' .lat-knop').disabled, document.querySelector('#pk-' + id + ' .pk-chip').disabled], idX);
-    check('op Invoer: Latten, Diepte en Glaslat staan uit; het oordeel is te openen', m[0] && m[1] && m[2] && !m[3], JSON.stringify(m));
+    // v115: Diepte en Onder op Invoer; zijde, latknop en oordeel op Toebehoren.
+    m = await page.evaluate(id => [document.querySelector('#pk-' + id + ' .spon-input').disabled, document.querySelector('#pko-' + id + ' .spon-input').disabled], idX);
+    await naarToebehoren(page);
+    m = m.concat(await page.evaluate(id => { const k = s => document.querySelector('[data-sleutel="' + s + id + '"]');
+      return [k('zijde-').disabled, k('lat-').disabled, k('lat-').closest('tr').querySelector('td.tb-oordeel button').disabled]; }, idX));
+    check('op slot: Diepte, Onder, Latzijde en Glaslat staan uit; het oordeel is te openen', m[0] && m[1] && m[2] && m[3] && !m[4], JSON.stringify(m));
     await page.evaluate(id => { latZijde(id, 'buiten'); latOnderDiepte(id, '30'); latAdvies(id, { lat: 'A12' }); latDiepte(id, '40'); }, idX);
     await wacht(500);
     // In de app zelf kijken (de database loopt achter op opslaan).
@@ -986,7 +995,7 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     check('met de melding dat het besteld is', /besteld/.test((await meldingen(page)).join(' ')));
     await sluitMeldingen(page);
     // Een venster dat nog open stond (of een oud scherm): de keuze in het venster wordt ook geweigerd.
-    await page.click('#pk-' + idX + ' .pk-chip');
+    await tbRij(page, 'X').locator('td.tb-oordeel button').click();
     await page.waitForSelector('.lat-venster .pk-zijde', { timeout: 3000 });
     m = await page.$$eval('.lat-venster .pk-zijde, .lat-venster .pk-onderdiepte', l => l.map(e => e.disabled));
     check('in het venster: zijde en onderdorpel staan uit', m.length === 2 && m.every(Boolean), JSON.stringify(m));
@@ -999,7 +1008,7 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await page.keyboard.press('Escape'); await wacht(200);
     // Toebehoren: de onderlat en de zijde per ruit ook.
     await naarToebehoren(page);
-    m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel select.tb-onderlat, .tb-tabel select.tb-zijde-sel, #tbAlleOnderlat')].map(s => s.disabled));
+    m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel [data-sleutel^="olat-"], .tb-tabel select.tb-zijde-sel, #tbAlleOnderlat')].map(s => s.disabled));
     check('Toebehoren: onderlat en zijde per ruit staan uit', m.length >= 7 && m.every(Boolean), JSON.stringify(m));
     await page.evaluate(() => { toebehorenOnderlat(rijen[1].id, 'C1'); });
     await wacht(500);
@@ -1015,7 +1024,8 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     check('de instellingen van het project (band, kit) blijven vrij', m);
     await naarInvoer(page);
     await ontgrendel(page);
-    await page.selectOption('#zijde-' + idX + ' select', 'buiten');
+    await naarToebehoren(page);
+    await page.selectOption('[data-sleutel="zijde-' + idX + '"]', 'buiten');
     check('na ontgrendelen: de zijde te kiezen', await opgeslagenAls(() => perRuitDb('X').latZijde === 'buiten'));
     const w = await page.evaluate(() => { const x = teBestellen(); return { g: x.gewijzigd.length, r: x.regels.length }; });
     check('en dat is geen wijziging voor de leverancier (de latten gaan niet mee)', w.g === 0 && w.r === 0, JSON.stringify(w));
@@ -1062,7 +1072,7 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     check('bestellijst-pdf: "Bi-color", de kleur buiten en binnen', /Bi-color/.test(t) && /buiten: RAL 9010/.test(t) && /binnen: RAL 9005/.test(t),
       (t.match(/buiten: RAL.{0,80}/) || [t.slice(0, 300)])[0]);
     await vraagOpScherm(page); await knop(page, 'Nee, alleen bekeken');
-    m = await page.evaluate(() => { const x = exportTabel(); const i = x.koppen.indexOf('Bi-color'); return [x.koppen.slice(i), x.regels.map(r => r.slice(i))]; });
+    m = await page.evaluate(() => { const x = exportTabel(); const i = x.koppen.indexOf('Bi-color'); return [x.koppen.slice(i, i + 2), x.regels.map(r => r.slice(i, i + 2))]; });   // v115: daarachter nog Onderlat
     check('export: kolommen Bi-color en RAL binnen', JSON.stringify(m[0]) === '["Bi-color","RAL binnen"]' &&
       JSON.stringify(m[1]) === JSON.stringify([['Ja', ZWART], ['Nee', ''], ['Nee', '']]), JSON.stringify(m));
     // Rooster op Nee: bi-color weg.
@@ -1179,8 +1189,9 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
       perRuit: { 1: { sponningDiepte: 50, tweeKanten: true }, 2: { glaslat: 'GL13' }, 3: { glaslat: 'B2', onderlat: 'Glaslat' } } }; });
     ({ ctx, page } = await openProject());
     m = await page.evaluate(() => rijen.filter(r => r.merk).map(r => [r.merk, GlasLatten.zijde(r), GlasLatten.latVoorRuit(r).id, GlasLatten.onderlatVoorRuit(r).id]));
-    check('oude vink twee kanten = beide (onderin een neuslat); GL13 → B13; B2 → B1; onderlat "Glaslat" = dezelfde lat',
-      JSON.stringify(m.slice(1)) === JSON.stringify([['Y', '', 'B13', 'B13'], ['D', '', 'B1', 'B1']]) && m[0][1] === 'beide' && /^N\d\d$/.test(m[0][3]),
+    // v115: bij beide onderin dezelfde lat (A4), geen neuslat.
+    check('oude vink twee kanten = beide (onderin dezelfde lat, v115); GL13 → B13; B2 → B1; onderlat "Glaslat" = dezelfde lat',
+      JSON.stringify(m.slice(1)) === JSON.stringify([['Y', '', 'B13', 'B13'], ['D', '', 'B1', 'B1']]) && m[0][1] === 'beide' && m[0][3] === 'A4',
       JSON.stringify(m));
     await naarToebehoren(page);
     t = await tbTekst(page);
@@ -1208,7 +1219,8 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     check('alle latten nagemeten (zeker)', m.zeker.length === 0, JSON.stringify(m.zeker));
     check('de tekeningen staan erbij', m.tek.length >= 20 && m.tek.every(p => fs.existsSync(path.join(map, p))), m.tek.length + ' ' + m.tek.filter(p => !fs.existsSync(path.join(map, p))).join(','));
     // Grote foto met de tekening eronder.
-    await page.click('#lat-' + idVan('X') + ' .lat-knop');
+    await naarToebehoren(page);   // v115: de latknop staat op Toebehoren
+    await page.click('[data-sleutel="lat-' + idVan('X') + '"]');
     await page.click('.lat-venster .lat-item[data-kies="A4"] .lat-plaatje');
     await page.waitForSelector('.lat-groot', { timeout: 2000 });
     m = await page.$$eval('.lat-groot img', l => l.map(i => [i.getAttribute('src'), i.naturalWidth > 0]));
@@ -1220,7 +1232,8 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     const pdfjs = fs.readFileSync(path.join(map, 'pdf.js'), 'utf8');
     const sw = fs.readFileSync(path.join(map, 'sw.js'), 'utf8');
     const versies = [html.match(/APP_VERSIE = '(v\d+)'/)[1], pdfjs.match(/PDF_VERSIE = '(v\d+)'/)[1], sw.match(/VERSIE = '(v\d+)'/)[1]];
-    check('de drie versienummers zijn v114', versies.every(v => v === 'v114'), JSON.stringify(versies));
+    // v115: de nummers gaan mee omhoog; hier alleen dat ze gelijk zijn en minstens v114.
+    check('de drie versienummers zijn gelijk (v114 of later)', versies.every(v => v === versies[0] && +v.slice(1) >= 114), JSON.stringify(versies));
     const fotos = (sw.match(/const LAT_FOTOS = \[([\s\S]*?)\];/) || ['', ''])[1].match(/'\.\/latten\/[^']+'/g) || [];
     const map2 = fs.readdirSync(path.join(map, 'latten'));
     check('de offline-lijst: alle ' + fotos.length + ' foto\'s en tekeningen, en die staan er ook', fotos.length === 51 &&

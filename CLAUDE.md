@@ -15,8 +15,10 @@ Dit bestand bevat de **regels**. De uitleg staat elders; zie "Waar staat wat".
    is openbaar.
 3. Lees `TESTEN.md` vóór je een test schrijft, en `OVERZICHT.md` /
    `DATAMODEL.md` voor de opbouw.
-4. Draai één keer de testbatterij (onderaan) zodat je weet dat je met een
-   gezonde kopie begint.
+4. Draai de **snelle kern** (onderaan, ±1 min) zodat je weet dat je met een
+   gezonde kopie begint. De volledige batterij is hier niet nodig: die
+   draaide bij de vorige oplevering op dezelfde code (afspraak Jan,
+   20-10-2026).
 
 ## Waar staat wat (één plek per soort informatie)
 
@@ -76,9 +78,15 @@ Een feit staat op één plek; elders verwijs je ernaar.
    `PDF_VERSIE` (pdf.js), `VERSIE` (sw.js). `test-index.js` bewaakt dat.
 2. Nieuw `.js`-bestand of bibliotheek: `<script src>` in index.html, de
    `SHELL`-lijst in sw.js, en mee in de zip.
-3. De hele testbatterij **twee keer**. Elke nieuwe test moet aantoonbaar rood
-   worden als je de reparatie terugdraait (mutatie). Ook de overgang vanaf
-   wat live staat (`test-overgang.js`).
+3. Testen naar het **niveau** van de wijziging (afspraak Jan, 20-10-2026;
+   zie "Testen" onderaan en de skill grondig-testen). Kort:
+   - 🟢 de snelle kern + de tests van wat je raakt + één echte klik en een
+     schermafdruk;
+   - 🟠 daarbij een test voor het nieuwe gedrag die aantoonbaar rood wordt
+     als je de reparatie terugdraait, en de volledige batterij **één keer**;
+   - 🔴 daarbij de mutatieproef van de reeks die je raakt.
+   De overgang vanaf wat live staat (`test-overgang.js`, ±20 s) zit in de
+   snelle kern en draait dus altijd.
 4. **De handleidingen bijwerken** (opdracht van Jan, 17-10-2026):
    `BEHEER.md`, `OVERZICHT.md`, `DATAMODEL.md`. Elke nieuwe functie,
    bugoplossing, gewijzigde keuze, nieuw script, nieuw bestand of nieuw
@@ -174,34 +182,60 @@ Een feit staat op één plek; elders verwijs je ernaar.
   (`latSlot`).
 * **Glaslatten en sponning** (v113, `latten.js`, kennis in `GLASLATTEN.md`):
   - **Opslag.** `sponningDiepte`, `glaslat`, `bandBinnen`, `uitfrezen`, en
-    sinds v114 `latZijde` en `diepteOnder`, staan in
-    `info.toebehoren.perRuit`, NIET op de ruit. Lezen gaat via
+    sinds v114 `latZijde` en `diepteOnder`, sinds v115 `latOmgekeerd`, staan
+    in `info.toebehoren.perRuit`, NIET op de ruit. Lezen gaat via
     `GlasLatten.ruit(r)` (`rw`), schrijven via `toebehorenZetRuit`.
+  - **Waar (v115, wens Jan).** Op Invoer alleen Diepte en Onder
+    (`sponCellenHTML`, ids `pk-`/`pko-`). Al het andere op Toebehoren
+    (`toebehoren.js` `perRuitHTML`/`ruitRij`, per foto met `fotoVoorbeeldHTML`
+    uit fotos.js en `inktSVGHTML` uit teken.js). Glastype/opbouw op
+    Toebehoren gaan via `wijzigGlasType`/`wijzigOpbouw` (dezelfde gegevens als
+    Invoer). Na een wijziging tekent `toebehorenNaWijziging` (= `later()`) de
+    tabel een tik later, en pas als een tik/klik klaar is; `zetInhoud`
+    vervangt alleen cellen die anders zijn en laat het vak met de focus
+    staan. Velden krijgen `data-sleutel` (type-, opb-, diepte-, onder-,
+    zijde-, lat-, olat-, band-) voor de focus en de tests.
+  - **↶ per tabel** (`blokbalk.js`) kijkt sinds v115 ook naar Diepte en Onder
+    (staan niet op de ruit).
   - **Slot (v114, keuze Jan: "mee op slot").** Alle lat-functies staan in
     `SLOT_FUNCTIES`, en `magKiezen()` in latten.js vraagt `slotWeigert()`
     (het venster roept de functies direct aan, dus beide zijn nodig). Alleen
     de chip is `vrij-bij-slot` (bekijken mag). `bulkVrijBijSlot` is weg.
-  - **Latzijde (v114).** Geen standaard. `zijde(r)`: 'binnen'/'buiten'/'beide'
-    of '' (een oude `tweeKanten` = 'beide'). Onderlat via
-    `onderlatVoorRuit(r)`: eigen keuze, anders buiten/beide → neuslat,
-    binnen/'' → dezelfde lat. Een gekozen neuslat is ook een neuslat
+  - **Latzijde (v114, v115).** Geen standaard. `zijde(r)`:
+    'binnen'/'buiten'/'beide'/'geen' of '' (een oude `tweeKanten` = 'beide').
+    'geen' = latten meegeleverd: `pakket` geeft status 'geen', Toebehoren
+    telt geen latten (wel band/kit/tape); een csv-import zet 'geen'. Onderlat
+    via `onderlatVoorRuit(r)`: eigen keuze ('ZELFDE', 'NEUS' of een id),
+    anders buiten → neuslat, binnen/beide/'' → dezelfde lat. Een gekozen neuslat is ook een neuslat
     (`neuslatVoor(r, gekozen)`). Het oordeel over de hele ruit:
     `oordeelRuit(r)` (het slechtste van boven en onder), kort `kortRuit`.
   - **Vaste eerste kolom.** Geen `overflow: hidden` op `table.invoer`: dat
     maakt de tabel een eigen schuifvenster en breekt `position: sticky`.
   - **Het vak in de tabel niet vervangen** terwijl het de focus heeft
-    (`naWijziging(id, true)`): dat brak het ongedaan maken en de eerste
-    tik op de chip.
+    (`bijwerken(laatId)` op Invoer, `zetInhoud` op Toebehoren): dat brak het
+    ongedaan maken, de eerste tik en (iPad) het toetsenbord.
   - **Rekenregel.** nodig = glas (`totaalDikte`) + band binnen + band buiten
     + lat in de sponning (× 2 bij zijde 'beide'). Een opdeklat heeft 0 in de
-    sponning en zijn eigen sponning erbij. Marge 1 mm (krap/ruim).
-  - **Neuslat.** De kleinste met "rest + 5 ≤ S". Hij neemt níet zijn hele
-    breedte in. Neus 9 mm (tekening Jongeneel, v114).
+    sponning en zijn eigen sponning erbij; **omgekeerd** (v115,
+    `latOmgekeerd`, alleen `draaibaar(l)`) neemt hij zijn eigen sponning in.
+    Marge 1 mm. Een gewone glaslat met ruimte over = status **'zicht'**
+    (`u.zicht` mm; A5 eerst 3 mm speling), géén waarschuwing (Jan, v115);
+    alleen een opdeklat kan 'ruim'/'te ruim' zijn. `ERNST`: zicht = past.
+  - **Neuslat (v115).** rest = diepte onder − glas − band (− lat aan de 2e
+    kant); ventilatie = S − rest (≥ 5), uitsteek = ventilatie + 9.
+    `neuslatOpties(r)`: passend / te klein; automatisch de kleinste die past.
+    Neus 9 mm (tekening Jongeneel, v114).
+  - **Advies** per plek (`adviezenMet(r)` en `adviezenMet(r, 'onder')`) en
+    per zijde (buiten geen rechte/ronde latten, `latMagBij`). Onderin heeft
+    een opdeklat geen eigen montage (zoals boven of normaal).
+  - **Eén bron** voor de Naslag: `lattenTabel()` in naslag.js leest
+    `GlasLatten.LATTEN`. De glasaftrek van een rooster komt uit
+    `ducoAftrek()` (DATA.roosters), niet uit de tekst in naslag.js.
   - **Band buiten** nooit 2 mm.
   - **Oude namen** ('Glaslat', 'Neuslat', 'Ventilatielat', en sinds v114
     'GL13' → B13 en 'B2' → B1) worden bij het lezen omgezet (`normaal`,
-    `onderNaam`). Een oude onderlat 'Glaslat' wordt '' (zelfde als boven),
-    niet A4.
+    `onderNaam`). Een oude onderlat 'Glaslat' wordt 'ZELFDE' (v115; tot v114
+    '', wat bij buiten een neuslat werd), niet A4.
   - **Foto's van Jongeneel**: geen script (de site blokkeert dat). Via de
     browser in de Claude-desktopapp (handover §6).
   - **Eén getal voor de lengtes**: max(totaal + 10 %, zaagplan). Het grote
@@ -278,31 +312,55 @@ Een feit staat op één plek; elders verwijs je ernaar.
 
 ## Testen
 
-Volg `TESTEN.md`. De batterij (vanuit de projectmap):
+Volg `TESTEN.md` (hoofdstuk "Hoeveel testen"). Tijden gemeten op
+20-10-2026 in de cloudomgeving van Claude (2 processorkernen), v113.
+
+**Snelle kern** (±1,5 min). Bij het begin van een sessie, tijdens het
+bouwen, na elke ronde van een beoordelaar, en bij elke oplevering:
 
 ```
 node test-index.js && node test-naslag.js && node test-cloudguard.js
-node test-herstel.js && node test-verbinding.js && node test-verwijderen.js
-node test-start.js && node test-mail-en-slot.js && node test-import.js
-node test-slot.js && node test-v91.js && node test-v93.js && node test-offline.js
-node test-rook.js
+node test-herstel.js && node test-start.js && node test-import.js
+node test-slot.js && node test-offline.js && node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
-node test-v98.js && python3 test-v98.py
-node test-v99.js
-node test-v102.js
-node test-v103.js                     # en: --mutaties
-node test-v104.js                     # en: --mutaties
-node test-v105.js                     # en: --mutaties
-OUD105=/tmp/v105werk node test-v106.js   # bewerkslot en v107/v108; en: --mutaties (48); zonder v105-map: OUD105=/tmp/v103live
-node test-v109.js                     # inloggen, wachtwoord vergeten, herstellink, script 25; en: --mutaties (22, ±25 min)
-node test-v110.js                     # aantal en bolletjes, EXTRA/annuleren; en: --mutaties (43, ±45 min); PLAATJES=map voor schermafdrukken
-node test-v111.js                     # bediening, Toebehoren; en: --mutaties (±50, ±40 min); PLAATJES=map; OUD=map van live (kenmerk)
-node test-v112.js                     # alleen een andere bediening na bestellen; en: --mutaties (21, ±15 min)
-node test-v113.js                     # glaslatten, sponning, neuslat, één getal, uiterlijk; en: --mutaties (40, ±30 min); PLAATJES=map
-node test-v114.js                     # latzijde, onderdorpel, merk in beeld, slot, bi-color, ALLEEN ROOSTER, vaste zin, latmaten; en: --mutaties (34, ±40 min); PLAATJES=map
-OUD=/tmp/live113 node test-overgang.js   # OUD = kopie van wat live staat (20-10-2026: v113, d4fc364); ook vanaf v98
+OUD=/tmp/live node test-overgang.js   # OUD = kopie van wat live staat (20-10-2026: v114, 0c8b64c; 1ebfa26 haalde alleen een zip weg); ook vanaf v98
 bun test-mailfunctie.ts
 ```
+
+Draai daarnaast altijd de reeks(en) van het onderdeel dat je raakt
+(bijv. latten → `test-v113/v114/v115.js`, bestellen → `test-v104/105/110/112/114.js`,
+bewerkslot → `test-v106.js`, inloggen → `test-v109.js`).
+
+**Volledige batterij** (±25 min). Bij 🟠 en 🔴, één keer, op de
+eindversie. De snelle kern plus:
+
+```
+node test-verbinding.js && node test-verwijderen.js     #  38 s,  9 s
+node test-mail-en-slot.js && node test-v91.js           #  21 s, 45 s
+node test-v93.js                                        #  73 s
+node test-v98.js && python3 test-v98.py                 #  26 s
+node test-v99.js && node test-v102.js                   #  86 s, 10 s
+node test-v103.js                                       #  69 s
+node test-v104.js                                       # 152 s
+node test-v105.js                                       # 160 s
+OUD105=/tmp/v105werk node test-v106.js   # 341 s; zonder v105-map: OUD105=/tmp/v103live
+node test-v109.js                                       #  90 s
+node test-v110.js                       # 129 s; PLAATJES=map voor schermafdrukken
+OUD=/tmp/live109 node test-v111.js      #  70 s; OUD = map met v109 (kenmerk)
+node test-v112.js && node test-v113.js                  #  16 s, 35 s
+node test-v114.js                       # latzijde, onderdorpel, bi-color, ALLEEN ROOSTER, latmaten; PLAATJES=map
+node test-v115.js                       #  41 s; latten op Toebehoren, omgekeerd, zicht, neuslat, geen (meegeleverd), naslag
+```
+
+**Mutatieproef** (`--mutaties`): alleen bij 🔴, en alleen voor de reeks
+die je wijziging raakt. Een nieuwe test bewijs je met de hand (reparatie
+terugdraaien, rood, terugzetten), dat kost minuten. Duur per reeks:
+v106 48 mutaties ±25–40 min, v109 22 ±25 min, v110 61 ±45+ min,
+v111 51 ±40 min, v112 21 ±15 min, v113 40 ±30 min, v114 34 ±40 min,
+v115 37 ±45 min.
+Die van v104 en v105 werken nu niet (zie TESTEN.md, "Onderhoud van de
+batterij"). Een oudere reeks opnieuw alleen gericht (`ALLEEN=`), zie
+TESTEN.md.
 
 Verwacht jsdom, jspdf, jspdf-autotable en playwright in
 `/home/claude/node_modules`, en Chromium in `/opt/pw-browsers/chromium`.

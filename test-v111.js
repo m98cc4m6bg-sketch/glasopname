@@ -44,9 +44,10 @@ const MUTATIES = {
   controle: ["toebehoren.js", "      var metVerlies = Math.ceil(totaal * (1 + g.CONTROLE_VERLIES_PROCENT / 100) / staaf - 1e-9);", "      var metVerlies = Math.ceil(totaal / staaf - 1e-9);"],
   sponning: ["toebehoren.js", "    if (r.maatsoort === 'Sponningmaat' && getal(r.breedte) > 0 && getal(r.hoogte) > 0) {", "    if (0) {"],
   // v114: de onderlat per ruit staat in latten.js (onderlatVoorRuit); twee kanten = zijde "beide".
-  onderlatRuit: ["latten.js", "    var keuze = eigen || (zijde(r) === 'buiten'", "    var keuze = (zijde(r) === 'buiten'"],
+  onderlatRuit: ["latten.js", "    var keuze = eigen === 'ZELFDE' ? boven.id : eigen || (zijde(r) === 'buiten'", "    var keuze = eigen === 'ZELFDE' ? boven.id : (zijde(r) === 'buiten'"],
   tweeKanten: ["toebehoren.js", "      var dubbel = zijde === 'beide' ? 2 : 1;", "      var dubbel = 1;"],
-  opDeRuit: ["toebehoren.js", "    zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');", "    r.onderlat = w; r.gewOp = new Date().toISOString(); zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');"],
+  // v115: de onderlat kies je in het venster (latten.js kiesOnder), "Alle ruiten" via toebehorenAlles.
+  opDeRuit: ["latten.js", "    zetRw(id, 'onderlat', w);\n    naWijziging(id);", "    r.onderlat = w; r.gewOp = new Date().toISOString(); zetRw(id, 'onderlat', w);\n    naWijziging(id);"],
   latRol: ["toebehoren.js", "(rol.onder + rol.binnen === rol.rond) ? 'rondom' :", "0 ? 'rondom' :"],
   komma: ["toebehoren.js", "    if (t.indexOf(',') >= 0) t = t.replace(/\\./g, '').replace(',', '.');", ""],
   geenGetal: ["toebehoren.js", "    if (tekst !== '' && (n == null || (n === 0", "    if (tekst !== '' && ((n === 0"],
@@ -58,7 +59,7 @@ const MUTATIES = {
   delerTypen: ["toebehoren.js", " || (n === 0 && DELERS.indexOf(sleutel) >= 0))) { renderToebehoren(); return; }", ")) { renderToebehoren(); return; }"],
   afwijkingBewaard: ["toebehoren.js", "    else p.afwijkingen[sleutel] = n;", "    else {}"],
   standaardKnop: ["toebehoren.js", "    delete p.afwijkingen;\n", ""],
-  alleOnderlat: ["toebehoren.js", "    (rijen || []).filter(heeftInhoud).forEach(function (r) { zetPerRuit(p, r.id, 'onderlat', w); });", ""],
+  alleOnderlat: ["toebehoren.js", "      if (ow !== '-') { var w = onderNaam(ow); zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : ''); }", ""],
   kijken: ["toebehoren.js", "  function magNiet() { return window.kijkWeigert ? kijkWeigert() : false; }", "  function magNiet() { return false; }"],
   kijkenScherm: ["toebehoren.js", "    var uit = kijken ? ' disabled' : '';", "    var uit = '';"],
   waardeTekst: ["toebehoren.js", "' ' + nlWaarde(g[s]) + ' ' + esc(UITLEG[s][1])", "' ' + nl(g[s], 1) + ' ' + esc(UITLEG[s][1])"],
@@ -771,7 +772,8 @@ async function openProject() {
 const perRuitDb = merk => ((info().toebehoren || {}).perRuit || {})[idVan(merk)] || {};
 // De rij van één ruit op Toebehoren. Niet met hasText: dat zoekt zonder
 // hoofdletters, en sinds v113 staat "18x40" in de keuzelijst (x = X).
-const tbRij = (page, merk) => page.locator('.tb-tabel tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp('^' + merk + '$') }) });
+// v115: het merk staat vet in de eerste cel (met ×2 erachter), en er zijn kopregels per foto.
+const tbRij = (page, merk) => page.locator('.tb-tabel tbody tr.tb-ruit').filter({ has: page.locator('td.tb-merk b', { hasText: new RegExp('^' + merk + '$') }) });
 const tbTekst = page => page.$eval('#toebehorenInhoud', e => e.innerText.replace(/\s+/g, ' '));
 async function naarToebehoren(page) {
   await page.click('.tab-btn:has-text("Toebehoren")');
@@ -870,7 +872,10 @@ async function naarToebehoren(page) {
       u.band.every(b => Math.abs(b.meters - 15.504) < 1e-6) && u.band.some(b => b.kleur === 'grijs' && b.dikte === 4) &&
       u.kit.length === 2 && u.kit.some(k => k.kleur === 'grijs'), JSON.stringify([u.band, u.kit]));
     // Onderlat van Y: ventilatielat.
-    await tbRij(page, 'Y').locator('select.tb-onderlat').selectOption('C1');
+    // v115: de onderlat kies je in een venster (de ventilatielatten staan ingeklapt).
+    await tbRij(page, 'Y').locator('[data-sleutel^="olat-"]').click();
+    await page.click('.lat-venster summary:has-text("Ventilatielatten")');
+    await page.click('.lat-venster [data-onder="C1"]');
     await wacht(300);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen())));
     const vent = u.latten.find(l => l.type === 'C1') || {};
@@ -887,9 +892,9 @@ async function naarToebehoren(page) {
     await tbRij(page, 'X').locator('select.tb-zijde-sel').selectOption('beide');
     await wacht(300);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen())));
-    // v113: aan de 2e kant komt onderin een gewone glaslat, geen 2e neuslat.
-    check('X latten aan twee kanten: glaslat 12,98 + 1,02 + 2 × 2,02 + 1,02 (onder, 2e kant) = 19,06 m, neuslat blijft 1,02',
-      (u.latten.find(l => l.type === 'A4') || {}).totaalMm === 19060 && (u.latten.find(l => l.type === 'NEUS') || {}).totaalMm === 1020,
+    // v115 (keuze Jan): bij beide onderin aan beide kanten dezelfde lat, geen neuslat.
+    check('X latten aan twee kanten: glaslat 12,98 + 1,02 + 2 × 2,02 + 2 × 1,02 (onder, beide kanten) = 20,08 m, geen neuslat',
+      (u.latten.find(l => l.type === 'A4') || {}).totaalMm === 20080 && !u.latten.find(l => l.type === 'NEUS'),
       JSON.stringify(u.latten.map(l => l.type + ':' + l.totaalMm)));
     // Alle ruiten in één keer terug naar de standaard.
     await page.selectOption('#tbAlleOnderlat', '');
@@ -1111,7 +1116,7 @@ async function naarToebehoren(page) {
     check('besteld en op slot', await opSlot(page));
     await naarToebehoren(page);
     // v114 (keuze Jan: "Mee op slot"): onderlat en latzijde staan na de bestelling vast, net als de maten.
-    check('op slot (v114): de keuzelijsten onderlat en latzijde staan uit', await tbRij(page, 'Y').locator('select.tb-onderlat').isDisabled() &&
+    check('op slot (v114): de keuzes onderlat en latzijde staan uit', await tbRij(page, 'Y').locator('[data-sleutel^="olat-"]').isDisabled() &&
       await tbRij(page, 'X').locator('select.tb-zijde-sel').isDisabled());
     await page.evaluate(() => { toebehorenOnderlat(rijen[1].id, 'C1'); latZijde(rijen[0].id, 'beide'); });
     await wacht(600);

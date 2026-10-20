@@ -942,35 +942,62 @@
   /* v113: op de telefoon (en een smalle iPad-splitview) wordt elke rij een
      kaartje: merk, maat en lat bovenaan, de onderlat eronder, dan "twee
      kanten" en de vier getallen met hun kopje. Geen tabel die opzij schuift. */
+  /* v115 (controle): op een iPad (smaller dan ±1180 px) paste de tabel niet
+     en viel het oordeel buiten beeld. Dan per ruit twee regels: glas en
+     diepten bovenaan, de latten en het oordeel eronder; het merk links. */
+  @media (min-width: 641px) and (max-width: 1180px) {
+    .tb-wrap { display: block; }
+    table.samenvatting.tb-tabel, table.samenvatting.tb-tabel tbody { display: block; width: 100%; }
+    table.samenvatting.tb-tabel thead { display: none; }
+    table.samenvatting.tb-tabel tr.tb-groep, table.samenvatting.tb-tabel tr.tb-groep td { display: block; }
+    table.samenvatting.tb-tabel tr.tb-ruit { display: grid; grid-template-columns: minmax(44px, 64px) repeat(6, minmax(0, 1fr)); gap: 4px 10px;
+      padding: 8px 4px; border-bottom: 1px solid var(--grijs-rand); align-items: end;
+      grid-template-areas: "merk type type opb dikte diepte onder" "merk zijde lat olat band oordeel nodig"; }
+    table.samenvatting.tb-tabel tr.tb-ruit td { display: block; padding: 0; border: 0; min-width: 0; text-align: left; white-space: normal; background: none; }
+    table.samenvatting.tb-tabel tr.tb-ruit td[data-kop]::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); margin-bottom: 1px; }
+    table.samenvatting.tb-tabel td.tb-merk { grid-area: merk; align-self: center; font-size: 15px; }
+    table.samenvatting.tb-tabel td.tb-type { grid-area: type; } table.samenvatting.tb-tabel td.tb-opb { grid-area: opb; }
+    table.samenvatting.tb-tabel td.tb-dikte { grid-area: dikte; } table.samenvatting.tb-tabel td.tb-diepte { grid-area: diepte; }
+    table.samenvatting.tb-tabel td.tb-onder { grid-area: onder; } table.samenvatting.tb-tabel td.tb-zijde { grid-area: zijde; }
+    table.samenvatting.tb-tabel td.tb-lat { grid-area: lat; } table.samenvatting.tb-tabel td.tb-olat { grid-area: olat; }
+    table.samenvatting.tb-tabel td.tb-bandkol { grid-area: band; } table.samenvatting.tb-tabel td.tb-oordeel { grid-area: oordeel; }
+    table.samenvatting.tb-tabel td.tb-nodig { grid-area: nodig; white-space: normal; }
+    table.samenvatting.tb-tabel tr.tb-ruit select, table.samenvatting.tb-tabel tr.tb-ruit input.tb-mm { width: 100%; max-width: none; min-width: 0; }
+    table.samenvatting.tb-tabel tr.tb-ruit .lat-knop { width: 100%; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+    table.samenvatting.tb-tabel tr.tb-ruit .pk-chip { white-space: normal; }
+    table.samenvatting.tb-tabel tr.tb-ruit td.tb-kort { display: none; }
+  }
+  /* Het oordeel is aan te tikken (v115: dat zag je niet). */
+  .tb-oordeel .pk-chip::after { content: " \203A"; font-weight: 700; }
   @media (max-width: 640px) {
     .tb-wrap { display: block; }
     table.samenvatting.tb-tabel, table.samenvatting.tb-tabel tbody { display: block; width: 100%; }
     table.samenvatting.tb-tabel thead { display: none; }
-    table.samenvatting.tb-tabel tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 8px; padding: 8px 2px;
-      border-bottom: 1px solid var(--grijs-rand); grid-template-areas: "merk maat maat lat" "zijde onder onder onder"
-      "latm band kit tape" "kort kort kort kort"; }
-    table.samenvatting.tb-tabel td { display: block; padding: 0; border: 0; width: auto; min-width: 0; text-align: left; white-space: normal; }
-    table.samenvatting.tb-tabel tr:nth-child(n) td { background: none; border: 0; }
-    table.samenvatting.tb-tabel td.tb-merk { grid-area: merk; font-weight: 700; }
-    table.samenvatting.tb-tabel td.tb-merk[data-aant]::after { content: " " attr(data-aant); font-weight: 400; color: var(--grijs-tekst); }
-    table.samenvatting.tb-tabel tr td.tb-aant { display: none; }
-    table.samenvatting.tb-tabel td.tb-maat { grid-area: maat; }
-    table.samenvatting.tb-tabel td.tb-lat { grid-area: lat; text-align: right; font-weight: 600; }
-    table.samenvatting.tb-tabel td.tb-breed { grid-area: onder; min-width: 0; }
-    table.samenvatting.tb-tabel td.tb-breed select { max-width: none; }
-    table.samenvatting.tb-tabel td.tb-zijde { grid-area: zijde; }
-    table.samenvatting.tb-tabel td.tb-zijde::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); }
+    /* v115: elke ruit een kaartje; dicht één regel (merk, oordeel, samenvatting). */
+    table.samenvatting.tb-tabel tr.tb-ruit { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 8px; padding: 8px 2px;
+      border-bottom: 1px solid var(--grijs-rand); grid-template-areas: "merk merk oordeel oordeel" "type type opb opb"
+      "dikte diepte onder zijde" "lat lat olat olat" "band nodig nodig nodig" "kort kort kort kort"; }
+    table.samenvatting.tb-tabel tr.tb-groep { display: block; }
+    table.samenvatting.tb-tabel tr.tb-groep td { display: block; }
+    table.samenvatting.tb-tabel tr.tb-ruit td { display: block; padding: 0; border: 0; width: auto; min-width: 0; text-align: left; white-space: normal; }
+    table.samenvatting.tb-tabel tr.tb-ruit:nth-child(n) td { background: none; border: 0; }
+    table.samenvatting.tb-tabel td[data-kop]::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); margin-bottom: 1px; }
+    table.samenvatting.tb-tabel td.tb-oordeel::before { display: none; }
+    table.samenvatting.tb-tabel td.tb-merk { grid-area: merk; font-size: 15px; align-self: center; }
+    table.samenvatting.tb-tabel td.tb-oordeel { grid-area: oordeel; text-align: right; align-self: center; }
+    table.samenvatting.tb-tabel td.tb-type { grid-area: type; } table.samenvatting.tb-tabel td.tb-opb { grid-area: opb; }
+    table.samenvatting.tb-tabel td.tb-type select, table.samenvatting.tb-tabel td.tb-opb select { max-width: none; width: 100%; }
+    table.samenvatting.tb-tabel td.tb-dikte { grid-area: dikte; } table.samenvatting.tb-tabel td.tb-diepte { grid-area: diepte; }
+    table.samenvatting.tb-tabel td.tb-onder { grid-area: onder; } table.samenvatting.tb-tabel td.tb-zijde { grid-area: zijde; }
+    table.samenvatting.tb-tabel td.tb-zijde select { width: 100%; min-width: 0; }
+    table.samenvatting.tb-tabel td.tb-lat { grid-area: lat; } table.samenvatting.tb-tabel td.tb-olat { grid-area: olat; }
+    table.samenvatting.tb-tabel td.tb-bandkol { grid-area: band; } table.samenvatting.tb-tabel td.tb-nodig { grid-area: nodig; white-space: normal; }
+    table.samenvatting.tb-tabel input.tb-mm { width: 100%; }
     table.samenvatting.tb-tabel td.tb-kort { display: block; grid-area: kort; }
-    /* v114: dicht = één regel per ruit (keuze Jan); tik voor de rest. */
-    table.samenvatting.tb-tabel tr.dicht td.tb-zijde, table.samenvatting.tb-tabel tr.dicht td.tb-breed,
-    table.samenvatting.tb-tabel tr.dicht td.tb-num { display: none; }
-    table.samenvatting.tb-tabel tr.dicht { row-gap: 2px; padding: 6px 2px; }
-    table.samenvatting.tb-tabel td.tb-num { font-variant-numeric: tabular-nums; }
-    table.samenvatting.tb-tabel td.tb-num::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); }
-    table.samenvatting.tb-tabel td.tb-num:nth-of-type(7) { grid-area: latm; }
-    table.samenvatting.tb-tabel td.tb-num:nth-of-type(8) { grid-area: band; }
-    table.samenvatting.tb-tabel td.tb-num:nth-of-type(9) { grid-area: kit; }
-    table.samenvatting.tb-tabel td.tb-num:nth-of-type(10) { grid-area: tape; }
+    table.samenvatting.tb-tabel tr.tb-ruit.dicht td:not(.tb-merk):not(.tb-oordeel):not(.tb-kort) { display: none; }
+    table.samenvatting.tb-tabel tr.tb-ruit.dicht { row-gap: 2px; padding: 6px 2px; grid-template-areas: "merk merk oordeel oordeel" "kort kort kort kort"; }
+    .tb-groep-in .fv-klein { width: 120px; }
+    .tb-alles { width: 100%; } .tb-alles select { flex: 1 1 100%; max-width: none; }
   }
 
   /* ─── v113: chips (zelfde vorm als in de offerte-app) ─── */
@@ -990,7 +1017,7 @@
      Geen inzoomen bij tikken (iOS zoomt in op velden kleiner dan 16 px) en
      tikdoelen die je met een vinger raakt (controle v113). */
   @media (pointer: coarse) {
-    .lat-venster input[type=text], .lat-venster select, .tb-tabel select, #tbAlleOnderlat,
+    .lat-venster input[type=text], .lat-venster select, .tb-tabel select, .tb-tabel input.tb-mm, .tb-alles select, #tbAlleOnderlat,
     .tb-keuzes select, .tb-getallen input { font-size: 16px; min-height: 38px; padding: 6px 8px; }
     .pk-chip { min-height: 30px; padding: 4px 10px; font-size: 12px; }
     .lat-knop { min-height: 32px; padding: 5px 10px; }
@@ -1012,6 +1039,66 @@
     border: 1px solid var(--grijs-rand); background: white; cursor: pointer; white-space: nowrap; color: var(--ink); }
   .lat-knop small { font-weight: 400; color: var(--grijs-tekst); }
   .lat-knop.eigen { border-color: var(--ink); }
+
+  /* v115: op Invoer alleen de twee diepten (Diepte en Onder). */
+  table.invoer td.kol-spon, table.invoer td.kol-sponon { min-width: 58px; }
+  table.invoer td.kol-sponon .spon-input::placeholder { color: #b0aba4; }
+
+  /* v115: Toebehoren per ruit, met de latkeuzes. */
+  .tb-uitleg { font-size: 12px; color: var(--grijs-tekst); margin: -2px 0 8px; line-height: 1.45; }
+  .tb-alles select { font-size: 12.5px; max-width: 190px; }
+  .tb-tabel select.tb-glastype { max-width: 128px; }
+  .tb-tabel select.tb-opbouw { max-width: 96px; }
+  .tb-tabel .tb-zijde-sel { max-width: 104px; }
+  .tb-tabel select.tb-band { min-width: 66px; }
+  .tb-tabel input.tb-mm { width: 52px; text-align: right; }
+  .tb-tabel input.tb-mm::placeholder { color: #b0aba4; }
+  .tb-tabel .tb-nodig { font-size: 11px; color: var(--grijs-tekst); white-space: nowrap; line-height: 1.3; }
+  .tb-tabel .tb-geen { color: var(--grijs-tekst); }
+  .tb-tabel tr.tb-zonder td { color: var(--grijs-tekst); }
+  .tb-tabel tr.tb-groep td { background: var(--grijs-licht) !important; padding: 8px 8px; border-top: 2px solid var(--grijs-rand); }
+  .tb-groep-in { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .tb-groep-tekst { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+  .tb-groep-tekst span { color: var(--grijs-tekst); }
+  .tb-groep-zijde { font-size: 12px; color: var(--grijs-tekst); display: inline-flex; align-items: center; gap: 4px; }
+  .pk-geen { background: var(--grijs-licht); color: var(--grijs-tekst); border-color: var(--grijs-rand); }
+  .pk-zicht { background: var(--ok-licht); color: var(--ok); border-color: #b9dcc6; }
+  /* v115: voorbeeld van de foto met de merkletters (alleen kijken). */
+  .fv { position: relative; display: inline-block; vertical-align: middle; line-height: 0; cursor: zoom-in;
+    border-radius: 4px; overflow: hidden; border: 1px solid var(--grijs-rand); background: #faf8f5; }
+  .fv img { display: block; width: 100%; height: auto; }
+  .fv-klein { width: 150px; }
+  .fv-laden { display: inline-block; line-height: 1.4; font-size: 11px; color: var(--grijs-tekst); padding: 18px 10px; }
+  .fv .fv-inkt { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .fv-klein .fv-inkt path { stroke-width: 1.6px; }
+  .fv-mark { position: absolute; transform: translate(-50%, -50%); background: var(--geel); color: #3a2a00; border: 1.5px solid white;
+    border-radius: 999px; font-size: 12px; font-weight: 800; line-height: 1; padding: 4px 6px; min-width: 22px; text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.45); pointer-events: none; }
+  .fv-klein .fv-mark { font-size: 9px; padding: 2px 3px; min-width: 14px; border-width: 1px; }
+  .fv-mark.licht { background: var(--accent); color: white; z-index: 2; transform: translate(-50%, -50%) scale(1.25); }
+  .fv-groot-inhoud { max-width: min(900px, 94vw); }
+  .fv-groot-inhoud .fv { width: 100%; cursor: zoom-out; }
+  /* v115: in de vensters: over welke ruit het gaat. */
+  .lat-ruitkop { display: flex; align-items: center; gap: 12px; padding: 6px 0 10px; border-bottom: 1px solid var(--grijs-rand); margin-bottom: 8px; }
+  .lat-ruitkop .fv-klein { width: 120px; flex: none; }
+  .lat-ruitkop-tekst { font-size: 14px; min-width: 0; }
+  .lat-ruitkop-tekst small { display: block; font-size: 12px; color: var(--grijs-tekst); margin-top: 2px; }
+  .lat-ruitmerk { font-size: 16px; }
+  .lat-montage { flex: none; }
+  .lat-montages { display: flex; gap: 16px; justify-content: center; margin-top: 8px; }
+  .lat-auto { font-weight: 800; color: var(--grijs-tekst); font-size: 18px; cursor: default; }
+  .lat-groep summary { cursor: pointer; list-style: revert; }
+  .lat-groep summary h4 { display: inline; }
+  .pk-plek { font-size: 13px; margin: 12px 0 2px; }
+  .pk-paar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pk-velden select.leeg { background: var(--warn-licht); border-color: #f1cf9c; }
+  .pk-velden label span .lat-montage { margin-left: 4px; }
+  @media (max-width: 480px) { .pk-paar { grid-template-columns: 1fr; } }
+  /* Aanraakschermen: 16 px, anders zoomt iOS in bij tikken (controle v115:
+     de regels hierboven kwamen na die voor aanraakschermen en wonnen). */
+  @media (pointer: coarse) {
+    .tb-perruit-kop .tb-alles select, .tb-tabel select, .tb-tabel input.tb-mm, .tb-groep-zijde select { font-size: 16px; }
+  }
 
   /* Vensters voor de glaslat en het pakket (latten.js). Eigen klasse, niet
      .melding-laag: dat is voor vragen die een antwoord nodig hebben. */
@@ -2638,8 +2725,10 @@
              regels afbreken en een kolom of dertig aan breedte. -->
         <th colspan="2">Glasmaat (mm)</th>
         <th colspan="3" class="groep-glas">Glasspecificatie</th>
-        <!-- v113: sponningdiepte en glaslat: past het pakket? (latten.js) -->
-        <th colspan="3" class="groep-spon">Sponning</th>
+        <!-- v113: sponningdiepte en glaslat: past het pakket? (latten.js).
+             v115 (Jan): op Invoer alleen de twee diepten; de latten kies je
+             op Toebehoren. -->
+        <th colspan="2" class="groep-spon">Sponning</th>
         <!-- Duco en RAL vallen weg zodra er geen enkele ruit een rooster
              heeft; roosterKolommen() zet de overspanning dan op 1. -->
         <th colspan="4" class="groep-vent">Ventilatie</th>
@@ -2662,9 +2751,8 @@
         <th class="groep-glas kol-type">Glas Type</th>
         <th class="groep-glas kol-opbouw">Opbouw</th>
         <th class="groep-glas">Dikte</th>
-        <th class="groep-spon kol-spon">Diepte <i class="info-icon" onclick="toonInfo(this)" data-info="De <b>sponningdiepte</b> in mm: loodrecht op het glas, van de aanslag tot de buitenkant van het kozijn.<br><br>Daarin moet passen: band + glas + band + glaslat. Het label naast het vak zegt of het past (±1 mm = krap of ruim). Tik op het label voor de tekening, de onderdorpel, het band binnen, uitfrezen en advies.<br><br>Na de bestelling op slot, net als de maten (ontgrendelen met je wachtwoord).">i</i></th>
-        <th class="groep-spon kol-lat">Glaslat</th>
-        <th class="groep-spon kol-zijde">Latzijde <i class="info-icon" onclick="toonInfo(this)" data-info="Aan welke kant de glaslatten zitten, per ruit (geen standaard: het wisselt, ook binnen één kozijn).<br><br><b>buiten</b>: onderin de passende neuslat.<br><b>binnen</b>: onderin dezelfde lat als boven.<br><b>beide</b>: glas tussen twee latten, zonder aanslag (de lat telt twee keer in de sponning).<br><br>? = nog niet gekozen.">i</i></th>
+        <th class="groep-spon kol-spon">Diepte <i class="info-icon" onclick="toonInfo(this)" data-info="De <b>sponningdiepte</b> van de stijlen en de bovendorpel, in mm: loodrecht op het glas, van de aanslag tot de buitenkant van het kozijn.<br><br>Meet de <b>bruikbare</b> diepte: zit er een scharniersponning (het hol voor de knoop van het scharnier), dan is er daar minder ruimte.<br><br>Daarin moet passen: band + glas + band + glaslat. Welke lat, aan welke kant en of het past, kies en zie je op het tabblad <b>Toebehoren</b>.<br><br>Na de bestelling op slot, net als de maten.">i</i></th>
+        <th class="groep-spon kol-sponon">Onder <i class="info-icon" onclick="toonInfo(this)" data-info="De diepte van de sponning <b>onderin</b> (de onderdorpel), in mm. Die is vaak dieper dan aan de zijkanten en boven: de onderdorpel heeft geen scharniersponning, wel een schuin afwateringsvlak.<br><br><b>Leeg</b> = gelijk aan Diepte (het grijze getal).<br><br>Onderin komt bij buitenbeglazing een neuslat; welke, zie je op Toebehoren.">i</i></th>
         <th>Rooster</th>
         <th class="kol-duco">Duco Type</th>
         <!-- v114: de tekst na "RAL" wordt "buiten" zodra er ergens bi-color is
@@ -3277,7 +3365,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v114';
+const APP_VERSIE = 'v115';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -4053,6 +4141,7 @@ const SLOT_FUNCTIES = [
   // bestelling; sinds v114 gaan ze mee op slot (keuze Jan). latten.js vraagt
   // het slot ook zelf na (magKiezen); dubbel is hier goedkoop.
   'latKies', 'latDiepte', 'latBand', 'latUitfrezen', 'latZijde', 'latOnderDiepte', 'latAdvies',
+  'latOnderKies', 'latMontage',                   // v115: onderlat en montage (omgekeerd)
   'zetBiColor', 'zetRalBinnen',                   // v114: bi-color rooster
   'fotoVerwijder', 'fotoDraaien', 'fotoAanGroep', 'fotoTitelWijzig',
   'tekenModus', 'tekenKies', 'tekenTerug', 'tekenWis', 'selectieWeg', 'selectieTekst'
@@ -4222,7 +4311,7 @@ function rijHTML(rij, nr) {
     <td class="kol-type"><select onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
     <td class="kol-opbouw"><select id="opb-${id}" onchange="wijzigOpbouw(${id},this.value)">${opbouwOpts}</select></td>
     <td class="berekend ${rij.totaalDikte == null ? 'ongeldig' : ''}" id="dk-${id}" title="${esc(dikteTitel)}">${dikteKg}</td>
-    ${window.pakketCelHTML ? pakketCelHTML(rij) : '<td></td>'}${window.latCelHTML ? latCelHTML(rij) : '<td></td>'}${window.zijdeCelHTML ? zijdeCelHTML(rij) : '<td></td>'}
+    ${window.sponCellenHTML ? sponCellenHTML(rij) : '<td></td><td></td>'}
     <td><select onchange="setVal(${id},'rooster',this.value); toggleDuco(${id},this.value); opslaan()">
       <option value="Nee" ${rij.rooster==='Nee'?'selected':''}>Nee</option>
       <option value="Ja" ${rij.rooster==='Ja'?'selected':''}>Ja</option>
@@ -4416,7 +4505,8 @@ window.bedieningTekst = bedieningTekst;
 function bedieningCel(rij) {
   const id = rij.id;
   const waarde = rij.bediening ? (parseInt(rij.bedieningAantal, 10) === 2 ? 2 : 1) + '|' + rij.bediening : '';
-  const keuzes = [['', '—'], ['1|stang', '1× stang'], ['2|stang', '2× stang'], ['1|koord', '1× koord'], ['2|koord', '2× koord']];
+  // v115 (Jan): leeg heet "standaard" (het gewone knopje), niet "—".
+  const keuzes = [['', 'standaard'], ['1|stang', '1× stang'], ['2|stang', '2× stang'], ['1|koord', '1× koord'], ['2|koord', '2× koord']];
   const lengte = parseInt(rij.bedieningLengte, 10) > 0 ? parseInt(rij.bedieningLengte, 10) : '';
   return `<div class="bed-wrap"><select class="bed-soort" onchange="setBediening(${id}, this.value)">` +
     keuzes.map(k => `<option value="${k[0]}" ${k[0] === waarde ? 'selected' : ''}>${k[1]}</option>`).join('') +
@@ -6151,7 +6241,9 @@ function exportTabel() {
     // v113: sponning en glaslat, ook achteraan; v114 de zijde en de onderdorpel.
     'Sponningdiepte (mm)','Glaslat','Pakket','Latzijde','Diepte onderdorpel (mm)',
     // v114: bi-color rooster; RAL Kleur hierboven is dan de kleur buiten.
-    'Bi-color','RAL binnen'];
+    'Bi-color','RAL binnen',
+    // v115: de onderlat (automatisch, zelfde, neuslat …).
+    'Onderlat'];
   const getal = v => {
     if (v === null || v === undefined || v === '') return '';
     const n = Number(String(v).replace(',', '.'));
@@ -6174,9 +6266,10 @@ function exportTabel() {
       r.glasbewerking || '', r.opmerking || '', r.roedenverdeling || '', r.roedenbreedte || '', r.roedenopmerking || '',
       isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',
       bedieningTekst(r),
-      G ? getal(G.ruit(r).sponningDiepte) : '', lat ? lat.naam : '', pk,
+      G ? getal(G.ruit(r).sponningDiepte) : '', lat && G.zijde(r) !== 'geen' ? lat.naam + (G.omgekeerd(r) ? ' (omgekeerd)' : '') : '', pk,
       G ? G.zijde(r) : '', G ? getal(G.ruit(r).diepteOnder) : '',
-      r.rooster === 'Ja' && r.biColor === 'Ja' ? 'Ja' : 'Nee', r.rooster === 'Ja' && r.biColor === 'Ja' ? (r.ralBinnen || '') : ''
+      r.rooster === 'Ja' && r.biColor === 'Ja' ? 'Ja' : 'Nee', r.rooster === 'Ja' && r.biColor === 'Ja' ? (r.ralBinnen || '') : '',
+      G && G.zijde(r) !== 'geen' && (G.ruit(r).sponningDiepte > 0 || G.zijde(r)) ? G.keuzeNaam(r) : ''
     ];
   });
   return { koppen, regels };

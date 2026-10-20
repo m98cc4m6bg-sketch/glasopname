@@ -124,6 +124,34 @@
 
   function zelfdeRegels(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
+  // v115: Diepte en Onder staan op Invoer, maar worden bij het project
+  // bewaard (info.toebehoren.perRuit), niet op de ruit. Zonder dit zag ↶ van
+  // een tabel een gewijzigde diepte niet en draaide hij een oudere wijziging
+  // terug (controle v115; voor Diepte al sinds v113).
+  var DIEPTE_VELDEN = ['sponningDiepte', 'diepteOnder'];
+  function dieptenVan(ids, info) {
+    var pr = (info && info.toebehoren && info.toebehoren.perRuit) || {};
+    var uit = {};
+    ids.forEach(function (id) {
+      var e = pr[id] || {};
+      uit[id] = DIEPTE_VELDEN.map(function (v) { return e[v] == null ? '' : e[v]; });
+    });
+    return uit;
+  }
+  function idsVan() {
+    var ids = [];
+    Array.prototype.forEach.call(arguments, function (lijst) {
+      (lijst || []).forEach(function (r) { if (ids.indexOf(r.id) < 0) ids.push(r.id); });
+    });
+    return ids;
+  }
+  function zetDieptenTerug(d) {
+    if (!d || !window.toebehorenZetRuit) return;
+    Object.keys(d).forEach(function (id) {
+      DIEPTE_VELDEN.forEach(function (v, i) { toebehorenZetRuit(+id, v, d[id][i]); });
+    });
+  }
+
   function zetRegelsTerug(fotoId, nieuweRegels, markeringen) {
     var anders = rijen.filter(function (r) { return (r.fotoId || null) !== (fotoId || null); });
     var eerste = rijen.findIndex(function (r) { return (r.fotoId || null) === (fotoId || null); });
@@ -180,12 +208,16 @@
       // draaide ↶ een oudere wijziging terug in plaats van deze.
       var zelfdeBollen = JSON.stringify((toenFoto && toenFoto.markeringen) || []) ===
                          JSON.stringify((nuFoto && nuFoto.markeringen) || []);
-      if (zelfdeRegels(toenBlok, nu) && zelfdeBollen) continue;
+      var ids = idsVan(nu, toenBlok);
+      var toenDiepte = dieptenVan(ids, toenStaat.info), nuDiepte = dieptenVan(ids, projectInfo);
+      if (zelfdeRegels(toenBlok, nu) && zelfdeBollen && JSON.stringify(toenDiepte) === JSON.stringify(nuDiepte)) continue;
 
       (vooruitPerBlok[id] = vooruitPerBlok[id] || []).push({
         regels: JSON.parse(JSON.stringify(nu)),
-        markeringen: nuFoto ? JSON.parse(JSON.stringify(nuFoto.markeringen || [])) : null
+        markeringen: nuFoto ? JSON.parse(JSON.stringify(nuFoto.markeringen || [])) : null,
+        diepten: nuDiepte
       });
+      zetDieptenTerug(toenDiepte);
       zetRegelsTerug(fotoId, toenBlok, toenFoto ? toenFoto.markeringen : null);
       melding('Laatste wijziging in deze tabel teruggedraaid');
       return;
@@ -200,6 +232,7 @@
     var nu = rijenInBlok(fotoId);
     var terug = lijst.pop();
     if (window.bewaarStap) bewaarStap('Opnieuw gedaan');
+    zetDieptenTerug(terug.diepten);
     zetRegelsTerug(fotoId, terug.regels || terug, terug.markeringen);
     melding('Opnieuw gedaan');
   };

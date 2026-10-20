@@ -1774,4 +1774,25 @@
     var namen = { pen: 'Streek', lijn: 'Lijn', pijl: 'Pijl', rect: 'Rechthoek', tekst: 'Tekst' };
     return (namen[s.t] || 'Onderdeel') + (s.t === 'tekst' && s.tx ? ' “' + s.tx + '”' : '');
   }
+
+  /* ─── v115: de tekening als plaatje (alleen kijken) ───────────── */
+  // Voor het voorbeeld op Toebehoren en in de vensters van de latten: zo
+  // zie je daar dezelfde foto met dezelfde tekening als op Invoer. Geen
+  // aanwijzen, geen tekenen: alleen de streken en teksten, als svg-tekst.
+  window.inktSVGHTML = function (foto) {
+    if (!foto || !Array.isArray(foto.inkt) || !foto.inkt.length || !document.createElementNS) return '';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'fv-inkt');
+    svg.setAttribute('viewBox', '0 0 1000 ' + vbHoogte(foto));
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    foto.inkt.forEach(function (st, i) {
+      try {
+        if (st.t === 'tekst') { svg.appendChild(maakTekst(st, i)); return; }
+        svg.appendChild(maakPad(st, i));
+        if (st.t === 'pijl' && st.p && st.p.length > 1) svg.appendChild(pijlpunt(st, i));
+      } catch (e) { /* één kapotte streek mag het plaatje niet tegenhouden */ }
+    });
+    return svg.outerHTML || new XMLSerializer().serializeToString(svg);
+  };
 })();

@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v114';
+  var PDF_VERSIE = 'v115';
   // v114 (keuze van Jan): vaste zin bovenaan elke aanvulling (pdf en mail).
   var BEVESTIG_AANVULLING = 'Graag bevestigen dat u deze aanvulling verwerkt, met name VERVANGT en ANNULEREN.';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
@@ -60,13 +60,21 @@
       // v113: sponningdiepte en de glaslat met het oordeel (past/krap/ruim/
       // past niet). Deze tabel staat alleen in de pdf met foto's (eigen
       // archief), niet op de bestellijst: de glasleverancier heeft er niets aan.
-      { kop: 'Spon.',     w: 11, haal: function (r) { return window.GlasLatten ? GlasLatten.ruit(r).sponningDiepte : ''; } },
+      // v115: zij/boven en onder ("40/48") als onder anders is.
+      { kop: 'Spon.',     w: 13, haal: function (r) {
+          if (!window.GlasLatten) return '';
+          var e = GlasLatten.ruit(r);
+          var d = e.sponningDiepte, o = e.diepteOnder;
+          return d ? String(d).replace('.', ',') + (o && +o !== +d ? '/' + String(o).replace('.', ',') : '') : (o ? '-/' + String(o).replace('.', ',') : '');
+        } },
       { kop: 'Lat/pakket', w: 26, haal: function (r) {
           var G = window.GlasLatten;
-          if (!G || (!(G.ruit(r).sponningDiepte > 0) && !G.ruit(r).glaslat)) return '';
+          if (!G || (!(G.ruit(r).sponningDiepte > 0) && !G.ruit(r).glaslat && !G.zijde(r))) return '';
+          // v115: latten meegeleverd (nieuwe kozijnen).
+          if (G.zijde(r) === 'geen') return 'meegeleverd';
           // v114: met de zijde en het oordeel over de hele ruit (ook onderin).
           var l = G.latVoorRuit(r), oo = G.oordeelRuit(r), o = oo.slechtste.status === 'onbekend' ? '' : G.kortRuit(oo);
-          return (l ? l.id : '') + (G.zijde(r) ? ' ' + G.zijde(r) : '') + (o ? ': ' + o : '');
+          return (l ? G.latLabel(l, G.omgekeerd(r)) : '') + (G.zijde(r) ? ' ' + G.zijde(r) : '') + (o ? ': ' + o : '');
         } },
       { kop: 'Rooster',   w: 13, haal: function (r) { return r.rooster === 'Ja' ? 'Ja' : ''; } },
       { kop: 'Duco',      w: 24, haal: function (r) { return r.ducoType; } },
@@ -116,13 +124,17 @@
         });
   }
 
+  // v115: wat telt als "geen waarde" voor een kolom: leeg, of alleen een
+  // streepje (bijv. Corr bij een directe glasmaat).
+  function leegWaarde(v) {
+    if (v === null || v === undefined) return true;
+    var t = String(v).trim();
+    return t === '' || t === '-' || t === '\u2014' || t === '\u2013';
+  }
   function gebruikteKolommen(lijst) {
     return kolommen().filter(function (k) {
       if (k.altijd) return true;
-      return lijst.some(function (r) {
-        var v = k.haal(r);
-        return v !== null && v !== undefined && String(v).trim() !== '';
-      });
+      return lijst.some(function (r) { return !leegWaarde(k.haal(r)); });
     });
   }
 
@@ -612,17 +624,25 @@
     doc.autoTable({
       startY: y,
       margin: { left: MARGE, right: MARGE, top: MARGE + 8, bottom: MARGE + 8 },
-      head: [['Merk', 'Aantal', 'Sponningmaat', 'Lat', 'Latzijde', 'Onderlat', 'Latten (m)', 'Band (m)', 'Kit (ml)', 'Tape (m)']],
+      head: [['Merk', 'Aantal', 'Sponningmaat', 'Diepte', 'Lat', 'Latzijde', 'Onderlat', 'Oordeel', 'Latten (m)', 'Band (m)', 'Kit (ml)', 'Tape (m)']],
       body: u.perRuit.map(function (p) {
         // v114: de latzijde per ruit (? = nog niet gekozen) in plaats van "twee kanten".
-        return [p.rij.merk || '-', p.n, nl(p.sponning.b) + ' x ' + nl(p.sponning.h), p.lat || '', p.zijde || '?',
-          p.onderlat === 'NEUS' ? 'neuslat (maat?)' : p.onderlat,
-          nl(p.latM, 1), nl(p.bandM, 1), nl(p.kitMl), p.roeden === 'zelf' ? 'zelf' : p.tapeM ? nl(p.tapeM, 1) : ''].map(schoon);
+        // v115: diepte (zij/onder), montage, "geen (meegeleverd)", het oordeel.
+        var G = window.GlasLatten;
+        var e = G ? G.ruit(p.rij) : {};
+        var diepte = e.sponningDiepte ? String(e.sponningDiepte).replace('.', ',') + (e.diepteOnder && +e.diepteOnder !== +e.sponningDiepte
+          ? '/' + String(e.diepteOnder).replace('.', ',') : '') : '';
+        var oordeel = G && p.oordeel && p.oordeel.slechtste.status !== 'onbekend' ? G.kortRuit(p.oordeel) : '';
+        return [p.rij.merk || '-', p.n, nl(p.sponning.b) + ' x ' + nl(p.sponning.h), diepte,
+          p.geen ? '-' : (p.lat || '') + (p.omgekeerd ? ' omgekeerd' : ''),
+          p.zijde ? (G ? G.ZIJDE_NAAM[p.zijde] : p.zijde) : '?',
+          p.geen ? '-' : G ? G.keuzeNaam(p.rij) : (p.onderlat === 'NEUS' ? 'neuslat (maat?)' : p.onderlat), oordeel,
+          p.geen ? '-' : nl(p.latM, 1), nl(p.bandM, 1), nl(p.kitMl), p.roeden === 'zelf' ? 'zelf' : p.tapeM ? nl(p.tapeM, 1) : ''].map(schoon);
       }),
       styles: { fontSize: 7.5, cellPadding: 1.2, lineColor: [205, 210, 218], lineWidth: 0.15 },
       headStyles: { fillColor: [60, 70, 84], textColor: 255, fontStyle: 'bold' },
-      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
-                      8: { halign: 'right' }, 9: { halign: 'right' } },
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' },
+                      10: { halign: 'right' }, 11: { halign: 'right' } },
       didDrawPage: function (data) { if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)'); }
     });
     y = doc.lastAutoTable.finalY + 6;
@@ -978,7 +998,9 @@
     return [
       { kop: 'Pos',        w: 8,  haal: function (r, i) { return i + 1; }, altijd: true },
       { kop: 'Aantal',     w: 12, haal: function (r) { return aantalOpLijst(r, modus); }, altijd: true },
-      { kop: 'Merk',       w: 14, haal: function (r) { return r.merk; }, altijd: true },
+      // v115 (Jan): een kolom zonder waarde komt niet op de bestellijst (verwarrend).
+      // Alleen positie, aantal en glasmaat staan er altijd.
+      { kop: 'Merk',       w: 14, haal: function (r) { return r.merk; } },
       // Op een aanvulling: NIEUW of VERVANGT ... (v105). Op het overzicht:
       // in welke bestellijst de ruit besteld is. Leeg = niet getoond.
       modus === 'overzicht'
@@ -989,8 +1011,8 @@
           // Bij een rooster gaat de speling er bij de leverancier nog af.
           return r.glasHoogte + (r.rooster === 'Ja' ? ' ^' : '');
         }, altijd: true },
-      { kop: 'Glas type',  w: 28, haal: function (r) { return r.glasType; }, altijd: true },
-      { kop: 'Opbouw',     w: 24, haal: function (r) { return r.opbouw; }, altijd: true },
+      { kop: 'Glas type',  w: 28, haal: function (r) { return r.glasType; } },
+      { kop: 'Opbouw',     w: 24, haal: function (r) { return r.opbouw; } },
       { kop: 'Rooster',    w: 14, haal: function (r) { return r.rooster === 'Ja' ? 'Ja ^' : ''; } },
       { kop: 'Duco type',  w: 26, haal: function (r) { return r.ducoType; } },
       // v114 (keuze Jan): bi-color duidelijk op de bestellijst, buiten en binnen apart.
@@ -1227,9 +1249,9 @@
     return appKeuze((scheef.length ? 'Bij ' + (scheef.length === 1 ? 'deze ruit' : 'deze ruiten') + ' past het glas met band en ' +
       'glaslat niet goed in de opgegeven sponning: ' + namen + '.\n' +
       (niet ? 'Bij "past niet" is het pakket dikker dan de sponning: andere lat, dunner band, dunner glas of de sponning uitfrezen. ' : '') +
-      'Tik in de tabel op het oordeel in de kolom Diepte voor de uitleg en wat wel past.' : '') +
+      'Op het tabblad Toebehoren: tik op het oordeel voor de uitleg en wat wel past.' : '') +
       (zonder.length ? (scheef.length ? '\n\n' : '') + 'Bij ' + (zonder.length === 1 ? 'deze ruit' : 'deze ruiten') +
-        ' is nog niet gekozen of de latten binnen of buiten zitten: ' + zNamen + ' (Invoer, kolom Latzijde).' : ''),
+        ' is nog niet gekozen of de latten binnen of buiten zitten: ' + zNamen + ' (Toebehoren, kolom Latzijde; "geen" als ze worden meegeleverd).' : ''),
       [{ tekst: 'Stoppen', waarde: null },
        { tekst: 'Toch doorgaan', waarde: 'door' }],
       // v114 (controle): alleen de zijde ontbreekt → niet "past het?" vragen.
@@ -1716,10 +1738,7 @@
 
       var kols = bestelKolommen(modus).filter(function (k) {
         if (k.altijd) return true;
-        return lijst.some(function (r) {
-          var v = k.haal(r, 0);
-          return v !== null && v !== undefined && String(v).trim() !== '';
-        });
+        return lijst.some(function (r) { return !leegWaarde(k.haal(r, 0)); });
       });
       var wijzKolom = -1;
       kols.forEach(function (k, i) { if (k.kop === 'Wijz.') wijzKolom = i; });

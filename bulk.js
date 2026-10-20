@@ -174,6 +174,43 @@
         zet: function (r, v) { r.roedenbreedte = v; },
         leeg: function (r) { return !r.roedenbreedte; } },
 
+      // v113: sponningdiepte en glaslat (latten.js). Het oordeel (past/krap)
+      // rekent de app daarna per ruit zelf uit.
+      // Tekstvak, geen getalvak: "44,5" gaf in een getalvak in Safari een lege
+      // waarde, en leeg = wissen (controle v113). Een ongeldige waarde wordt
+      // geweigerd vóór er iets verandert (controle()).
+      // De waarden staan bij Toebehoren per ruit (latten.js rw()).
+      { kop: 'Diepte', groep: 'kol-spon', titel: 'Sponningdiepte (mm)', leegMag: true, vrijBijSlot: true, html: function () {
+          return '<input type="text" id="bulkVeld" inputmode="decimal" placeholder="mm (leeg = wissen)">'; },
+        controle: function (v) {
+          return window.GlasLatten && GlasLatten.diepteVan(v) === undefined
+            ? '"' + v + '" is geen sponningdiepte. Vul de diepte in mm in (bijv. 45), of laat het vak leeg om te wissen.' : '';
+        },
+        zet: function (r, v) {
+          var n = window.GlasLatten ? GlasLatten.diepteVan(v) : undefined;
+          if (n !== undefined && window.toebehorenZetRuit) toebehorenZetRuit(r.id, 'sponningDiepte', n == null ? '' : n);
+        },
+        leeg: function (r) { return !(window.GlasLatten && GlasLatten.ruit(r).sponningDiepte > 0); } },
+
+      { kop: 'Glaslat', groep: 'kol-lat', titel: 'Glaslat', leegMag: true, vrijBijSlot: true, html: function () {
+          var G = window.GlasLatten;
+          if (!G) return '<select id="bulkVeld"></select>';
+          var groepen = {};
+          G.LATTEN.forEach(function (l) {
+            if (l.soort === 'neuslat' || l.soort === 'ventilatie') return;
+            (groepen[l.soort] = groepen[l.soort] || []).push(l);
+          });
+          return '<select id="bulkVeld"><option value="">Projectstandaard</option>' +
+            Object.keys(groepen).map(function (s) {
+              return '<optgroup label="' + esc2(G.SOORT_NAAM[s] || s) + '">' + groepen[s].map(function (l) {
+                return '<option value="' + esc2(l.id) + '">' + esc2(l.naam) + '</option>';
+              }).join('') + '</optgroup>';
+            }).join('') + '</select>'; },
+        zet: function (r, v) {
+          if (window.toebehorenZetRuit) toebehorenZetRuit(r.id, 'glaslat', v && window.GlasLatten && GlasLatten.latVan(v) ? v : '');
+        },
+        leeg: function (r) { return !(window.GlasLatten && GlasLatten.ruit(r).glaslat); } },
+
       { kop: 'Opm.', groep: 'groep-glas', titel: 'Opmerking', leegMag: true, html: function () {
           return '<input type="text" id="bulkVeld" placeholder="opmerking…">'; },
         zet: function (r, v) { r.opmerking = v; },
@@ -259,6 +296,9 @@
   }
 
   window.bulkAnnuleer = sluitPopover;
+  // v113: Diepte en Glaslat mogen ook na een bestelling doorgevoerd worden
+  // (ze gaan niet naar de leverancier); de slotbewaking in index.html vraagt dit na.
+  window.bulkVrijBijSlot = function () { return !!(popover && popover._veld && popover._veld.vrijBijSlot); };
 
   window.bulkTypeGewijzigd = function () {
     var type = document.getElementById('bulkType').value;
@@ -293,6 +333,9 @@
       var waarde = el.value;
       // Niets gekozen? Dan ook niets doorvoeren.
       if (waarde === '' && !veld.leegMag) { sluitPopover(); return; }
+      // Een waarde die niet kan (v113): melden, niets veranderen, venster open laten.
+      var fout = veld.controle ? veld.controle(waarde) : '';
+      if (fout) { if (window.appFout) appFout(fout, { kop: veld.titel }); return; }
       doel.forEach(function (r) {
         if (bereik === 'leeg' && !veld.leeg(r)) { overgeslagen++; return; }
         if (veld.mag && !veld.mag(r)) { vast++; return; }

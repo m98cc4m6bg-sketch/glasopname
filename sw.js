@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v112';
+const VERSIE = 'v113';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -19,6 +19,7 @@ const SHELL = [
   './blokbalk.js',
   './fotos.js',
   './kopie.js',
+  './latten.js',        // v113: glaslatten en het pakket in de sponning
   './toebehoren.js',    // v111: tabblad Toebehoren
   './teken.js',
   './project.js',
@@ -132,6 +133,41 @@ const ROOSTER_FOTOS = [
   './roosters/ducoglasmax.jpg',
 ];
 
+// De foto's van de glaslatten (v113). Jan haalt ze op met
+// latfotos-ophalen.sh (jongeneel.nl); ontbreekt er een, dan tekent de app het
+// profiel. Daarom net als de catalogus: los ingeladen, mag ontbreken.
+const LAT_FOTOS = [
+  './latten/A4.jpg',
+  './latten/A5.jpg',
+  './latten/A10.jpg',
+  './latten/A12.jpg',
+  './latten/A16.jpg',
+  './latten/B1.jpg',
+  './latten/B2.jpg',
+  './latten/B5.jpg',
+  './latten/GL13.jpg',
+  './latten/B14.jpg',
+  './latten/B17.jpg',
+  './latten/C1.jpg',
+  './latten/C2.jpg',
+  './latten/C3.jpg',
+  './latten/E6.jpg',
+  './latten/E7.jpg',
+  './latten/E8.jpg',
+  './latten/E22.jpg',
+  './latten/GLD1.jpg',
+  './latten/GLD2.jpg',
+  './latten/N25.jpg',
+  './latten/N30.jpg',
+  './latten/N35.jpg',
+  './latten/N40.jpg',
+  './latten/N45.jpg',
+  './latten/N50.jpg',
+  './latten/N55.jpg',
+  './latten/G915.jpg',
+  './latten/G916.jpg',
+];
+
 function inCache(c, lijst) {
   // cache:'reload' omzeilt de browsercache, anders belandt een
   // net vervangen bestand alsnog als oude versie in de cache
@@ -173,7 +209,8 @@ self.addEventListener('install', e => {
         // De foto's van de catalogus mogen ontbreken: die staan niet altijd
         // in de repo (Jan haalt ze zelf op) en de app werkt zonder.
         .then(() => inCache(c, CATALOGUS_FOTOS))
-        .then(() => inCache(c, ROOSTER_FOTOS)))
+        .then(() => inCache(c, ROOSTER_FOTOS))
+        .then(() => inCache(c, LAT_FOTOS)))
       // Pas als alles binnen is: anders zou een halve versie overnemen.
       .then(() => draaitOudeVersie())
       .then(oud => { if (oud) return self.skipWaiting(); })
@@ -222,8 +259,10 @@ self.addEventListener('fetch', e => {
   // Scheelt op locatie een hoop wachten en verkeer.
   // Zelfde voor de bibliotheken in lib/: het versienummer staat in de
   // mapnaam, dus binnen een map verandert er nooit iets (v91).
+  // v113: de foto's van de glaslatten (latten/) net zo; zonder deze regel
+  // vroeg de kiezer elke keer alle foto's opnieuw aan het net (controle v113).
   if (url.pathname.indexOf('/catalogus/') >= 0 || url.pathname.indexOf('/roosters/') >= 0 ||
-      url.pathname.indexOf('/lib/') >= 0) {
+      url.pathname.indexOf('/latten/') >= 0 || url.pathname.indexOf('/lib/') >= 0) {
     e.respondWith(
       caches.open(CACHE).then(c => c.match(e.request).then(hit => hit || fetch(e.request)
         .then(res => { if (res && res.ok) c.put(e.request, res.clone()); return res; })

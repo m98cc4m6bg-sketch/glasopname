@@ -220,7 +220,10 @@
     });
   };
 
+  // v113: ook een venster van latten.js (pakket, glaslat, grote foto) telt:
+  // anders draaide Cmd+Z de gegevens terug onder een open venster dat nog
+  // het oude beeld liet zien (controle v113).
   window.appMeldingBezig = function () {
-    return !!document.querySelector('.melding-laag');
+    return !!document.querySelector('.melding-laag, .lat-laag, .lat-groot');
   };
 })();

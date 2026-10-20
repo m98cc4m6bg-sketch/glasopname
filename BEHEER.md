@@ -2,7 +2,7 @@
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
 Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 19 oktober 2026,
-bij v112.*
+bij v113.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -213,7 +213,7 @@ uitleg bij elke waarde) en zijn zonder SQL aan te passen:
 De uitkomst is een **schatting voor onszelf**; Toebehoren gaat nooit naar de
 leverancier (niet op de bestellijst, niet in de bestelmail).
 
-## 6. Foto's van de glascatalogus en de roosters
+## 6. Foto's van de glascatalogus, de roosters en de glaslatten
 
 Die staan in `catalogus/` en `roosters/` en komen uit de online showroom van
 Van Noordenne. Ophalen op de Mac, vanuit de repomap:
@@ -225,6 +225,31 @@ bash fotos-ophalen.sh roosterfotos.txt roosters
 
 Het script slaat over wat er al staat. Wil je één foto vervangen, gooi dat
 bestand eerst weg.
+
+**De glaslatten** (v113) komen van de productpagina's van Jongeneel
+(`latfotos.txt`). Ophalen op de Mac, vanuit de repomap:
+
+```
+bash latfotos-ophalen.sh
+```
+
+Het script doet drie dingen:
+- het zet de foto's verkleind in `latten/`;
+- het schrijft de titel van elke pagina in `/tmp/latten-specs.txt`;
+- het noemt aan het eind wat niet lukte.
+
+Daarna:
+1. **Leg de titels naast de maten** in `latten.js` (bijvoorbeeld
+   "…17x15x4000mm"). Klopt er een niet, pas `latten.js` aan of vraag het
+   Claude.
+2. **Niet gelukt?** Open die pagina in Safari en sla de foto op als
+   `latten/<id>.jpg` (bijvoorbeeld `latten/A4.jpg`).
+3. **Commit `latten/` mee** in GitHub Desktop. De versienummers hoeven
+   daarvoor niet omhoog: de app vraagt een ontbrekende foto vanzelf
+   opnieuw. Alleen offline zie je een nieuwe foto pas na de volgende
+   versie.
+
+Zonder foto tekent de app de doorsnede van de lat. Dat werkt ook.
 
 ## 7. Supabase wakker houden
 
@@ -326,6 +351,21 @@ Daarna:
 - *"Ik kan op Toebehoren niets kiezen."* Dan kijk je mee (een collega
   bewerkt het project). Na een bestelling kan het wel gewoon: het gaat niet
   naar de leverancier.
+- *"Waar vul ik de sponningdiepte in?"* (v113) Op Invoer, groep Sponning,
+  kolom **Diepte**: de maat loodrecht op het glas, van de aanslag tot de
+  buitenkant van het kozijn. Het label ernaast zegt of glas + band + lat
+  erin past. Tik erop voor de tekening, het band binnen, uitfrezen en wat
+  wel past. De lat kies je in de kolom **Glaslat**; tik op de foto of
+  tekening om hem groot te zien. Dit mag ook na een bestelling.
+- *"Er staat 'krap −1'. Is dat erg?"* Nee: tot 1 mm te krap vangt het band
+  op. Bij "past niet" of "te ruim" vraagt de app bij de bestellijst of je
+  door wilt.
+- *"Er staat 'maat nog niet nagemeten'."* Van die lat weten we de maat niet
+  zeker (zie `GLASLATTEN.md` §11). Meet een lat na en laat de maat in
+  `latten.js` aanpassen.
+- *"Waarom staat er een neuslat maat N30?"* De app kiest de kleinste
+  neuslat die past bij de sponningdiepte (`GLASLATTEN.md` §6). Zonder
+  diepte staat er "maat nog onbekend".
 - *"De favicon in Safari is nog het oude icoon."* Sinds v111 heeft het
   icoon een nieuwe bestandsnaam. Eén keer herladen (↻ Bijwerken) is genoeg;
   helpt dat niet, Safari afsluiten en opnieuw openen.

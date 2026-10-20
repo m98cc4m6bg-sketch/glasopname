@@ -50,16 +50,24 @@
     TAPE_STROKEN_PER_KANT: 1        // stroken tape per roede, per kant van het glas
   };
   // Wat er per project ook te kiezen is (keuzelijsten).
-  var LATTYPES = ['Glaslat', 'Neuslat', 'Ventilatielat'];
+  // v113: de latten zijn de typen van Jongeneel (latten.js). 'NEUS' = de
+  // kleinste neuslat die past (de app rekent hem uit met de sponningdiepte).
   var KLEUREN = ['wit', 'grijs'];
-  var BAND_DIKTES = [2, 3, 4];
+  var BAND_DIKTES = [2, 3, 4];          // binnen
+  var BAND_DIKTES_BUITEN = [3, 4];      // buiten nooit 2 mm (Jan, v113: "werking")
   var STANDAARD_PROJECT = {
     latPositie: 'binnen',            // waar de glaslatten zitten (ter info)
-    standaardLat: 'Glaslat',         // boven, links en rechts
-    standaardOnderlat: 'Neuslat',    // onder, tenzij per ruit anders
+    standaardLat: 'A4',              // boven, links en rechts (per ruit anders te kiezen op Invoer)
+    standaardOnderlat: 'NEUS',       // onder, tenzij per ruit anders
     binnen: { kleur: 'wit', dikte: 3 },
     buiten: { kleur: 'wit', dikte: 3 }
   };
+  function GL() { return window.GlasLatten || null; }
+  function latNaam(id) {
+    if (id === 'NEUS') return 'Neuslat, maat nog onbekend';
+    var l = GL() && GL().latVan(id);
+    return l ? l.naam : String(id || '');
+  }
   // Uitleg per instelling, voor het scherm en de pdf.
   var UITLEG = {
     STAAF_MM: ['Lengte glaslat', 'mm'],
@@ -109,6 +117,12 @@
   // werkte na een bestelling de vraag "Oudere stand?" niet meer en noemde
   // het logboek de ruit "gewijzigd". Toebehoren gaat niet naar de
   // leverancier en hoort de ruit dus niet te raken.
+  // Een onderlat uit v111/v112: 'Glaslat' betekende daar "dezelfde lat als
+  // boven" (controle v113), dus '' (zelfde); 'Neuslat' → 'NEUS'; 'Ventilatielat' → C1.
+  function onderNaam(w) {
+    if (w === 'Glaslat') return '';
+    return GL() ? GL().normaal(w) : w;
+  }
   function perRuitVan(r) {
     var p = projectDeel().perRuit;
     return (p && r && p[r.id]) || {};
@@ -127,10 +141,19 @@
     ['latPositie', 'standaardLat', 'standaardOnderlat'].forEach(function (k) {
       keuze[k] = p[k] != null ? p[k] : STANDAARD_PROJECT[k];
     });
+    // Namen uit v111/v112 ('Glaslat', 'Neuslat', 'Ventilatielat') → een type.
+    // Een standaardlat moet een lat voor boven zijn (een oude 'Ventilatielat'
+    // werd C1, en die hoort onderin): anders A4.
+    if (GL()) {
+      keuze.standaardLat = GL().normaal(keuze.standaardLat);
+      if (!geldigeLat(keuze.standaardLat, 'boven')) keuze.standaardLat = STANDAARD_PROJECT.standaardLat;
+      if (keuze.standaardOnderlat) keuze.standaardOnderlat = onderNaam(keuze.standaardOnderlat);
+    }
     ['binnen', 'buiten'].forEach(function (kant) {
       var b = p[kant] || {};
-      keuze[kant] = { kleur: b.kleur || STANDAARD_PROJECT[kant].kleur,
-                      dikte: getal(b.dikte) || STANDAARD_PROJECT[kant].dikte };
+      var d = getal(b.dikte) || STANDAARD_PROJECT[kant].dikte;
+      if (kant === 'buiten' && BAND_DIKTES_BUITEN.indexOf(d) < 0) d = 3;   // een oude 2 telt als 3
+      keuze[kant] = { kleur: b.kleur || STANDAARD_PROJECT[kant].kleur, dikte: d };
     });
     return { getallen: w, afwijkend: afwijkend, keuze: keuze };
   }
@@ -198,11 +221,17 @@
     var g = ins.getallen, k = ins.keuze;
     var mlPerM = g.KITVOEG_BREEDTE_MM * g.KITVOEG_DIEPTE_MM;   // mm² = ml per meter
     var latStukken = {};          // type → [lengtes]
+    var latRol = {};              // type → { rond: aantal ruiten, onder: aantal ruiten }
     var band = {}, kit = {};      // "wit|3" → m; "wit" → ml
     var tapeM = 0, tapeZelf = [], zonderMaat = [], perRuit = [];
-    function lat(type, lengte, n) {
+    // rol: 'rond' (boven en zijkanten), 'onder' (de onderlat) of 'binnen'
+    // (onderin aan de andere kant, bij latten aan twee kanten). ruiten: hoeveel
+    // ruitkanten dit telt, voor de tekst "rondom" of "boven en zijkanten".
+    function lat(type, lengte, n, rol, ruiten) {
       if (!latStukken[type]) latStukken[type] = [];
       for (var i = 0; i < n; i++) latStukken[type].push(Math.round(lengte));
+      latRol[type] = latRol[type] || { rond: 0, onder: 0, binnen: 0 };
+      latRol[type][rol] += ruiten;
     }
     (lijst || []).filter(heeftInhoud).forEach(function (r) {
       var n = aantalVan(r);
@@ -210,11 +239,24 @@
       if (!sp) { zonderMaat.push(r.merk || '(zonder merk)'); return; }
       var eigen = perRuitVan(r);
       var dubbel = eigen.tweeKanten ? 2 : 1;
-      var onder = eigen.onderlat || k.standaardOnderlat || k.standaardLat;
+      // v113: de lat van deze ruit (Invoer) of de projectstandaard.
+      var boven = GL() ? GL().latVoorRuit(r).id : k.standaardLat;
+      var onderKeuze = onderNaam(eigen.onderlat) || k.standaardOnderlat || boven;
+      var onder = onderKeuze, neus = null;
+      if (onderKeuze === 'NEUS') {
+        // De kleinste neuslat die past bij deze sponning (zonder sponningdiepte: onbekend).
+        neus = GL() ? GL().neuslatVoor(r) : { lat: null };
+        onder = neus.lat ? neus.lat.id : 'NEUS';
+      }
       var t = g.VERSTEK_TOESLAG_MM;
-      lat(k.standaardLat, sp.b + t, n * dubbel);             // boven
-      lat(k.standaardLat, sp.h + t, 2 * n * dubbel);         // links en rechts
-      lat(onder, sp.b + t, n * dubbel);                      // onder
+      lat(boven, sp.b + t, n * dubbel, 'rond', n * dubbel);   // boven
+      lat(boven, sp.h + t, 2 * n * dubbel, 'rond', 0);        // links en rechts
+      // Onder: de onderlat (neuslat, ventilatielat) hoort bij de glaskant,
+      // dus één keer. Bij latten aan twee kanten komt aan de andere kant
+      // onderin een gewone lat, net als boven (v113; tot v112 kwamen er dan
+      // twee neuslatten).
+      lat(onder, sp.b + t, n, 'onder', n);
+      if (dubbel === 2) lat(boven, sp.b + t, n, 'binnen', n);
       var latMm = ((sp.b + t) * 2 + (sp.h + t) * 2) * n * dubbel;
       // Band en kit: aan elke kant één keer de omtrek van het glas.
       // Als getal: een glasmaat als tekst ("1022") werd anders aan elkaar geplakt.
@@ -224,6 +266,8 @@
       var bandM = 0, kitMl = 0;
       ['binnen', 'buiten'].forEach(function (kant) {
         var c = k[kant];
+        // v113: band binnen kan per ruit afwijken (Invoer, venster Pakket).
+        if (kant === 'binnen' && [2, 3, 4].indexOf(+eigen.bandBinnen) >= 0) c = { kleur: c.kleur, dikte: +eigen.bandBinnen };
         var m = (omtrekM + roosterM) * n;
         band[c.kleur + '|' + c.dikte] = (band[c.kleur + '|' + c.dikte] || 0) + m;
         bandM += m;
@@ -239,23 +283,39 @@
         ruitTape = (ro.h * gb + ro.v * hoog) / 1000 * 2 * g.TAPE_STROKEN_PER_KANT * n;
         tapeM += ruitTape;
       }
-      perRuit.push({ rij: r, n: n, sponning: sp, onderlat: onder, eigenOnderlat: !!eigen.onderlat, tweeKanten: !!eigen.tweeKanten,
+      // v113: past het pakket (met de lat van boven), en past de onderlat als
+      // dat een gewone glas- of ventilatielat is (een C1 van 26 mm onder een
+      // A4 van 15 mm steekt anders 11 mm uit, controle v113).
+      var pk = GL() ? GL().pakket(r) : null;
+      var pkOnder = GL() && onder !== boven && onder !== 'NEUS' && GL().latVan(onder) && GL().latVan(onder).soort !== 'neuslat'
+        ? GL().pakket(r, { lat: onder }) : null;
+      perRuit.push({ rij: r, n: n, sponning: sp, lat: boven, onderlat: onder, onderKeuze: onderKeuze, neus: neus, pakket: pk, pakketOnder: pkOnder,
+                     eigenOnderlat: !!eigen.onderlat, tweeKanten: !!eigen.tweeKanten,
                      latM: latMm / 1000, bandM: bandM, kitMl: kitMl, tapeM: ruitTape, roeden: ro });
     });
     var latten = Object.keys(latStukken).map(function (type) {
       var st = latStukken[type];
       var totaal = st.reduce(function (a, b) { return a + b; }, 0);
-      var plan = zaagplan(st, g.STAAF_MM, g.ZAAGSNEDE_MM);
-      var controle = Math.ceil(totaal * (1 + g.CONTROLE_VERLIES_PROCENT / 100) / g.STAAF_MM);
-      // Waar deze latten zitten, voor de tekst onder het totaal (v111): "(boven en
-      // zijkanten)" klopte niet als de onderlat hetzelfde type is.
-      var alsOnder = perRuit.filter(function (p) { return p.onderlat === type; }).length;
-      var rol = type !== k.standaardLat ? 'onder' : alsOnder === perRuit.length ? 'rondom' :
-        alsOnder ? 'boven en zijkanten, en onder waar gekozen' : 'boven en zijkanten';
-      return { type: type, rol: rol, stukken: st.length, totaalMm: totaal, staven: plan.staven.length, plan: plan.staven,
-               teLang: plan.teLang, controle: controle };
+      // De lengte waarin hij verkocht wordt (Jongeneel 4 m, grenen 2,7 m), tenzij
+      // het project een eigen lengte heeft.
+      var info = GL() && GL().latVan(type);
+      var staaf = ins.afwijkend.STAAF_MM || !info ? g.STAAF_MM : info.lengte;
+      var plan = zaagplan(st, staaf, g.ZAAGSNEDE_MM);
+      // v113 (Jan: "er is maar één waarheid"): wat er nodig is = totale lengte
+      // + zaagverlies, gedeeld door de lengte. Alleen als de latten zo lang zijn
+      // dat ze daar niet in passen (zaagplan), zijn het er meer.
+      var metVerlies = Math.ceil(totaal * (1 + g.CONTROLE_VERLIES_PROCENT / 100) / staaf - 1e-9);
+      var nodig = Math.max(metVerlies, plan.staven.length + plan.teLang.length);
+      // Waar deze latten zitten, voor de tekst onder het totaal.
+      var rol = latRol[type] || { rond: 0, onder: 0, binnen: 0 };
+      var rolTekst = !rol.rond ? 'onder' : (rol.onder + rol.binnen === rol.rond) ? 'rondom' :
+        'boven en zijkanten' + (rol.onder ? ', onder waar gekozen' : '') +
+        (rol.binnen ? (rol.onder ? ' en' : ',') + ' onder aan de 2e kant' : '');
+      return { type: type, naam: latNaam(type), rol: rolTekst, stukken: st.length, totaalMm: totaal, staaf: staaf,
+               staven: nodig, metVerlies: metVerlies, zaagplanStaven: plan.staven.length, plan: plan.staven,
+               teLang: plan.teLang, onbekend: type === 'NEUS', zeker: !info || info.zeker };
     }).sort(function (a, b) {
-      return (a.type === k.standaardLat ? 0 : 1) - (b.type === k.standaardLat ? 0 : 1) || a.type.localeCompare(b.type, 'nl');
+      return (latRol[b.type].rond - latRol[a.type].rond) || a.type.localeCompare(b.type, 'nl');
     });
     var bandLijst = Object.keys(band).map(function (sleutel) {
       var d = sleutel.split('|');
@@ -272,6 +332,19 @@
     };
   }
   window.toebehorenBerekenen = function () { return bereken(typeof rijen === 'undefined' ? [] : rijen); };
+  // De keuzes van het project, voor latten.js (pakket per ruit).
+  window.toebehorenKeuzes = function () { return instellingen().keuze; };
+  // Latten aan twee kanten (binnen en buiten) bij deze ruit? Dan zit er in de
+  // sponning aan beide kanten een lat (latten.js telt hem dan twee keer).
+  window.toebehorenIsTweeKanten = function (r) { return !!perRuitVan(r).tweeKanten; };
+  // De keuzes per ruit van latten.js (v113): sponningdiepte, glaslat, band
+  // binnen, uitfrezen. Ze staan hier (perRuit), niet op de ruit: zie latten.js rw().
+  window.toebehorenRuit = function (r) { return perRuitVan(r); };
+  // Zonder controle en zonder ongedaan-stap: dat doet latten.js (of bulk.js).
+  window.toebehorenZetRuit = function (id, veld, waarde) {
+    var p = deelVoorWijzigen(); if (!p) return;
+    zetPerRuit(p, id, veld, waarde === 0 ? 0 : waarde);
+  };
   window.toebehorenInstellingen = function () { return { standaard: INSTELLINGEN, uitleg: UITLEG }; };
 
   // De rekenregel onder een totaal, in gewone woorden (zodat je het kunt
@@ -280,13 +353,15 @@
     var g = u.instellingen.getallen;
     var regels = {};
     u.latten.forEach(function (l) {
-      regels['lat:' + l.type] = l.stukken + ' latten, samen ' + nl(l.totaalMm / 1000, 1) + ' m (incl. ' + g.VERSTEK_TOESLAG_MM +
-        ' mm verstek per lat); zaagplan met ' + g.ZAAGSNEDE_MM + ' mm per zaagsnede → ' + l.staven + ' × ' + nl(g.STAAF_MM / 1000, 1) +
-        ' m. Controle: ' + nl(l.totaalMm / 1000, 1) + ' m + ' + g.CONTROLE_VERLIES_PROCENT + ' % = ' +
-        nl(l.totaalMm / 1000 * (1 + g.CONTROLE_VERLIES_PROCENT / 100), 1) + ' m → ' + l.controle + (l.controle === 1 ? ' lengte.' : ' lengtes.');
+      regels['lat:' + l.type] = l.stukken + (l.stukken === 1 ? ' lat, ' : ' latten, samen ') + nl(l.totaalMm / 1000, 1) + ' m (incl. ' + g.VERSTEK_TOESLAG_MM +
+        ' mm verstek per lat) + ' + nlWaarde(g.CONTROLE_VERLIES_PROCENT) + ' % zaagverlies = ' +
+        nl(l.totaalMm / 1000 * (1 + g.CONTROLE_VERLIES_PROCENT / 100), 1) + ' m ÷ ' + nl(l.staaf / 1000, 1) + ' m → ' +
+        l.metVerlies + (l.metVerlies === 1 ? ' lengte' : ' lengtes') +
+        (l.staven > l.metVerlies ? '; maar de latten zijn lang: volgens het zaagplan zijn er ' + l.staven + ' nodig' : '') + '.' +
+        (l.onbekend ? ' Welke neuslat precies, rekent de app uit zodra de sponningdiepte er is.' : '');
     });
     u.band.forEach(function (b) {
-      regels['band:' + b.kleur + '|' + b.dikte] = nl(b.meters, 1) + ' m (omtrek van elke ruit aan deze kant' +
+      regels['band:' + b.kleur + '|' + b.dikte] = nl(b.meters, 1) + ' m (de omtrek van elke ruit, aan elke kant met dit band' +
         (g.BAND_ROOSTER_FACTOR && u.metRooster ? ', plus bij een rooster ' + nlWaarde(g.BAND_ROOSTER_FACTOR / 2) +
         ' × de breedte; binnen en buiten samen ' + nlWaarde(g.BAND_ROOSTER_FACTOR) + ' ×' : '') +
         ') ÷ ' + g.BAND_ROL_M + ' m per rol → ' + b.rollen + (b.rollen === 1 ? ' rol' : ' rollen') + '.';
@@ -309,6 +384,9 @@
   function bewaarEnTeken(stap) {
     if (typeof opslaan === 'function') opslaan();
     renderToebehoren();
+    // v113: de standaardlat, het band en "twee kanten" veranderen het oordeel
+    // (past/krap) in de kolom Diepte op Invoer.
+    if (window.latPakketBijwerken) latPakketBijwerken();
   }
   function deelVoorWijzigen() {
     if (typeof projectInfo !== 'object' || !projectInfo) return null;
@@ -322,9 +400,15 @@
     if (window.bewaarStap) bewaarStap('Toebehoren: ' + veld);
     var d = veld.split('.');
     if (d.length === 2) {
+      // Buiten nooit 2 mm (Jan, v113).
+      if (d[1] === 'dikte' && (d[0] === 'buiten' ? BAND_DIKTES_BUITEN : BAND_DIKTES).indexOf(parseInt(waarde, 10)) < 0) { renderToebehoren(); return; }
       p[d[0]] = Object.assign({}, p[d[0]] || {});
       p[d[0]][d[1]] = d[1] === 'dikte' ? (parseInt(waarde, 10) || STANDAARD_PROJECT[d[0]].dikte) : waarde;
-    } else p[veld] = waarde;
+    } else {
+      if (veld === 'standaardLat' && !geldigeLat(waarde, 'boven')) { renderToebehoren(); return; }
+      if (veld === 'standaardOnderlat' && waarde && !geldigeLat(waarde, 'onder')) { renderToebehoren(); return; }
+      p[veld] = waarde;
+    }
     bewaarEnTeken();
   };
 
@@ -367,7 +451,9 @@
     var r = typeof getRij === 'function' ? getRij(id) : null; if (!r) return;
     var p = deelVoorWijzigen(); if (!p) return;
     if (window.bewaarStap) bewaarStap('Onderlat ' + (r.merk || ''));
-    zetPerRuit(p, r.id, 'onderlat', LATTYPES.indexOf(waarde) >= 0 ? waarde : '');
+    // Een oude naam (Neuslat, Ventilatielat van v111) wordt het id van nu.
+    var w = onderNaam(waarde);
+    zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');
     bewaarEnTeken();
   };
   window.toebehorenTweeKanten = function (id, aan) {
@@ -384,7 +470,8 @@
     var keuze = el('tbAlleOnderlat'); if (!keuze) return;
     var p = deelVoorWijzigen(); if (!p) return;
     if (window.bewaarStap) bewaarStap('Onderlat alle ruiten');
-    var w = LATTYPES.indexOf(keuze.value) >= 0 ? keuze.value : '';
+    var gekozen = onderNaam(keuze.value);
+    var w = geldigeLat(gekozen, 'onder') ? gekozen : '';
     (rijen || []).filter(heeftInhoud).forEach(function (r) { zetPerRuit(p, r.id, 'onderlat', w); });
     bewaarEnTeken();
   };
@@ -401,6 +488,26 @@
     }).join('') + '</select>';
   }
   function kleurNaam(c) { return c.charAt(0).toUpperCase() + c.slice(1); }
+
+  // v113: keuzelijst met de typen van Jongeneel, per soort een kopje.
+  // wat: 'boven' (glaslatten en opdeklatten) of 'onder' (ook neus- en ventilatielatten).
+  function latKeuze(wat, gekozen, attrs, voorop) {
+    var L = GL(); if (!L) return keuzeLijst(voorop || [], gekozen, attrs);
+    var soorten = wat === 'onder' ? ['neuslat', 'ventilatie', 'glaslat', 'glaslat-sponning'] : ['glaslat', 'glaslat-sponning', 'opdek'];
+    var opt = function (v, t) { return '<option value="' + esc(v) + '"' + (String(v) === String(gekozen) ? ' selected' : '') + '>' + esc(t) + '</option>'; };
+    return '<select ' + attrs + '>' + (voorop || []).map(function (w) { return opt(w[0], w[1]); }).join('') +
+      soorten.map(function (soort) {
+        var lijst = L.LATTEN.filter(function (l) { return l.soort === soort; });
+        return '<optgroup label="' + esc(L.SOORT_NAAM[soort]) + '">' +
+          (soort === 'neuslat' ? opt('NEUS', 'passende neuslat (automatisch)') : '') +
+          lijst.map(function (l) { return opt(l.id, l.id + ' ' + l.maat); }).join('') + '</optgroup>';
+      }).join('') + '</select>';
+  }
+  function geldigeLat(w, wat) {
+    if (w === 'NEUS') return wat === 'onder';
+    var l = GL() && GL().latVan(w);
+    return !!l && (wat === 'onder' || (l.soort !== 'neuslat' && l.soort !== 'ventilatie'));
+  }
 
   function renderToebehoren() {
     var vak = el('toebehorenInhoud');
@@ -420,12 +527,23 @@
         ' nog geen glasmaat en ' + (u.zonderMaat.length === 1 ? 'telt' : 'tellen') + ' niet mee: ' +
         esc(u.zonderMaat.slice(0, 12).join(', ')) + (u.zonderMaat.length > 12 ? ' …' : '') + '.</div>');
     }
+    // v113: ruiten waar het pakket niet in de sponning past (of te ruim is):
+    // eerst oplossen, anders bestel je latten die niet passen (controle v113).
+    var mis = u.perRuit.filter(function (p) {
+      return [p.pakket, p.pakketOnder].some(function (x) { return x && (x.status === 'past niet' || x.status === 'te ruim'); }) ||
+        (p.onderKeuze === 'NEUS' && p.neus && !p.neus.lat && p.pakket && p.pakket.status !== 'onbekend');
+    });
+    if (mis.length) {
+      h.push('<div class="tb-strook">⚠ Bij ' + (mis.length === 1 ? '1 ruit past' : mis.length + ' ruiten past') + ' het niet goed in de sponning: ' +
+        esc(mis.slice(0, 12).map(function (p) { return p.rij.merk || '(zonder merk)'; }).join(', ')) + (mis.length > 12 ? ' …' : '') +
+        '. Los dat eerst op (tik op Invoer op het oordeel in de kolom Diepte); de latten hieronder gaan uit van wat er nu staat.</div>');
+    }
     // Totalen
     h.push('<div class="tb-totalen">');
     u.latten.forEach(function (l) {
-      h.push('<div class="tb-blok"><div class="tb-getal">' + l.staven + ' × ' + nl(g.STAAF_MM / 1000, 1) + ' m</div>' +
-        '<div class="tb-wat">' + esc(l.type) + ' (' + esc(l.rol) + ')</div>' +
-        (l.teLang.length ? '<div class="tb-let">⚠ ' + l.teLang.length + ' lat langer dan ' + nl(g.STAAF_MM / 1000, 1) +
+      h.push('<div class="tb-blok"><div class="tb-getal">' + l.staven + ' × ' + nl(l.staaf / 1000, 1) + ' m</div>' +
+        '<div class="tb-wat">' + esc(l.naam) + ' (' + esc(l.rol) + ')' + (l.zeker ? '' : ' <span class="tb-controle">maat nog niet nagemeten</span>') + '</div>' +
+        (l.teLang.length ? '<div class="tb-let">⚠ ' + l.teLang.length + ' lat langer dan ' + nl(l.staaf / 1000, 1) +
           ' m (' + l.teLang.map(function (x) { return nl(x); }).join(', ') + ' mm): apart bestellen</div>' : '') +
         '<div class="tb-reken">' + esc(regel['lat:' + l.type]) + '</div></div>');
     });
@@ -458,14 +576,19 @@
       h.push('<div class="tb-keuzes">' +
         '<label>Glaslatten zitten ' + keuzeLijst([['binnen', 'binnen'], ['buiten', 'buiten']], k.latPositie,
           'onchange="toebehorenKeuze(\'latPositie\', this.value)"' + uit) + '</label>' +
-        '<label>Standaardlat ' + keuzeLijst(LATTYPES, k.standaardLat, 'onchange="toebehorenKeuze(\'standaardLat\', this.value)"' + uit) + '</label>' +
-        '<label>Onderlat (standaard) ' + keuzeLijst([['', 'zelfde als standaardlat']].concat(LATTYPES), k.standaardOnderlat,
-          'onchange="toebehorenKeuze(\'standaardOnderlat\', this.value)"' + uit) + '</label>' +
+        '<label>Standaardlat (boven en zijkanten) ' + latKeuze('boven', k.standaardLat, 'onchange="toebehorenKeuze(\'standaardLat\', this.value)"' + uit) + '</label>' +
+        '<label>Onderlat (standaard) ' + latKeuze('onder', k.standaardOnderlat, 'onchange="toebehorenKeuze(\'standaardOnderlat\', this.value)"' + uit,
+          [['', 'zelfde als de lat boven']]) +
+          // v113 (controle): een neuslat hoort bij buitenbeglazing.
+          (k.latPositie === 'binnen' && k.standaardOnderlat === 'NEUS'
+            ? '<small class="tb-hint">Een neuslat hoort bij buitenbeglazing (latten buiten). Zitten de latten binnen, kies dan onderin "zelfde als de lat boven".</small>' : '') +
+          '</label>' +
         ['binnen', 'buiten'].map(function (kant) {
           return '<label>' + kleurNaam(kant) + ': band en kit <span class="tb-paar">' +
             keuzeLijst(KLEUREN, k[kant].kleur, 'onchange="toebehorenKeuze(\'' + kant + '.kleur\', this.value)"' + uit) + ' ' +
-            keuzeLijst(BAND_DIKTES.map(function (d) { return [d, d + ' mm']; }), k[kant].dikte,
-              'onchange="toebehorenKeuze(\'' + kant + '.dikte\', this.value)"' + uit) + '</span></label>';
+            keuzeLijst((kant === 'buiten' ? BAND_DIKTES_BUITEN : BAND_DIKTES).map(function (d) { return [d, d + ' mm']; }), k[kant].dikte,
+              'onchange="toebehorenKeuze(\'' + kant + '.dikte\', this.value)"' + uit) + '</span>' +
+            (kant === 'buiten' ? '<small>buiten nooit 2 mm (werking)</small>' : '<small>per ruit anders te kiezen (Invoer, pakket)</small>') + '</label>';
         }).join('') + '</div>');
       h.push('<div class="tb-getallen">' + Object.keys(UITLEG).map(function (s) {
         return '<label class="' + (afw[s] ? 'afwijkend' : '') + '">' + esc(UITLEG[s][0]) +
@@ -479,22 +602,40 @@
       h.push('<div class="tb-noot">De standaardwaarden staan bovenin <code>toebehoren.js</code>. Wat je hier verandert, geldt alleen voor dit project.</div>');
       h.push('</div>');
     }
-    // Per ruit
+    // Per ruit (v113: compacter; de lat komt van Invoer, de onderlat kies je hier)
+    var stdOnder = k.standaardOnderlat ? (k.standaardOnderlat === 'NEUS' ? 'neuslat' : k.standaardOnderlat) : 'zelfde als boven';
     h.push('<div class="tb-perruit-kop"><h3>Per ruit</h3><span>Onderlat voor alle ruiten: ' +
-      keuzeLijst([['', 'standaard (' + (k.standaardOnderlat || k.standaardLat) + ')']].concat(LATTYPES), '', 'id="tbAlleOnderlat"' + uit) +
+      latKeuze('onder', '', 'id="tbAlleOnderlat"' + uit, [['', 'standaard (' + stdOnder + ')']]) +
       ' <button class="btn btn-ghost btn-sm" onclick="toebehorenAlleOnderlat()"' + uit + '>Toepassen</button></span></div>');
-    h.push('<div class="invoer-wrap"><table class="samenvatting tb-tabel"><thead><tr>' +
-      '<th>Merk</th><th class="num">Aantal</th><th class="num">Sponning (mm)</th><th>Onderlat</th><th>Latten 2 kanten</th>' +
-      '<th class="num">Latten (m)</th><th class="num">Band (m)</th><th class="num">Kit (ml)</th><th class="num">Tape (m)</th>' +
+    h.push('<div class="invoer-wrap tb-wrap"><table class="samenvatting tb-tabel"><thead><tr>' +
+      '<th class="tb-smal">Merk</th><th class="num tb-smal">Aant.</th><th class="num tb-smal">Sponningmaat</th><th class="tb-smal">Lat</th>' +
+      '<th class="tb-breed">Onderlat</th><th class="tb-twee">Latten twee kanten<br><small>(binnen en buiten)</small></th>' +
+      '<th class="num tb-smal">Latten m</th><th class="num tb-smal">Band m</th><th class="num tb-smal">Kit ml</th><th class="num tb-smal">Tape m</th>' +
       '</tr></thead><tbody>' + u.perRuit.map(function (p) {
         var r = p.rij;
-        return '<tr><td>' + esc(r.merk || '—') + '</td><td class="num">' + p.n + '</td><td class="num">' + nl(p.sponning.b) + ' × ' +
-          nl(p.sponning.h) + '</td><td>' + keuzeLijst([['', 'standaard (' + (k.standaardOnderlat || k.standaardLat) + ')']].concat(LATTYPES),
-            p.eigenOnderlat ? p.onderlat : '', 'class="tb-onderlat" onchange="toebehorenOnderlat(' + r.id + ', this.value)"' + uit) + '</td>' +
-          '<td><input type="checkbox" class="tb-tweekanten"' + (p.tweeKanten ? ' checked' : '') + ' onchange="toebehorenTweeKanten(' +
-            r.id + ', this.checked)"' + uit + '></td>' +
-          '<td class="num">' + nl(p.latM, 1) + '</td><td class="num">' + nl(p.bandM, 1) + '</td><td class="num">' + nl(p.kitMl) + '</td>' +
-          '<td class="num">' + (p.roeden === 'zelf' ? 'zelf' : p.tapeM ? nl(p.tapeM, 1) : '') + '</td></tr>';
+        // Neuslat: de maat, of waarom er geen is (zonder diepte: "volgt uit de
+        // sponningdiepte"; met diepte maar te breed: de reden, controle v113).
+        var heeftDiepte = p.pakket && p.pakket.status !== 'onbekend';
+        var neusTekst = p.onderKeuze === 'NEUS' ? '<small class="tb-neus">' + (p.neus && p.neus.lat ? esc(p.neus.lat.id) + ', neus ' +
+          nl(p.neus.uitsteek) + ' mm voorbij de dorpel' : heeftDiepte && p.neus && p.neus.reden ? '⚠ ' + esc(p.neus.reden)
+          : 'maat volgt uit de sponningdiepte') + '</small>'
+          : p.pakketOnder && p.pakketOnder.status !== 'onbekend' ? '<small class="tb-neus">onderin: <span class="pk-chip pk-' +
+            p.pakketOnder.status.replace(' ', '-') + '">' + esc(GL().kort(p.pakketOnder)) + '</span></small>' : '';
+        var chip = p.pakket && p.pakket.status !== 'onbekend' ? ' <span class="pk-chip pk-' + p.pakket.status.replace(' ', '-') + '" title="' +
+          esc(p.pakket.tekst) + '">' + esc(GL().kort(p.pakket)) + '</span>' : '';
+        // De klassen tb-merk … tb-tape en data-kop zijn voor de telefoon: daar
+        // wordt elke rij een kaartje (CSS, v113), met het kopje boven elk getal.
+        return '<tr><td class="tb-smal tb-merk"' + (p.n > 1 ? ' data-aant="×' + p.n + '"' : '') + '>' + esc(r.merk || '—') + '</td>' +
+          '<td class="num tb-smal tb-aant">' + p.n + '</td><td class="num tb-smal tb-maat">' + nl(p.sponning.b) + ' × ' +
+          nl(p.sponning.h) + '</td><td class="tb-smal tb-lat" title="' + esc(latNaam(p.lat)) + '">' + esc(p.lat) + chip + '</td><td class="tb-breed">' +
+          latKeuze('onder', p.eigenOnderlat ? onderNaam(perRuitVan(r).onderlat) : '',
+            'class="tb-onderlat" aria-label="Onderlat ' + esc(r.merk || '') + '" onchange="toebehorenOnderlat(' + r.id + ', this.value)"' + uit,
+            [['', 'standaard (' + stdOnder + ')']]) + neusTekst + '</td>' +
+          '<td class="tb-twee"><label><input type="checkbox" class="tb-tweekanten" aria-label="Latten twee kanten (binnen en buiten)"' + (p.tweeKanten ? ' checked' : '') +
+            ' onchange="toebehorenTweeKanten(' + r.id + ', this.checked)"' + uit + '><span class="tb-mob"> latten twee kanten (binnen en buiten)</span></label></td>' +
+          '<td class="num tb-smal tb-num" data-kop="Latten m">' + nl(p.latM, 1) + '</td><td class="num tb-smal tb-num" data-kop="Band m">' + nl(p.bandM, 1) + '</td>' +
+          '<td class="num tb-smal tb-num" data-kop="Kit ml">' + nl(p.kitMl) + '</td>' +
+          '<td class="num tb-smal tb-num" data-kop="Tape m">' + (p.roeden === 'zelf' ? 'zelf' : p.tapeM ? nl(p.tapeM, 1) : '–') + '</td></tr>';
       }).join('') + '</tbody></table></div>');
     h.push('<div class="tb-noot">Alleen voor eigen gebruik: dit staat in de PDF invoer (en bij Alles exporteren), niet op de bestellijst.</div>');
     vak.innerHTML = h.join('');

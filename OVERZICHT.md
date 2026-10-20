@@ -1,7 +1,7 @@
 # Glasopname — overzicht: hoe de app in elkaar zit
 
 *Voor wie wil begrijpen hoe de app werkt, en hem zonder AI wil kunnen
-onderhouden. Bijgewerkt op 19 oktober 2026, bij v112.*
+onderhouden. Bijgewerkt op 19 oktober 2026, bij v113.*
 
 Wordt bij elke nieuwe versie bijgewerkt, net als `BEHEER.md` en
 `DATAMODEL.md` (zie "Handleidingen" in de nota per versie, `WIJZIGINGEN-vNN.md`; die staat sinds v111 in de zip "niet-in-repo" en in de projectkennis, niet in de openbare repo).
@@ -108,8 +108,10 @@ terugvindt (Cmd+F).
 | **Volgende bestellijst** | altijd een **aanvulling**: alleen nieuw en gewijzigd, VERVANGT, ANNULEREN (`teBestellen()` in index.html, `bestelModus()` in pdf.js). Alleen een ander aantal (v110, `aantalVerschil()`): meer = **EXTRA** in de tabel met alleen het verschil als aantal; minder = niet in de tabel, wel onder ANNULEREN ("1 annuleren, de andere 2 blijven"). Alleen de bediening anders (v112, `bedieningVerschil()`): niet in de tabel, maar in een eigen blok **ALLEEN BEDIENING – glas NIET opnieuw maken en NIET annuleren** (`bedieningTabel` in pdf.js), ook naast een EXTRA of "N annuleren". Verandert er ook iets aan het glas of het rooster (maat, glas, RAL, Duco, opmerking), dan blijft het VERVANGT. Na een EXTRA noemt de app bij elke ruit alle lijsten waar hij in zit ("uit de 1e en 2e", `besteldInTekst()`) |
 | **Ontgrendelen na bestellen** | `index.html` `slotOntgrendel()` → eigen wachtwoord (`melding.js` `appWachtwoord`) → `cloud.js` `glasWachtwoordKlopt()` → logboek |
 | **Bediening bij een rooster** (v111) | kolom Bediening op Invoer (alleen zichtbaar als er een rooster is): `index.html` `bedieningCel` → `setBediening` (1× of 2× stang of koord) en `setBedieningLengte` (mm; leeg = standaardlengte). Bewaard op de ruit als `bediening`, `bedieningAantal`, `bedieningLengte`. Gaat mee naar de leverancier: kolom op de bestellijst, en een regel "Extra bediening: …" in het LET OP-kader. Rooster op Nee (ook via ⤓ doorvoeren) haalt de bediening weg. Het gewone knopje op het rooster zit er altijd; dit is een aanvulling |
-| **Toebehoren** (v111) | tabblad 🧰 Toebehoren → `toebehoren.js` `renderToebehoren()` → `bereken()`: glaslatten (zaagplan over lengtes van 4 m), glasband, glaskit, wienersprossen-tape. Instellingen per project (inklapbaar blok) en per ruit (onderlat, latten aan twee kanten) in `info.toebehoren`. Mag ook na een bestelling (gaat niet naar de leverancier); niet bij alleen kijken (`kijkWeigert`) |
-| **Overzicht (PDF invoer)** | `pdf.js` `exportFotoPdf()`; sinds v111 achteraan een pagina "Toebehoren - intern" (`toebehorenPagina`). Ook bij "Alles exporteren"; **nooit** op de bestellijst |
+| **Toebehoren** (v111) | tabblad 🧰 Toebehoren → `toebehoren.js` `renderToebehoren()` → `bereken()`: glaslatten per type (A4, B5, N30 …; v113), in lengtes van 4 m, glasband, glaskit, wienersprossen-tape. Aantal lengtes (v113, Jan: "één waarheid"): totale lengte + 10 % ÷ 4 m, of meer als het zaagplan meer nodig heeft. Neuslat automatisch per ruit (`neuslatVoor`). Instellingen per project (inklapbaar blok) en per ruit (onderlat, latten aan twee kanten) in `info.toebehoren`. Mag ook na een bestelling (gaat niet naar de leverancier); niet bij alleen kijken (`kijkWeigert`) |
+| **Sponning en glaslat** (v113) | Invoer, groep Sponning: kolom **Diepte** (`latten.js` `pakketCelHTML`: vak + oordeel-chip) en **Glaslat** (`latCelHTML`). Vak → `latDiepte` (`zetDiepte`); chip → `latPakket` (`pakketVenster`: tekening, band binnen, uitfrezen, advies); latknop → `latKiezen` (`kiezer`, met foto of tekening, groot via `groot`). Rekenen: `pakket()`, `adviezen()`, `neuslatVoor()`. Bewaard in `info.toebehoren.perRuit` (`toebehorenZetRuit`), niet op de ruit. Mag ook na een bestelling; niet bij alleen kijken. Kennis en bronnen: `GLASLATTEN.md` |
+| **Past het in de sponning? bij de bestellijst** (v113) | `pdf.js` `voorControles()` → als laatste `pakketControle()`: "Past het in de sponning?" bij "past niet" of "te ruim" (Stoppen / Toch doorgaan). De leverancier ziet geen latten |
+| **Overzicht (PDF invoer)** | `pdf.js` `exportFotoPdf()`; sinds v111 achteraan een pagina "Toebehoren - intern" (`toebehorenPagina`), sinds v113 in de tabel per foto de kolommen Spon. en Lat/pakket. Ook bij "Alles exporteren"; **nooit** op de bestellijst |
 | **Importeren (maten uit pdf, Excel, csv)** | `import.js`, ⬆ Importeren |
 | **Naslag (catalogus, roosters)** | `naslag.js`; foto's in `catalogus/` en `roosters/` |
 | **Taken, logboek, klant, levering** | `project.js` (klantblok en levering staan op Invoer; Project info toont ze) → tabellen `taken`, `projectgeschiedenis` |
@@ -122,11 +124,12 @@ terugvindt (Cmd+F).
 
 | bestand | regels | wat erin staat |
 |---|---|---|
-| `index.html` | 5.907 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
+| `index.html` | 6.077 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
 | `cloud.js` | 4.020 | inloggen, nieuw wachtwoord via een herstellink, projecten openen/opslaan/synchroniseren, live bijwerken, nieuwe versies, prullenbak, apart bewaren, taken en logboek ophalen |
-| `pdf.js` | 2.482 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
+| `pdf.js` | 2.529 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
 | `teken.js` | 1.777 | tekenlaag op foto's |
-| `toebehoren.js` | 503 | tabblad Toebehoren (v111): de rekenwaarden bovenin (`INSTELLINGEN`), het rekenen, het tabblad |
+| `toebehoren.js` | 644 | tabblad Toebehoren (v111): de rekenwaarden bovenin (`INSTELLINGEN`), het rekenen, het tabblad; sinds v113 ook de opslag van de keuzes per ruit voor `latten.js` |
+| `latten.js` | 684 | glaslatten (v113): de lijst van Jongeneel bovenin (`LATTEN`), "past het in de sponning?", neuslat, de vensters en de twee kolommen op Invoer. Uitleg: `GLASLATTEN.md` |
 | `fotos.js` | 1.794 | foto's en tekeningen, merkbolletjes, tabel per foto, het aantal samen met de bolletjes (v110) |
 | `project.js` | 1.168 | klant, werkadres, levering, taken, logboek, Opgenomen door |
 | `naslag.js` | 1.071 | glascatalogus, leverbaarheid, roeden, roosters |
@@ -134,8 +137,8 @@ terugvindt (Cmd+F).
 | `bewerkslot.js` | 755 | wie bewerkt, meekijken, overnemen |
 | `start.js` | 489 | het startscherm |
 | `wachtrij.js` | 437 | foto's eerst op het apparaat, dan naar de server |
-| `bulk.js` | 377 | waarden doorvoeren, selecteren |
-| `sw.js` | 259 | service worker: offline, nieuwe versies (lijst `SHELL`) |
+| `bulk.js` | 420 | waarden doorvoeren, selecteren |
+| `sw.js` | 298 | service worker: offline, nieuwe versies (lijst `SHELL`) |
 | `undo.js` | 260 | ongedaan maken |
 | `melding.js` | 226 | vensters en vragen in de huisstijl |
 | `originelen.js` | 222 | originele foto's als zip |
@@ -146,13 +149,14 @@ terugvindt (Cmd+F).
 | `leeg.html` | — | bewust leeg pagina'tje: de inlogformulieren "versturen" hierheen, zodat Safari en Firefox meteen vragen het wachtwoord te bewaren (v109). Niet weghalen; hoeft niet offline (inloggen kan toch alleen met bereik) |
 | `lib/` | — | de bibliotheken (Supabase, pdf, Excel, zip), met versienummer in de mapnaam |
 | `catalogus/`, `roosters/` | — | foto's voor de naslag |
+| `latten/` | — | foto's van de glaslatten (v113), op te halen met `latfotos-ophalen.sh` (lijst: `latfotos.txt`). Mag ontbreken: dan tekent de app de doorsnede |
 | `NN_*.sql` | — | de databasewijzigingen, genummerd (zie `DATAMODEL.md`) |
 | `test-*.js`, `test-*.py` | — | de automatische tests (zie §9) |
 | `.github/workflows/` | — | Supabase wakker houden |
 
 **De volgorde van de scripts onderaan `index.html` doet ertoe**: melding →
 cloud → bewerkslot → wachtrij → start → import → bulk → project → blokbalk →
-fotos → kopie → toebehoren → teken → merken → naslag → pdf → originelen →
+fotos → kopie → latten → toebehoren → teken → merken → naslag → pdf → originelen →
 undo. Niet omgooien.
 
 ## 6. Belangrijke keuzes, en waarom
@@ -174,7 +178,11 @@ undo. Niet omgooien.
 | Alleen een andere bediening na een bestelling = eigen blok, nooit VERVANGT (v112, keuze Jan) | Jan: "nooit glas vervangen alleen om de bediening toe te voegen; dat levert zeker fouten op met dubbele leveringen en onduidelijkheid" | een extra blok op de aanvulling; de app houdt bij in welke lijst het glas en in welke de bediening besteld is (`bedieningInTekst`) |
 | Toebehoren is alleen voor onszelf (v111, keuze Jan) | de leverancier hoeft het niet te zien; het mag dus ook na een bestelling veranderen | staat in de PDF invoer, niet op de bestellijst |
 | Toebehoren per ruit bij het project, niet op de ruit (v111) | een wijziging op de ruit geeft hem een nieuw stempel; dan werkte de vraag "Oudere stand?" na een bestelling niet meer | kopieer je een ruit, dan gaat zijn onderlat niet mee |
-| Glaslatten met een zaagplan, 10 % als controle (v111, keuze Jan) | twee latten van 1,5 m uit 4 m geeft 1 m afval (25 %); een vast percentage telt dat niet | |
+| Lengtes latten: totaal + 10 % zaagverlies, of meer als het zaagplan meer nodig heeft (v113, keuze Jan) | Jan: "er is toch maar 1 waarheid? grote getal en kleine getal moeten gelijk zijn incl 10% zaag verlies". Tot v112 stond er groot 9 (zaagplan) en klein 10 | Jan stelt de 10 % zelf bij als het niet klopt |
+| Sponningdiepte en glaslat bij het project, niet op de ruit (v113) | zelfde reden als de onderlat (v111): geen nieuw stempel; en het mag ook na een bestelling (niet voor de leverancier) | kopieer je een ruit, dan gaan diepte en lat niet mee |
+| Tot 1 mm te krap of te ruim past nog, wel "krap"/"ruim" (v113, keuze Jan) | het band vangt 1 mm op | meer dan 1 mm te ruim heet "te ruim" (de lat ligt terug, of bij een opdeklat klemt het glas niet) |
+| Band buiten 3 of 4 mm, nooit 2 (v113, Jan) | "werking": de buitenkant werkt het meest | |
+| Kleuren met een naam, chips en het systeemlettertype, gelijk aan de offerte-app (v113, keuze Jan) | de apps van Jelier Bouw zien er hetzelfde uit; het rood is dat van het logo (#C1121C) | de kleuren staan bovenin `index.html` (`:root`: `--accent`, `--ink`, `--ok`, `--warn`, `--err`); de oude namen (`--merk`, `--blauw`, `--rood`, `--groen`) wijzen ernaar. Een donker thema komt later |
 | Alles in het Nederlands, ook de code | Jan moet het kunnen lezen | |
 | Openbare repo | gratis GitHub Pages | de opzet is zichtbaar (de sleutel in `config.js` is toch al openbaar) |
 | Gebruikers nooit verwijderen, behalve bij vertrek | koppelingen (taken, besteld door, logboek) raken anders los | zie `BEHEER.md` |
@@ -204,7 +212,11 @@ undo. Niet omgooien.
 | **ALLEEN BEDIENING** (v112) | op een aanvulling: bij een ruit die al besteld is verandert alleen de stang of het koord. Het glas wordt niet opnieuw gemaakt en niet geannuleerd |
 | **bediening** (v111) | een extra bedieningsstang of -koord bij een ventilatierooster, 1 of 2 per rooster, met een lengte (leeg = standaard). Het gewone knopje zit er altijd |
 | **Toebehoren** (v111) | wat er naast het glas nodig is: glaslatten, glasband, glaskit, wienersprossen-tape. Een schatting voor onszelf |
-| **zaagplan** | de latten echt verdeeld over lengtes van 4 m (langste eerst, met een zaagsnede per lat). Het **controlegetal** ernaast: totale lengte + 10 %, gedeeld door 4 m |
+| **zaagplan** | de latten echt verdeeld over lengtes van 4 m (langste eerst, met een zaagsnede per lat). Sinds v113 is het aantal lengtes: totale lengte + 10 %, gedeeld door 4 m; alleen als het zaagplan er meer nodig heeft (lange latten), het zaagplan |
+| **sponningdiepte** (v113) | de ruimte loodrecht op het glas, van de aanslag tot de buitenkant van het kozijn. In NPR 3577 heet dat sponningbreedte |
+| **pakket** (v113) | wat er in de sponning moet: band binnen + glas + band buiten + glaslat. Oordeel: past, krap, ruim, te ruim, past niet |
+| **neuslat** (v113) | onderlat bij buitenbeglazing met een neus die vóór het kozijn uitsteekt. Neemt níet zijn hele breedte in de sponning in: de kleinste die past heeft "ruimte vóór het glas + 5 mm ≤ modelnummer" (`GLASLATTEN.md` §6) |
+| **opdeklat** (v113) | lat óp het kozijn of de deur; zijn eigen sponning maakt de ruimte voor het glas groter |
 | **verstek** | de schuine hoek waarin twee glaslatten in de hoek samenkomen; daarom is een lat 20 mm langer dan de sponning |
 | **onderlat** | de onderste lat van een ruit: vaak een ander type (neuslat of ventilatielat). Per project een standaard, per ruit aan te passen |
 | **APP_VERSIE / PDF_VERSIE / VERSIE** | het versienummer, op drie plekken, altijd gelijk (zie §8) |
@@ -226,11 +238,11 @@ undo. Niet omgooien.
 1. **Bij elke wijziging aan de code: de drie versienummers ophogen**, alle
    drie hetzelfde. Anders krijgen de apparaten de wijziging niet (de service
    worker denkt dat er niets nieuws is):
-   - `index.html`: `const APP_VERSIE = 'v112';`
-   - `pdf.js`: `var PDF_VERSIE = 'v112';`
-   - `sw.js`: `const VERSIE = 'v112';`
+   - `index.html`: `const APP_VERSIE = 'v113';`
+   - `pdf.js`: `var PDF_VERSIE = 'v113';`
+   - `sw.js`: `const VERSIE = 'v113';`
    (Bij een wijziging maak je er alle drie het volgende nummer van, bijvoorbeeld
-   `v113`.)
+   `v114`.)
 2. **Eén kleine wijziging per keer**, dan publiceren en op een apparaat
    controleren.
 3. **Nooit `config.js`** wijzigen.
@@ -272,9 +284,17 @@ lengte van een lat, meters op een rol, …)
   `5,`; een punt als decimaalteken: `4.5`). Versienummers ophogen
   (regel 1), commit, push. Projecten waarin je de waarde al apart had
   gezet, houden die.
-- *Een lattype erbij* (naast Glaslat, Neuslat, Ventilatielat): in hetzelfde
-  bestand de lijst `LATTYPES`, tussen aanhalingstekens, met een komma
-  ertussen.
+- *Een glaslat erbij, of een maat verbeteren* (v113): open `latten.js`;
+  bovenin staat de lijst `LATTEN`, één regel per lat. Kopieer een regel van
+  dezelfde soort en pas id, maat, `inSponning` (mm in de sponning) of
+  `eigenSponning` (opdeklat) en het artikelnummer aan. Heb je een maat
+  nagemeten, zet dan `zeker: true`. Uitleg van elk veld staat erboven;
+  de achtergrond in `GLASLATTEN.md`. Daarna: de regel in `latfotos.txt` en
+  `LAT_FOTOS` in `sw.js` (de foto), versienummers ophogen.
+- *De foto's van de latten ophalen*: op de Mac, in de map van de repo,
+  `bash latfotos-ophalen.sh`. Het zet de foto's in `latten/` en schrijft de
+  titels van de pagina's in `/tmp/latten-specs.txt` (vergelijk de maten met
+  `latten.js`). Daarna `latten/` meecommitten.
 
 **Een vaste geadresseerde voor de bestelmail**: Supabase → Table Editor →
 `mailadressen` → *Insert row* (`naam`, `adres`, `soort` = `leverancier`).
@@ -328,7 +348,7 @@ Bij elke versie draait Claude een reeks tests (in de repo: `test-*.js`),
 twee keer. Ze bootsen de echte situatie na: meerdere apparaten, geen bereik,
 een oude versie naast een nieuwe. Van elke nieuwe test wordt bewezen dat hij
 rood wordt als je de reparatie terugdraait (`--mutaties` in test-v103 t/m
-test-v106, test-v109, test-v110, test-v111 en test-v112).
+test-v106, test-v109, test-v110, test-v111, test-v112 en test-v113).
 
 **Zelf draaien kan nu nog niet zomaar**: de tests verwachten de hulpmiddelen
 op een vaste plek in de werkomgeving van Claude (`/home/claude/node_modules`)
@@ -347,6 +367,7 @@ een verbeterpunt (handover §11d: "tests automatisch bij elke push").
 | **Eén gelekt wachtwoord = toegang tot alles** | sterke eigen wachtwoorden; bij vertrek meteen verwijderen (`BEHEER.md` §3.3) |
 | **Herstellink al "gebruikt"** voordat de collega erop tikt (mailbeveiliging zoals Safe Links opent links vooraf) | nieuwe sturen; gebeurt het steeds, dan aan Claude melden (`BEHEER.md` §3.2) |
 | **Toebehoren is een schatting** (v111) | de uitkomst hangt af van de instellingen; eerst in de praktijk vergelijken en bijstellen (§8) |
+| **Maten van de latten niet allemaal nagemeten** (v113) | wat "maat nog niet nagemeten" heeft (opdeklatten, neuslatten, A5, ventilatielatten): nameten en in `latten.js` aanpassen (`GLASLATTEN.md` §11) |
 | **Nooit getest in echte Safari** door Claude | Jan test elke versie op iPad/iPhone/Mac; meld afwijkingen met versie en apparaat |
 
 ## 11. Noodplan

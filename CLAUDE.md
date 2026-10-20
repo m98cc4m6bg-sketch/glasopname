@@ -159,6 +159,31 @@ Een feit staat op één plek; elders verwijs je ernaar.
   in de mail. Keuzes per ruit in `info.toebehoren.perRuit`, **niet op de
   ruit** (een veld op de ruit geeft een nieuw stempel `gewOp`, en dan werkt
   "Oudere stand?" niet meer). Wijzigen: `kijkWeigert()`, niet `slotWeigert`.
+* **Glaslatten en sponning** (v113, `latten.js`, kennis in `GLASLATTEN.md`):
+  - **Opslag.** `sponningDiepte`, `glaslat`, `bandBinnen` en `uitfrezen`
+    staan in `info.toebehoren.perRuit`, NIET op de ruit. Lezen gaat via
+    `GlasLatten.ruit(r)` (`rw`), schrijven via `toebehorenZetRuit`.
+  - **Slot.** Op Invoer zijn het vak, de latknop en de chip `vrij-bij-slot`.
+    Ze staan niet in `SLOT_FUNCTIES`; bulk mag via `bulkVrijBijSlot`.
+    Alleen meekijken houdt ze tegen.
+  - **Het vak in de tabel niet vervangen** terwijl het de focus heeft
+    (`naWijziging(id, true)`): dat brak het ongedaan maken en de eerste
+    tik op de chip.
+  - **Rekenregel.** nodig = glas (`totaalDikte`) + band binnen + band buiten
+    + lat in de sponning (× 2 bij twee kanten). Een opdeklat heeft 0 in de
+    sponning en zijn eigen sponning erbij. Marge 1 mm (krap/ruim).
+  - **Neuslat.** De kleinste met "rest + 5 ≤ S". Hij neemt níet zijn hele
+    breedte in.
+  - **Band buiten** nooit 2 mm.
+  - **Oude namen** ('Glaslat', 'Neuslat', 'Ventilatielat') worden bij het
+    lezen omgezet (`normaal`, `onderNaam`). Een oude onderlat 'Glaslat'
+    wordt '' (zelfde als boven), niet A4.
+  - **Eén getal voor de lengtes**: max(totaal + 10 %, zaagplan). Het grote
+    getal en de rekenregel moeten altijd hetzelfde zeggen.
+  - **Kleuren.** Gebruik de namen in `:root` (`--accent`, `--ink`, `--ok`,
+    `--warn`, `--err`); het pdf-rood is 193, 18, 28.
+  - **Een `width: 1%` in een tabel met `width: auto`** laat hem toch de hele
+    breedte vullen (Toebehoren).
 * `pdf.js` `schoon()`: een teken buiten het pdf-lettertype (emoji, →, ≥, ł)
   wordt in jsPDF rommel; nieuwe tekst in een pdf via `schoon` of `pdfTekst`
   (die zetten om, halen emoji weg en maken van de rest "?").
@@ -245,7 +270,8 @@ node test-v109.js                     # inloggen, wachtwoord vergeten, herstelli
 node test-v110.js                     # aantal en bolletjes, EXTRA/annuleren; en: --mutaties (43, ±45 min); PLAATJES=map voor schermafdrukken
 node test-v111.js                     # bediening, Toebehoren; en: --mutaties (±50, ±40 min); PLAATJES=map; OUD=map van live (kenmerk)
 node test-v112.js                     # alleen een andere bediening na bestellen; en: --mutaties (21, ±15 min)
-OUD=/tmp/live111 node test-overgang.js   # OUD = git archive van wat live staat (19-10-2026: v111, 46d25ac); ook vanaf v98
+node test-v113.js                     # glaslatten, sponning, neuslat, één getal, uiterlijk; en: --mutaties (40, ±30 min); PLAATJES=map
+OUD=/tmp/live112 node test-overgang.js   # OUD = git archive van wat live staat (19-10-2026: v112, 132ec05); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 

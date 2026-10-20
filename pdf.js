@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v112';
+  var PDF_VERSIE = 'v113';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
   // service worker en werkt de eerste pdf na een update ook zonder bereik.
   var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
@@ -55,6 +55,16 @@
       { kop: 'Opbouw',    w: 22, haal: function (r) { return r.opbouw; } },
       { kop: 'Dikte',     w: 12, haal: function (r) { return r.totaalDikte; } },
       { kop: 'kg/m2',     w: 12, haal: function (r) { return r.kgM2; } },
+      // v113: sponningdiepte en de glaslat met het oordeel (past/krap/ruim/
+      // past niet). Deze tabel staat alleen in de pdf met foto's (eigen
+      // archief), niet op de bestellijst: de glasleverancier heeft er niets aan.
+      { kop: 'Spon.',     w: 11, haal: function (r) { return window.GlasLatten ? GlasLatten.ruit(r).sponningDiepte : ''; } },
+      { kop: 'Lat/pakket', w: 26, haal: function (r) {
+          var G = window.GlasLatten;
+          if (!G || (!(G.ruit(r).sponningDiepte > 0) && !G.ruit(r).glaslat)) return '';
+          var l = G.latVoorRuit(r), o = G.kort(G.pakket(r));
+          return (l ? l.id : '') + (o ? ': ' + o : '');
+        } },
       { kop: 'Rooster',   w: 13, haal: function (r) { return r.rooster === 'Ja' ? 'Ja' : ''; } },
       { kop: 'Duco',      w: 24, haal: function (r) { return r.ducoType; } },
       { kop: 'RAL',       w: 26, haal: function (r) { return r.ralKleur; } },
@@ -217,7 +227,7 @@
       var lb = 34, lh = lb * 142 / 600;
       doc.addImage(logoData, 'PNG', BREEDTE - MARGE - lb, LOGO_BOVEN, lb, lh);
     }
-    doc.setDrawColor(208, 2, 67);
+    doc.setDrawColor(193, 18, 28);
     doc.setLineWidth(0.6);
     doc.line(MARGE, MARGE + 3.5, BREEDTE - MARGE, MARGE + 3.5);
   }
@@ -379,7 +389,7 @@
         return kols.map(function (k) { return schoon(k.haal(r)); });
       }),
       styles: { fontSize: fontMaat, cellPadding: 1, overflow: 'linebreak', lineColor: [205, 210, 218], lineWidth: 0.15 },
-      headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold', fontSize: fontMaat },
+      headStyles: { fillColor: [193, 18, 28], textColor: 255, fontStyle: 'bold', fontSize: fontMaat },
       alternateRowStyles: { fillColor: [244, 246, 249] },
       columnStyles: stijlen,
       didDrawPage: function (data) {
@@ -563,11 +573,11 @@
       tekst('Telt niet mee (nog geen glasmaat): ' + u.zonderMaat.join(', ') + '.', { kleur: [142, 27, 18], na: 3 });
     }
     u.latten.forEach(function (l) {
-      tekst(l.staven + ' x ' + nl(g.STAAF_MM / 1000, 1) + ' m ' + l.type + ' (' + l.rol + ')',
+      tekst(l.staven + ' x ' + nl(l.staaf / 1000, 1) + ' m ' + (l.naam || l.type) + ' (' + l.rol + ')' + (l.zeker === false ? ' - maat nog niet nagemeten' : ''),
         { vet: true, grootte: 11, na: 0.5 });
       tekst(regel['lat:' + l.type], { grootte: 8, kleur: [90, 98, 110], na: l.teLang.length ? 0.5 : 2.5 });
       if (l.teLang.length) {
-        tekst('Langer dan ' + nl(g.STAAF_MM / 1000, 1) + ' m, apart bestellen: ' + l.teLang.map(function (x) { return nl(x) + ' mm'; }).join(', '),
+        tekst('Langer dan ' + nl(l.staaf / 1000, 1) + ' m, apart bestellen: ' + l.teLang.map(function (x) { return nl(x) + ' mm'; }).join(', '),
           { grootte: 8, kleur: [142, 27, 18], na: 2.5 });
       }
     });
@@ -597,21 +607,23 @@
     doc.autoTable({
       startY: y,
       margin: { left: MARGE, right: MARGE, top: MARGE + 8, bottom: MARGE + 8 },
-      head: [['Merk', 'Aantal', 'Sponning (mm)', 'Onderlat', '2 kanten', 'Latten (m)', 'Band (m)', 'Kit (ml)', 'Tape (m)']],
+      head: [['Merk', 'Aantal', 'Sponningmaat', 'Lat', 'Onderlat', 'Twee kanten', 'Latten (m)', 'Band (m)', 'Kit (ml)', 'Tape (m)']],
       body: u.perRuit.map(function (p) {
-        return [p.rij.merk || '-', p.n, nl(p.sponning.b) + ' x ' + nl(p.sponning.h), p.onderlat, p.tweeKanten ? 'ja' : '',
+        return [p.rij.merk || '-', p.n, nl(p.sponning.b) + ' x ' + nl(p.sponning.h), p.lat || '', p.onderlat === 'NEUS' ? 'neuslat (maat?)' : p.onderlat,
+          p.tweeKanten ? 'ja' : '',
           nl(p.latM, 1), nl(p.bandM, 1), nl(p.kitMl), p.roeden === 'zelf' ? 'zelf' : p.tapeM ? nl(p.tapeM, 1) : ''].map(schoon);
       }),
       styles: { fontSize: 7.5, cellPadding: 1.2, lineColor: [205, 210, 218], lineWidth: 0.15 },
       headStyles: { fillColor: [60, 70, 84], textColor: 255, fontStyle: 'bold' },
-      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' },
-                      7: { halign: 'right' }, 8: { halign: 'right' } },
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
+                      8: { halign: 'right' }, 9: { halign: 'right' } },
       didDrawPage: function (data) { if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)'); }
     });
     y = doc.lastAutoTable.finalY + 6;
     // Zaaglijst per lattype: welke latten uit welke lengte.
     u.latten.forEach(function (l) {
-      tekst('Zaaglijst ' + l.type + ' (' + l.staven + ' x ' + nl(g.STAAF_MM / 1000, 1) + ' m)', { vet: true, grootte: 9, na: 0.5 });
+      tekst('Zaaglijst ' + (l.naam || l.type) + ' (zaagplan ' + l.zaagplanStaven + ' x ' + nl(l.staaf / 1000, 1) + ' m; besteld ' + l.staven + ')',
+        { vet: true, grootte: 9, na: 0.5 });
       tekst(l.plan.map(function (st, i) {
         return (i + 1) + ': ' + st.stukken.map(function (x) { return nl(x); }).join(' + ') + ' (rest ' + nl(Math.max(0, st.rest)) + ')';
       }).join('   '), { grootte: 7.5, kleur: [60, 70, 84], na: 2.5 });
@@ -651,7 +663,7 @@
       ruimte(18);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      doc.setTextColor(208, 2, 67);
+      doc.setTextColor(193, 18, 28);
       doc.text(tekst, MARGE, y);
       doc.setDrawColor(225, 225, 225);
       doc.setLineWidth(0.3);
@@ -747,7 +759,7 @@
         body: takenLijst.map(function (t) {
           return [pdfTekst(t.tekst) || '-', pdfTekst(t.wie) || '-', t.klaar ? 'afgerond' : 'open'];
         }),
-        headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [193, 18, 28], textColor: 255, fontStyle: 'bold' },
         columnStyles: { 1: { cellWidth: 38 }, 2: { cellWidth: 22 } }
       });
     } else {
@@ -764,7 +776,7 @@
       tabel({
         head: [['Moment', 'Wie', 'Wat']],
         body: log.map(function (r) { return [r.moment || '', pdfTekst(r.wie), pdfTekst(r.wat)]; }),
-        headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [193, 18, 28], textColor: 255, fontStyle: 'bold' },
         styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak', textColor: [29, 29, 27],
                   lineColor: [215, 219, 226], lineWidth: 0.15 },
         columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 24 } }
@@ -1030,7 +1042,7 @@
       var y = MARGE + 10;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.setTextColor(208, 2, 67);
+      doc.setTextColor(193, 18, 28);
       doc.text('AFLEVEREN OP', MARGE, y);
       y += 6;
 
@@ -1126,7 +1138,42 @@
   function voorControles(bm) {
     return voorControlesBestelling(bm).then(function (k) {
       return k === 'door' ? aantalControle(bm) : k;
+    }).then(function (k) {
+      return k === 'door' ? pakketControle(bm) : k;
     });
+  }
+
+  // v113: past het glas in de sponning? Alleen ruiten op deze lijst waar de
+  // sponningdiepte is ingevuld en het pakket (glas + band + lat) er niet in
+  // past, of meer dan 1 mm te ruim is. Zonder diepte zegt de app niets: dan
+  // is er niet gemeten. Ook bij ‹Alleen bekijken›, net als het aantal.
+  function pakketScheef(bm) {
+    var G = window.GlasLatten;
+    if (!G || bm.modus === 'overzicht') return [];
+    var compleet = window.bestelbaar || function (r) {
+      return !!(r.glasType && r.opbouw && r.glasBreedte != null && r.glasHoogte != null);
+    };
+    var lijst = bm.modus === 'aanvulling' && bm.t ? bm.t.regels : rijen.filter(compleet);
+    return lijst.map(function (r) { return { rij: r, u: G.pakket(r) }; })
+      .filter(function (x) { return x.u.status === 'past niet' || x.u.status === 'te ruim'; });
+  }
+  window.glasPakketScheef = function () { return pakketScheef(bestelModus()); };
+
+  function pakketControle(bm) {
+    var scheef = pakketScheef(bm);
+    if (!scheef.length || !window.appKeuze) return Promise.resolve('door');
+    var G = window.GlasLatten;
+    var namen = scheef.slice(0, 10).map(function (x) {
+      return (x.rij.merk || '(zonder merk)') + ' (' + G.kort(x.u) + ')';
+    }).join('; ') + (scheef.length > 10 ? ' …' : '');
+    var niet = scheef.some(function (x) { return x.u.status === 'past niet'; });
+    return appKeuze('Bij ' + (scheef.length === 1 ? 'deze ruit' : 'deze ruiten') + ' past het glas met band en ' +
+      'glaslat niet goed in de opgegeven sponning: ' + namen + '.\n' +
+      (niet ? 'Bij "past niet" is het pakket dikker dan de sponning: andere lat, dunner band, dunner glas of de sponning uitfrezen. ' : '') +
+      'Tik in de tabel op het oordeel in de kolom Diepte voor de uitleg en wat wel past.',
+      [{ tekst: 'Stoppen', waarde: null },
+       { tekst: 'Toch doorgaan', waarde: 'door' }],
+      { kop: 'Past het in de sponning?', soort: 'letop' });
   }
 
   // Ruiten op deze bestellijst met minstens één bolletje, waar het aantal
@@ -1578,7 +1625,7 @@
         }),
         styles: { fontSize: kols.length > 11 ? 7 : 8, cellPadding: 1.4, overflow: 'linebreak',
                   lineColor: [205, 210, 218], lineWidth: 0.15 },
-        headStyles: { fillColor: [208, 2, 67], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [193, 18, 28], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [244, 246, 249] },
         columnStyles: stijlen,
         // Regels waarvan de bewerking niet in de gekozen bladdikte bestaat

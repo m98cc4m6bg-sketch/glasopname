@@ -41,12 +41,12 @@ const MUTATIES = {
   verstek: ["toebehoren.js", "      var t = g.VERSTEK_TOESLAG_MM;", "      var t = 0;"],
   zaagsnede: ["toebehoren.js", "      var nodig = l + snede;", "      var nodig = l;"],
   zaagpast: ["toebehoren.js", "        if (staven[i].rest >= l) {", "        if (staven[i].rest >= l + snede) {"],
-  controle: ["toebehoren.js", "      var controle = Math.ceil(totaal * (1 + g.CONTROLE_VERLIES_PROCENT / 100) / g.STAAF_MM);", "      var controle = Math.ceil(totaal / g.STAAF_MM);"],
+  controle: ["toebehoren.js", "      var metVerlies = Math.ceil(totaal * (1 + g.CONTROLE_VERLIES_PROCENT / 100) / staaf - 1e-9);", "      var metVerlies = Math.ceil(totaal / staaf - 1e-9);"],
   sponning: ["toebehoren.js", "    if (r.maatsoort === 'Sponningmaat' && getal(r.breedte) > 0 && getal(r.hoogte) > 0) {", "    if (0) {"],
-  onderlatRuit: ["toebehoren.js", "      var onder = eigen.onderlat || k.standaardOnderlat || k.standaardLat;", "      var onder = k.standaardOnderlat || k.standaardLat;"],
+  onderlatRuit: ["toebehoren.js", "      var onderKeuze = onderNaam(eigen.onderlat) || k.standaardOnderlat || boven;", "      var onderKeuze = k.standaardOnderlat || boven;"],
   tweeKanten: ["toebehoren.js", "      var dubbel = eigen.tweeKanten ? 2 : 1;", "      var dubbel = 1;"],
-  opDeRuit: ["toebehoren.js", "    zetPerRuit(p, r.id, 'onderlat', LATTYPES.indexOf(waarde) >= 0 ? waarde : '');", "    r.onderlat = waarde; r.gewOp = new Date().toISOString(); zetPerRuit(p, r.id, 'onderlat', LATTYPES.indexOf(waarde) >= 0 ? waarde : '');"],
-  latRol: ["toebehoren.js", "alsOnder === perRuit.length ? 'rondom' :", "0 ? 'rondom' :"],
+  opDeRuit: ["toebehoren.js", "    zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');", "    r.onderlat = w; r.gewOp = new Date().toISOString(); zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');"],
+  latRol: ["toebehoren.js", "(rol.onder + rol.binnen === rol.rond) ? 'rondom' :", "0 ? 'rondom' :"],
   komma: ["toebehoren.js", "    if (t.indexOf(',') >= 0) t = t.replace(/\\./g, '').replace(',', '.');", ""],
   geenGetal: ["toebehoren.js", "    if (tekst !== '' && (n == null || (n === 0", "    if (tekst !== '' && ((n === 0"],
   roosterBand: ["toebehoren.js", "      var roosterM = r.rooster === 'Ja' ? g.BAND_ROOSTER_FACTOR * gb / 1000 / 2 : 0;", "      var roosterM = r.rooster === 'Ja' ? g.BAND_ROOSTER_FACTOR * gb / 1000 : 0;"],
@@ -85,7 +85,7 @@ const MUTATIES = {
   invoerKolom: ["pdf.js", "      { kop: 'Bediening', w: 26, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r, true) : ''; } },\n", ""],
   samenvatting: ["index.html", "      <td>${esc(r.ralKleur)}</td>\n      <td>${esc(bedieningTekst(r))}</td>\n      <td>${esc(r.glasbewerking)}</td>", "      <td>${esc(r.ralKleur)}</td>\n      <td></td>\n      <td>${esc(r.glasbewerking)}</td>"],
   bestelTab: ["index.html", "    <td>${esc(bedieningTekst(r))}</td>\n    <td>${esc(r.glasbewerking !== 'Helder (standaard)'", "    <td></td>\n    <td>${esc(r.glasbewerking !== 'Helder (standaard)'"],
-  export: ["index.html", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      bedieningTekst(r)\n", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      ''\n"],
+  export: ["index.html", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      bedieningTekst(r),\n", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      '',\n"],
   verschil: ["index.html", "    if (bo !== bn) uit.push('bediening ' + (bo || '(geen)') + ' → ' + (bn || '(geen)'));", ""],
   favicon: ["sw.js", "'./favicon-v3.ico'", "'./favicon.ico'"],
   pijl: ["pdf.js", "      .replace(/\\u2192/g, '->')", ""],
@@ -765,6 +765,9 @@ async function openProject() {
   return { ctx: c, page: p };
 }
 const perRuitDb = merk => ((info().toebehoren || {}).perRuit || {})[idVan(merk)] || {};
+// De rij van één ruit op Toebehoren. Niet met hasText: dat zoekt zonder
+// hoofdletters, en sinds v113 staat "18x40" in de keuzelijst (x = X).
+const tbRij = (page, merk) => page.locator('.tb-tabel tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp('^' + merk + '$') }) });
 const tbTekst = page => page.$eval('#toebehorenInhoud', e => e.innerText.replace(/\s+/g, ' '));
 async function naarToebehoren(page) {
   await page.click('.tab-btn:has-text("Toebehoren")');
@@ -784,12 +787,13 @@ async function naarToebehoren(page) {
     ({ ctx, page } = await openProject());
     await naarToebehoren(page);
     u = await page.evaluate(() => { const x = toebehorenBerekenen(); return JSON.parse(JSON.stringify(x)); });
-    const lat = u.latten.find(l => l.type === 'Glaslat') || {}, neus = u.latten.find(l => l.type === 'Neuslat') || {};
+    // v113: de latten heten naar hun model (A4); zonder sponningdiepte is de neuslat nog "NEUS".
+    const lat = u.latten.find(l => l.type === 'A4') || {}, neus = u.latten.find(l => l.type === 'NEUS') || {};
     // Latten = sponning + 20 mm. X: 1020 (boven), 2× 2020; Y ×2: 2× 920, 4× 1520. Onder: 1020 + 2× 920.
     check('glaslatten: de stukken zijn sponningmaat + 20 mm verstek', JSON.stringify(lat.plan && lat.plan.map(s => s.stukken)) ===
       JSON.stringify([[2020, 1520], [2020, 1520], [1520, 1520, 920], [1020, 920]]), JSON.stringify(lat.plan && lat.plan.map(s => s.stukken)));
-    check('zaagplan: 4 lengtes glaslat, controle (12,98 m + 10 %) ook 4', lat.staven === 4 && lat.controle === 4 && lat.totaalMm === 12980,
-      lat.staven + ' / ' + lat.controle + ' / ' + lat.totaalMm);
+    check('zaagplan: 4 lengtes glaslat, met zaagverlies (12,98 m + 10 %) ook 4', lat.staven === 4 && lat.metVerlies === 4 && lat.totaalMm === 12980,
+      lat.staven + ' / ' + lat.metVerlies + ' / ' + lat.totaalMm);
     check('neuslat onder: 1020 + 920 + 920 in 1 lengte', neus.staven === 1 && neus.totaalMm === 2860, JSON.stringify(neus).slice(0, 120));
     const band = u.band[0] || {}, kit = u.kit[0] || {};
     // Omtrek glas: X 2×(992+1992) = 5,968 m; Y 2×(892+1492) × 2 = 9,536 m → 15,504 m per kant, 2 kanten.
@@ -801,11 +805,11 @@ async function naarToebehoren(page) {
     check('tape: (2×892 + 2×1492) × 2 kanten × 2 ruiten = 19,072 m, 1 rol', Math.abs(u.tape.meters - 19.072) < 1e-6 && u.tape.rollen === 1,
       JSON.stringify(u.tape));
     t = await tbTekst(page);
-    check('op het tabblad: "4 × 4,0 m Glaslat", "1 × 4,0 m Neuslat", "31,0 m Glasband wit 3 mm", "3 kokers"',
-      /4 × 4,0 m Glaslat \(boven en zijkanten\)/.test(t) && /1 × 4,0 m Neuslat \(onder\)/.test(t) && /31,0 m Glasband wit 3 mm/.test(t) &&
+    check('op het tabblad: "4 × 4,0 m A4 glaslat", "1 × 4,0 m Neuslat", "31,0 m Glasband wit 3 mm", "3 kokers"',
+      /4 × 4,0 m A4 glaslat schuin 17x15 \(boven en zijkanten\)/.test(t) && /1 × 4,0 m Neuslat, maat nog onbekend \(onder\)/.test(t) && /31,0 m Glasband wit 3 mm/.test(t) &&
       /3 kokers Glaskit wit/.test(t), t.slice(0, 400));
     check('met de rekenregel eronder (narekenbaar)', /620 ml ÷ 290 ml per koker → 3 kokers/.test(t) &&
-      /Controle: 13,0 m \+ 10 % = 14,3 m → 4 lengtes/.test(t), t.slice(0, 900));
+      /9 latten, samen 13,0 m \(incl\. 20 mm verstek per lat\) \+ 10 % zaagverlies = 14,3 m ÷ 4,0 m → 4 lengtes/.test(t), t.slice(0, 900));
     check('en "Gerekend met de standaardwaarden"', /Gerekend met de standaardwaarden/.test(t));
     // Randgevallen van het zaagplan en de sponningmaat (los gerekend, dan het project terug).
     u = await page.evaluate(() => {
@@ -814,8 +818,8 @@ async function naarToebehoren(page) {
         glasType: 'HR++ glas', opbouw: '4-15-4', rooster: 'Nee', roedenverdeling: 'Geen roedenverdeling' }, extra || {});
       const uit = {};
       const reken = (naam, rij) => { berekenGlasMaat(rij); rijen = [rij]; const x = toebehorenBerekenen(); rijen = bewaard;
-        const gl = x.latten.find(l => l.type === 'Glaslat') || {};
-        uit[naam] = { plan: (gl.plan || []).map(s => s.stukken), staven: gl.staven, controle: gl.controle, sponning: x.perRuit[0].sponning }; };
+        const gl = x.latten.find(l => l.type === 'A4') || {};
+        uit[naam] = { plan: (gl.plan || []).map(s => s.stukken), staven: gl.staven, controle: gl.metVerlies, sponning: x.perRuit[0].sponning }; };
       reken('A', r('A', '980', '980', { aantal: 4 }));     // 12 latten van 1000: met zaagsnede 3 per staaf
       reken('B', r('B', '1975', '1980'));                  // 2000, 2000, 1995: de 1995 past precies achter een 2000
       reken('C', r('C', '1000', '2000', { correctie: '6' }));   // eigen correctie: de sponning blijft de ingevoerde maat
@@ -859,34 +863,37 @@ async function naarToebehoren(page) {
       u.band.every(b => Math.abs(b.meters - 15.504) < 1e-6) && u.band.some(b => b.kleur === 'grijs' && b.dikte === 4) &&
       u.kit.length === 2 && u.kit.some(k => k.kleur === 'grijs'), JSON.stringify([u.band, u.kit]));
     // Onderlat van Y: ventilatielat.
-    await page.locator('.tb-tabel tbody tr', { hasText: 'Y' }).locator('select.tb-onderlat').selectOption('Ventilatielat');
+    await tbRij(page, 'Y').locator('select.tb-onderlat').selectOption('C1');
     await wacht(300);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen())));
-    const vent = u.latten.find(l => l.type === 'Ventilatielat') || {};
+    const vent = u.latten.find(l => l.type === 'C1') || {};
     check('Y met ventilatielat: 2 × 920 als ventilatielat, neuslat alleen X (1020)', vent.stukken === 2 && vent.totaalMm === 1840 &&
-      (u.latten.find(l => l.type === 'Neuslat') || {}).totaalMm === 1020, JSON.stringify(u.latten.map(l => l.type + ':' + l.totaalMm)));
+      (u.latten.find(l => l.type === 'NEUS') || {}).totaalMm === 1020, JSON.stringify(u.latten.map(l => l.type + ':' + l.totaalMm)));
     check('bewaard bij het project (perRuit), niet op de ruit: geen nieuw stempel', await opgeslagenAls(() =>
-      perRuitDb('Y').onderlat === 'Ventilatielat') && !('onderlat' in dbRij('Y')) && dbRij('Y').gewOp === INGEMETEN.gewOp,
+      perRuitDb('Y').onderlat === 'C1') && !('onderlat' in dbRij('Y')) && dbRij('Y').gewOp === INGEMETEN.gewOp,
       JSON.stringify([info().toebehoren, dbRij('Y').gewOp]));
     t = await tbTekst(page);
-    check('de tekst bij de latten klopt: "Glaslat (boven en zijkanten)", "Neuslat (onder)", "Ventilatielat (onder)"',
-      /Glaslat \(boven en zijkanten\)/.test(t) && /Neuslat \(onder\)/.test(t) && /Ventilatielat \(onder\)/.test(t), t.slice(0, 300));
-    await page.locator('.tb-tabel tbody tr', { hasText: 'X' }).locator('input.tb-tweekanten').check();
+    check('de tekst bij de latten klopt: "A4 glaslat … (boven en zijkanten)", "Neuslat … (onder)", "C1 ventilatielat … (onder)"',
+      /A4 glaslat schuin 17x15 \(boven en zijkanten\)/.test(t) && /Neuslat, maat nog onbekend \(onder\)/.test(t) &&
+      /C1 ventilatielat 17x26 \(onder\)/.test(t), t.slice(0, 300));
+    await tbRij(page, 'X').locator('input.tb-tweekanten').check();
     await wacht(300);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen())));
-    check('X latten aan twee kanten: glaslat 12,98 + 1,02 + 2 × 2,02 = 18,04 m', (u.latten.find(l => l.type === 'Glaslat') || {}).totaalMm === 18040,
+    // v113: aan de 2e kant komt onderin een gewone glaslat, geen 2e neuslat.
+    check('X latten aan twee kanten: glaslat 12,98 + 1,02 + 2 × 2,02 + 1,02 (onder, 2e kant) = 19,06 m, neuslat blijft 1,02',
+      (u.latten.find(l => l.type === 'A4') || {}).totaalMm === 19060 && (u.latten.find(l => l.type === 'NEUS') || {}).totaalMm === 1020,
       JSON.stringify(u.latten.map(l => l.type + ':' + l.totaalMm)));
     // Alle ruiten in één keer terug naar de standaard.
     await page.selectOption('#tbAlleOnderlat', '');
     await page.click('button:has-text("Toepassen")');
     check('"Onderlat voor alle ruiten: standaard" → Y weer neuslat', await opgeslagenAls(() => perRuitDb('Y').onderlat === undefined &&
       perRuitDb('X').tweeKanten === true), JSON.stringify(info().toebehoren));
-    await page.selectOption('#tbAlleOnderlat', 'Glaslat');
+    await page.selectOption('#tbAlleOnderlat', 'A4');
     await page.click('button:has-text("Toepassen")');
     await wacht(300);
     t = await tbTekst(page);
     m = await page.evaluate(() => toebehorenBerekenen().latten.map(l => l.type));
-    check('alle onderlatten = glaslat: één soort, "Glaslat (rondom)"', /Glaslat \(rondom\)/.test(t) && JSON.stringify(m) === '["Glaslat"]',
+    check('alle onderlatten = glaslat: één soort, "A4 glaslat schuin 17x15 (rondom)"', /A4 glaslat schuin 17x15 \(rondom\)/.test(t) && JSON.stringify(m) === '["A4"]',
       JSON.stringify(m) + ' ' + t.slice(0, 100));
     await page.selectOption('#tbAlleOnderlat', '');
     await page.click('button:has-text("Toepassen")');
@@ -914,7 +921,7 @@ async function naarToebehoren(page) {
       m.every(c => c[1] === 279.1 && c[2] === 1), JSON.stringify(m));
     const nulBewaard = await page.evaluate(() => { toebehorenGetal('STAAF_MM', '0'); return 'STAAF_MM' in ((projectInfo.toebehoren || {}).afwijkingen || {}); });
     check('staaflengte 0 typen: wordt niet bewaard', !nulBewaard);
-    u = await page.evaluate(() => { const kort = x => JSON.stringify([x.latten.map(l => l.staven + '/' + l.controle), x.tape.rollen]);
+    u = await page.evaluate(() => { const kort = x => JSON.stringify([x.latten.map(l => l.staven + '/' + l.metVerlies), x.tape.rollen]);
       const gewoon = kort(toebehorenBerekenen());
       projectInfo.toebehoren.afwijkingen.STAAF_MM = 0; projectInfo.toebehoren.afwijkingen.TAPE_ROL_M = 0;
       const nul = kort(toebehorenBerekenen()); delete projectInfo.toebehoren.afwijkingen.STAAF_MM; delete projectInfo.toebehoren.afwijkingen.TAPE_ROL_M;
@@ -943,11 +950,11 @@ async function naarToebehoren(page) {
     const pi = await bestellijstPdf(page, ONVOLLEDIG, 'PDF invoer');
     t = plat(pdfTekst(pi));
     check('PDF invoer: pagina "Toebehoren - intern, niet voor de leverancier" met de totalen', /Toebehoren - intern, niet voor de leverancier/.test(t) &&
-      /4 x 4,0 m Glaslat \(boven en zijkanten\)/.test(t) && /Glasband wit 3 mm: 31,0 m \(1 rol\)/.test(t) &&
+      /4 x 4,0 m A4 glaslat schuin 17x15 \(boven en zijkanten\)/.test(t) && /Glasband wit 3 mm: 31,0 m \(1 rol\)/.test(t) &&
       /Glaskit wit: 3 kokers \(290 ml\)/.test(t) && /Wienersprossen-tape \(dubbelzijdig\): 19,1 m \(1 rol\)/.test(t),
       (t.match(/Toebehoren - intern.{0,500}/) || [''])[0]);
     check('met de gebruikte instellingen en de zaaglijst', /Gerekend met: lengte glaslat 4\.000 mm/.test(t) &&
-      /Zaaglijst Glaslat \(4 x 4,0 m\) 1: 2\.020 \+ 1\.520/.test(t), (t.match(/Gerekend met.{0,200}/) || [''])[0] + ' | ' +
+      /Zaaglijst A4 glaslat schuin 17x15 \(zaagplan 4 x 4,0 m; besteld 4\) 1: 2\.020 \+ 1\.520/.test(t), (t.match(/Gerekend met.{0,200}/) || [''])[0] + ' | ' +
       (t.match(/Zaaglijst.{0,120}/) || [''])[0]);
     if (process.env.PLAATJES) {
       fs.copyFileSync(pi, path.join(process.env.PLAATJES, 'v111-pdf-invoer.pdf'));
@@ -955,7 +962,7 @@ async function naarToebehoren(page) {
       await page.screenshot({ path: path.join(process.env.PLAATJES, 'v111-toebehoren.png'), fullPage: true });
       await page.click('.tab-btn:has-text("Invoer")'); await wacht(300);
     }
-    check('de rekenregels zijn leesbaar (pijl als "->", geen rare tekens)', /zaagsnede -> 4 x 4,0 m/.test(t) && /-> 3 kokers/.test(t) &&
+    check('de rekenregels zijn leesbaar (pijl als "->", geen rare tekens)', /÷ 4,0 m -> 4 lengtes/.test(t) && /-> 3 kokers/.test(t) &&
       !/!'|\u2192/.test(t), (t.match(/zaagsnede.{0,40}/) || [''])[0]);
     check('zonder rooster in het project: geen regel over band bij een rooster', !/bij een rooster/.test(t.replace(/extra band bij rooster/g, '')),
       (t.match(/.{0,40}bij een rooster.{0,40}/) || [''])[0]);
@@ -1095,10 +1102,10 @@ async function naarToebehoren(page) {
     await eersteBestelling(page);
     check('besteld en op slot', await opSlot(page));
     await naarToebehoren(page);
-    await page.locator('.tb-tabel tbody tr', { hasText: 'Y' }).locator('select.tb-onderlat').selectOption('Ventilatielat');
-    await page.locator('.tb-tabel tbody tr', { hasText: 'X' }).locator('input.tb-tweekanten').check();
+    await tbRij(page, 'Y').locator('select.tb-onderlat').selectOption('C1');
+    await tbRij(page, 'X').locator('input.tb-tweekanten').check();
     check('op slot mag de onderlat en "twee kanten" nog wel (het gaat niet naar de leverancier)', await opgeslagenAls(() =>
-      perRuitDb('Y').onderlat === 'Ventilatielat' && perRuitDb('X').tweeKanten === true), JSON.stringify(info().toebehoren));
+      perRuitDb('Y').onderlat === 'C1' && perRuitDb('X').tweeKanten === true), JSON.stringify(info().toebehoren));
     check('en de ruiten zelf houden hun stempel (geen "Gewijzigd", "Oudere stand?" blijft werken)',
       ['X', 'Y'].every(m => dbRij(m).gewOp === INGEMETEN.gewOp && !('onderlat' in dbRij(m))), JSON.stringify([dbRij('X').gewOp, dbRij('Y').gewOp]));
     let w = await page.evaluate(() => { const x = teBestellen(); return { a: x.aanvulling, g: x.gewijzigd.length, r: x.regels.length }; });

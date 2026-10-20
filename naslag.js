@@ -658,8 +658,8 @@ const SCHETS_STIJL =
 // leesbaar op het donkere profiel.
 function schetsPijl(y) {
   return '<path d="M14 ' + y + ' H100" stroke="#ffffff" stroke-width="5" fill="none" stroke-linecap="round"/>' +
-    '<path d="M14 ' + y + ' H98" stroke="#d00243" stroke-width="2.2" fill="none"/>' +
-    '<path d="M104 ' + y + ' l-9 -5 v10 z" fill="#d00243" stroke="#ffffff" stroke-width="1.2"/>';
+    '<path d="M14 ' + y + ' H98" stroke="#c1121c" stroke-width="2.2" fill="none"/>' +
+    '<path d="M104 ' + y + ' l-9 -5 v10 z" fill="#c1121c" stroke="#ffffff" stroke-width="1.2"/>';
 }
 
 const ROOSTER_SCHETS = {

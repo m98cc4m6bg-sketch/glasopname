@@ -380,6 +380,25 @@ harde eis wint.
     want de test veranderde een maat, en die vangt de glasmaatcontrole al.
     Een andere RAL-kleur verandert het kenmerk zonder de glasmaat: die raakt
     precies deze controle.
+- `test-v113.js` (glaslatten, sponning, neuslat, één getal, uiterlijk):
+  - onderdeel 1 rekent de pakketten na zonder klikken (`GlasLatten.pakket`
+    met `anders`), met Jans deur en de neuslat als echte voorbeelden;
+  - onderdeel 2 klikt echt: typen in het vak, het venster, de kiezer, de
+    grote foto (een echte jpg in `latten/A4.jpg` in de testmap), Escape,
+    ongedaan maken, doorvoeren;
+  - les: een kolom in procenten (`width: 1%`) laat een tabel met
+    `width: auto` toch de hele breedte vullen. Meet de breedte, kijk niet
+    alleen naar de CSS;
+  - les: `innerText` bevat geen `::before`/`::after`. Controleer zo'n tekst
+    met `getComputedStyle(e, '::before').content`;
+  - les: `tr:nth-child(even) td` heeft meer gewicht dan `td.tb-aant`; een
+    regel die alleen bij de even rijen misgaat, zie je pas met 3 rijen;
+  - les: bij gesimuleerd meekijken (`glasAlleenKijken = () => true`) laat
+    de app de stand uit de cloud zien; controleer dan "niets veranderd",
+    niet een vaste waarde;
+  - les: een mutatie die de app laat vastlopen (time-out) is "gevangen",
+    maar zonder duidelijke reden. Maak er een `check` met
+    `waitForSelector(...).then(() => true, () => false)` van.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

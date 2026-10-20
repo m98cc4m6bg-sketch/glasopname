@@ -154,30 +154,56 @@ Een feit staat op één plek; elders verwijs je ernaar.
   `bedieningVan` in de momentopname, `bedieningTabel`). Glas en bediening
   kunnen uit verschillende lijsten komen: noem ze met `besteldInTekst` en
   `bedieningInTekst`.
+* **Bi-color en ALLEEN ROOSTER** (v114, keuze Jan): `biColor` ('Ja' of
+  afwezig) en `ralBinnen` op de ruit; in het kenmerk alleen als bi-color
+  gekozen is (anders "gewijzigd" bij elke bestelde ruit). Op papier altijd
+  `ralTekst(r)` / `roosterTekst(r)`, nooit `r.ralKleur` rauw.
+  `bedieningVerschil` kijkt naar bediening én rooster (`ROOSTER_VELDEN`) en
+  geeft `roosterWas/roosterNu` → `teBestellen().rooster`, `roosterVan` in
+  de momentopname, `roosterIn` in `standVan`, `roosterTabel`. Een ander
+  Duco type alleen bij dezelfde glasaftrek (`ducoWisselMag`), anders
+  VERVANGT. `KORT_VELDEN` bevat sinds v114 de roostervelden: een ingekorte
+  bestelling van daarvoor (`kort: 1`) kent ze niet, dus altijd via
+  `kortBewaard(oud, veld)`.
 * **Toebehoren** (v111, `toebehoren.js`) gaat nooit naar de leverancier:
   alleen in de PDF invoer (`toebehorenPagina`), nooit op de bestellijst of
   in de mail. Keuzes per ruit in `info.toebehoren.perRuit`, **niet op de
   ruit** (een veld op de ruit geeft een nieuw stempel `gewOp`, en dan werkt
-  "Oudere stand?" niet meer). Wijzigen: `kijkWeigert()`, niet `slotWeigert`.
+  "Oudere stand?" niet meer). Band, kit en verlies: `kijkWeigert()`. De
+  latkeuzes (zijde, onderlat, standaardlat) sinds v114 ook `slotWeigert`
+  (`latSlot`).
 * **Glaslatten en sponning** (v113, `latten.js`, kennis in `GLASLATTEN.md`):
-  - **Opslag.** `sponningDiepte`, `glaslat`, `bandBinnen` en `uitfrezen`
-    staan in `info.toebehoren.perRuit`, NIET op de ruit. Lezen gaat via
+  - **Opslag.** `sponningDiepte`, `glaslat`, `bandBinnen`, `uitfrezen`, en
+    sinds v114 `latZijde` en `diepteOnder`, staan in
+    `info.toebehoren.perRuit`, NIET op de ruit. Lezen gaat via
     `GlasLatten.ruit(r)` (`rw`), schrijven via `toebehorenZetRuit`.
-  - **Slot.** Op Invoer zijn het vak, de latknop en de chip `vrij-bij-slot`.
-    Ze staan niet in `SLOT_FUNCTIES`; bulk mag via `bulkVrijBijSlot`.
-    Alleen meekijken houdt ze tegen.
+  - **Slot (v114, keuze Jan: "mee op slot").** Alle lat-functies staan in
+    `SLOT_FUNCTIES`, en `magKiezen()` in latten.js vraagt `slotWeigert()`
+    (het venster roept de functies direct aan, dus beide zijn nodig). Alleen
+    de chip is `vrij-bij-slot` (bekijken mag). `bulkVrijBijSlot` is weg.
+  - **Latzijde (v114).** Geen standaard. `zijde(r)`: 'binnen'/'buiten'/'beide'
+    of '' (een oude `tweeKanten` = 'beide'). Onderlat via
+    `onderlatVoorRuit(r)`: eigen keuze, anders buiten/beide → neuslat,
+    binnen/'' → dezelfde lat. Een gekozen neuslat is ook een neuslat
+    (`neuslatVoor(r, gekozen)`). Het oordeel over de hele ruit:
+    `oordeelRuit(r)` (het slechtste van boven en onder), kort `kortRuit`.
+  - **Vaste eerste kolom.** Geen `overflow: hidden` op `table.invoer`: dat
+    maakt de tabel een eigen schuifvenster en breekt `position: sticky`.
   - **Het vak in de tabel niet vervangen** terwijl het de focus heeft
     (`naWijziging(id, true)`): dat brak het ongedaan maken en de eerste
     tik op de chip.
   - **Rekenregel.** nodig = glas (`totaalDikte`) + band binnen + band buiten
-    + lat in de sponning (× 2 bij twee kanten). Een opdeklat heeft 0 in de
+    + lat in de sponning (× 2 bij zijde 'beide'). Een opdeklat heeft 0 in de
     sponning en zijn eigen sponning erbij. Marge 1 mm (krap/ruim).
   - **Neuslat.** De kleinste met "rest + 5 ≤ S". Hij neemt níet zijn hele
-    breedte in.
+    breedte in. Neus 9 mm (tekening Jongeneel, v114).
   - **Band buiten** nooit 2 mm.
-  - **Oude namen** ('Glaslat', 'Neuslat', 'Ventilatielat') worden bij het
-    lezen omgezet (`normaal`, `onderNaam`). Een oude onderlat 'Glaslat'
-    wordt '' (zelfde als boven), niet A4.
+  - **Oude namen** ('Glaslat', 'Neuslat', 'Ventilatielat', en sinds v114
+    'GL13' → B13 en 'B2' → B1) worden bij het lezen omgezet (`normaal`,
+    `onderNaam`). Een oude onderlat 'Glaslat' wordt '' (zelfde als boven),
+    niet A4.
+  - **Foto's van Jongeneel**: geen script (de site blokkeert dat). Via de
+    browser in de Claude-desktopapp (handover §6).
   - **Eén getal voor de lengtes**: max(totaal + 10 %, zaagplan). Het grote
     getal en de rekenregel moeten altijd hetzelfde zeggen.
   - **Kleuren.** Gebruik de namen in `:root` (`--accent`, `--ink`, `--ok`,
@@ -187,9 +213,11 @@ Een feit staat op één plek; elders verwijs je ernaar.
 * `pdf.js` `schoon()`: een teken buiten het pdf-lettertype (emoji, →, ≥, ł)
   wordt in jsPDF rommel; nieuwe tekst in een pdf via `schoon` of `pdfTekst`
   (die zetten om, halen emoji weg en maken van de rest "?").
-* Een ingekorte momentopname (`kort`) heeft alleen `KORT_VELDEN`; zet daar
-  geen veld bij dat oude ingekorte standen niet hebben (dan lijkt alles
-  "gewijzigd"). Lees zo'n stand met een terugval (`bedieningTekst`).
+* Een ingekorte momentopname (`kort`) heeft alleen `KORT_VELDEN`. Een veld
+  dat oude ingekorte standen niet hebben, lijkt daar "leeg" (en dan lijkt
+  alles "gewijzigd"): zet er alleen iets bij met een nieuw `kort`-nummer en
+  een bewaking (v114: `kort: 2` en `kortBewaard()` voor de roostervelden).
+  Lees zo'n stand met een terugval (`bedieningTekst`).
 * `pasDataToe()` laat `app_data.glas_data` winnen van `DATA` in index.html:
   een keuzelijst wijzigen vraagt óók een SQL-script.
 
@@ -271,7 +299,8 @@ node test-v110.js                     # aantal en bolletjes, EXTRA/annuleren; en
 node test-v111.js                     # bediening, Toebehoren; en: --mutaties (±50, ±40 min); PLAATJES=map; OUD=map van live (kenmerk)
 node test-v112.js                     # alleen een andere bediening na bestellen; en: --mutaties (21, ±15 min)
 node test-v113.js                     # glaslatten, sponning, neuslat, één getal, uiterlijk; en: --mutaties (40, ±30 min); PLAATJES=map
-OUD=/tmp/live112 node test-overgang.js   # OUD = git archive van wat live staat (19-10-2026: v112, 132ec05); ook vanaf v98
+node test-v114.js                     # latzijde, onderdorpel, merk in beeld, slot, bi-color, ALLEEN ROOSTER, vaste zin, latmaten; en: --mutaties (34, ±40 min); PLAATJES=map
+OUD=/tmp/live113 node test-overgang.js   # OUD = kopie van wat live staat (20-10-2026: v113, d4fc364); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 

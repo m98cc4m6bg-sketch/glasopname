@@ -1,87 +1,69 @@
 # Glasopname — stand van zaken
 
 *Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens één
-pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 19 oktober 2026,
-bij v113.*
+pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 20 oktober 2026,
+bij v114.*
 
 ## Live
 
-- **v112** staat live: commit `132ec05` (19-10). Nagekeken: gelijk aan het
-  pakket.
-- **v113 is klaar en wacht op Jan**: geen SQL, niets weg te gooien
-  (`LEES-MIJ-EERST-v113.md`). Nieuw: `latten.js`, `GLASLATTEN.md`,
-  `latfotos-ophalen.sh`, `latfotos.txt`, `test-v113.js`.
+- **v113** staat live: commit `d4fc364` (19-10). Nagekeken: gelijk aan het
+  pakket. Daarna de foto's van de latten: commit `b0c1693` (28 foto's).
+- **v114 is klaar en wacht op Jan**: geen SQL (`LEES-MIJ-EERST-v114.md`).
+  Weggooien: `latfotos-ophalen.sh` en `latten/GL13.jpg`. Nieuw: `test-v114.js`
+  en in `latten/` de foto's en maattekeningen (51 bestanden).
 - Alle SQL-scripts t/m **25** horen gedraaid te zijn.
 - De bestelmail (Edge Function `mail` + Resend) is **niet ingesteld**.
 
-## Vorige sessie (19 oktober 2026)
+## Vorige sessie (20 oktober 2026)
 
-- v110 (aantal volgt de bolletjes, EXTRA) en v111 (nota's uit de repo,
-  favicon, bediening bij een rooster, tabblad Toebehoren): zie de handover.
-- v112, keuzes van Jan:
-  - na een bestelling **alleen een andere bediening = nooit VERVANGT**, maar
-    een eigen blok "ALLEEN BEDIENING – glas NIET opnieuw maken en NIET
-    annuleren"; aantal én bediening = EXTRA/"N annuleren" plus het blok;
-  - een koker glaskit van 290 ml is helemaal bruikbaar (de instelling
-    "bruikbaar per koker" is weg).
-- De controle vond o.a.: de bediening kan uit een andere lijst komen dan het
-  glas (nu "1e; bediening: 2e"), en een bestelling van een collega tussen pdf
-  en ‹Ja, verstuurd›. Hersteld en getest.
-- v113, keuzes van Jan:
-  - glaslatten van Jongeneel met maat, tekening en (later) foto;
-  - per ruit sponningdiepte + glaslat op Invoer, met "past/krap/ruim/past
-    niet" (marge 1 mm), uitfrezen, neuslat automatisch;
-  - band buiten 3/4 (nooit 2), binnen 2/3/4 per ruit;
-  - één getal voor de lengtes latten (incl. 10 %);
-  - Toebehoren compact (kaartjes op de telefoon);
-  - kleuren, chips en lettertype als de offerte-app (donker thema later).
+- v114, keuzes van Jan (keuzelijst met alle open vragen):
+  - **latzijde per ruit** (binnen/buiten/beide), **geen standaard**; "?" moet
+    gekozen worden, meldingen op Toebehoren en vóór de bestellijst;
+  - diepte onderdorpel apart; advies aantikken; merk blijft in beeld;
+    Toebehoren op de telefoon ingeklapt;
+  - na een bestelling gaan de **latkeuzes mee op slot** (v113: vrij);
+  - **bi-color rooster** (RAL buiten / RAL binnen);
+  - alleen het rooster anders na een bestelling = blok **ALLEEN ROOSTER**;
+  - vaste zin bovenaan elke aanvulling ("Graag bevestigen …");
+  - latmaten volgens de tekeningen van Jongeneel; fotoscript weg.
 - Drie beoordelaars (code, bediening, vakinhoud). Belangrijkste herstel: de
-  keuzes per ruit staan bij het project (geen stempel, mag na bestellen),
-  doorvoeren met een komma, ongedaan maken, inzoomen op iOS.
+  vaste eerste kolom bleef nooit staan (`overflow` op de tabel); een ander
+  Duco type met een andere glasaftrek wordt VERVANGT, niet ALLEEN ROOSTER;
+  bi-color zonder kleur wordt gevraagd; ook de standaardlat op slot.
 
 ## Wacht op Jan
 
-1. **v113 plaatsen** en zeggen dat hij gepusht heeft. Daarna alle
+1. **v114 plaatsen** en zeggen dat hij gepusht heeft. Daarna alle
    apparaten even bijwerken (↻).
-2. **Foto's van de glaslatten ophalen** op de Mac: `bash latfotos-ophalen.sh`,
-   titels nalezen, `latten/` meecommitten (`BEHEER.md` §6).
-3. **Vragen bij v113** (zie `WIJZIGINGEN-v113.md`, "Vragen"): de deur 28 in
-   27 = "krap" of "past niet"; standaard onderlat neuslat terwijl de latten
-   binnen staan; de opdeklatmaten nameten.
-4. **Op de iPad proberen**: stap 1–5 in `WIJZIGINGEN-v110.md` t/m
-   `-v113.md`. De rekenwaarden van Toebehoren test Jan zelf in de praktijk
-   en past ze aan waar nodig (per project op het tabblad, of bovenin
-   `toebehoren.js`).
-5. **Site URL in Supabase** (Authentication → URL Configuration). Jan gaat
+2. **Vragen bij v114** (zie `WIJZIGINGEN-v114.md`, "Vragen"): onderlat bij
+   latzijde "beide"; advies per zijde en voor de onderdorpel; ALLEEN ROOSTER
+   alleen bij dezelfde glasaftrek; de deur 28 in 27 (uit v113).
+3. **Op de iPad proberen**: "Hoe je het zelf controleert" in
+   `WIJZIGINGEN-v110.md` t/m `-v114.md`. De rekenwaarden van Toebehoren test
+   Jan zelf in de praktijk.
+4. **Site URL in Supabase** (Authentication → URL Configuration). Jan gaat
    dit doen. **Tot hij het bevestigt: uitgaan van "nog niet gedaan"**, en
    het nergens als klaar opschrijven. Steeds navragen.
-6. **De herstellink proberen** (na 5): stap 4 in `WIJZIGINGEN-v109.md`.
+5. **De herstellink proberen** (na 4): stap 4 in `WIJZIGINGEN-v109.md`.
    Let op mailbeveiliging (Safe Links) die de link vooraf "gebruikt".
-7. **De wachtwoordproef in Safari** (v109, stap 2 in `WIJZIGINGEN-v109.md`),
+6. **De wachtwoordproef in Safari** (v109, stap 2 in `WIJZIGINGEN-v109.md`),
    als die nog niet gedaan is.
-8. **Nalezen** van `OVERZICHT.md` §8 en `DATAMODEL.md` (Jan gaat dit doen).
-9. **Instructievideo**: hoofdstukken over aanwijzen en het aantal (h03, h04,
-   h05, h07) kloppen niet meer met v110; opnieuw opnemen
-   (`claude/INSTRUCTIEVIDEO.md`). Toebehoren en de bediening (v111/v112)
-   zitten er nog niet in. Jan pakt dit binnenkort op (19-10).
+7. **Nalezen** van `OVERZICHT.md` §8 en `DATAMODEL.md` (Jan gaat dit doen).
+8. **Instructievideo**: h03, h04, h05, h07 kloppen niet meer met v110;
+   Toebehoren, de bediening, de latten en bi-color zitten er nog niet in
+   (`claude/INSTRUCTIEVIDEO.md`).
 
-## In de volgende ronde aan Jan voorleggen (zijn verzoek, 17-10)
+## Volgende ronde (keuze van Jan, 20-10)
 
-- **Herinneren aan de overige vragen bij de vervolglijst** (v105), **met
-  meer uitleg en de mogelijkheden per vraag**: (b) het merk van een
-  vervanging ("K1" of "K1 (2e)"); (c) vastleggen of de leverancier een
-  annulering bevestigde; (d) Van Noordenne de eerste aanvulling laten
-  bevestigen. ((a) is beslist en gebouwd in v110.)
-- **Herinneren aan het aanbod over de bestelmail**: alleen versturen naar
-  `mailadressen` plus `@jelierbouw.nl` (handover §11e), met uitleg.
-- **Alle punten van "Groter, op de lijst" hieronder, elk met betere uitleg
-  en onderbouwing** (wat het risico is, wat het oplevert, wat het kost, de
-  keuzes).
-- **Navragen of de Site URL is ingesteld** (punt 5 hierboven).
-- Klein ontwerppunt uit v110: wie een aantal terugzet naar een eerder
-  besteld aantal (B 3 → 4, later weer 3), krijgt eerst de vraag "Oudere
-  stand?" (bewaking uit v105 tegen een oud apparaat). Veilig, maar een
-  extra klik; wil Jan dat zo houden?
+- **De rest van de controles** (v90 en v103; handover §11d punt 15 en 16).
+- **De grote punten niet vergeten** (Jan: "zorg dat de andere punten NIET
+  vergeten worden"): back-up/export (grootste risico) · tests bij elke push
+  · beheerscherm keuzelijsten. Elke ronde noemen, met de stand.
+- **Bestelmail: de vraag over de adressen** (alleen vaste adressen +
+  `@jelierbouw.nl`, of elk adres) koos Jan "later beslissen". **Zodra de
+  mail ingesteld wordt, komt die vraag terug, duidelijk en met
+  onderbouwing** (zijn uitdrukkelijke wens; handover §0 en §11e).
+- **Navragen**: Site URL (punt 4), wachtwoordproef (6), nalezen (7).
 
 ## Klein, kan mee in de volgende versie
 
@@ -91,7 +73,8 @@ bij v113.*
 
 Back-up/export (grootste risico) · beheerscherm keuzelijsten (geparkeerd) ·
 tests draaibaar buiten Claudes omgeving / bij elke push · bestelmail
-instellen (Jan, later) · rest van de controles van v90 en v103.
+instellen (Jan, later; dan eerst de vraag over de adressen) · rest van de
+controles van v90 en v103.
 
 ## Waar staat wat
 

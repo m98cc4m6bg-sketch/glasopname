@@ -1284,7 +1284,8 @@ async function bestelTekst(page) {
   // steeds zoals hij besteld is en blijft volledig: daarmee wordt vergeleken.
   const b21 = info().bestellingen;
   check('in de 1e is de vervangen K3 ingekort (scheelt ruimte), met wat nodig is om hem te tonen',
-    b21[0].kort === true && b21[0].ruiten[3].kort === 1 && b21[0].ruiten[3].breedte === '900' &&
+    // v114: ingekort heet nu kort: 2 (met de roostervelden); 1 = van daarvoor.
+    b21[0].kort === true && b21[0].ruiten[3].kort === 2 && b21[0].ruiten[3].breedte === '900' &&
     b21[0].ruiten[3].opmerking === undefined && !b21[1].kort, JSON.stringify(b21[0].ruiten[3]));
   check('K1 in de 1e blijft volledig (nog steeds wat er besteld is)', !b21[0].ruiten[1].kort && 'rooster' in b21[0].ruiten[1],
     JSON.stringify(b21[0].ruiten[1]).slice(0, 160));

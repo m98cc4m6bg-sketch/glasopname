@@ -1,8 +1,8 @@
 # Glasopname — beheerhandleiding
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
-Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 19 oktober 2026,
-bij v113.*
+Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 20 oktober 2026,
+bij v114.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -226,28 +226,24 @@ bash fotos-ophalen.sh roosterfotos.txt roosters
 Het script slaat over wat er al staat. Wil je één foto vervangen, gooi dat
 bestand eerst weg.
 
-**De glaslatten** (v113) komen van de productpagina's van Jongeneel
-(`latfotos.txt`). Ophalen op de Mac, vanuit de repomap:
+**De glaslatten** staan in `latten/`: per lat een foto (`<id>.jpg`) en,
+waar Jongeneel die heeft, de maattekening (`<id>-tek.jpg`). De pagina's
+staan in `latfotos.txt`.
 
-```
-bash latfotos-ophalen.sh
-```
-
-Het script doet drie dingen:
-- het zet de foto's verkleind in `latten/`;
-- het schrijft de titel van elke pagina in `/tmp/latten-specs.txt`;
-- het noemt aan het eind wat niet lukte.
-
-Daarna:
-1. **Leg de titels naast de maten** in `latten.js` (bijvoorbeeld
-   "…17x15x4000mm"). Klopt er een niet, pas `latten.js` aan of vraag het
-   Claude.
-2. **Niet gelukt?** Open die pagina in Safari en sla de foto op als
-   `latten/<id>.jpg` (bijvoorbeeld `latten/A4.jpg`).
-3. **Commit `latten/` mee** in GitHub Desktop. De versienummers hoeven
-   daarvoor niet omhoog: de app vraagt een ontbrekende foto vanzelf
-   opnieuw. Alleen offline zie je een nieuwe foto pas na de volgende
-   versie.
+**Geen script meer** (v114). Jongeneel blokkeert scripts: een script krijgt
+alleen een controlepagina ("Challenge Validation"). Daarom is
+`latfotos-ophalen.sh` weggehaald. Een nieuwe of betere foto:
+1. **Vraag het Claude** in de Claude-app op de Mac (die heeft een eigen
+   browser waarin de site gewoon laadt): "haal de foto en tekening van lat
+   X van jongeneel.nl". Claude zet ze in `latten/` en in de offline-lijst.
+2. **Of zelf**: open de pagina in Safari, sla de foto op als
+   `latten/<id>.jpg` (bijv. `latten/A4.jpg`, ±600 px breed), en laat de
+   offline-lijst (`LAT_FOTOS` in `sw.js`) bijwerken.
+3. **Commit `latten/` mee** in GitHub Desktop. Zonder versie omhoog vraagt
+   de app een ontbrekende foto vanzelf opnieuw; offline zie je hem pas na
+   de volgende versie.
+4. **Een maat anders?** Pas `latten.js` aan (en `GLASLATTEN.md`), of vraag
+   het Claude.
 
 Zonder foto tekent de app de doorsnede van de lat. Dat werkt ook.
 
@@ -265,6 +261,19 @@ starten.
 Staat Supabase toch op pauze, dan kan niemand inloggen of opslaan. Werk
 blijft dan op de apparaten staan. Supabase → het project → **Restore**; daarna
 gaat het werk vanzelf omhoog.
+
+## 7b. De bestelmail (nog niet ingesteld)
+
+De knop *✉️ Bestelmail versturen* werkt pas als de mailfunctie in Supabase
+ingesteld is (een maildienst, een eigen afzenderdomein en de functie
+`mail`). Dat is nog niet gebeurd; Jan pakt dit later op met Claude. De
+stappen staan in de handover (niet in deze openbare repo).
+
+**Eerst één vraag beantwoorden** (afspraak van Jan, 20-10-2026): mag de
+bestelmail naar **elk** adres, of **alleen** naar de vaste adressen
+(tabel `mailadressen`) plus adressen op `@jelierbouw.nl`? Jan koos "later
+beslissen". Claude legt die vraag opnieuw voor, met de onderbouwing en de
+keuzes, zodra de mail ingesteld wordt. Zonder antwoord niet instellen.
 
 ## 8. Back-up: eerlijk gezegd, die is er niet
 
@@ -347,25 +356,61 @@ Daarna:
   aanvulling?"* Sinds v112 niet in de glastabel, maar onder de tabel in het
   blok **ALLEEN BEDIENING – glas NIET opnieuw maken en NIET annuleren**, met
   het totaal aantal stangen of koorden. Is er tegelijk iets aan het glas of
-  het rooster veranderd (maat, RAL, Duco-type), dan blijft het VERVANGT.
+  het glas veranderd (maat, glastype), dan blijft het VERVANGT. Alleen het
+  rooster anders: zie hieronder (v114).
 - *"Ik kan op Toebehoren niets kiezen."* Dan kijk je mee (een collega
-  bewerkt het project). Na een bestelling kan het wel gewoon: het gaat niet
-  naar de leverancier.
+  bewerkt het project), of het project is besteld: sinds v114 gaan de
+  latkeuzes (zijde, onderlat, standaardlat) dan op slot, net als de maten.
+  Ontgrendelen via de balk bovenaan Invoer. Band, kit en verlies blijven
+  vrij.
 - *"Waar vul ik de sponningdiepte in?"* (v113) Op Invoer, groep Sponning,
   kolom **Diepte**: de maat loodrecht op het glas, van de aanslag tot de
   buitenkant van het kozijn. Het label ernaast zegt of glas + band + lat
   erin past. Tik erop voor de tekening, het band binnen, uitfrezen en wat
-  wel past. De lat kies je in de kolom **Glaslat**; tik op de foto of
-  tekening om hem groot te zien. Dit mag ook na een bestelling.
+  wel past. De lat kies je in de kolom **Glaslat**; tik op de foto om hem
+  groot te zien, met de tekening eronder. Na een bestelling op slot (v114).
 - *"Er staat 'krap −1'. Is dat erg?"* Nee: tot 1 mm te krap vangt het band
   op. Bij "past niet" of "te ruim" vraagt de app bij de bestellijst of je
   door wilt.
-- *"Er staat 'maat nog niet nagemeten'."* Van die lat weten we de maat niet
-  zeker (zie `GLASLATTEN.md` §11). Meet een lat na en laat de maat in
-  `latten.js` aanpassen.
+- *"Er staat 'maat nog niet nagemeten'."* Sinds v114 zijn alle latten
+  nagekeken op de tekeningen van Jongeneel. Zie je het toch, dan is er een
+  lat bijgekomen met `zeker: false` (`GLASLATTEN.md` §8).
 - *"Waarom staat er een neuslat maat N30?"* De app kiest de kleinste
   neuslat die past bij de sponningdiepte (`GLASLATTEN.md` §6). Zonder
   diepte staat er "maat nog onbekend".
+**Vragen die je kunt verwachten na v114**
+
+- *"Wat moet ik invullen bij Latzijde?"* Per ruit: **binnen** (latten
+  binnen; onderin dezelfde lat), **buiten** (latten buiten; onderin de
+  passende neuslat) of **beide** (glas tussen twee latten, zonder aanslag).
+  Er is bewust geen standaard: een nieuwe ruit staat op **?**, en
+  Toebehoren en de bestellijst melden welke ruiten nog geen keuze hebben.
+  Ook te kiezen op Toebehoren en via doorvoeren (⤓ in de kop).
+- *"De sponning is onderin minder diep."* Tik op het oordeel in de kolom
+  Diepte en vul **Diepte onderdorpel** in. Het label toont het slechtste
+  van boven en onder ("onder: past niet −4").
+- *"Kan ik het advies overnemen?"* Ja: tik in het venster op een advies
+  (bijv. "Lat A5 …"). Eén keer ongedaan maken zet het terug.
+- *"Ik zie bij het zijwaarts schuiven niet meer welke ruit het is."* Het
+  merk staat ook in de eerste kolom (onder het nummer), en die blijft staan.
+- *"Op de telefoon is Toebehoren per ruit maar één regel."* Tik erop voor
+  de onderlat, de zijde en de getallen (v114, ingeklapt).
+- *"Hoe bestel ik een rooster dat binnen een andere kleur heeft?"* Kolom
+  **Bi-color** op Ja (staat er zodra er een rooster is). Dan heet de kolom
+  RAL voortaan **RAL buiten**, en komt de kolom **RAL binnen** erbij. Op de
+  bestellijst staat "Bi-color buiten: … / binnen: …". Vergeten de kleur
+  binnen te kiezen? Dan vraagt de app het vóór de bestellijst.
+- *"Na de bestelling is alleen de kleur van een rooster anders. Wordt het
+  glas nu opnieuw gemaakt?"* Nee (v114, keuze van Jan). De aanvulling heeft
+  dan het blok **ALLEEN ROOSTER – glas NIET opnieuw maken**, met wat het was
+  en wat het wordt. Dat geldt voor de kleur, bi-color, en een ander Duco
+  type **met dezelfde glasaftrek** waar het glas in past. Een type met een
+  andere aftrek (DucoTon 10: 80 mm, DucoTon 18: 120 mm) of rooster aan/uit
+  verandert het glas: dat blijft VERVANGT.
+- *"Wat is die rode zin bovenaan de aanvulling?"* "Graag bevestigen dat u
+  deze aanvulling verwerkt, met name VERVANGT en ANNULEREN." Die staat op
+  elke aanvulling (keuze van Jan), niet op de 1e bestelling en niet op het
+  overzicht.
 - *"De favicon in Safari is nog het oude icoon."* Sinds v111 heeft het
   icoon een nieuwe bestandsnaam. Eén keer herladen (↻ Bijwerken) is genoeg;
   helpt dat niet, Safari afsluiten en opnieuw openen.

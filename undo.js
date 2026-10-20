@@ -160,7 +160,8 @@
       hoogte: 'Hoogte', opbouw: 'Opbouw', rooster: 'Rooster', ducoType: 'Duco type',
       ralKleur: 'RAL kleur', glasbewerking: 'Glasbewerking', opmerking: 'Opmerking',
       roedenverdeling: 'Roedenverdeling', roedenbreedte: 'Roedenbreedte',
-      roedenopmerking: 'Roeden-opmerking'
+      roedenopmerking: 'Roeden-opmerking',
+      biColor: 'Bi-color', ralBinnen: 'RAL binnen'   // v114
     };
     return namen[veld] || veld;
   }

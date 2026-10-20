@@ -746,7 +746,8 @@ const idVan = merk => String((rijVan(1).data.rijen.find(r => r.merk === merk) ||
     Object.keys(bl[2].ruiten).filter(id => bl[2].ruiten[id].opLijst).sort().join() === ['3', id4].sort().join(),
     JSON.stringify(Object.keys(bl[2].ruiten)));
   check('ingekort wat vervangen is (K1 en K3 in de 1e, K4 in de 2e), volledig wat nog geldt (K1 in de 2e)',
-    bl[0].ruiten[1].kort === 1 && bl[0].ruiten[3].kort === 1 && bl[1].ruiten[id4].kort === 1 && !bl[1].ruiten[1].kort &&
+    // v114: ingekort heet nu kort: 2 (met de roostervelden).
+    bl[0].ruiten[1].kort === 2 && bl[0].ruiten[3].kort === 2 && bl[1].ruiten[id4].kort === 2 && !bl[1].ruiten[1].kort &&
     !bl[2].ruiten[3].kort, JSON.stringify([bl[0].ruiten[1], bl[1].ruiten[1]]).slice(0, 200));
   check('niets geel', await page.evaluate(() => rijen.every(r => !naBestellingGewijzigd(r))));
   bt = await bestelTekst(page);

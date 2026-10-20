@@ -219,7 +219,9 @@
     min-width: 940px;
     background: white;
     border-radius: var(--radius);
-    overflow: hidden;
+    /* v114 (controle): geen overflow: hidden meer. Daarmee werd de tabel zijn
+       eigen schuifvenster en bleef de eerste kolom (nummer en merk) niet
+       staan bij zijwaarts vegen. De ronde hoeken komen van .invoer-wrap. */
   }
   /* Kolomkoppen: licht vlak, donkere tekst, rode onderlijn. De groepen
      blijven van elkaar te onderscheiden door een zachte tint, niet door
@@ -318,7 +320,16 @@
      niets en blijven ze weg. Ze komen terug zodra er ergens 'Ja' staat. */
   table.invoer.zonder-rooster .kol-duco,
   table.invoer.zonder-rooster .kol-ral,
+  table.invoer.zonder-rooster .kol-bi,
+  table.invoer.zonder-rooster .kol-ralbin,
   table.invoer.zonder-rooster .kol-bed { display: none; }
+  /* v114: bi-color (binnen een andere kleur dan buiten). De kolom RAL binnen
+     komt pas in beeld als er ergens een ruit op Bi-color Ja staat. */
+  table.invoer.zonder-bicolor .kol-ralbin { display: none; }
+  table.invoer .kol-bi select { min-width: 58px; }
+  table.invoer .kol-ralbin { min-width: 88px; }
+  table.invoer .kol-ralbin select.leeg { background: var(--warn-licht); border-color: #f1cf9c; }
+  .ralbin-zelfde { color: var(--grijs-tekst); font-size: 12px; white-space: nowrap; }
   /* v111: bediening bij een rooster (stang of koord, met lengte). Het
      lengtevak blijft zijn plek houden als er geen bediening is, zodat de
      rij niet verspringt. */
@@ -741,6 +752,9 @@
   tr.geselecteerd > td { background: #fff8e6 !important; }
   .rijnr-wrap { display: flex; align-items: center; gap: 4px; justify-content: center; }
   .rijnr-wrap input[type=checkbox] { margin: 0; cursor: pointer; }
+  .rijnr-merk { display: block; font-size: 11px; font-weight: 700; color: var(--ink); max-width: 52px; margin: 1px auto 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+  .rijnr-merk:empty { display: none; }
   .bulk-balk {
     display: none; align-items: center; gap: 8px 12px;
     background: var(--geel); color: #3a2a00; padding: 7px 20px;
@@ -909,18 +923,22 @@
   /* v113: niet uitgerekt over de hele breedte (Jan: "erg uitgestrekt"). */
   table.samenvatting.tb-tabel { width: auto; max-width: 100%; }
   .tb-wrap { display: inline-block; max-width: 100%; vertical-align: top; }
-  .tb-tabel th.tb-twee { min-width: 112px; }
   .tb-tabel .tb-lat .pk-chip { margin-left: 4px; }
   .tb-tabel th, .tb-tabel td { padding: 5px 7px; }
   /* Geen width: 1% (zoals eerst): een kolom in procenten laat een tabel met
      width: auto toch de hele breedte vullen. */
   .tb-tabel .tb-smal { white-space: nowrap; }
-  .tb-tabel .tb-twee { text-align: center; font-size: 12px; line-height: 1.2; }
-  .tb-tabel th.tb-twee small { font-weight: 400; }
   .tb-tabel .tb-breed { min-width: 170px; max-width: 280px; }
   .tb-tabel .tb-breed select { width: 100%; max-width: 260px; }
   .tb-neus { display: block; font-size: 11px; color: var(--grijs-tekst); margin-top: 2px; }
-  .tb-tabel .tb-mob { display: none; }
+  .tb-tabel .tb-kort, .tb-tabel .tb-kort-kop { display: none; }
+  .tb-zijde.leeg { color: var(--warn); font-weight: 700; }
+  /* v114: de zijde is hier ook te kiezen. */
+  .tb-zijde-sel { min-width: 70px; }
+  .tb-zijde.leeg .tb-zijde-sel { background: var(--warn-licht); border-color: #f1cf9c; }
+  .tb-kort-leeg { color: var(--warn); font-weight: 700; }
+  .tb-kort-knop { font: inherit; font-size: 12.5px; color: var(--ink); background: none; border: 0; padding: 4px 0; min-height: 44px;
+    width: 100%; text-align: left; cursor: pointer; }
   /* v113: op de telefoon (en een smalle iPad-splitview) wordt elke rij een
      kaartje: merk, maat en lat bovenaan, de onderlat eronder, dan "twee
      kanten" en de vier getallen met hun kopje. Geen tabel die opzij schuift. */
@@ -929,8 +947,8 @@
     table.samenvatting.tb-tabel, table.samenvatting.tb-tabel tbody { display: block; width: 100%; }
     table.samenvatting.tb-tabel thead { display: none; }
     table.samenvatting.tb-tabel tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 8px; padding: 8px 2px;
-      border-bottom: 1px solid var(--grijs-rand); grid-template-areas: "merk maat maat lat" "onder onder onder onder"
-      "twee twee twee twee" "latm band kit tape"; }
+      border-bottom: 1px solid var(--grijs-rand); grid-template-areas: "merk maat maat lat" "zijde onder onder onder"
+      "latm band kit tape" "kort kort kort kort"; }
     table.samenvatting.tb-tabel td { display: block; padding: 0; border: 0; width: auto; min-width: 0; text-align: left; white-space: normal; }
     table.samenvatting.tb-tabel tr:nth-child(n) td { background: none; border: 0; }
     table.samenvatting.tb-tabel td.tb-merk { grid-area: merk; font-weight: 700; }
@@ -940,9 +958,13 @@
     table.samenvatting.tb-tabel td.tb-lat { grid-area: lat; text-align: right; font-weight: 600; }
     table.samenvatting.tb-tabel td.tb-breed { grid-area: onder; min-width: 0; }
     table.samenvatting.tb-tabel td.tb-breed select { max-width: none; }
-    table.samenvatting.tb-tabel td.tb-twee { grid-area: twee; font-size: 13px; width: auto; text-align: left; }
-    table.samenvatting.tb-tabel td.tb-twee label { display: flex; align-items: center; gap: 6px; }
-    table.samenvatting.tb-tabel .tb-mob { display: inline; }
+    table.samenvatting.tb-tabel td.tb-zijde { grid-area: zijde; }
+    table.samenvatting.tb-tabel td.tb-zijde::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); }
+    table.samenvatting.tb-tabel td.tb-kort { display: block; grid-area: kort; }
+    /* v114: dicht = één regel per ruit (keuze Jan); tik voor de rest. */
+    table.samenvatting.tb-tabel tr.dicht td.tb-zijde, table.samenvatting.tb-tabel tr.dicht td.tb-breed,
+    table.samenvatting.tb-tabel tr.dicht td.tb-num { display: none; }
+    table.samenvatting.tb-tabel tr.dicht { row-gap: 2px; padding: 6px 2px; }
     table.samenvatting.tb-tabel td.tb-num { font-variant-numeric: tabular-nums; }
     table.samenvatting.tb-tabel td.tb-num::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); }
     table.samenvatting.tb-tabel td.tb-num:nth-of-type(7) { grid-area: latm; }
@@ -973,7 +995,7 @@
     .pk-chip { min-height: 30px; padding: 4px 10px; font-size: 12px; }
     .lat-knop { min-height: 32px; padding: 5px 10px; }
     .lat-sluit { min-width: 44px; min-height: 44px; }
-    .lat-venster input[type=checkbox], .tb-tweekanten { width: 22px; height: 22px; }
+    .lat-venster input[type=checkbox] { width: 22px; height: 22px; }
   }
 
   /* ─── v113: sponning en glaslat op Invoer ─── */
@@ -983,6 +1005,9 @@
      vak naast een lange chip ("past niet −4") tot niets krimpen. */
   table.invoer td.kol-spon { min-width: 142px; }
   table.invoer td.kol-spon .spon-input, .spon-input { width: 46px; min-width: 46px; flex: 0 0 46px; }
+  /* v114: de latzijde; "?" valt op (nog kiezen). */
+  table.invoer td.kol-zijde select { min-width: 78px; }
+  .zijde-sel.leeg { background: var(--warn-licht); border-color: #f1cf9c; }
   .lat-knop { font: inherit; font-size: 12px; font-weight: 600; padding: 3px 7px; border-radius: var(--radius);
     border: 1px solid var(--grijs-rand); background: white; cursor: pointer; white-space: nowrap; color: var(--ink); }
   .lat-knop small { font-weight: 400; color: var(--grijs-tekst); }
@@ -1015,12 +1040,18 @@
   .lat-plaatje svg { max-width: 100%; max-height: 100%; }
   .lat-groot { position: fixed; inset: 0; z-index: 9350; background: rgba(29,29,27,0.6); display: flex;
     align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
-  .lat-groot-inhoud { background: white; border-radius: var(--radius); padding: 16px; max-width: 420px; text-align: center; }
-  .lat-groot-inhoud .lat-plaatje { width: 260px; height: 260px; max-width: 70vw; max-height: 70vw; cursor: zoom-out; }
+  /* v114: groter (foto's van Jongeneel zijn 3:2), met de maattekening eronder;
+     te scrollen als het niet past (telefoon liggend). */
+  .lat-groot-inhoud { background: white; border-radius: var(--radius); padding: 16px; max-width: min(480px, 92vw);
+    max-height: 92vh; overflow-y: auto; text-align: center; }
+  .lat-groot-inhoud .lat-plaatje { width: min(440px, 80vw); height: auto; aspect-ratio: 3 / 2; cursor: zoom-out; }
+  .lat-groot-inhoud .lat-tek { display: block; width: 100%; height: auto; margin: 8px auto 0; border-top: 1px solid var(--grijs-rand); }
   .lat-groot-inhoud p { font-size: 13px; margin: 10px 0; line-height: 1.45; }
   .pakket-svg { display: block; margin: 6px 0; }
   .pk-oordeel { font-size: 13px; padding: 6px 10px; border-radius: var(--radius); margin: 4px 0 10px; border: 1px solid transparent; }
   .pk-vraag { font-size: 12.5px; color: var(--warn); margin: -4px 0 10px; }
+  /* v114: op slot zeggen waarom de velden uit staan. */
+  .pk-slot { font-size: 12.5px; color: var(--grijs-tekst); background: var(--grijs-licht, #f3f3f1); padding: 6px 10px; border-radius: var(--radius); margin: 0 0 10px; }
   .lat-passend h4 { color: var(--ok); }
   .pk-velden { display: grid; gap: 10px; }
   .pk-velden label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; font-weight: 600; }
@@ -1030,6 +1061,11 @@
   .pk-velden label.pk-frees { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
   .pk-advies { margin-top: 12px; padding: 8px 10px; background: var(--warn-licht); border-radius: var(--radius); font-size: 13px; }
   .pk-advies ul { margin: 4px 0 0 18px; }
+  /* v114: een advies is aan te tikken (keuze Jan). */
+  .pk-advies-knop { font: inherit; text-align: left; background: white; border: 1px solid #f1cf9c; border-radius: var(--radius);
+    padding: 4px 8px; margin: 2px 0; cursor: pointer; color: var(--ink); min-height: 32px; }
+  .pk-advies-knop:hover { border-color: var(--warn); }
+  .pk-onder { margin-top: -4px; }
   /* v110: regels waar het aantal en de bolletjes niet kloppen, met per
      regel de keuze wat klopt. Op een telefoon lopen de knoppen onder de
      tekst door (flex-wrap). */
@@ -2603,7 +2639,7 @@
         <th colspan="2">Glasmaat (mm)</th>
         <th colspan="3" class="groep-glas">Glasspecificatie</th>
         <!-- v113: sponningdiepte en glaslat: past het pakket? (latten.js) -->
-        <th colspan="2" class="groep-spon">Sponning</th>
+        <th colspan="3" class="groep-spon">Sponning</th>
         <!-- Duco en RAL vallen weg zodra er geen enkele ruit een rooster
              heeft; roosterKolommen() zet de overspanning dan op 1. -->
         <th colspan="4" class="groep-vent">Ventilatie</th>
@@ -2626,11 +2662,16 @@
         <th class="groep-glas kol-type">Glas Type</th>
         <th class="groep-glas kol-opbouw">Opbouw</th>
         <th class="groep-glas">Dikte</th>
-        <th class="groep-spon kol-spon">Diepte <i class="info-icon" onclick="toonInfo(this)" data-info="De <b>sponningdiepte</b> in mm: loodrecht op het glas, van de aanslag tot de buitenkant van het kozijn.<br><br>Daarin moet passen: band + glas + band + glaslat. Het label naast het vak zegt of het past (±1 mm = krap of ruim). Tik op het label voor de tekening, het band binnen, uitfrezen en advies.<br><br>Mag ook na de bestelling: het gaat niet naar de glasleverancier.">i</i></th>
+        <th class="groep-spon kol-spon">Diepte <i class="info-icon" onclick="toonInfo(this)" data-info="De <b>sponningdiepte</b> in mm: loodrecht op het glas, van de aanslag tot de buitenkant van het kozijn.<br><br>Daarin moet passen: band + glas + band + glaslat. Het label naast het vak zegt of het past (±1 mm = krap of ruim). Tik op het label voor de tekening, de onderdorpel, het band binnen, uitfrezen en advies.<br><br>Na de bestelling op slot, net als de maten (ontgrendelen met je wachtwoord).">i</i></th>
         <th class="groep-spon kol-lat">Glaslat</th>
+        <th class="groep-spon kol-zijde">Latzijde <i class="info-icon" onclick="toonInfo(this)" data-info="Aan welke kant de glaslatten zitten, per ruit (geen standaard: het wisselt, ook binnen één kozijn).<br><br><b>buiten</b>: onderin de passende neuslat.<br><b>binnen</b>: onderin dezelfde lat als boven.<br><b>beide</b>: glas tussen twee latten, zonder aanslag (de lat telt twee keer in de sponning).<br><br>? = nog niet gekozen.">i</i></th>
         <th>Rooster</th>
         <th class="kol-duco">Duco Type</th>
-        <th class="kol-ral">RAL Kleur</th>
+        <!-- v114: de tekst na "RAL" wordt "buiten" zodra er ergens bi-color is
+             (roosterKolommen); "RAL" blijft de eigen tekst voor doorvoeren. -->
+        <th class="kol-ral">RAL<span class="ral-kop-wat"> Kleur</span></th>
+        <th class="kol-bi">Bi-color <i class="info-icon" onclick="toonInfo(this)" data-info="Een Duco rooster kan <b>bi-color</b>: binnen een andere kleur dan buiten.<br><br><b>Nee</b> (standaard): één kleur, binnen en buiten gelijk.<br><b>Ja</b>: de kolom RAL wordt de kleur <b>buiten</b>, en in de kolom <b>RAL binnen</b> kies je de kleur voor binnen.<br><br>Op de bestellijst staat dan: buiten … / binnen ….">i</i></th>
+        <th class="kol-ralbin">RAL binnen</th>
         <th class="kol-bed">Bediening <i class="info-icon" onclick="toonInfo(this)" data-info="Het gewone knopje zit altijd op het rooster. Kies hier alleen een <b>extra</b> bediening: een bedieningsstang of -koord, 1 of 2 per rooster.<br><br>Lengte in mm; leeg = de standaardlengte.">i</i></th>
         <th class="groep-glas kol-bewerking">Bewerking</th>
         <th class="groep-glas">Opm.</th>
@@ -3236,7 +3277,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v113';
+const APP_VERSIE = 'v114';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -3635,8 +3676,16 @@ function roosterKolommen(tbody, lijst) {
   tabel.classList.toggle('zonder-rooster', !tonen);
   // De groepskop boven Rooster/Duco/RAL moet evenveel kolommen overspannen
   // als er werkelijk staan, anders schuift de hele kop een vak op.
+  // v114: bi-color. De kolom RAL binnen alleen als er ergens bi-color is;
+  // de kolom RAL heet dan "RAL buiten" (keuze van Jan).
+  const bi = tonen && (lijst || []).some(r => r.rooster === 'Ja' && r.biColor === 'Ja');
+  tabel.classList.toggle('zonder-bicolor', !bi);
+  const wat = tabel.querySelector('th.kol-ral .ral-kop-wat');
+  const watTekst = bi ? ' buiten' : ' Kleur';
+  if (wat && wat.textContent !== watTekst) wat.textContent = watTekst;
   const groep = tabel.querySelector('th.groep-vent');
-  if (groep) groep.colSpan = tonen ? 4 : 1;   // Rooster, Duco, RAL, Bediening (v111)
+  // Rooster, Duco, RAL, Bi-color, (RAL binnen), Bediening (v111, v114)
+  if (groep) groep.colSpan = tonen ? (bi ? 6 : 5) : 1;
 
   // Hetzelfde voor de roeden: breedte en opmerking komen pas in beeld
   // zodra er ergens een verdeling gekozen is.
@@ -4000,9 +4049,11 @@ const SLOT_FUNCTIES = [
   'markErbij', 'markAantalNaarBollen', 'markTeveelWeg', 'markAanwijzenRij',
   // v111: de bediening bij een rooster (gaat naar de leverancier).
   'setBediening', 'setBedieningLengte',
-  // v113: sponningdiepte, glaslat, band binnen en uitfrezen (latten.js) staan
-  // hier bewust NIET: die mogen ook na een bestelling, net als Toebehoren (ze
-  // gaan niet naar de leverancier). Alleen meekijken houdt latten.js zelf tegen.
+  // v113/v114: sponning en glaslat (latten.js). In v113 waren ze vrij na een
+  // bestelling; sinds v114 gaan ze mee op slot (keuze Jan). latten.js vraagt
+  // het slot ook zelf na (magKiezen); dubbel is hier goedkoop.
+  'latKies', 'latDiepte', 'latBand', 'latUitfrezen', 'latZijde', 'latOnderDiepte', 'latAdvies',
+  'zetBiColor', 'zetRalBinnen',                   // v114: bi-color rooster
   'fotoVerwijder', 'fotoDraaien', 'fotoAanGroep', 'fotoTitelWijzig',
   'tekenModus', 'tekenKies', 'tekenTerug', 'tekenWis', 'selectieWeg', 'selectieTekst'
 ];
@@ -4012,12 +4063,6 @@ function slotBewaking() {
     const oorspronkelijk = window[naam];
     if (typeof oorspronkelijk !== 'function' || oorspronkelijk.__slot) return;
     const omhuld = function () {
-      // v113: doorvoeren van Diepte of Glaslat mag ook op slot (niet voor de
-      // leverancier), wel niet als je alleen meekijkt.
-      if (naam === 'bulkPasToe' && window.bulkVrijBijSlot && bulkVrijBijSlot()) {
-        if (kijkWeigert()) return;
-        return oorspronkelijk.apply(this, arguments);
-      }
       if (slotWeigert()) return;
       return oorspronkelijk.apply(this, arguments);
     };
@@ -4162,10 +4207,10 @@ function rijHTML(rij, nr) {
   const id = rij.id;
   return `
     <td class="rijnr${naBestellingGewijzigd(rij) ? ' na-bestelling' : ''}" title="${esc(rijnrTitel(rij))}"><div class="rijnr-wrap"><input type="checkbox" ${bulkIsGeselecteerd(id) ? 'checked' : ''}
-       onchange="bulkToggle(${id}, this.checked)" title="Selecteren"><span>${nr}</span></div></td>
+       onchange="bulkToggle(${id}, this.checked)" title="Selecteren"><span>${nr}</span></div><span class="rijnr-merk">${esc(rij.merk || '')}</span></td>
     ${aantalCel(rij)}
     <td><input type="text" class="merk-input" value="${esc(rij.merk)}" placeholder="merk…"
-       oninput="setVal(${id},'merk',this.value); opslaan()"></td>
+       oninput="setVal(${id},'merk',this.value); merkInRijnr(this); opslaan()"></td>
     <td class="kol-maatsoort"><select onchange="setVal(${id},'maatsoort',this.value); herbereken(); opslaan()">${maatsoortOpts}</select></td>
     <td><input type="number" inputmode="numeric" enterkeyhint="next" class="breedte-input" value="${rij.breedte}" placeholder="mm"
        oninput="setVal(${id},'breedte',this.value); herbereken(); opslaan()"></td>
@@ -4177,7 +4222,7 @@ function rijHTML(rij, nr) {
     <td class="kol-type"><select onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
     <td class="kol-opbouw"><select id="opb-${id}" onchange="wijzigOpbouw(${id},this.value)">${opbouwOpts}</select></td>
     <td class="berekend ${rij.totaalDikte == null ? 'ongeldig' : ''}" id="dk-${id}" title="${esc(dikteTitel)}">${dikteKg}</td>
-    ${window.pakketCelHTML ? pakketCelHTML(rij) : '<td></td>'}${window.latCelHTML ? latCelHTML(rij) : '<td></td>'}
+    ${window.pakketCelHTML ? pakketCelHTML(rij) : '<td></td>'}${window.latCelHTML ? latCelHTML(rij) : '<td></td>'}${window.zijdeCelHTML ? zijdeCelHTML(rij) : '<td></td>'}
     <td><select onchange="setVal(${id},'rooster',this.value); toggleDuco(${id},this.value); opslaan()">
       <option value="Nee" ${rij.rooster==='Nee'?'selected':''}>Nee</option>
       <option value="Ja" ${rij.rooster==='Ja'?'selected':''}>Ja</option>
@@ -4186,8 +4231,14 @@ function rijHTML(rij, nr) {
       <select onchange="setVal(${id},'ducoType',this.value); opslaan()">${ducoOpts}</select>
     </td>
     <td class="kol-ral" id="ral-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
-      <select onchange="setVal(${id},'ralKleur',this.value); opslaan()">${ralOpts}</select>
+      <select onchange="setVal(${id},'ralKleur',this.value); opslaan()" title="${rij.biColor === 'Ja' ? 'Kleur buiten' : 'Kleur (binnen en buiten)'}">${ralOpts}</select>
     </td>
+    <td class="kol-bi" id="bi-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">
+      <select onchange="zetBiColor(${id},this.value)">
+        <option value="Nee" ${rij.biColor!=='Ja'?'selected':''}>Nee</option>
+        <option value="Ja" ${rij.biColor==='Ja'?'selected':''}>Ja</option>
+      </select></td>
+    <td class="kol-ralbin" id="ralb-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">${ralBinnenCel(rij)}</td>
     <td class="kol-bed" id="bed-${id}" style="${rij.rooster==='Nee'?'opacity:.35;pointer-events:none':''}">${bedieningCel(rij)}</td>
     <td class="kol-bewerking"><select id="bew-${id}" onchange="kiesBewerking(${id},this)">${bewerkingOpts}</select></td>
     <td><input type="text" class="opm-input" value="${esc(rij.opmerking)}" placeholder="opmerking…"
@@ -4201,6 +4252,14 @@ function rijHTML(rij, nr) {
       <button class="btn-del" onclick="verwijderRij(${id})" title="Regel verwijderen">✕</button>
     </td>
   `;
+}
+
+// v114: het merk staat ook in de vaste eerste kolom, zodat je bij opzij
+// schuiven (Diepte, Latten, Rooster) ziet welke ruit het is (controle v113).
+function merkInRijnr(vak) {
+  const tr = vak && vak.closest && vak.closest('tr');
+  const sp = tr && tr.querySelector('.rijnr-merk');
+  if (sp && sp.textContent !== vak.value) sp.textContent = vak.value;
 }
 
 function berekenGewicht(rij) {
@@ -4443,18 +4502,94 @@ function toggleDuco(id, val) {
   ralEl.style.pointerEvents = uit ? 'none' : '';
   const bedEl = document.getElementById('bed-' + id);
   if (bedEl) { bedEl.style.opacity = uit ? '.35' : '1'; bedEl.style.pointerEvents = uit ? 'none' : ''; }
+  // v114: bi-color en RAL binnen horen ook bij het rooster.
+  ['bi-', 'ralb-'].forEach(pre => {
+    const el = document.getElementById(pre + id);
+    if (el) { el.style.opacity = uit ? '.35' : '1'; el.style.pointerEvents = uit ? 'none' : ''; }
+  });
   if (uit) {
     setVal(id, 'ducoType', ''); setVal(id, 'ralKleur', '');
-    // Geen rooster, dan ook geen bediening (v111).
+    // Geen rooster, dan ook geen bediening (v111) en geen bi-color (v114).
     const r = getRij(id);
     if (r && r.bediening && !invoerOpSlot()) { delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; }
+    if (r && (r.biColor || r.ralBinnen) && !invoerOpSlot()) { delete r.biColor; delete r.ralBinnen; }
     if (bedEl && r) bedEl.innerHTML = bedieningCel(r);
+    const biEl = document.getElementById('bi-' + id);
+    if (biEl && r) { const sel = biEl.querySelector('select'); if (sel) sel.value = r.biColor === 'Ja' ? 'Ja' : 'Nee'; }
+    const rbEl = document.getElementById('ralb-' + id);
+    if (rbEl && r) rbEl.innerHTML = ralBinnenCel(r);
   }
   updateBerekendCellen();
   // De twee kolommen komen tevoorschijn zodra de eerste ruit een rooster
   // krijgt, en verdwijnen weer als de laatste hem kwijtraakt.
   roosterKolommenBij();
 }
+
+// ═══════════════ BI-COLOR ROOSTER (v114, keuze van Jan) ═══════════════
+// Een Duco rooster kan binnen een andere kleur hebben dan buiten. Standaard
+// Nee. Bij Ja is ralKleur de kleur BUITEN en ralBinnen de kleur BINNEN.
+// Opslag: biColor 'Ja' of afwezig, ralBinnen alleen bij Ja. Zo blijft het
+// kenmerk van elke bestaande ruit gelijk (ruitKenmerk), en staat er na een
+// bestelling niet ineens alles als "gewijzigd".
+function ralBinnenOpties(waarde) {
+  return '<option value="">— kies binnen —</option>' +
+    (window.keuzeMetOude
+      ? keuzeMetOude(DATA.ral_kleuren, waarde || '', 'Niet meer in de lijst')
+      : DATA.ral_kleuren.map(c => `<option value="${c}" ${waarde === c ? 'selected' : ''}>${c}</option>`).join(''));
+}
+function ralBinnenCel(rij) {
+  if (rij.biColor !== 'Ja') {
+    return '<span class="ralbin-zelfde" title="Geen bi-color: binnen dezelfde kleur als buiten">= buiten</span>';
+  }
+  return `<select class="${rij.ralBinnen ? '' : 'leeg'}" title="Kleur binnen" onchange="zetRalBinnen(${rij.id},this.value)">${ralBinnenOpties(rij.ralBinnen)}</select>`;
+}
+window.ralBinnenCel = ralBinnenCel;
+
+function zetBiColor(id, waarde) {
+  if (slotWeigert()) return;
+  const r = getRij(id);
+  if (!r) return;
+  if (waarde === 'Ja') r.biColor = 'Ja';
+  else { delete r.biColor; delete r.ralBinnen; }
+  const el = document.getElementById('ralb-' + id);
+  if (el) el.innerHTML = ralBinnenCel(r);
+  const ral = document.querySelector('#ral-' + id + ' select');
+  if (ral) ral.title = r.biColor === 'Ja' ? 'Kleur buiten' : 'Kleur (binnen en buiten)';
+  updateBerekendCellen();
+  roosterKolommenBij();
+  opslaan();
+}
+window.zetBiColor = zetBiColor;
+
+function zetRalBinnen(id, waarde) {
+  if (slotWeigert()) return;
+  const r = getRij(id);
+  if (!r) return;
+  if (waarde) { r.ralBinnen = waarde; r.biColor = 'Ja'; } else delete r.ralBinnen;
+  const sel = document.querySelector('#ralb-' + id + ' select');
+  if (sel) sel.classList.toggle('leeg', !r.ralBinnen);
+  opslaan();
+}
+window.zetRalBinnen = zetRalBinnen;
+
+// De kleur zoals de leverancier hem moet lezen. Bi-color: "Bi-color buiten:
+// RAL 9010 - Zuiverwit / binnen: RAL 9005 - Gitzwart" (ontbreekt binnen nog:
+// "binnen: ?", en de bestellijst vraagt erom). Anders gewoon de kleur.
+function ralTekst(r) {
+  if (!r) return '';
+  if (r.biColor === 'Ja' && r.rooster === 'Ja') {
+    // "Bi-color" erbij (controle v114): voor de leverancier een ander artikel.
+    return 'Bi-color buiten: ' + (r.ralKleur || '?') + ' / binnen: ' + (r.ralBinnen || '?');
+  }
+  return r.ralKleur || '';
+}
+window.ralTekst = ralTekst;
+// Het rooster zonder de bediening: type en kleur (v114, blok ALLEEN ROOSTER).
+function roosterTekst(r) {
+  if (!r || r.rooster !== 'Ja') return '';
+  return [r.ducoType, ralTekst(r)].filter(Boolean).join(' ');
+}
+window.roosterTekst = roosterTekst;
 
 // ═══════════════ SAMENVATTING ═══════════════
 function renderSamenvatting() {
@@ -4495,7 +4630,7 @@ function renderSamenvatting() {
       <td class="num">${gew}</td>
       <td class="num highlight">${ant}</td>
       <td>${esc(r.ducoType)}</td>
-      <td>${esc(r.ralKleur)}</td>
+      <td>${esc(ralTekst(r))}</td>
       <td>${esc(bedieningTekst(r))}</td>
       <td>${esc(r.glasbewerking)}</td>
       <td>${esc(r.roedenverdeling)}</td>
@@ -4553,7 +4688,10 @@ function ruitKenmerk(rij) {
   // "gewijzigd" maken.
   const tekst = KENMERK_VELDEN.map(v => String(rij[v] === undefined ? '' : rij[v])).join('|') +
     (rij.bediening && rij.rooster === 'Ja' ? '|bed:' + rij.bediening + '/' + (parseInt(rij.bedieningAantal, 10) === 2 ? 2 : 1) + '/' +
-      (parseInt(rij.bedieningLengte, 10) > 0 ? parseInt(rij.bedieningLengte, 10) : '') : '');
+      (parseInt(rij.bedieningLengte, 10) > 0 ? parseInt(rij.bedieningLengte, 10) : '') : '') +
+    // v114: bi-color op dezelfde manier: alleen als het gekozen is (en er een
+    // rooster is), anders verandert het kenmerk van elke bestaande ruit.
+    (rij.biColor === 'Ja' && rij.rooster === 'Ja' ? '|bi:' + (rij.ralBinnen || '') : '');
   let h = 5381;
   for (let i = 0; i < tekst.length; i++) h = ((h * 33) ^ tekst.charCodeAt(i)) >>> 0;
   return h.toString(36);
@@ -4593,13 +4731,27 @@ window.ruitKenmerk = ruitKenmerk;
 // projectInfo.besteld blijft bestaan in de oude vorm (kenmerk per ruit):
 // dat is de besteld stand, voor apparaten die nog een oudere versie
 // draaien tot ze bijgewerkt zijn.
-const MOMENT_VELDEN = KENMERK_VELDEN.concat(['glasBreedte', 'glasHoogte', 'bediening', 'bedieningAantal', 'bedieningLengte']);
+const MOMENT_VELDEN = KENMERK_VELDEN.concat(['glasBreedte', 'glasHoogte', 'bediening', 'bedieningAantal', 'bedieningLengte',
+  'biColor', 'ralBinnen']);   // v114
 const BEDIENING_VELDEN = ['bediening', 'bedieningAantal', 'bedieningLengte'];
+// v114 (keuze van Jan): alleen het rooster anders (Duco type, kleur, bi-color)
+// bij een bestelde ruit = blok ALLEEN ROOSTER, het glas NIET opnieuw maken.
+const ROOSTER_VELDEN = ['ducoType', 'ralKleur', 'biColor', 'ralBinnen'];
+const BI_VELDEN = ['biColor', 'ralBinnen'];
 // Wat er van een óudere bestelling bewaard blijft zodra er een nieuwere
 // bij komt: genoeg om hem te tonen, niet alles (een project gaat bij elke
 // opslag in zijn geheel omhoog).
 const KORT_VELDEN = ['aantal', 'merk', 'breedte', 'hoogte', 'glasBreedte', 'glasHoogte', 'glasType', 'opbouw',
-  'bediening', 'bedieningAantal', 'bedieningLengte'];   // v111
+  'bediening', 'bedieningAantal', 'bedieningLengte',   // v111
+  'rooster', 'ducoType', 'ralKleur', 'biColor', 'ralBinnen'];   // v114: voor ALLEEN ROOSTER
+// Een ingekorte bestelling van vóór v114 (kort: 1) kent de roostervelden
+// niet: die zijn dan onbekend, niet leeg. Sinds v114 is het kort: 2.
+const KORT_VELDEN_V114 = ['rooster', 'ducoType', 'ralKleur', 'biColor', 'ralBinnen'];
+function kortBewaard(oud, v) {
+  if (!oud || !oud.kort) return true;
+  if (KORT_VELDEN.indexOf(v) < 0) return false;
+  return KORT_VELDEN_V114.indexOf(v) < 0 || oud.kort >= 2;
+}
 
 function ruitMomentopname(rij, opLijst) {
   const o = { k: ruitKenmerk(rij), opLijst: !!opLijst };
@@ -4649,12 +4801,20 @@ function bestelMomentopname(lijst, tbPdf) {
       : tb.minder.some(m => m.rij === r) ? aantalVerschil(st.ruiten[r.id], r) : null;
     // v112: alleen de bediening anders (ook naast EXTRA of minder).
     const bv = aanvulling && al ? (tb.bediening || []).find(b => String(b.rij.id) === String(r.id)) : null;
+    // v114: idem alleen het rooster (Duco type, kleur, bi-color).
+    const rv = aanvulling && al ? (tb.rooster || []).find(b => String(b.rij.id) === String(r.id)) : null;
     const metBediening = o => {
-      if (!bv) return;
       const oud = st.ruiten[r.id] || {};
-      o.bedieningVan = {};
-      BEDIENING_VELDEN.forEach(v => { if (oud[v] !== undefined) o.bedieningVan[v] = oud[v]; });
-      o.bedieningUit = besteldInTekst(r.id, st) || '1e';
+      if (bv) {
+        o.bedieningVan = {};
+        BEDIENING_VELDEN.forEach(v => { if (oud[v] !== undefined) o.bedieningVan[v] = oud[v]; });
+        o.bedieningUit = besteldInTekst(r.id, st) || '1e';
+      }
+      if (rv) {
+        o.roosterVan = {};
+        ROOSTER_VELDEN.forEach(v => { if (oud[v] !== undefined) o.roosterVan[v] = oud[v]; });
+        o.roosterUit = besteldInTekst(r.id, st) || '1e';
+      }
     };
     if (aanvulling && al && !opLijst[r.id]) {
       if (verschil && verschil.soort === 'minder') {
@@ -4663,8 +4823,8 @@ function bestelMomentopname(lijst, tbPdf) {
         om.minderUit = besteldInTekst(r.id, st) || '1e';
         metBediening(om);
         ruiten[r.id] = om;
-      } else if (bv) {
-        // Telt als besteld (de bediening is besteld), maar het glas blijft
+      } else if (bv || rv) {
+        // Telt als besteld (de bediening of het rooster is besteld), maar het glas blijft
         // uit de lijsten waar het al in zat (standVan: herkomst).
         const om = ruitMomentopname(r, true);
         metBediening(om);
@@ -4716,11 +4876,13 @@ window.bestelMomentopname = bestelMomentopname;
 
 // Alleen wat nodig is om een ruit te tonen en te vergelijken.
 function korteRuit(o) {
-  const kort = { k: o.k, opLijst: o.opLijst, kort: 1 };
+  // v114: kort 2 = met de roostervelden; een al ingekorte van daarvoor blijft 1.
+  const kort = { k: o.k, opLijst: o.opLijst, kort: o.kort ? o.kort : 2 };
   if (o.vervangt) kort.vervangt = o.vervangt;
   // v110: ook ingekort moet het overzicht nog weten wat er extra of minder
   // gevraagd is (gevraagdTeAnnuleren, kolom Besteld).
-  ['extra', 'extraBij', 'minder', 'minderUit', 'vervangtUit', 'bedieningVan', 'bedieningUit']   // bediening: v112
+  ['extra', 'extraBij', 'minder', 'minderUit', 'vervangtUit', 'bedieningVan', 'bedieningUit',   // bediening: v112
+   'roosterVan', 'roosterUit']   // v114
     .forEach(v => { if (o[v] !== undefined) kort[v] = o[v]; });
   if (o.g) kort.g = o.g;
   KORT_VELDEN.forEach(v => { if (o[v] !== undefined) kort[v] = o[v]; });
@@ -4745,7 +4907,7 @@ function korteRuit(o) {
 //           lijst; "B uit de 1e (3) en de 2e (+1)")
 //   minderIn: { id: [ { nr, n } ] }  waar er minder gevraagd is (v110)
 function standVan(lijst) {
-  let ruiten = {}, nr = {}, bron = {}, geannuleerd = {}, leeg = {}, herkomst = {}, minderIn = {}, bedieningIn = {};
+  let ruiten = {}, nr = {}, bron = {}, geannuleerd = {}, leeg = {}, herkomst = {}, minderIn = {}, bedieningIn = {}, roosterIn = {};
   const eerder = {}, eerderVersies = {};
   let laatste = null, laatsteIndex = -1;
   (lijst || []).forEach((b, i) => {
@@ -4758,7 +4920,7 @@ function standVan(lijst) {
         if (typeof o === 'object') (eerderVersies[id] = eerderVersies[id] || []).push({ versie: o, nr: b.nr || i + 1 });
       }
     });
-    if (b.soort !== 'aanvulling') { ruiten = {}; nr = {}; bron = {}; geannuleerd = {}; leeg = {}; herkomst = {}; minderIn = {}; bedieningIn = {}; }
+    if (b.soort !== 'aanvulling') { ruiten = {}; nr = {}; bron = {}; geannuleerd = {}; leeg = {}; herkomst = {}; minderIn = {}; bedieningIn = {}; roosterIn = {}; }
     const rs = b.ruiten || {};
     Object.keys(rs).forEach(id => {
       const o = rs[id];
@@ -4791,14 +4953,16 @@ function standVan(lijst) {
       }
       // v112: of deze lijst de bediening (opnieuw) bestelt: niet bij alleen
       // meer of minder glas met dezelfde bediening.
-      let bedZet = true;
+      let bedZet = true, roosterZet = true;   // roosterZet: v114
       if (typeof o === 'object' && o.extra && herkomst[id]) {
-        bedZet = !!o.bedieningVan;
+        bedZet = !!o.bedieningVan; roosterZet = !!o.roosterVan;
         herkomst[id] = herkomst[id].concat([{ nr: dezeNr, n: stuks != null ? stuks - o.extra : null }]);
       } else if (typeof o === 'object' && o.minder && herkomst[id]) {
-        bedZet = !!o.bedieningVan;
+        bedZet = !!o.bedieningVan; roosterZet = !!o.roosterVan;
         minderIn[id] = (minderIn[id] || []).concat([{ nr: dezeNr, n: stuks != null ? o.minder - stuks : null }]);
-      } else if (typeof o === 'object' && o.bedieningVan && herkomst[id]) {
+      } else if (typeof o === 'object' && (o.bedieningVan || o.roosterVan) && herkomst[id]) {
+        // v114: of alleen het rooster (blok ALLEEN ROOSTER), of allebei.
+        bedZet = !!o.bedieningVan; roosterZet = !!o.roosterVan;
         // v112: alleen de bediening; het glas blijft uit dezelfde lijsten. En
         // het glas zelf blijft wat er al gold: bestelde een collega tussen de
         // pdf en ‹Ja, verstuurd› iets anders aan deze ruit (EXTRA, VERVANGT),
@@ -4806,7 +4970,8 @@ function standVan(lijst) {
         const vorigO = ruiten[id];
         if (vorigO && typeof vorigO === 'object' && !vorigO.kort && !o.kort) {
           geldt = Object.assign({}, vorigO);
-          BEDIENING_VELDEN.forEach(v => { if (o[v] === undefined) delete geldt[v]; else geldt[v] = o[v]; });
+          if (o.bedieningVan) BEDIENING_VELDEN.forEach(v => { if (o[v] === undefined) delete geldt[v]; else geldt[v] = o[v]; });
+          if (o.roosterVan) ROOSTER_VELDEN.forEach(v => { if (o[v] === undefined) delete geldt[v]; else geldt[v] = o[v]; });
           if (o.g) geldt.g = o.g;
           geldt.k = ruitKenmerk(geldt);
         }
@@ -4821,10 +4986,14 @@ function standVan(lijst) {
       if (typeof o === 'object' && o && bedZet) {
         if (o.bediening) bedieningIn[id] = dezeNr; else delete bedieningIn[id];
       }
+      // v114: idem in welke lijst het rooster (type, kleur) besteld is.
+      if (typeof o === 'object' && o && roosterZet) {
+        if (o.rooster === 'Ja') roosterIn[id] = dezeNr; else delete roosterIn[id];
+      }
     });
     Object.keys(b.vervallen || {}).forEach(id => {
       geannuleerd[id] = { nr: b.nr || i + 1, oud: b.vervallen[id] };
-      delete ruiten[id]; delete nr[id]; delete bron[id]; delete herkomst[id]; delete minderIn[id]; delete bedieningIn[id];
+      delete ruiten[id]; delete nr[id]; delete bron[id]; delete herkomst[id]; delete minderIn[id]; delete bedieningIn[id]; delete roosterIn[id];
     });
     laatste = b; laatsteIndex = i;
   });
@@ -4842,7 +5011,7 @@ function standVan(lijst) {
     if (eerderVersies[id]) eerderVersies[id] = eerderVersies[id].filter(e => e.versie !== ruiten[id] && e.versie.k !== kenmerkVan(ruiten[id]));
   });
   return { ruiten: ruiten, nr: nr, bron: bron, geannuleerd: geannuleerd, leeg: leeg, herkomst: herkomst, minderIn: minderIn,
-           bedieningIn: bedieningIn, eerder: eerder, eerderVersies: eerderVersies, bekend: bekend, laatste: laatste, laatsteIndex: laatsteIndex };
+           bedieningIn: bedieningIn, roosterIn: roosterIn, eerder: eerder, eerderVersies: eerderVersies, bekend: bekend, laatste: laatste, laatsteIndex: laatsteIndex };
 }
 
 // De velden die een leverancier maakt (maat, aantal, glas). Daarop letten
@@ -4957,6 +5126,39 @@ function bedieningInTekst(id, st) {
 }
 window.bedieningInTekst = bedieningInTekst;
 
+// v114: hetzelfde voor het rooster (Duco type en kleur): na ALLEEN ROOSTER in
+// de 2e staat het glas in de 1e en het rooster in de 2e.
+function roosterInTekst(id, st) {
+  st = st || besteldeStand();
+  const n = st.roosterIn && st.roosterIn[id];
+  if (!n) return '';
+  const h = st.herkomst && st.herkomst[id];
+  const glas = h && h.length ? h.map(x => x.nr) : (st.nr[id] ? [st.nr[id]] : []);
+  // Zit het rooster in een lijst waar het glas ook in zit, dan hoeft het niet
+  // apart genoemd (controle v114: na EXTRA in de 2e zat het rooster nog in de 1e).
+  return glas.indexOf(n) >= 0 ? '' : n + 'e';
+}
+window.roosterInTekst = roosterInTekst;
+
+// v114 (controle): een ander Duco type is alleen "alleen het rooster" als de
+// glasaftrek gelijk is en het glas in het nieuwe rooster past. Anders is het
+// glas al te hoog of te laag besteld (DucoTon 10: 80 mm, DucoTon 18: 120 mm)
+// en moet het opnieuw (VERVANGT). De aftrek staat in de beschrijving.
+function ducoAftrek(naam) {
+  const d = (DATA.roosters || []).find(x => x.naam === naam);
+  const m = d && /glasaftrek (\d+) mm/.exec(d.beschrijving || '');
+  return m ? +m[1] : null;
+}
+window.ducoAftrek = ducoAftrek;
+function ducoWisselMag(van, naar, dikte) {
+  const a = ducoAftrek(van), b = ducoAftrek(naar);
+  if (a == null || b == null || a !== b) return false;
+  const d = (DATA.roosters || []).find(x => x.naam === naar);
+  const t = parseFloat(dikte);
+  if (d && isFinite(t) && (t < d.minDikte || t > d.maxDikte)) return false;
+  return true;
+}
+
 // Waarmee een ruit vergeleken wordt: wat er van hem besteld is, of (nooit
 // besteld) hoe hij er bij de laatste bestelling uitzag.
 function bestelOud(id) {
@@ -4974,9 +5176,19 @@ window.bestelOud = bestelOud;
 // (vóór v104 alleen een kenmerk) weten we het niet: ook null.
 // v112: de ruit met de bediening zoals die besteld was. Daarmee kijken we of
 // er naast de bediening nog iets anders aan het glas veranderde.
+// v114: ook het rooster (Duco type, kleur, bi-color) zoals besteld. Van een
+// ingekorte bestelling van vóór v114 is dat niet bewaard: dan blijft het
+// zoals het nu is (onbekend), en vangt het kenmerk een verschil af.
 function metBedieningVan(rij, oud) {
   const r = Object.assign({}, rij);
   BEDIENING_VELDEN.forEach(v => { if (oud[v] === undefined) delete r[v]; else r[v] = oud[v]; });
+  if (kortBewaard(oud, 'ducoType')) {
+    ROOSTER_VELDEN.forEach(v => {
+      if (oud[v] !== undefined) r[v] = oud[v];
+      else if (BI_VELDEN.indexOf(v) >= 0) delete r[v];
+      else r[v] = '';
+    });
+  }
   return r;
 }
 function aantalVerschil(oud, rij) {
@@ -5002,11 +5214,18 @@ window.aantalVerschil = aantalVerschil;
 // de bediening voor de al bestelde ruiten staat in het blok).
 //   { was: tekst van de bestelde bediening ('' = geen), nu: tekst nu,
 //     stuks: voor hoeveel al bestelde ruiten (het kleinste aantal) }
+// v114: ook alleen het rooster anders (Duco type, kleur, bi-color): dan
+// roosterWas/roosterNu verschillend (blok ALLEEN ROOSTER). was/nu blijven de
+// bediening (gelijk als alleen het rooster anders is).
 function bedieningVerschil(oud, rij) {
   if (!oud || typeof oud !== 'object' || !oud.k || !rij) return null;
   const bo = bedieningTekst(oud), bn = bedieningTekst(rij);
-  if (bo === bn) return null;
   const test = metBedieningVan(rij, oud);
+  const ro = roosterTekst(test), rn = roosterTekst(rij);
+  if (bo === bn && ro === rn) return null;
+  // Een ander Duco type met een andere glasaftrek: ander glas (VERVANGT).
+  if (rij.rooster === 'Ja' && (test.ducoType || '') !== (rij.ducoType || '') &&
+      !ducoWisselMag(test.ducoType, rij.ducoType, rij.totaalDikte)) return null;
   if (oud.aantal !== undefined) test.aantal = oud.aantal;
   if (ruitKenmerk(test) !== kenmerkVan(oud)) return null;
   if (('glasBreedte' in oud || 'glasHoogte' in oud) &&
@@ -5014,7 +5233,8 @@ function bedieningVerschil(oud, rij) {
        maatGetal(oud.glasHoogte) !== maatGetal(rij.glasHoogte))) return null;
   const was = parseInt(oud.aantal, 10) > 0 ? parseInt(oud.aantal, 10) : 1;
   const nu = parseInt(rij.aantal, 10) > 0 ? parseInt(rij.aantal, 10) : 1;
-  return { was: bo, nu: bn, stuks: Math.min(was, nu) };
+  return { was: bo, nu: bn, roosterWas: ro, roosterNu: rn, stuks: Math.min(was, nu),
+           ducoAnders: (test.ducoType || '') !== (rij.ducoType || '') };
 }
 window.bedieningVerschil = bedieningVerschil;
 
@@ -5027,7 +5247,7 @@ function teBestellen() {
   const w = wijzigingenSindsBestelling();
   if (!w.bestelling) {
     const regels = alle.filter(bestelbaar);
-    return { aanvulling: false, regels: regels, vervallen: [], gewijzigd: [], minder: [], extra: {}, bediening: [],
+    return { aanvulling: false, regels: regels, vervallen: [], gewijzigd: [], minder: [], extra: {}, bediening: [], rooster: [],
              aantal: regels.length, w: w };
   }
   const ids = {};
@@ -5037,23 +5257,29 @@ function teBestellen() {
   // v112: alleen de bediening anders = niet in de glastabel, wel in het blok
   // ALLEEN BEDIENING (ook naast een EXTRA of "N annuleren").
   const bediening = [];
+  // v114: alleen het rooster anders = blok ALLEEN ROOSTER (idem).
+  const rooster = [];
   w.nieuw.forEach(r => { if (bestelbaar(r)) ids[r.id] = true; });
   w.gewijzigd.forEach(g => {
     if (!bestelbaar(g.rij)) return;
     const v = aantalVerschil(g.oud, g.rij);
     const b = bedieningVerschil(g.oud, g.rij);
-    if (b) bediening.push({ rij: g.rij, oud: g.oud, nr: g.nr, nrTekst: g.nrTekst, was: b.was, nu: b.nu, stuks: b.stuks,
+    if (b && b.was !== b.nu) bediening.push({ rij: g.rij, oud: g.oud, nr: g.nr, nrTekst: g.nrTekst, was: b.was, nu: b.nu, stuks: b.stuks,
                             bedTekst: bedieningInTekst(g.rij.id) });
+    if (b && b.roosterWas !== b.roosterNu) rooster.push({ rij: g.rij, oud: g.oud, nr: g.nr, nrTekst: g.nrTekst,
+                            was: b.roosterWas, nu: b.roosterNu, stuks: b.stuks, ducoAnders: b.ducoAnders,
+                            roosterTekst: roosterInTekst(g.rij.id) });
     if (v && v.soort === 'minder') { minder.push({ rij: g.rij, oud: g.oud, nr: g.nr, nrTekst: g.nrTekst, was: v.was, nu: v.nu }); return; }
     if (v) extra[g.rij.id] = v;
-    else if (b) return;            // alleen de bediening: het glas blijft
+    else if (b) return;            // alleen de bediening en/of het rooster: het glas blijft
     ids[g.rij.id] = true;
   });
   const regels = alle.filter(r => ids[r.id]);
   return { aanvulling: true, regels: regels, vervallen: w.vervallen,
            gewijzigd: w.gewijzigd.filter(g => ids[g.rij.id]),
-           minder: minder, extra: extra, bediening: bediening,
-           aantal: regels.length + w.vervallen.length + minder.length + bediening.length, w: w };
+           minder: minder, extra: extra, bediening: bediening, rooster: rooster,
+           aantal: regels.length + w.vervallen.length + minder.length + bediening.length +
+             rooster.filter(x => !bediening.some(b => b.rij === x.rij)).length, w: w };
 }
 window.teBestellen = teBestellen;
 
@@ -5146,7 +5372,7 @@ function ruitVerschil(oud, rij) {
   // Van een ingekorte (oudere) bestelling kennen we alleen een paar velden.
   // Wat er niet in staat, is niet 'leeg' maar onbekend: niet noemen (v104,
   // gevonden bij de beoordeling: na intrekken stond er "rooster (leeg) → Nee").
-  const velden = oud.kort ? KENMERK_VELDEN.filter(v => KORT_VELDEN.indexOf(v) >= 0) : KENMERK_VELDEN;
+  const velden = oud.kort ? KENMERK_VELDEN.filter(v => kortBewaard(oud, v)) : KENMERK_VELDEN;
   velden.forEach(v => {
     const a = oud[v] === undefined || oud[v] === null ? '' : String(oud[v]);
     const b = rij[v] === undefined || rij[v] === null ? '' : String(rij[v]);
@@ -5157,6 +5383,12 @@ function ruitVerschil(oud, rij) {
   if (!oud.kort || oud.bediening || 'bediening' in rij) {
     const bo = bedieningTekst(oud), bn = bedieningTekst(rij);
     if (bo !== bn) uit.push('bediening ' + (bo || '(geen)') + ' → ' + (bn || '(geen)'));
+  }
+  // Bi-color (v114), op dezelfde manier.
+  if (kortBewaard(oud, 'biColor')) {
+    const bin = r => r.biColor === 'Ja' && r.rooster === 'Ja' ? (r.ralBinnen || '?') : '';
+    const a = bin(oud), b = bin(rij);
+    if (a !== b) uit.push('RAL binnen ' + (a || '(geen bi-color)') + ' → ' + (b || '(geen bi-color)'));
   }
   const gb = maatGetal(oud.glasBreedte), gh = maatGetal(oud.glasHoogte);
   if (('glasBreedte' in oud || 'glasHoogte' in oud) &&
@@ -5170,7 +5402,7 @@ function ruitVerschil(oud, rij) {
     // Zo niet, dan is er ook iets anders veranderd dat we niet meer kennen.
     const terug = Object.assign({}, rij);
     velden.forEach(v => { terug[v] = oud[v] === undefined ? '' : oud[v]; });
-    BEDIENING_VELDEN.forEach(v => { if (oud[v] === undefined) delete terug[v]; else terug[v] = oud[v]; });   // v111
+    BEDIENING_VELDEN.concat(BI_VELDEN).forEach(v => { if (oud[v] === undefined) delete terug[v]; else terug[v] = oud[v]; });   // v111, v114
     if (ruitKenmerk(terug) !== oud.k) {
       uit.push((uit.length ? 'en ' : '') + 'overige gegevens gewijzigd (de details van die bestelling zijn niet meer bewaard)');
     }
@@ -5277,16 +5509,20 @@ function ruitenTerugZoalsBesteld(ids) {
     const os = bestaand ? oudereStand(bestaand, st, oud) : true;
     const velden = Array.isArray(os) ? os : KENMERK_VELDEN;
     velden.forEach(v => {
-      if (oud.kort && KORT_VELDEN.indexOf(v) < 0) return;  // niet bewaard: laten staan
+      if (!kortBewaard(oud, v)) return;  // niet bewaard: laten staan (v114: ook rooster bij kort 1)
       doel[v] = oud[v] === undefined ? (v === 'aantal' ? 1 : '') : oud[v];
     });
     // De bediening (v111) zit niet in KENMERK_VELDEN; mee terugzetten.
+    // v114: bi-color ook (zit alleen in het kenmerk als het gekozen is).
     if (!Array.isArray(os)) {
-      BEDIENING_VELDEN.forEach(v => { if (oud[v] === undefined) delete doel[v]; else doel[v] = oud[v]; });
+      BEDIENING_VELDEN.concat(BI_VELDEN).forEach(v => {
+        if (BI_VELDEN.indexOf(v) >= 0 && !kortBewaard(oud, v)) return;   // vóór v114 ingekort: onbekend
+        if (oud[v] === undefined) delete doel[v]; else doel[v] = oud[v];
+      });
     }
     // Komt het rooster terug op Nee, dan hoort er geen bediening bij (anders
     // kwam hij stil terug zodra het rooster later weer op Ja ging).
-    if (doel.rooster !== 'Ja') BEDIENING_VELDEN.forEach(v => { delete doel[v]; });
+    if (doel.rooster !== 'Ja') BEDIENING_VELDEN.concat(BI_VELDEN).forEach(v => { delete doel[v]; });
     if (!bestaand) rijen.push(doel);
     n++;
   });
@@ -5431,6 +5667,7 @@ function bestellingVastleggen(lijst, via, moment) {
   };
   const nAnnuleren = Object.keys(m.vervallen || {}).length;
   const alleenBed = Object.keys(m.ruiten || {}).filter(id => m.ruiten[id] && m.ruiten[id].bedieningVan).length;
+  const alleenRooster = Object.keys(m.ruiten || {}).filter(id => m.ruiten[id] && m.ruiten[id].roosterVan).length;   // v114
   if (nAnnuleren) nieuw.vervallen = m.vervallen;
   vorige.push(nieuw);
   projectInfo.bestellingen = bestellingenOpschonen(vorige);
@@ -5447,6 +5684,7 @@ function bestellingVastleggen(lijst, via, moment) {
       (nAnnuleren ? ', ' + nAnnuleren + ' te annuleren' : '') +
       // v112: een lijst met alleen een andere bediening is ook iets.
       (alleenBed ? ', ' + alleenBed + ' met alleen een andere bediening' : '') +
+      (alleenRooster ? ', ' + alleenRooster + ' met alleen een ander rooster (type/kleur)' : '') +
       (wasRang < 2 ? '; status op "besteld"' : ''));
   }
   if (window.glasMarkeerWerk) glasMarkeerWerk();
@@ -5630,7 +5868,10 @@ function bestellingenBlok() {
         const hoe = (!v ? '' : v.soort === 'extra'
           ? ' — op de aanvulling als ' + v.verschil + ' extra; de ' + v.was + ' bestelde blijven'
           : ' — op de aanvulling: ' + (v.was - v.nu) + ' annuleren; de andere ' + v.nu + ' blijven') +
-          (!b ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ALLEEN BEDIENING, het glas wordt niet opnieuw gemaakt');
+          // v114 (controle): bediening en/of rooster, elk met zijn eigen blok.
+          (!b ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ' +
+            [b.was !== b.nu ? 'ALLEEN BEDIENING' : '', b.roosterWas !== b.roosterNu ? 'ALLEEN ROOSTER' : ''].filter(Boolean).join(' en ') +
+            ', het glas wordt niet opnieuw gemaakt');
         return '<li>' + naam(g.rij) + ': ' +
           esc(g.verschil.join('; ')) + (g.nr ? ' (besteld in de ' + esc(g.nrTekst || g.nr + 'e') + ')' : '') + esc(hoe) +
           (bestelbaar(g.rij) ? '' : ' — nog niet compleet') + '</li>';
@@ -5654,7 +5895,9 @@ function bestellingenBlok() {
           [t.regels.length ? t.regels.length + (t.regels.length === 1 ? ' nieuwe of gewijzigde ruit' : ' nieuwe of gewijzigde ruiten') : '',
            (t.vervallen.length + t.minder.length) ? (t.vervallen.length + t.minder.length) + ' te annuleren' : '',
            // v112
-           (t.bediening || []).length ? t.bediening.length + (t.bediening.length === 1 ? ' ruit' : ' ruiten') + ' met alleen een andere bediening' : '']
+           (t.bediening || []).length ? t.bediening.length + (t.bediening.length === 1 ? ' ruit' : ' ruiten') + ' met alleen een andere bediening' : '',
+           // v114
+           (t.rooster || []).length ? t.rooster.length + (t.rooster.length === 1 ? ' ruit' : ' ruiten') + ' met alleen een ander rooster (type of kleur)' : '']
             .filter(Boolean).join(' en ') +
           '. Kies daarna <b>Ja, verstuurd</b>.</p>'
         : '<p>Er is nu niets bij te bestellen: vul eerst aan wat niet compleet is.</p>');
@@ -5762,7 +6005,7 @@ function renderBestellijst() {
     <td>${esc(r.opbouw)}</td>
     <td>${r.rooster === 'Ja' ? '<b class="rooster-ja">Ja ▲</b>' : ''}</td>
     <td>${esc(r.ducoType)}</td>
-    <td>${esc(r.ralKleur)}</td>
+    <td>${esc(ralTekst(r))}</td>
     <td>${esc(bedieningTekst(r))}</td>
     <td>${esc(r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '')}${isStrijdig(r) ? '<span class="strijdig-teken">*</span>' : ''}</td>
     <td>${esc(r.roedenverdeling !== 'Geen roedenverdeling' ? r.roedenverdeling : '')}</td>
@@ -5905,8 +6148,10 @@ function exportTabel() {
     'Let op',
     // v111, achteraan om dezelfde reden.
     'Bediening',
-    // v113: sponning en glaslat, ook achteraan.
-    'Sponningdiepte (mm)','Glaslat','Pakket'];
+    // v113: sponning en glaslat, ook achteraan; v114 de zijde en de onderdorpel.
+    'Sponningdiepte (mm)','Glaslat','Pakket','Latzijde','Diepte onderdorpel (mm)',
+    // v114: bi-color rooster; RAL Kleur hierboven is dan de kleur buiten.
+    'Bi-color','RAL binnen'];
   const getal = v => {
     if (v === null || v === undefined || v === '') return '';
     const n = Number(String(v).replace(',', '.'));
@@ -5918,7 +6163,9 @@ function exportTabel() {
       ? +((r.glasBreedte/1000)*(r.glasHoogte/1000)*r.kgM2).toFixed(1) : '';
     const G = window.GlasLatten;
     const lat = G ? G.latVoorRuit(r) : null;
-    const pk = G ? (G.pakket(r).tekst || '') : '';
+    // v114: het oordeel over de hele ruit, onderin erbij als dat anders is.
+    const oo = G ? G.oordeelRuit(r) : null;
+    const pk = oo ? [oo.boven.tekst, oo.onder && oo.onder.tekst].filter(Boolean).join('; ') : '';
     return [
       i+1, getal(r.aantal), r.merk || '', r.maatsoort || '', getal(r.breedte), getal(r.hoogte),
       getal(r.glasBreedte), getal(r.glasHoogte),
@@ -5927,7 +6174,9 @@ function exportTabel() {
       r.glasbewerking || '', r.opmerking || '', r.roedenverdeling || '', r.roedenbreedte || '', r.roedenopmerking || '',
       isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',
       bedieningTekst(r),
-      G ? getal(G.ruit(r).sponningDiepte) : '', lat ? lat.naam : '', pk
+      G ? getal(G.ruit(r).sponningDiepte) : '', lat ? lat.naam : '', pk,
+      G ? G.zijde(r) : '', G ? getal(G.ruit(r).diepteOnder) : '',
+      r.rooster === 'Ja' && r.biColor === 'Ja' ? 'Ja' : 'Nee', r.rooster === 'Ja' && r.biColor === 'Ja' ? (r.ralBinnen || '') : ''
     ];
   });
   return { koppen, regels };

@@ -32,26 +32,26 @@ const { chromium, devices } = require('/home/claude/node_modules/playwright');
 
 /* ─── de reparaties terugdraaien (proef op de som) ─────────────── */
 const MUTATIES = {
-  apartBlok: ["index.html", "    else if (b) return;            // alleen de bediening: het glas blijft\n", ""],
+  apartBlok: ["index.html", "    else if (b) return;            // alleen de bediening en/of het rooster: het glas blijft\n", ""],
   extraMetBediening: ["index.html", "  if (ruitKenmerk(Object.assign(metBedieningVan(rij, oud), { aantal: oud.aantal })) !== kenmerkVan(oud)) return null;",
                       "  if (ruitKenmerk(Object.assign({}, rij, { aantal: oud.aantal })) !== kenmerkVan(oud)) return null;"],
   glasGelijk: ["index.html", "  if (ruitKenmerk(test) !== kenmerkVan(oud)) return null;\n", ""],
   blokPdf: ["pdf.js", "        if ((t.bediening || []).length) bedieningTabel(doc, titel, t.bediening);\n", ""],
   totaal: ["pdf.js", "      var tal = parseInt(m[1], 10) * n;", "      var tal = parseInt(m[1], 10);"],
-  herkomst: ["index.html", "      } else if (typeof o === 'object' && o.bedieningVan && herkomst[id]) {", "      } else if (0) {"],
-  kort: ["index.html", "'vervangtUit', 'bedieningVan', 'bedieningUit']", "'vervangtUit']"],
-  vastleggen: ["pdf.js", "(moment.ruiten[id].minder || moment.ruiten[id].bedieningVan)", "(moment.ruiten[id].minder)"],
-  nietsTeBestellen: ["pdf.js", "!minder.length && !alleenBed.length) {", "!minder.length) {"],
-  momentopname: ["index.html", "      } else if (bv) {\n", "      } else if (0) {\n"],
+  herkomst: ["index.html", "      } else if (typeof o === 'object' && (o.bedieningVan || o.roosterVan) && herkomst[id]) {", "      } else if (0) {"],
+  kort: ["index.html", "'vervangtUit', 'bedieningVan', 'bedieningUit',   // bediening: v112", "'vervangtUit',"],
+  vastleggen: ["pdf.js", "(moment.ruiten[id].minder || moment.ruiten[id].bedieningVan || moment.ruiten[id].roosterVan)", "(moment.ruiten[id].minder || moment.ruiten[id].roosterVan)"],
+  nietsTeBestellen: ["pdf.js", "!minder.length && !alleenBed.length && !alleenRooster.length) {", "!minder.length && !alleenRooster.length) {"],
+  momentopname: ["index.html", "      } else if (bv || rv) {\n", "      } else if (rv) {\n"],
   ouderStand: ["index.html", "(aantalVerschil(oud, rij) || bedieningVerschil(oud, rij))", "aantalVerschil(oud, rij)"],
   uitleg: ["pdf.js", "((t.bediening || []).length ? ' Onder de tabel: ALLEEN BEDIENING", "(0 ? ' Onder de tabel: ALLEEN BEDIENING"],
-  tabTekst: ["index.html", "(!b ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ALLEEN BEDIENING", "(1 ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ALLEEN BEDIENING"],
+  tabTekst: ["index.html", "(!b ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ' +", "(1 ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ' +"],
   wasBediening: ["pdf.js", "    if (bedOud !== bedNu) was += ', ' + (bedOud || 'zonder bediening');", ""],
   collega: ["index.html", "        if (vorigO && typeof vorigO === 'object' && !vorigO.kort && !o.kort) {", "        if (0) {"],
   bedIn: ["index.html", "        if (o.bediening) bedieningIn[id] = dezeNr; else delete bedieningIn[id];", ""],
   bedInTabel: ["pdf.js", "(b.was && b.bedTekst ? '; bediening: ' + b.bedTekst : '')", "''"],
-  annBed: ["pdf.js", "          return n ? ' (en de bediening uit de ' + n + ')' : '';", "          return '';"],
-  overzichtGlas: ["pdf.js", "return (h.length ? h[0].nr : nr) + 'e' + (bed ? '; bediening ' + bed : '');", "return nr + 'e';"],
+  annBed: ["pdf.js", "          return (n ? ' (en de bediening uit de ' + n + ')' : '') +", "          return '' +"],
+  overzichtGlas: ["pdf.js", "return (h.length ? h[0].nr : nr) + 'e' + (bed ? '; bediening ' + bed : '') + (roo ? '; rooster ' + roo : '');", "return nr + 'e' + (roo ? '; rooster ' + roo : '');"],
   stuksLengte: ["pdf.js", "      return tal + ' ' + m[2] + (tal === 1 ? '' : 'en') + ' ' + m[3];", "      return tal + ' ' + m[2] + (tal === 1 ? '' : 'en');"],
   bijExtra: ["index.html", "      o.extraBij = besteldInTekst(r.id, st) || '1e';\n      metBediening(o);", "      o.extraBij = besteldInTekst(r.id, st) || '1e';"],
 };
@@ -872,18 +872,21 @@ async function verstuurd(page, n) {
   await kiesBediening(page, 'Z', '1|stang');
   await page.evaluate(() => {
     const k2 = rijen.find(r => r.merk === 'K2'); k2.breedte = '710';          // K2: andere maat + koord
-    const z = rijen.find(r => r.merk === 'Z'); z.ralKleur = 'RAL 9005';        // Z: andere RAL + stang
+    // v114: een andere RAL alleen is nu ALLEEN ROOSTER (test-v114.js); hier een
+    // andere opmerking: die verandert het glas-kenmerk zonder de glasmaat.
+    const z = rijen.find(r => r.merk === 'Z'); z.opmerking = 'gehard glas, zie tekening';   // Z: andere opmerking + stang
     const w = rijen.find(r => r.merk === 'W'); w.breedte = '610';             // W: andere maat (stang uit de 2e)
     herbereken(); renderTabel(); opslaan(); });
   await wacht(400);
   m = await tb(page);
-  check('K2 (maat), Z (RAL) en W (maat): alle drie in de tabel, niets in het blok', JSON.stringify(m.regels) === '["Z","K2","W"]' &&
+  check('K2 (maat), Z (opmerking) en W (maat): alle drie in de tabel, niets in het blok', JSON.stringify(m.regels) === '["Z","K2","W"]' &&
     !m.bediening.length, JSON.stringify(m));
   const p4 = await bestellijstPdf(page);
   t = plat(pdfTekst(p4));
+  // (v114: de regel kan anders afbreken, nu Z een opmerking heeft; daarom los gezocht.)
   check('pdf: "K2 VERVANGT K2 uit de 1e (1x 692 x 892, zonder bediening)", nieuwe breedte 702',
-    /VERVANGT K2 uit de 1e \(1x 702/.test(t) && /692 x 892, zonder (lengte )?bediening\)/.test(t), (t.match(/VERVANGT K2.{0,80}/) || [''])[0]);
-  check('pdf: Z met een andere RAL = VERVANGT, en geen blok ALLEEN BEDIENING', /VERVANGT Z uit de 1e/.test(t) && !/ALLEEN BEDIENING - glas/.test(t),
+    /VERVANGT K2 uit de 1e (\(1x )?702/.test(t) && /692 x 892, zonder [^)]{0,20}bediening\)/.test(t), (t.match(/VERVANGT K2.{0,200}/) || [''])[0]);
+  check('pdf: Z met een andere opmerking = VERVANGT, en geen blok ALLEEN BEDIENING', /VERVANGT Z uit de 1e/.test(t) && !/ALLEEN BEDIENING - glas/.test(t),
     (t.match(/VERVANGT Z.{0,80}/) || [''])[0]);
   check('ANNULEREN: de oude W "(en de bediening uit de 2e)"', /vervangen door W op deze lijst \(en de bediening uit de 2e\)/.test(t),
     (t.match(/vervangen door W.{0,60}/) || [''])[0]);

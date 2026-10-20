@@ -2,7 +2,7 @@
    Doel: de app start ook zonder internet, maar een gepubliceerde
    update wint altijd zodra er wél internet is.
    Data gaat via cloud.js naar Supabase en wordt nooit gecachet. */
-const VERSIE = 'v113';
+const VERSIE = 'v114';
 const CACHE = 'glasopname-' + VERSIE;
 const SHELL = [
   './',
@@ -133,39 +133,62 @@ const ROOSTER_FOTOS = [
   './roosters/ducoglasmax.jpg',
 ];
 
-// De foto's van de glaslatten (v113). Jan haalt ze op met
-// latfotos-ophalen.sh (jongeneel.nl); ontbreekt er een, dan tekent de app het
-// profiel. Daarom net als de catalogus: los ingeladen, mag ontbreken.
+// De foto's van de glaslatten (v113) en sinds v114 de maattekeningen
+// (<id>-tek.jpg), van jongeneel.nl (bron: latfotos.txt). Ontbreekt er een,
+// dan tekent de app het profiel. Daarom net als de catalogus: los ingeladen,
+// mag ontbreken.
 const LAT_FOTOS = [
   './latten/A4.jpg',
+  './latten/A4-tek.jpg',
   './latten/A5.jpg',
+  './latten/A5-tek.jpg',
   './latten/A10.jpg',
+  './latten/A10-tek.jpg',
   './latten/A12.jpg',
+  './latten/A12-tek.jpg',
   './latten/A16.jpg',
+  './latten/A16-tek.jpg',
   './latten/B1.jpg',
-  './latten/B2.jpg',
+  './latten/B1-tek.jpg',
   './latten/B5.jpg',
-  './latten/GL13.jpg',
+  './latten/B5-tek.jpg',
+  './latten/B13.jpg',
+  './latten/B13-tek.jpg',
   './latten/B14.jpg',
+  './latten/B14-tek.jpg',
   './latten/B17.jpg',
+  './latten/B17-tek.jpg',
   './latten/C1.jpg',
+  './latten/C1-tek.jpg',
   './latten/C2.jpg',
   './latten/C3.jpg',
   './latten/E6.jpg',
   './latten/E7.jpg',
   './latten/E8.jpg',
   './latten/E22.jpg',
+  './latten/E22-tek.jpg',
   './latten/GLD1.jpg',
+  './latten/GLD1-tek.jpg',
   './latten/GLD2.jpg',
+  './latten/GLD2-tek.jpg',
   './latten/N25.jpg',
+  './latten/N25-tek.jpg',
   './latten/N30.jpg',
+  './latten/N30-tek.jpg',
   './latten/N35.jpg',
+  './latten/N35-tek.jpg',
   './latten/N40.jpg',
+  './latten/N40-tek.jpg',
   './latten/N45.jpg',
+  './latten/N45-tek.jpg',
   './latten/N50.jpg',
+  './latten/N50-tek.jpg',
   './latten/N55.jpg',
+  './latten/N55-tek.jpg',
   './latten/G915.jpg',
+  './latten/G915-tek.jpg',
   './latten/G916.jpg',
+  './latten/G916-tek.jpg'
 ];
 
 function inCache(c, lijst) {

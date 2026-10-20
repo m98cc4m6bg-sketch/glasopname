@@ -36,8 +36,9 @@
  * - Neuslat (N25 … N55, alleen onderaan, bij buitenbeglazing): "18x50" is
  *   18 hoog en 50 in totaal breed, maar dat is NIET wat hij in de sponning
  *   inneemt. Onderin zit een uitsparing van ±5 mm hoog en S mm breed (S =
- *   het modelnummer, N35 → 35 mm) die over de dorpel valt; de rest (bij
- *   Jongeneel 15 mm) is de neus die vóór het kozijn uitsteekt (druiplijst).
+ *   het modelnummer, N35 → 35 mm) die over de dorpel valt; de rest is de
+ *   neus die vóór het kozijn uitsteekt (druiplijst). Volgens de tekeningen
+ *   van Jongeneel is die neus 9 mm (v114; tot v113 stond hier 15).
  *   Hij past als: afstand glas → voorkant dorpel + 5 mm ≤ S (KVT 12.3.1:
  *   de neus minstens 5 mm vrij van de voorkant van de dorpel). De app kiest
  *   dan de kleinste die past.
@@ -50,12 +51,13 @@
  * "ruim". Meer dan 1 mm te krap = past niet; meer dan 1 mm te ruim = de lat
  * zit los (advies: dikker band binnen, of een bredere lat).
  *
- * De maten hieronder komen van Jongeneel (assortiment, artikelnummers) en
- * uit vergelijkbare profielen van andere leveranciers. Wat niet zeker is,
- * staat op zeker: false en toont de app als "maat nog niet nagemeten".
- * Foto's: latten/<id>.jpg, op te halen op de Mac met
- *     bash latfotos-ophalen.sh
- * (leest de productpagina's in latfotos.txt). Zolang een foto er niet is,
+ * De maten hieronder komen van Jongeneel: de nettomaat op de productpagina en
+ * de maattekening op de foto's (v114 nagekeken). Wat niet zeker is, staat op
+ * zeker: false en toont de app als "maat nog niet nagemeten".
+ * Foto's: latten/<id>.jpg (productfoto) en latten/<id>-tek.jpg (maattekening),
+ * van de pagina's in latfotos.txt. Jongeneel houdt scripts tegen met een
+ * beveiligingsscherm; een nieuwe foto laat je door Claude ophalen via de
+ * browser in de desktopapp (BEHEER.md §6). Zolang een foto er niet is,
  * tekent de app het profiel.
  */
 (function () {
@@ -73,48 +75,54 @@
      ruimte voor het glas; neuslat = S (breedte van de uitsparing over de
      dorpel). neus: hoe ver de neus verder uitsteekt (neuslat). */
   var LATTEN = [
+    // v114: alle maten nagekeken op de maattekeningen bij Jongeneel (foto's 1
+    // en 2 op de productpagina, in latten/<id>.jpg en latten/<id>-tek.jpg).
     { id: 'A4',  soort: 'glaslat', vorm: 'schuin', maat: '17x15', hoogte: 17, inSponning: 15, artikel: 'B7601017015400.FVG', zeker: true },
-    { id: 'A5',  soort: 'glaslat-sponning', vorm: 'schuin', maat: '17x15', hoogte: 17, inSponning: 12, artikel: 'B7602017015400.FVG', zeker: false,
-      opm: 'Het sponninkje valt over de kozijnrand: 12 mm in de sponning (Jan), de rest steekt iets uit. Nameten.' },
-    { id: 'A10', soort: 'glaslat', vorm: 'schuin', maat: '17x19', hoogte: 17, inSponning: 19, artikel: 'B7602017019400.FVG', zeker: false,
-      opm: 'Zelfde artikelreeks als A5 (mogelijk ook met sponninkje). Nameten.' },
+    { id: 'A5',  soort: 'glaslat-sponning', vorm: 'schuin', maat: '17x15', hoogte: 17, inSponning: 12, artikel: 'B7602017015400.FVG', zeker: true,
+      opm: 'Tekening Jongeneel: 12 + 3 breed, onderin een sponninkje van 3x3. Het sponninkje valt over de kozijnrand: 12 mm in de sponning (Jan).' },
+    { id: 'A10', soort: 'glaslat', vorm: 'schuin', maat: '17x19', hoogte: 17, inSponning: 19, artikel: 'B7602017019400.FVG', zeker: true },
     { id: 'A12', soort: 'glaslat', vorm: 'schuin', maat: '17x26', hoogte: 17, inSponning: 26, artikel: 'B7601017026400.FVG', zeker: true },
-    { id: 'A16', soort: 'glaslat', vorm: 'schuin', maat: '15x33', hoogte: 15, inSponning: 33, artikel: 'B7601015033400.FVG', zeker: false,
-      opm: 'Hoogte 15 mm is lager dan het KVT-minimum (17 mm); stand van de maat niet zeker.' },
+    { id: 'A16', soort: 'glaslat', vorm: 'schuin', maat: '15x33', hoogte: 15, inSponning: 33, artikel: 'B7601015033400.FVG', zeker: true,
+      opm: '15 mm hoog: lager dan het KVT-minimum van 17 mm. Niet in het advies bij dubbel glas.' },
     { id: 'B1',  soort: 'glaslat', vorm: 'recht', maat: '17x17', hoogte: 17, inSponning: 17, artikel: 'B7621017017400.FVG', zeker: true },
-    { id: 'B2',  soort: 'glaslat', vorm: 'recht', maat: '17x17', hoogte: 17, inSponning: 17, artikel: 'B7622017017400.FVG', zeker: false,
-      opm: 'Zelfde buitenmaat als B1; het verschil (mogelijk een sponninkje) is niet bekend.' },
     { id: 'B5',  soort: 'glaslat', vorm: 'recht', maat: '17x19', hoogte: 17, inSponning: 19, artikel: 'B7621017019400.FVG', zeker: true },
-    { id: 'GL13', soort: 'glaslat', vorm: 'recht', maat: '17x27', hoogte: 17, inSponning: 27, artikel: 'B7621017027400.FVG', zeker: true },
+    // Tot v113 "GL13"; Jongeneel noemt hem B13.
+    { id: 'B13', soort: 'glaslat', vorm: 'recht', maat: '17x27', hoogte: 17, inSponning: 27, artikel: 'B7621017027400.FVG', zeker: true },
     { id: 'B14', soort: 'glaslat', vorm: 'recht', maat: '25x25', hoogte: 25, inSponning: 25, artikel: 'B7621025025400.FVG', zeker: true },
     { id: 'B17', soort: 'glaslat', vorm: 'recht', maat: '17x35', hoogte: 17, inSponning: 35, artikel: 'B7621017035400.FVG', zeker: true },
-    { id: 'C1',  soort: 'ventilatie', vorm: 'schuin', maat: '17x26', hoogte: 17, inSponning: 26, artikel: 'B7641017026400.FVG', zeker: false },
-    { id: 'C2',  soort: 'ventilatie', vorm: 'schuin', maat: '20x26,6', hoogte: 20, inSponning: 26.6, artikel: 'B7641020027400.FVG', zeker: false },
-    { id: 'C3',  soort: 'ventilatie', vorm: 'schuin', maat: '22x30', hoogte: 22, inSponning: 30, artikel: 'B7641022030400.FVG', zeker: false },
-    { id: 'E6',  soort: 'opdek', maat: '9x32', dikte: 9, hoogte: 32, inSponning: 0, eigenSponning: 0, artikel: 'B7652009032400.FVG', zeker: false,
-      opm: 'Vlakke opdeklat (zonder eigen sponning, aangenomen).' },
-    { id: 'E7',  soort: 'opdek', maat: '9x32 met sponning', dikte: 9, hoogte: 32, inSponning: 0, eigenSponning: 3, artikel: 'B7651009032400.FVG', zeker: false,
-      opm: 'Eigen sponning 3 mm (zoals 9x32 met 3x16 bij andere merken). Nameten.' },
-    { id: 'E8',  soort: 'opdek', maat: '13x32', dikte: 13, hoogte: 32, inSponning: 0, eigenSponning: 3, artikel: 'B7651013032400.FVG', zeker: false,
-      opm: 'Eigen sponning 3 of 5 mm (andere merken); de app rekent met 3. Nameten.' },
-    { id: 'E22', soort: 'opdek', maat: '12x33', dikte: 12, hoogte: 33, inSponning: 0, eigenSponning: 5, artikel: 'B7651012033400.FVG', zeker: false,
-      opm: 'Eigen sponning 5 mm (12x33 met 5x16 bij Dekkerhout en Arie Romijn, controle v113). Nameten.' },
-    { id: 'GLD1', soort: 'opdek', maat: '20x34,5 (deur)', dikte: 20, hoogte: 34.5, inSponning: 0, eigenSponning: 7.5, artikel: 'B7652020035400.FVG', zeker: false,
-      opm: 'Deur-glaslat "D1 ISO"; eigen sponning 7,5 of 10 mm (vergelijkbare profielen); de app rekent met 7,5. Nameten.' },
-    { id: 'GLD2', soort: 'opdek', maat: '25x34,5 (deur)', dikte: 25, hoogte: 34.5, inSponning: 0, eigenSponning: 13, artikel: 'B7652025035400.FVG', zeker: false,
-      opm: 'Deur-glaslat "D2 ISO"; eigen sponning 13 mm (vergelijkbaar profiel 25x37). Nameten.' },
-    { id: 'N25', soort: 'neuslat', maat: '18x40', hoogte: 18, eigenSponning: 25, neus: 15, artikel: 'B7691018040400.FVG', zeker: false },
-    { id: 'N30', soort: 'neuslat', maat: '18x45', hoogte: 18, eigenSponning: 30, neus: 15, artikel: 'B7691018045400.FVG', zeker: false },
-    { id: 'N35', soort: 'neuslat', maat: '18x50', hoogte: 18, eigenSponning: 35, neus: 15, artikel: 'B7691018050400.FVG', zeker: false },
-    { id: 'N40', soort: 'neuslat', maat: '18x55', hoogte: 18, eigenSponning: 40, neus: 15, artikel: 'B7691018055400.FVG', zeker: false },
-    { id: 'N45', soort: 'neuslat', maat: '18x60', hoogte: 18, eigenSponning: 45, neus: 15, artikel: 'B7691018060400.FVG', zeker: false },
-    { id: 'N50', soort: 'neuslat', maat: '18x65', hoogte: 18, eigenSponning: 50, neus: 15, artikel: 'B7691018065400.FVG', zeker: false },
-    { id: 'N55', soort: 'neuslat', maat: '18x70', hoogte: 18, eigenSponning: 55, neus: 15, artikel: 'B7691018070400.FVG', zeker: false },
-    { id: 'G915', soort: 'glaslat', vorm: 'rond', maat: '9x15 grenen', hoogte: 9, inSponning: 15, lengte: 2700, hout: 'Grenen', artikel: 'B7702009015270F', zeker: false,
-      opm: 'Grenen binnenlatje (enkel glas); stand van de maat niet zeker.' },
-    { id: 'G916', soort: 'glaslat', vorm: 'recht', maat: '9x16 grenen', hoogte: 9, inSponning: 16, lengte: 2700, hout: 'Grenen', artikel: 'B7702009016270F', zeker: false,
-      opm: 'Grenen binnenlatje (enkel glas); stand van de maat niet zeker.' }
+    { id: 'C1',  soort: 'ventilatie', vorm: 'schuin', maat: '17x26', hoogte: 17, inSponning: 26, artikel: 'B7641017026400.FVG', zeker: true },
+    { id: 'C2',  soort: 'ventilatie', vorm: 'schuin', maat: '20x27', hoogte: 20, inSponning: 27, artikel: 'B7641020027400.FVG', zeker: true },
+    { id: 'C3',  soort: 'ventilatie', vorm: 'schuin', maat: '22x30', hoogte: 22, inSponning: 30, artikel: 'B7641022030400.FVG', zeker: true },
+    { id: 'E6',  soort: 'opdek', maat: '9x32', dikte: 9, hoogte: 32, inSponning: 0, eigenSponning: 0, artikel: 'B7652009032400.FVG', zeker: true,
+      opm: 'Vlakke opdeklat, zonder eigen sponning (tekening Jongeneel).' },
+    { id: 'E7',  soort: 'opdek', maat: '9x32 met sponning', dikte: 9, hoogte: 32, inSponning: 0, eigenSponning: 3, artikel: 'B7651009032400.FVG', zeker: true,
+      opm: 'Eigen sponning 16 breed, 3 diep (tekening Jongeneel).' },
+    { id: 'E8',  soort: 'opdek', maat: '13x32', dikte: 13, hoogte: 32, inSponning: 0, eigenSponning: 0, artikel: 'B7651013032400.FVG', zeker: true,
+      opm: 'Vlakke opdeklat, zonder eigen sponning (tekening Jongeneel; tot v113 rekende de app met 3 mm).' },
+    { id: 'E22', soort: 'opdek', maat: '12x33 met sponning', dikte: 12, hoogte: 33, inSponning: 0, eigenSponning: 5, artikel: 'B7651012033400.FVG', zeker: true,
+      opm: 'Eigen sponning 16 breed, 5 diep (tekening Jongeneel).' },
+    { id: 'GLD1', soort: 'opdek', maat: '20x34,5 (deur)', dikte: 20, hoogte: 34.5, inSponning: 0, eigenSponning: 7.5, artikel: 'B7652020035400.FVG', zeker: true,
+      opm: 'Deur-glaslat D1: eigen sponning 17,5 breed, 7,5 diep (tekening Jongeneel; netto 20x35).' },
+    { id: 'GLD2', soort: 'opdek', maat: '25x34,5 (deur)', dikte: 25, hoogte: 34.5, inSponning: 0, eigenSponning: 14, artikel: 'B7652025035400.FVG', zeker: true,
+      opm: 'Deur-glaslat D2: eigen sponning 17,5 breed, 14 diep (tekening Jongeneel; netto 25x35; tot v113 rekende de app met 13).' },
+    // Neuslat: S (eigenSponning) = modelnummer = het deel over de dorpel. De neus
+    // is volgens de tekeningen 9 mm breed (de nettomaat "18x40" is 6 mm meer dan
+    // 25 + 9; de tekening is leidend, de neus telt alleen voor de uitsteek).
+    { id: 'N25', soort: 'neuslat', maat: '18x40', hoogte: 18, eigenSponning: 25, neus: 9, artikel: 'B7691018040400.FVG', zeker: true },
+    { id: 'N30', soort: 'neuslat', maat: '18x45', hoogte: 18, eigenSponning: 30, neus: 9, artikel: 'B7691018045400.FVG', zeker: true },
+    { id: 'N35', soort: 'neuslat', maat: '18x50', hoogte: 18, eigenSponning: 35, neus: 9, artikel: 'B7691018050400.FVG', zeker: true },
+    { id: 'N40', soort: 'neuslat', maat: '18x55', hoogte: 18, eigenSponning: 40, neus: 9, artikel: 'B7691018055400.FVG', zeker: true },
+    { id: 'N45', soort: 'neuslat', maat: '18x60', hoogte: 18, eigenSponning: 45, neus: 9, artikel: 'B7691018060400.FVG', zeker: true },
+    { id: 'N50', soort: 'neuslat', maat: '18x65', hoogte: 18, eigenSponning: 50, neus: 9, artikel: 'B7691018065400.FVG', zeker: true },
+    { id: 'N55', soort: 'neuslat', maat: '18x70', hoogte: 18, eigenSponning: 55, neus: 9, artikel: 'B7691018070400.FVG', zeker: true },
+    { id: 'G915', soort: 'glaslat', vorm: 'rond', maat: '9x15 grenen', hoogte: 9, inSponning: 15, lengte: 2700, hout: 'Grenen', artikel: 'B7702009015270F', zeker: true,
+      opm: 'Grenen binnenlatje voor enkel glas (9 hoog).' },
+    { id: 'G916', soort: 'glaslat', vorm: 'recht', maat: '9x16 grenen', hoogte: 9, inSponning: 16, lengte: 2700, hout: 'Grenen', artikel: 'B7702009016270F', zeker: true,
+      opm: 'Grenen binnenlatje voor enkel glas (9 hoog).' }
   ];
+  // Welke latten een tweede foto hebben (de maattekening, latten/<id>-tek.jpg).
+  var MET_TEKENING = { A4: 1, A5: 1, A10: 1, A12: 1, A16: 1, B1: 1, B5: 1, B13: 1, B14: 1, B17: 1, C1: 1, E22: 1, GLD1: 1, GLD2: 1,
+    N25: 1, N30: 1, N35: 1, N40: 1, N45: 1, N50: 1, N55: 1, G915: 1, G916: 1 };
   var SOORT_NAAM = {
     'glaslat': 'Glaslat', 'glaslat-sponning': 'Glaslat met sponning', 'ventilatie': 'Ventilatielat',
     'opdek': 'Opdeklat', 'neuslat': 'Neuslat'
@@ -126,12 +134,14 @@
     l.naam = l.id + ' ' + (SOORT_NAAM[l.soort] || l.soort).toLowerCase() + (l.vorm && l.soort === 'glaslat' ? ' ' + VORM_NAAM[l.vorm] : '') +
       ' ' + l.maat;
     l.foto = 'latten/' + l.id + '.jpg';
+    if (MET_TEKENING[l.id]) l.tekening = 'latten/' + l.id + '-tek.jpg';
   });
   var OPNAAM = {};
   LATTEN.forEach(function (l) { OPNAAM[l.id] = l; });
 
   // Namen uit v111/v112 (toen waren er nog geen typen): wat die betekenen.
-  var OUDE_NAMEN = { 'Glaslat': STANDAARD_LAT, 'Neuslat': 'NEUS', 'Ventilatielat': 'C1' };
+  // v114: B2 verkoopt Jongeneel niet meer (zelfde maat als B1); GL13 heet B13.
+  var OUDE_NAMEN = { 'Glaslat': STANDAARD_LAT, 'Neuslat': 'NEUS', 'Ventilatielat': 'C1', 'B2': 'B1', 'GL13': 'B13' };
   function normaal(id) {
     if (id == null || id === '') return '';
     return OUDE_NAMEN[id] || id;
@@ -142,17 +152,26 @@
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
   function nl(n) { return Number(n).toLocaleString('nl-NL', { maximumFractionDigits: 2 }); }
 
-  // De keuzes per ruit (sponningdiepte, glaslat, band binnen, uitfrezen)
-  // staan bij het project onder Toebehoren (info.toebehoren.perRuit), niet op
-  // de ruit zelf (v113, na de controle). Twee redenen, dezelfde als bij de
-  // onderlat in v111:
-  // - een wijziging op de ruit geeft hem een nieuw stempel (gewOp), en dan
-  //   herkent de app een oudere stand van een ander apparaat niet meer
-  //   ("Oudere stand?");
-  // - het gaat niet naar de glasleverancier, dus het mag ook na een
-  //   bestelling zonder ontgrendelen (wel niet als je alleen meekijkt).
+  // De keuzes per ruit (sponningdiepte, glaslat, band binnen, uitfrezen, en
+  // sinds v114 latzijde en diepte onderdorpel) staan bij het project onder
+  // Toebehoren (info.toebehoren.perRuit), niet op de ruit zelf (v113, na de
+  // controle): een wijziging op de ruit geeft hem een nieuw stempel (gewOp),
+  // en dan herkent de app een oudere stand van een ander apparaat niet meer
+  // ("Oudere stand?"). Wijzigen gaat sinds v114 wél mee op slot na een
+  // bestelling (keuze Jan); zie magKiezen().
   function rw(r) { return (r && window.toebehorenRuit && toebehorenRuit(r)) || {}; }
   function zetRw(id, veld, waarde) { if (window.toebehorenZetRuit) toebehorenZetRuit(id, veld, waarde); }
+
+  // Aan welke kant de latten zitten (v114, Jan: "geen standaard zijde, dit
+  // wisselt continu, ook binnen een kozijn"): 'binnen', 'buiten', 'beide' of
+  // '' (nog niet gekozen). Een oude vink "latten twee kanten" (v111–v113)
+  // telt als 'beide'.
+  var ZIJDEN = ['binnen', 'buiten', 'beide'];
+  function zijde(r) {
+    var e = rw(r);
+    if (ZIJDEN.indexOf(e.latZijde) >= 0) return e.latZijde;
+    return e.tweeKanten ? 'beide' : '';
+  }
 
   /* ─── de keuzes van het project (staan in toebehoren.js) ───────── */
   function project() {
@@ -162,7 +181,6 @@
     var binnenDikte = getal(k.binnen && k.binnen.dikte);
     return {
       lat: latVan(k.standaardLat) && latVan(k.standaardLat).soort !== 'neuslat' ? normaal(k.standaardLat) : STANDAARD_LAT,
-      latPositie: k.latPositie === 'buiten' ? 'buiten' : 'binnen',
       bandBinnen: [2, 3, 4].indexOf(binnenDikte) >= 0 ? binnenDikte : 3,
       // Buiten nooit 2 mm (Jan): een oude 2 telt als 3.
       bandBuiten: buitenDikte === 4 ? 4 : 3
@@ -184,17 +202,19 @@
     anders = anders || {};
     var p = project();
     var e = rw(r);
-    var diepte = getal(anders.sponningDiepte !== undefined ? anders.sponningDiepte : e.sponningDiepte);
+    // plek 'onder' (v114): de onderdorpel, met zijn eigen diepte als die is
+    // ingevuld (anders dezelfde als de stijlen).
+    var diepte = getal(anders.sponningDiepte !== undefined ? anders.sponningDiepte
+      : anders.plek === 'onder' && getal(e.diepteOnder) > 0 ? e.diepteOnder : e.sponningDiepte);
     var glas = getal(r && r.totaalDikte);
     var lat = anders.lat ? latVan(anders.lat) : latVoorRuit(r);
     var bandBinnen = getal(anders.bandBinnen !== undefined ? anders.bandBinnen : e.bandBinnen);
     if ([2, 3, 4].indexOf(bandBinnen) < 0) bandBinnen = p.bandBinnen;
     var bandBuiten = p.bandBuiten;
     var uitfrezen = anders.uitfrezen !== undefined ? !!anders.uitfrezen : !!e.uitfrezen;
-    // Latten aan twee kanten (Toebehoren, "binnen en buiten"): het glas zit
-    // tussen twee latten, dus de lat telt twee keer (v113).
-    var keer = (anders.tweeKanten !== undefined ? anders.tweeKanten
-      : !!(r && window.toebehorenIsTweeKanten && window.toebehorenIsTweeKanten(r))) ? 2 : 1;
+    // Latten aan beide kanten (binnen en buiten): het glas zit tussen twee
+    // latten, zonder aanslag, dus de lat telt twee keer (v113; Jan bevestigd).
+    var keer = (anders.tweeKanten !== undefined ? anders.tweeKanten : zijde(r) === 'beide') ? 2 : 1;
     var uit = { glas: glas, bandBinnen: bandBinnen, bandBuiten: bandBuiten, lat: lat, diepte: diepte, uitfrezen: uitfrezen, keer: keer };
     if (!(glas > 0)) { uit.status = 'onbekend'; uit.reden = 'nog geen glasopbouw'; return uit; }
     var inSp = (lat ? (lat.soort === 'opdek' ? 0 : getal(lat.inSponning) || 0) : 0) * keer;
@@ -247,7 +267,10 @@
   }
 
   // Wat wel past, als het niet (goed) past: een paar concrete keuzes.
-  function adviezen(r) {
+  // v114: elk advies met een actie ({ lat, band, uitfrezen }), zodat je het in
+  // het venster kunt aantikken (keuze Jan). adviezen() geeft alleen de teksten.
+  function adviezen(r) { return adviezenMet(r).map(function (a) { return a.tekst; }); }
+  function adviezenMet(r) {
     var u = pakket(r);
     if (u.status === 'onbekend' || u.status === 'past' || u.status === 'krap' || u.status === 'ruim') return [];
     var uit = [];
@@ -255,7 +278,7 @@
     [2, 3, 4].forEach(function (b) {
       if (b === u.bandBinnen) return;
       var x = pakket(r, { bandBinnen: b });
-      if (goed(x)) uit.push('Band binnen ' + b + ' mm: ' + kort(x));
+      if (goed(x)) uit.push({ tekst: 'Band binnen ' + b + ' mm: ' + kort(x), actie: { band: b } });
     });
     // Een andere lat, zo nodig samen met een ander band binnen (v113: bij
     // Jans deur past E7 pas met 4 mm band binnen). Liefst met het band dat er
@@ -279,7 +302,8 @@
       .sort(function (a, b) { return (a.band ? 1 : 0) - (b.band ? 1 : 0) || Math.abs(a.x.over) - Math.abs(b.x.over); });
     var nagemeten = function (l) { return l.zeker ? '' : ' (maat nog niet nagemeten)'; };
     latten.slice(0, 3).forEach(function (o) {
-      uit.push('Lat ' + o.lat.naam + nagemeten(o.lat) + (o.band ? ' + band binnen ' + o.band + ' mm' : '') + ': ' + kort(o.x));
+      uit.push({ tekst: 'Lat ' + o.lat.naam + nagemeten(o.lat) + (o.band ? ' + band binnen ' + o.band + ' mm' : '') + ': ' + kort(o.x),
+                 actie: o.band ? { lat: o.lat.id, band: o.band } : { lat: o.lat.id } });
     });
     // Te ruim en geen lat die binnen 1 mm past: de breedste die erin past
     // (hij ligt dan wat terug; in de praktijk vaak goed, zie GLASLATTEN.md).
@@ -289,21 +313,25 @@
         .map(function (l) { return { lat: l, x: pakket(r, { lat: l.id, bandBinnen: 4 }) }; })
         .filter(function (o) { return o.x.over >= -MARGE_MM; })
         .sort(function (a, b) { return a.x.over - b.x.over; })[0];
-      if (breedste && (!u.lat || breedste.lat.id !== u.lat.id)) uit.push('Breedste lat die erin past: ' + breedste.lat.naam +
-        nagemeten(breedste.lat) + ' + band binnen 4 mm: ligt ' + nl(Math.max(0, breedste.x.over)) + ' mm terug');
+      if (breedste && (!u.lat || breedste.lat.id !== u.lat.id)) uit.push({ tekst: 'Breedste lat die erin past: ' + breedste.lat.naam +
+        nagemeten(breedste.lat) + ' + band binnen 4 mm: ligt ' + nl(Math.max(0, breedste.x.over)) + ' mm terug',
+        actie: { lat: breedste.lat.id, band: 4 } });
     }
-    if (u.status === 'past niet' && !u.frezen) uit.push('Sponning uitfrezen naar ' + u.uitfrezenNaar + ' mm (' +
-      nl(u.uitfrezenNaar - u.diepte) + ' mm dieper; laat genoeg hout voor de aanslag staan)');
+    if (u.status === 'past niet' && !u.frezen) uit.push({ tekst: 'Sponning uitfrezen naar ' + u.uitfrezenNaar + ' mm (' +
+      nl(u.uitfrezenNaar - u.diepte) + ' mm dieper; laat genoeg hout voor de aanslag staan)', actie: { uitfrezen: true } });
     // Dunner glas alleen als het verschil klein is (anders geen bruikbaar advies).
-    if (u.status === 'past niet' && u.maxGlas > 0 && u.glas - u.maxGlas <= 4) uit.push('Of dunner glas: met deze lat en dit band max. ' +
-      nl(u.maxGlas) + ' mm glas');
+    // (Geen actie: ander glas kies je zelf in de tabel.)
+    if (u.status === 'past niet' && u.maxGlas > 0 && u.glas - u.maxGlas <= 4) uit.push({ tekst: 'Of dunner glas: met deze lat en dit band max. ' +
+      nl(u.maxGlas) + ' mm glas', actie: null });
     return uit;
   }
 
   // Neuslat onderaan (buitenbeglazing): de kleinste die past.
   // rest = afstand van het glas (met band) tot de voorkant van de dorpel.
-  function neuslatVoor(r) {
-    var u = pakket(r);
+  // gekozen: een bepaalde neuslat (v114, onderlat per ruit op Toebehoren);
+  // anders kiest de app de kleinste die past.
+  function neuslatVoor(r, gekozen) {
+    var u = pakket(r, { plek: 'onder' });   // v114: met de diepte van de onderdorpel
     if (u.status === 'onbekend' || !(u.diepte > 0)) return { lat: null, reden: u.reden || 'onbekend' };
     // De sponning onderin zoals hij wordt (uitgefreesd als dat aanstaat),
     // min glas en band. De glaslat van boven telt hier niet: onderin komt
@@ -316,10 +344,74 @@
     var nodigS = rest + NEUS_VRIJ_MM;
     var kandidaten = LATTEN.filter(function (l) { return l.soort === 'neuslat'; })
       .sort(function (a, b) { return a.eigenSponning - b.eigenSponning; });
-    var lat = kandidaten.filter(function (l) { return l.eigenSponning >= nodigS; })[0] || null;
+    var lat = gekozen ? (gekozen.eigenSponning >= nodigS ? gekozen : null)
+      : kandidaten.filter(function (l) { return l.eigenSponning >= nodigS; })[0] || null;
     return { lat: lat, rest: rest, nodigS: nodigS,
              uitsteek: lat ? Math.round((lat.eigenSponning - rest + lat.neus) * 100) / 100 : null,
-             reden: lat ? '' : 'geen neuslat breed genoeg (nodig ' + nl(nodigS) + ' mm over de dorpel)' };
+             reden: lat ? '' : gekozen ? gekozen.id + ' is te smal (nodig ' + nl(nodigS) + ' mm over de dorpel)'
+               : 'geen neuslat breed genoeg (nodig ' + nl(nodigS) + ' mm over de dorpel)' };
+  }
+
+  // De onderlat van deze ruit (v114). Volgt de latzijde (keuze Jan):
+  // buiten → de passende neuslat; binnen → dezelfde lat als boven; beide →
+  // buiten de neuslat (binnen onderin dezelfde lat, telt toebehoren.js apart);
+  // nog geen zijde → dezelfde lat als boven. Een eigen keuze per ruit op
+  // Toebehoren (onderlat) gaat altijd voor.
+  // Geeft { id: lattype of 'NEUS', lat, neus (bij NEUS: neuslatVoor), eigen }.
+  function onderlatVoorRuit(r) {
+    var e = rw(r);
+    var boven = latVoorRuit(r);
+    var eigen = e.onderlat === 'Glaslat' ? '' : normaal(e.onderlat);   // 'Glaslat' (v111) = zelfde als boven
+    var keuze = eigen || (zijde(r) === 'buiten' || zijde(r) === 'beide' ? 'NEUS' : boven.id);
+    if (keuze === 'NEUS') {
+      var n = neuslatVoor(r);
+      return { id: n.lat ? n.lat.id : 'NEUS', lat: n.lat, neus: n, eigen: !!eigen, isNeus: true };
+    }
+    var l = latVan(keuze) || boven;
+    // Een bepaalde neuslat gekozen (bijv. N30): als neuslat beoordelen (heeft
+    // geen "in de sponning"), niet als gewone lat (controle v114).
+    if (l.soort === 'neuslat') {
+      var ng = neuslatVoor(r, l);
+      return { id: l.id, lat: ng.lat, neus: ng, eigen: !!eigen, isNeus: true };
+    }
+    return { id: l.id, lat: l, neus: null, eigen: !!eigen, isNeus: false };
+  }
+
+  // Het oordeel over de hele ruit (v114): boven en zijkanten, en onderin
+  // (eigen diepte van de onderdorpel, of een andere onderlat). Het slechtste
+  // telt voor het label in de tabel en de controle bij de bestellijst.
+  var ERNST = { 'onbekend': 0, 'past': 1, 'ruim': 2, 'krap': 3, 'te ruim': 4, 'past niet': 5 };
+  function oordeelRuit(r) {
+    var boven = pakket(r);
+    var o = onderlatVoorRuit(r);
+    var onder = null;
+    var e = rw(r);
+    if (o.isNeus) {
+      // Alleen iets te zeggen als de diepte er is.
+      if (boven.status !== 'onbekend' || getal(e.diepteOnder) > 0) {
+        onder = o.lat ? { status: 'past', tekst: 'onderin ' + o.lat.naam + ' (neus ' + nl(o.neus.uitsteek) + ' mm voorbij de dorpel)', neus: o.neus }
+          : o.neus && o.neus.reden && o.neus.reden !== 'onbekend' && o.neus.reden !== 'nog geen sponningdiepte' && o.neus.reden !== 'nog geen glasopbouw'
+            ? { status: 'past niet', tekst: 'onderin geen neuslat: ' + o.neus.reden, neus: o.neus, over: null } : null;
+      }
+    } else if (o.lat.id !== latVoorRuit(r).id || getal(e.diepteOnder) > 0) {
+      onder = pakket(r, { lat: o.lat.id, plek: 'onder' });
+      if (onder.status === 'onbekend') onder = null;
+    }
+    var slechtste = boven, waar = 'boven';
+    if (onder && ERNST[onder.status] > ERNST[boven.status]) { slechtste = onder; waar = 'onder'; }
+    return { boven: boven, onder: onder, onderlat: o, slechtste: slechtste, waar: waar };
+  }
+  // Kort voor het label: "past niet −4", of "onder: past niet −3", of "geen neuslat".
+  function kortRuit(o) {
+    if (o.waar === 'onder') {
+      // Een neuslat die past (boven nog onbekend): de neuslat noemen (controle v114).
+      if (o.slechtste.over == null) {
+        var ol = o.onderlat || {};
+        return ol.lat ? 'onder: ' + ol.lat.id : ol.eigen && ol.id && ol.id !== 'NEUS' ? 'onder: ' + ol.id + ' te smal' : 'geen neuslat';
+      }
+      return 'onder: ' + kort(o.slechtste);
+    }
+    return kort(o.boven);
   }
 
   /* ─── tekeningen (geen foto: het profiel) ──────────────────────── */
@@ -438,11 +530,12 @@
   }
   window.latVensterOpen = function () { return !!laag || !!document.querySelector('.lat-groot'); };
 
-  // Alleen meekijken (een collega bewerkt het project): niet wijzigen. Na een
-  // bestelling mag het wel: het gaat niet naar de leverancier (zie rw()).
-  function meekijken() { return !!(window.glasAlleenKijken && glasAlleenKijken()); }
+  // Wijzigen mag niet als je alleen meekijkt, en sinds v114 ook niet na een
+  // bestelling zonder ontgrendelen (keuze Jan: "mee op slot"). slotWeigert
+  // dekt beide en meldt het; opSlot() is voor het tekenen (velden uit).
+  function opSlot() { return !!(window.invoerOpSlot && invoerOpSlot()); }
   function magKiezen() {
-    if (window.kijkWeigert && kijkWeigert()) return false;
+    if (window.slotWeigert && slotWeigert()) return false;
     return true;
   }
 
@@ -497,7 +590,10 @@
     g.className = 'lat-groot';
     // Zo groot als het scherm toelaat (iPad: ruim 400 px).
     var px = Math.max(220, Math.min(440, Math.round((window.innerWidth || 400) * 0.75)));
-    g.innerHTML = '<div class="lat-groot-inhoud" style="max-width:' + (px + 40) + 'px">' + plaatje(l, px) + '<p><b>' + esc(l.naam) + '</b><br>' +
+    // v114: daaronder de maattekening van Jongeneel, als die er is.
+    g.innerHTML = '<div class="lat-groot-inhoud" style="max-width:' + (px + 40) + 'px">' + plaatje(l, px) +
+      (l.tekening ? '<img class="lat-tek" src="' + esc(l.tekening) + '" alt="Maattekening ' + esc(l.id) + '" style="max-width:' + px +
+        'px" onerror="this.remove()">' : '') + '<p><b>' + esc(l.naam) + '</b><br>' +
       (l.soort === 'opdek' ? nl(l.dikte) + ' dik, ' + nl(l.hoogte) + ' breed, eigen sponning ' + nl(l.eigenSponning || 0) + ' mm'
         : l.soort === 'neuslat' ? nl(l.hoogte) + ' hoog, over de dorpel ' + nl(l.eigenSponning) + ' mm, neus ' + nl(l.neus) + ' mm'
         : nl(l.hoogte) + ' hoog, ' + nl(l.inSponning) + ' mm in de sponning') + '<br>' +
@@ -532,28 +628,47 @@
     }
     var lc = document.getElementById('lat-' + id);
     if (lc && r && !vakLaten) lc.outerHTML = latCelHTML(r);
+    var zc = document.getElementById('zijde-' + id);
+    if (zc && r && !vakLaten) zc.outerHTML = zijdeCelHTML(r);
+    if (vakLaten) bijwerken();
     if (typeof opslaan === 'function') opslaan();
     if (window.renderToebehoren && document.getElementById('panel-toebehoren') &&
         document.getElementById('panel-toebehoren').classList.contains('active')) renderToebehoren();
   }
 
-  // Het venster per ruit: het pakket met tekening, band binnen, uitfrezen, advies.
+  // Het venster per ruit: het pakket met tekening, latzijde, band binnen,
+  // uitfrezen, de onderdorpel en het advies (aan te tikken, v114).
   function pakketVenster(id) {
     var r = getRij(id); if (!r) return;
+    var adv = [];
     var teken = function () {
       var u = pakket(r);
+      var o = oordeelRuit(r);
       var p = project();
       var e = rw(r);
-      var adv = adviezen(r);
-      var uit = meekijken() ? ' disabled' : '';
+      adv = adviezenMet(r);
+      var uit = opSlot() ? ' disabled' : '';
       var lat = latVoorRuit(r);
+      var z = zijde(r);
+      var dOnder = getal(e.diepteOnder);
+      var onderTekst = o.onder ? '<p class="pk-oordeel pk-onder pk-' + o.onder.status.replace(' ', '-') + '">' +
+          esc(o.onderlat.isNeus ? o.onder.tekst : 'Onderin (' + o.onderlat.lat.naam + (dOnder ? ', dorpel ' + nl(dOnder) + ' mm' : '') + '): ' +
+          (o.onder.tekst || '')) + '</p>' : '';
       return (u.status === 'onbekend' ? '<p class="lat-uitleg">Nog niet te beoordelen: ' + esc(u.reden) + '.</p>' : pakketSVG(u) +
           '<p class="pk-oordeel pk-' + u.status.replace(' ', '-') + '">' + esc(u.tekst) + '</p>' +
-          (u.vraag ? '<p class="pk-vraag">' + esc(u.vraag) + '</p>' : '')) +
+          (u.vraag ? '<p class="pk-vraag">' + esc(u.vraag) + '</p>' : '')) + onderTekst +
+        // v114 (controle): op slot zeggen waarom alles uit staat.
+        (uit && !(window.glasAlleenKijken && glasAlleenKijken()) ? '<p class="pk-slot">🔒 Op slot na de bestelling. Ontgrendelen kan via de balk bovenaan Invoer.</p>' : '') +
         '<div class="pk-velden">' +
           '<label>Sponningdiepte <span><input type="text" inputmode="decimal" class="pk-diepte" value="' +
             esc(e.sponningDiepte != null ? String(e.sponningDiepte).replace('.', ',') : '') + '"' + uit +
             '> mm</span><small>loodrecht op het glas: van de aanslag tot de buitenkant van het kozijn</small></label>' +
+          // v114 (controle): de onderdorpel direct onder de sponningdiepte.
+          '<label>Diepte onderdorpel <span><input type="text" inputmode="decimal" class="pk-onderdiepte" value="' +
+            esc(dOnder ? String(dOnder).replace('.', ',') : '') + '" placeholder="gelijk"' + uit +
+            '> mm</span><small>alleen invullen als de sponning onderin anders is dan aan de zijkanten</small></label>' +
+          '<label>Latzijde <span><select class="pk-zijde"' + uit + '>' + zijdeOpties(z) + '</select></span>' +
+            '<small>buiten: onderin de passende neuslat; binnen: onderin dezelfde lat; beide: glas tussen twee latten (geen aanslag)</small></label>' +
           '<label>Glaslat <span><button type="button" class="btn btn-secondary btn-sm pk-lat"' + uit + '>' + esc(lat.naam) +
             (e.glaslat ? '' : ' (standaard)') + ' ▾</button></span></label>' +
           '<label>Band binnen <span><select class="pk-band"' + uit + '>' +
@@ -566,7 +681,11 @@
               '<b>' + u.uitfrezenNaar + ' mm</b>' + (getal(e.sponningDiepte) && u.uitfrezenNaar > getal(e.sponningDiepte)
                 ? ' (' + nl(u.uitfrezenNaar - getal(e.sponningDiepte)) + ' mm dieper)' : '') + '</label>' : '') +
         '</div>' +
-        (adv.length ? '<div class="pk-advies"><b>Zo past het wel:</b><ul>' + adv.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul></div>' : '') +
+        (adv.length ? '<div class="pk-advies"><b>Zo past het wel:</b>' + (uit ? '' : ' <small>(tik om te kiezen)</small>') + '<ul>' +
+          adv.map(function (a, i) {
+            return '<li>' + (a.actie && !uit ? '<button type="button" class="pk-advies-knop" data-advies="' + i + '">' + esc(a.tekst) + '</button>'
+              : esc(a.tekst)) + '</li>';
+          }).join('') + '</ul></div>' : '') +
         (lat.zeker ? '' : '<p class="lat-uitleg"><i>De maat van ' + esc(lat.id) + ' is nog niet nagemeten: ' + esc(lat.opm || 'zie de lijst') + '</i></p>');
     };
     var l = venster('Pakket ' + (r.merk || ''), teken());
@@ -575,12 +694,28 @@
     inhoud.addEventListener('change', function (ev) {
       var t = ev.target;
       if (t.classList.contains('pk-diepte')) { zetDiepte(id, t.value, true); opnieuw(); }
+      else if (t.classList.contains('pk-onderdiepte')) { zetOnderDiepte(id, t.value); opnieuw(); }
+      else if (t.classList.contains('pk-zijde')) { zetZijde(id, t.value, true); opnieuw(); }
       else if (t.classList.contains('pk-band')) { zetBand(id, t.value); opnieuw(); }
       else if (t.classList.contains('pk-uitfrezen')) { zetUitfrezen(id, t.checked); opnieuw(); }
     });
     inhoud.addEventListener('click', function (ev) {
-      if (ev.target.closest && ev.target.closest('.pk-lat')) kiezer(id, true);
+      if (ev.target.closest && ev.target.closest('.pk-lat')) { kiezer(id, true); return; }
+      var k = ev.target.closest && ev.target.closest('[data-advies]');
+      if (k) { pasAdviesToe(id, (adv[+k.getAttribute('data-advies')] || {}).actie); opnieuw(); }
     });
+  }
+
+  // Een advies aantikken (v114, keuze Jan): lat, band en/of uitfrezen in één
+  // stap (één keer ongedaan maken).
+  function pasAdviesToe(id, actie) {
+    if (!actie || !magKiezen()) return;
+    var r = getRij(id); if (!r) return;
+    if (window.bewaarStap) bewaarStap('Advies ' + (r.merk || ''));
+    if (actie.lat && OPNAAM[actie.lat]) zetRw(id, 'glaslat', actie.lat === project().lat ? '' : actie.lat);
+    if (actie.band) zetRw(id, 'bandBinnen', actie.band);
+    if (actie.uitfrezen) zetRw(id, 'uitfrezen', true);
+    naWijziging(id);
   }
 
   /* ─── wijzigen ───────────────────────────────────────────────────── */
@@ -608,6 +743,31 @@
     zetRw(id, 'sponningDiepte', n == null ? '' : n);
     naWijziging(id, !uitVenster);
   }
+  // De latzijde. uitVenster: eigen ongedaan-stap; in de tabel doet de
+  // keuzelijst dat zelf (focusin/focusout, zoals het diepte-vak).
+  function zetZijde(id, waarde, uitVenster) {
+    if (!magKiezen()) { naWijziging(id, !uitVenster); return; }
+    var r = getRij(id); if (!r) return;
+    if (uitVenster && window.bewaarStap) bewaarStap('Latzijde ' + (r.merk || ''));
+    var w = ZIJDEN.indexOf(waarde) >= 0 ? waarde : '';
+    zetRw(id, 'latZijde', w);
+    // De oude vink "twee kanten" gaat op in de zijde.
+    if (rw(r).tweeKanten) zetRw(id, 'tweeKanten', '');
+    naWijziging(id, !uitVenster);
+  }
+  function zetOnderDiepte(id, waarde) {
+    if (!magKiezen()) return;
+    var r = getRij(id); if (!r) return;
+    var n = diepteVan(waarde);
+    if (n === undefined) {
+      if (window.appFout) appFout('"' + waarde + '" is geen diepte. Vul de diepte van de onderdorpel in mm in, of laat het vak leeg (= gelijk).',
+        { kop: 'Diepte onderdorpel' });
+      return;
+    }
+    if (window.bewaarStap) bewaarStap('Diepte onderdorpel ' + (r.merk || ''));
+    zetRw(id, 'diepteOnder', n == null ? '' : n);
+    naWijziging(id);
+  }
   function zetBand(id, waarde) {
     if (!magKiezen()) return;
     var r = getRij(id); if (!r) return;
@@ -624,43 +784,58 @@
     naWijziging(id);
   }
 
-  /* ─── de twee cellen op Invoer ─────────────────────────────────── */
-  // vrij-bij-slot: ook na een bestelling te gebruiken (het gaat niet naar de
-  // leverancier); bij alleen meekijken staan het vak en de knop uit.
+  /* ─── de drie cellen op Invoer (Diepte, Glaslat, Latten) ────────── */
+  // Na een bestelling staan het vak, de latknop en de zijde op slot (v114);
+  // het label (chip) blijft aan te tikken om te kijken (vrij-bij-slot).
+  function chipVan(r) {
+    var o = oordeelRuit(r);
+    var s = o.slechtste;
+    var ontbreekt = s.status === 'onbekend';
+    return { tekst: ontbreekt ? '?' : kortRuit(o),
+             klas: 'pk-chip ' + (ontbreekt ? 'pk-leeg' : 'pk-' + s.status.replace(' ', '-')) + ' vrij-bij-slot',
+             titel: ontbreekt ? (s.reden || '') : (o.boven.tekst || '') + (o.onder && o.onder.tekst ? ' · ' + o.onder.tekst : '') };
+  }
   function pakketCelHTML(r) {
-    var u = pakket(r);
     var e = rw(r);
-    var uit = meekijken() ? ' disabled' : '';
-    var chip = u.status === 'onbekend'
-      ? '<button type="button" class="pk-chip pk-leeg vrij-bij-slot" onclick="latPakket(' + r.id + ')" title="' + esc(u.reden) + '">?</button>'
-      : '<button type="button" class="pk-chip pk-' + u.status.replace(' ', '-') + ' vrij-bij-slot" onclick="latPakket(' + r.id + ')" title="' + esc(u.tekst) + '">' +
-          esc(kort(u)) + '</button>';
-    return '<td class="kol-spon" id="pk-' + r.id + '"><div class="spon-wrap"><input type="text" inputmode="decimal" class="spon-input vrij-bij-slot" value="' +
+    var c = chipVan(r);
+    var uit = opSlot() ? ' disabled' : '';
+    return '<td class="kol-spon" id="pk-' + r.id + '"><div class="spon-wrap"><input type="text" inputmode="decimal" class="spon-input" value="' +
       esc(e.sponningDiepte != null ? String(e.sponningDiepte).replace('.', ',') : '') + '" placeholder="mm" aria-label="Sponningdiepte ' + esc(r.merk || '') +
-      '" onchange="latDiepte(' + r.id + ', this.value)"' + uit + '>' + chip + '</div></td>';
+      '" onchange="latDiepte(' + r.id + ', this.value)"' + uit + '>' +
+      '<button type="button" class="' + c.klas + '" onclick="latPakket(' + r.id + ')" title="' + esc(c.titel) + '">' + esc(c.tekst) + '</button></div></td>';
   }
   function latCelHTML(r) {
     var l = latVoorRuit(r);
     var eigen = !!rw(r).glaslat;
-    return '<td class="kol-lat" id="lat-' + r.id + '"><button type="button" class="lat-knop vrij-bij-slot' + (eigen ? ' eigen' : '') + '" onclick="latKiezen(' + r.id +
+    return '<td class="kol-lat" id="lat-' + r.id + '"><button type="button" class="lat-knop' + (eigen ? ' eigen' : '') + '" onclick="latKiezen(' + r.id +
       ')" title="' + esc(l.naam) + (eigen ? '' : ' (projectstandaard)') + '">' + esc(l.id) + (eigen ? '' : ' <small>std</small>') + '</button></td>';
   }
-  // Na een andere opbouw (dikte): alleen de chip bijwerken.
+  function zijdeOpties(z) {
+    return '<option value=""' + (z ? '' : ' selected') + '>?</option>' +
+      ZIJDEN.map(function (w) { return '<option value="' + w + '"' + (z === w ? ' selected' : '') + '>' + w + '</option>'; }).join('');
+  }
+  function zijdeCelHTML(r) {
+    var z = zijde(r);
+    return '<td class="kol-zijde" id="zijde-' + r.id + '"><select class="zijde-sel' + (z ? '' : ' leeg') + '" aria-label="Latzijde ' + esc(r.merk || '') +
+      '" onchange="latZijde(' + r.id + ', this.value)"' + (opSlot() ? ' disabled' : '') + '>' + zijdeOpties(z) + '</select></td>';
+  }
+  // Na een andere opbouw (dikte) of een andere keuze: alleen bijwerken wat
+  // anders is (een MutationObserver kijkt mee, v93).
   function bijwerken() {
     (typeof rijen !== 'undefined' ? rijen : []).forEach(function (r) {
       var cel = document.getElementById('pk-' + r.id);
       if (!cel) return;
-      var u = pakket(r);
+      var c = chipVan(r);
       var chip = cel.querySelector('.pk-chip');
-      var nieuw = u.status === 'onbekend' ? '?' : kort(u);
-      var klas = 'pk-chip ' + (u.status === 'onbekend' ? 'pk-leeg' : 'pk-' + u.status.replace(' ', '-')) + ' vrij-bij-slot';
-      if (chip && (chip.textContent !== nieuw || chip.className !== klas)) {
-        chip.textContent = nieuw; chip.className = klas; chip.title = u.tekst || u.reden || '';
+      if (chip && (chip.textContent !== c.tekst || chip.className !== c.klas)) {
+        chip.textContent = c.tekst; chip.className = c.klas; chip.title = c.titel;
       }
       var lc = document.getElementById('lat-' + r.id);
-      // Alleen vervangen als er iets anders staat (een MutationObserver kijkt mee, v93).
       if (lc) { var nieuwLat = latCelHTML(r); var lk = lc.querySelector('.lat-knop'); var knopNu = nieuwLat.match(/<button[^>]*>([\s\S]*)<\/button>/);
         if (!lk || !knopNu || lk.innerHTML !== knopNu[1] || lk.className !== nieuwLat.match(/class="(lat-knop[^"]*)"/)[1]) lc.outerHTML = nieuwLat; }
+      var zs = document.querySelector('#zijde-' + r.id + ' select');
+      if (zs && document.activeElement !== zs && zs.value !== zijde(r)) { zs.value = zijde(r); zs.classList.toggle('leeg', !zijde(r)); }
+      else if (zs) zs.classList.toggle('leeg', !zijde(r));
     });
   }
 
@@ -669,7 +844,8 @@
     latVan: latVan, normaal: normaal, latVoorRuit: latVoorRuit, project: project,
     pakket: pakket, kort: kort, adviezen: adviezen, neuslatVoor: neuslatVoor,
     profielSVG: profielSVG, pakketSVG: pakketSVG, plaatje: plaatje, groot: groot,
-    ruit: rw, diepteVan: diepteVan
+    ruit: rw, diepteVan: diepteVan, zijde: zijde, ZIJDEN: ZIJDEN, onderlatVoorRuit: onderlatVoorRuit, oordeelRuit: oordeelRuit,
+    kortRuit: kortRuit, adviezenMet: adviezenMet, zijdeOpties: zijdeOpties, opSlot: opSlot
   };
   window.latPakket = pakketVenster;
   window.latKiezen = kiezer;
@@ -677,6 +853,10 @@
   window.latDiepte = zetDiepte;
   window.latBand = zetBand;
   window.latUitfrezen = zetUitfrezen;
+  window.latZijde = zetZijde;
+  window.latOnderDiepte = zetOnderDiepte;
+  window.latAdvies = pasAdviesToe;
+  window.zijdeCelHTML = zijdeCelHTML;
   window.pakketCelHTML = pakketCelHTML;
   window.latCelHTML = latCelHTML;
   window.latPakketBijwerken = bijwerken;

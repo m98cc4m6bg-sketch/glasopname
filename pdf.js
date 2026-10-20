@@ -14,7 +14,9 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v113';
+  var PDF_VERSIE = 'v114';
+  // v114 (keuze van Jan): vaste zin bovenaan elke aanvulling (pdf en mail).
+  var BEVESTIG_AANVULLING = 'Graag bevestigen dat u deze aanvulling verwerkt, met name VERVANGT en ANNULEREN.';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
   // service worker en werkt de eerste pdf na een update ook zonder bereik.
   var JSPDF_URL = 'lib/jspdf-2.5.2/jspdf.umd.min.js';
@@ -62,12 +64,14 @@
       { kop: 'Lat/pakket', w: 26, haal: function (r) {
           var G = window.GlasLatten;
           if (!G || (!(G.ruit(r).sponningDiepte > 0) && !G.ruit(r).glaslat)) return '';
-          var l = G.latVoorRuit(r), o = G.kort(G.pakket(r));
-          return (l ? l.id : '') + (o ? ': ' + o : '');
+          // v114: met de zijde en het oordeel over de hele ruit (ook onderin).
+          var l = G.latVoorRuit(r), oo = G.oordeelRuit(r), o = oo.slechtste.status === 'onbekend' ? '' : G.kortRuit(oo);
+          return (l ? l.id : '') + (G.zijde(r) ? ' ' + G.zijde(r) : '') + (o ? ': ' + o : '');
         } },
       { kop: 'Rooster',   w: 13, haal: function (r) { return r.rooster === 'Ja' ? 'Ja' : ''; } },
       { kop: 'Duco',      w: 24, haal: function (r) { return r.ducoType; } },
-      { kop: 'RAL',       w: 26, haal: function (r) { return r.ralKleur; } },
+      // v114: bi-color = "buiten: … / binnen: …".
+      { kop: 'RAL',       w: 26, haal: function (r) { return window.ralTekst ? ralTekst(r) : r.ralKleur; } },
       // v111: extra bediening bij een rooster (stang/koord).
       { kop: 'Bediening', w: 26, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r, true) : ''; } },
       { kop: 'Bewerking', w: 24, haal: function (r) { return kort(r.glasbewerking); } },
@@ -567,7 +571,8 @@
       doc.text(regels, MARGE + (opties.in || 0), y);
       y += regels.length * (opties.grootte || 9) * 0.42 + (opties.na || 1.5);
     }
-    tekst('Glaslatten zitten ' + k.latPositie + '. Binnen: band en kit ' + k.binnen.kleur + ', band ' + k.binnen.dikte +
+    // v114: de latzijde is per ruit (tabel hieronder), geen projectinstelling meer.
+    tekst('Binnen: band en kit ' + k.binnen.kleur + ', band ' + k.binnen.dikte +
       ' mm. Buiten: band en kit ' + k.buiten.kleur + ', band ' + k.buiten.dikte + ' mm. Band ' + g.BAND_BREEDTE_MM + ' mm breed.', { na: 3 });
     if (u.zonderMaat.length) {
       tekst('Telt niet mee (nog geen glasmaat): ' + u.zonderMaat.join(', ') + '.', { kleur: [142, 27, 18], na: 3 });
@@ -607,10 +612,11 @@
     doc.autoTable({
       startY: y,
       margin: { left: MARGE, right: MARGE, top: MARGE + 8, bottom: MARGE + 8 },
-      head: [['Merk', 'Aantal', 'Sponningmaat', 'Lat', 'Onderlat', 'Twee kanten', 'Latten (m)', 'Band (m)', 'Kit (ml)', 'Tape (m)']],
+      head: [['Merk', 'Aantal', 'Sponningmaat', 'Lat', 'Latzijde', 'Onderlat', 'Latten (m)', 'Band (m)', 'Kit (ml)', 'Tape (m)']],
       body: u.perRuit.map(function (p) {
-        return [p.rij.merk || '-', p.n, nl(p.sponning.b) + ' x ' + nl(p.sponning.h), p.lat || '', p.onderlat === 'NEUS' ? 'neuslat (maat?)' : p.onderlat,
-          p.tweeKanten ? 'ja' : '',
+        // v114: de latzijde per ruit (? = nog niet gekozen) in plaats van "twee kanten".
+        return [p.rij.merk || '-', p.n, nl(p.sponning.b) + ' x ' + nl(p.sponning.h), p.lat || '', p.zijde || '?',
+          p.onderlat === 'NEUS' ? 'neuslat (maat?)' : p.onderlat,
           nl(p.latM, 1), nl(p.bandM, 1), nl(p.kitMl), p.roeden === 'zelf' ? 'zelf' : p.tapeM ? nl(p.tapeM, 1) : ''].map(schoon);
       }),
       styles: { fontSize: 7.5, cellPadding: 1.2, lineColor: [205, 210, 218], lineWidth: 0.15 },
@@ -890,6 +896,11 @@
     // v111: is de bediening anders, dan ziet de leverancier wat het was.
     var bedOud = window.bedieningTekst ? bedieningTekst(oud) : '', bedNu = window.bedieningTekst ? bedieningTekst(r) : '';
     if (bedOud !== bedNu) was += ', ' + (bedOud || 'zonder bediening');
+    // v114: idem het rooster (type, kleur, bi-color), alleen als dat bewaard is.
+    if (window.roosterTekst && (!oud.kort || oud.kort >= 2)) {
+      var rOud = roosterTekst(oud), rNu = roosterTekst(r);
+      if (rOud !== rNu) was += ', ' + (rOud ? 'rooster ' + rOud : 'zonder rooster');
+    }
     return 'VERVANGT ' + (oud.merk || '(zonder merk)') + ' uit de ' + uitTekst + ' (' + was + ')';
   }
 
@@ -923,7 +934,9 @@
     // v112: het glas (herkomst), niet de laatste lijst: na "alleen bediening"
     // in de 2e zit het glas nog in de 1e; de bediening erbij als dat anders is.
     var bed = window.bedieningInTekst ? bedieningInTekst(r.id, st) : '';
-    if (h.length < 2 && !mi.length) return (h.length ? h[0].nr : nr) + 'e' + (bed ? '; bediening ' + bed : '');
+    // v114: idem het rooster (na ALLEEN ROOSTER).
+    var roo = window.roosterInTekst ? roosterInTekst(r.id, st) : '';
+    if (h.length < 2 && !mi.length) return (h.length ? h[0].nr : nr) + 'e' + (bed ? '; bediening ' + bed : '') + (roo ? '; rooster ' + roo : '');
     var tekst = h.length ? h.map(function (x) { return x.nr + 'e'; }).join(' + ') : nr + 'e';
     if (h.length > 1) tekst += ' (' + h.map(function (x) { return x.n == null ? '?' : x.n; }).join(' + ') + ')';
     if (mi.length) {
@@ -980,7 +993,8 @@
       { kop: 'Opbouw',     w: 24, haal: function (r) { return r.opbouw; }, altijd: true },
       { kop: 'Rooster',    w: 14, haal: function (r) { return r.rooster === 'Ja' ? 'Ja ^' : ''; } },
       { kop: 'Duco type',  w: 26, haal: function (r) { return r.ducoType; } },
-      { kop: 'RAL kleur',  w: 30, haal: function (r) { return r.ralKleur; } },
+      // v114 (keuze Jan): bi-color duidelijk op de bestellijst, buiten en binnen apart.
+      { kop: 'RAL kleur',  w: 30, haal: function (r) { return window.ralTekst ? ralTekst(r) : r.ralKleur; } },
       // v111: extra bediening bij een rooster, gaat mee naar de leverancier.
       { kop: 'Bediening',  w: 30, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r) : ''; } },
       { kop: 'Glasbewerking', w: 26, haal: function (r) {
@@ -1140,7 +1154,34 @@
       return k === 'door' ? aantalControle(bm) : k;
     }).then(function (k) {
       return k === 'door' ? pakketControle(bm) : k;
+    }).then(function (k) {
+      return k === 'door' ? kleurControle(bm) : k;   // v114: bi-color zonder kleur
     });
+  }
+
+  // v114 (controle): een bi-color rooster zonder kleur binnen (of buiten) gaat
+  // anders als "binnen: ?" naar de leverancier. Alleen ruiten op deze lijst.
+  function biZonderKleur(bm) {
+    if (bm.modus === 'overzicht') return [];
+    var compleet = window.bestelbaar || function (r) {
+      return !!(r.glasType && r.opbouw && r.glasBreedte != null && r.glasHoogte != null);
+    };
+    var lijst = bm.modus === 'aanvulling' && bm.t ? bm.t.regels.concat((bm.t.rooster || []).map(function (x) { return x.rij; }))
+      : rijen.filter(compleet);
+    return lijst.filter(function (r, i) {
+      return lijst.indexOf(r) === i && r.rooster === 'Ja' && r.biColor === 'Ja' && (!r.ralBinnen || !r.ralKleur);
+    });
+  }
+  window.glasBiZonderKleur = function () { return biZonderKleur(bestelModus()).map(function (r) { return r.merk; }); };
+  function kleurControle(bm) {
+    var mis = biZonderKleur(bm);
+    if (!mis.length || !window.appKeuze) return Promise.resolve('door');
+    return appKeuze('Bij ' + (mis.length === 1 ? 'deze ruit' : 'deze ruiten') + ' staat het rooster op bi-color, maar is de kleur ' +
+      'binnen of buiten nog niet gekozen: ' + mis.slice(0, 10).map(function (r) { return r.merk || '(zonder merk)'; }).join(', ') +
+      (mis.length > 10 ? ' …' : '') + '.\nOp de bestellijst staat dan "?". Kies de kleur op Invoer (kolom RAL binnen), of zet Bi-color op Nee.',
+      [{ tekst: 'Stoppen', waarde: null },
+       { tekst: 'Toch doorgaan', waarde: 'door' }],
+      { kop: 'Bi-color zonder kleur', soort: 'letop' });
   }
 
   // v113: past het glas in de sponning? Alleen ruiten op deze lijst waar de
@@ -1154,26 +1195,45 @@
       return !!(r.glasType && r.opbouw && r.glasBreedte != null && r.glasHoogte != null);
     };
     var lijst = bm.modus === 'aanvulling' && bm.t ? bm.t.regels : rijen.filter(compleet);
-    return lijst.map(function (r) { return { rij: r, u: G.pakket(r) }; })
+    // v114: het hele oordeel (ook onderin: onderdorpel, onderlat, neuslat).
+    return lijst.map(function (r) { var o = G.oordeelRuit(r); return { rij: r, u: o.slechtste, o: o }; })
       .filter(function (x) { return x.u.status === 'past niet' || x.u.status === 'te ruim'; });
   }
+  // v114: ruiten op deze lijst zonder latzijde (Jan: verplicht kiezen). Alleen
+  // als het project de latten bijhoudt (ergens een diepte of zijde).
+  function zonderZijde(bm) {
+    var G = window.GlasLatten;
+    if (!G || bm.modus === 'overzicht') return [];
+    if (!rijen.some(function (r) { return G.ruit(r).sponningDiepte > 0 || G.zijde(r); })) return [];
+    var compleet = window.bestelbaar || function (r) {
+      return !!(r.glasType && r.opbouw && r.glasBreedte != null && r.glasHoogte != null);
+    };
+    var lijst = bm.modus === 'aanvulling' && bm.t ? bm.t.regels : rijen.filter(compleet);
+    return lijst.filter(function (r) { return !G.zijde(r); });
+  }
+  window.glasZonderZijde = function () { return zonderZijde(bestelModus()).map(function (r) { return r.merk; }); };
   window.glasPakketScheef = function () { return pakketScheef(bestelModus()); };
 
   function pakketControle(bm) {
     var scheef = pakketScheef(bm);
-    if (!scheef.length || !window.appKeuze) return Promise.resolve('door');
+    var zonder = zonderZijde(bm);
+    if ((!scheef.length && !zonder.length) || !window.appKeuze) return Promise.resolve('door');
     var G = window.GlasLatten;
     var namen = scheef.slice(0, 10).map(function (x) {
-      return (x.rij.merk || '(zonder merk)') + ' (' + G.kort(x.u) + ')';
+      return (x.rij.merk || '(zonder merk)') + ' (' + G.kortRuit(x.o) + ')';
     }).join('; ') + (scheef.length > 10 ? ' …' : '');
     var niet = scheef.some(function (x) { return x.u.status === 'past niet'; });
-    return appKeuze('Bij ' + (scheef.length === 1 ? 'deze ruit' : 'deze ruiten') + ' past het glas met band en ' +
+    var zNamen = zonder.slice(0, 10).map(function (r) { return r.merk || '(zonder merk)'; }).join(', ') + (zonder.length > 10 ? ' …' : '');
+    return appKeuze((scheef.length ? 'Bij ' + (scheef.length === 1 ? 'deze ruit' : 'deze ruiten') + ' past het glas met band en ' +
       'glaslat niet goed in de opgegeven sponning: ' + namen + '.\n' +
       (niet ? 'Bij "past niet" is het pakket dikker dan de sponning: andere lat, dunner band, dunner glas of de sponning uitfrezen. ' : '') +
-      'Tik in de tabel op het oordeel in de kolom Diepte voor de uitleg en wat wel past.',
+      'Tik in de tabel op het oordeel in de kolom Diepte voor de uitleg en wat wel past.' : '') +
+      (zonder.length ? (scheef.length ? '\n\n' : '') + 'Bij ' + (zonder.length === 1 ? 'deze ruit' : 'deze ruiten') +
+        ' is nog niet gekozen of de latten binnen of buiten zitten: ' + zNamen + ' (Invoer, kolom Latzijde).' : ''),
       [{ tekst: 'Stoppen', waarde: null },
        { tekst: 'Toch doorgaan', waarde: 'door' }],
-      { kop: 'Past het in de sponning?', soort: 'letop' });
+      // v114 (controle): alleen de zijde ontbreekt → niet "past het?" vragen.
+      { kop: scheef.length ? 'Past het in de sponning?' : 'Latzijde nog niet gekozen', soort: 'letop' });
   }
 
   // Ruiten op deze bestellijst met minstens één bolletje, waar het aantal
@@ -1322,7 +1382,9 @@
     var minder = bm.modus === 'aanvulling' ? (bm.t.minder || []) : [];
     // v112: alleen een andere bediening bij een bestelde ruit.
     var alleenBed = bm.modus === 'aanvulling' ? (bm.t.bediening || []) : [];
-    if (!lijst.length && !annuleren.length && !minder.length && !alleenBed.length) {
+    // v114: alleen een ander rooster (type/kleur) bij een bestelde ruit.
+    var alleenRooster = bm.modus === 'aanvulling' ? (bm.t.rooster || []) : [];
+    if (!lijst.length && !annuleren.length && !minder.length && !alleenBed.length && !alleenRooster.length) {
       appMelding('Geen volledige regels gevonden. Een regel telt mee zodra glastype, opbouw ' +
         'en de glasmaten ingevuld zijn.', { kop: 'Niets te bestellen', soort: 'letop' });
       return Promise.resolve(null);
@@ -1444,7 +1506,7 @@
         return [r.merk || o.merk || '(zonder merk)', String(b.stuks),
                 o.glasBreedte != null ? String(o.glasBreedte) : String(r.glasBreedte),
                 o.glasHoogte != null ? String(o.glasHoogte) : String(r.glasHoogte),
-                [r.ducoType, r.ralKleur].filter(Boolean).join(' '),
+                window.roosterTekst ? roosterTekst(r) : [r.ducoType, r.ralKleur].filter(Boolean).join(' '),
                 (b.nrTekst || ((b.nr || 1) + 'e')) + (b.was && b.bedTekst ? '; bediening: ' + b.bedTekst : ''),
                 wat, tot].map(schoon);
       }),
@@ -1453,13 +1515,59 @@
       tableLineColor: [21, 76, 121],
       tableLineWidth: 0.8,
       // Vaste breedtes, zodat "DucoTon 10 RAL 9010" en "1e; bediening: 2e" niet over regels breken.
-      columnStyles: { 0: { cellWidth: 18 }, 1: { halign: 'right', cellWidth: 14 }, 2: { halign: 'right', cellWidth: 20 },
-                      3: { halign: 'right', cellWidth: 20 }, 4: { cellWidth: 36 }, 5: { cellWidth: 32 },
+      columnStyles: { 0: { cellWidth: 18 }, 1: { halign: 'right', cellWidth: 14 }, 2: { halign: 'right', cellWidth: 22 },
+                      3: { halign: 'right', cellWidth: 22 }, 4: { cellWidth: 36 }, 5: { cellWidth: 32 },
                       6: { fontStyle: 'bold' }, 7: { cellWidth: 52 } },
       didDrawPage: function (data) {
         if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)');
       }
     });
+  }
+
+  // v114 (keuze Jan): idem als alleen het ROOSTER anders is (Duco type, RAL
+  // kleur, bi-color). Het glas blijft; alleen het rooster opnieuw (of anders
+  // afwerken). Eigen blok, zodat de leverancier het glas niet opnieuw maakt.
+  function roosterTabel(doc, titel, items) {
+    var y = doc.lastAutoTable.finalY + 6;
+    if (y > HOOGTE - MARGE - 30) { doc.addPage(); kopregel(doc, titel + ' (vervolg)'); y = MARGE + 14; }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(21, 76, 121);
+    doc.text(schoon('ALLEEN ROOSTER - glas NIET opnieuw maken'), MARGE, y);
+    var duco = items.some(function (b) { return b.ducoAnders; });
+    doc.autoTable({
+      startY: y + 2,
+      margin: { left: MARGE, right: MARGE, top: MARGE + 8, bottom: MARGE + 8 },
+      head: [['Merk', 'Ruiten', 'Glasbreedte', 'Glashoogte', 'Besteld in', 'Rooster was', 'Rooster wordt']],
+      body: items.map(function (b) {
+        var r = b.rij, o = b.oud && typeof b.oud === 'object' ? b.oud : {};
+        return [r.merk || o.merk || '(zonder merk)', String(b.stuks),
+                o.glasBreedte != null ? String(o.glasBreedte) : String(r.glasBreedte),
+                o.glasHoogte != null ? String(o.glasHoogte) : String(r.glasHoogte),
+                (b.nrTekst || ((b.nr || 1) + 'e')) + (b.roosterTekst ? '; rooster: ' + b.roosterTekst : ''),
+                b.was || '(geen)', b.nu || '(geen)'].map(schoon);
+      }),
+      styles: { fontSize: 8.5, cellPadding: 1.6, lineColor: [205, 210, 218], lineWidth: 0.15 },
+      headStyles: { fillColor: [21, 76, 121], textColor: 255, fontStyle: 'bold' },
+      tableLineColor: [21, 76, 121],
+      tableLineWidth: 0.8,
+      columnStyles: { 0: { cellWidth: 18 }, 1: { halign: 'right', cellWidth: 14 }, 2: { halign: 'right', cellWidth: 22 },
+                      3: { halign: 'right', cellWidth: 22 }, 4: { cellWidth: 32 }, 6: { fontStyle: 'bold' } },
+      didDrawPage: function (data) {
+        if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)');
+      }
+    });
+    if (duco) {
+      // Een ander Duco type komt hier alleen bij dezelfde glasaftrek en als het
+      // glas erin past (index.html ducoWisselMag); anders is het VERVANGT.
+      var y2 = doc.lastAutoTable.finalY + 4;
+      if (y2 > HOOGTE - MARGE - 8) { doc.addPage(); kopregel(doc, titel + ' (vervolg)'); y2 = MARGE + 14; }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(90, 58, 0);
+      doc.text(schoon('Ander Duco type, met dezelfde glasaftrek: het bestelde glas blijft passen. Alleen het rooster anders leveren.'), MARGE, y2);
+      doc.lastAutoTable.finalY = y2;
+    }
   }
 
   // Wat er in de geldige aanvullingen gevraagd is te annuleren: de
@@ -1565,7 +1673,10 @@
             ((annuleren.length || (t.minder || []).length) ? ' Onder de tabel: ANNULEREN.' : '') +
             // v112 (keuze Jan): nooit glas opnieuw om alleen de bediening.
             ((t.bediening || []).length ? ' Onder de tabel: ALLEEN BEDIENING = bij een ruit die al besteld is ' +
-              'verandert alleen de bediening (stang of koord); het glas NIET opnieuw maken.' : '')
+              'verandert alleen de bediening (stang of koord); het glas NIET opnieuw maken.' : '') +
+            // v114 (keuze Jan): idem alleen het rooster (type, kleur, bi-color).
+            ((t.rooster || []).length ? ' Onder de tabel: ALLEEN ROOSTER = bij een ruit die al besteld is ' +
+              'verandert alleen het rooster (Duco type met dezelfde glasaftrek, kleur of bi-color); het glas NIET opnieuw maken.' : '')
           : 'Kolom Besteld: in welke bestellijst de ruit besteld is.' +
             (gevraagdTeAnnuleren().length ? ' Onder de tabel: wat er gevraagd is te annuleren (dat kan toch ' +
               'geleverd zijn).' : '');
@@ -1578,9 +1689,13 @@
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
         var kopjeRegels = doc.splitTextToSize(schoon(kopje), INHOUD - 6);
+        // v114 (keuze Jan): bovenaan elke aanvulling vragen om bevestiging.
+        doc.setFontSize(10);
+        var bevestigRegels = modus === 'aanvulling' ? doc.splitTextToSize(schoon(BEVESTIG_AANVULLING), INHOUD - 6) : [];
         doc.setFontSize(8.5);
         var kopRegels = doc.splitTextToSize(schoon(kopTekst), INHOUD - 6);
-        var kopH = kopjeRegels.length * 5.4 + kopRegels.length * 4 + 5;
+        var bevH = bevestigRegels.length * 4.6;
+        var kopH = kopjeRegels.length * 5.4 + bevH + kopRegels.length * 4 + 5;
         doc.setFillColor(255, 236, 170);
         doc.setDrawColor(184, 134, 11);
         doc.setLineWidth(0.6);
@@ -1588,8 +1703,14 @@
         doc.setTextColor(90, 58, 0);
         doc.setFontSize(12);
         doc.text(kopjeRegels, MARGE + 3, MARGE + 17.4);
+        if (bevestigRegels.length) {
+          doc.setFontSize(10);
+          doc.setTextColor(150, 30, 30);
+          doc.text(bevestigRegels, MARGE + 3, MARGE + 17.4 + kopjeRegels.length * 5.4 + 0.2);
+          doc.setTextColor(90, 58, 0);
+        }
         doc.setFontSize(8.5);
-        doc.text(kopRegels, MARGE + 3, MARGE + 17.4 + kopjeRegels.length * 5.4 + 0.6);
+        doc.text(kopRegels, MARGE + 3, MARGE + 17.4 + kopjeRegels.length * 5.4 + bevH + 0.6);
         tabelY = MARGE + 12 + kopH + 3;
       }
 
@@ -1721,7 +1842,9 @@
         // v112: stond de bediening in een andere lijst dan het glas, dan die ook noemen.
         var bedErbij = function (id) {
           var n = window.bedieningInTekst ? bedieningInTekst(id) : '';
-          return n ? ' (en de bediening uit de ' + n + ')' : '';
+          // v114: idem het rooster.
+          var ro = window.roosterInTekst ? roosterInTekst(id) : '';
+          return (n ? ' (en de bediening uit de ' + n + ')' : '') + (ro ? ' (en het rooster uit de ' + ro + ')' : '');
         };
         var ann = annuleren.map(function (v) { return { oud: v.oud, nr: v.nr, nrTekst: v.nrTekst, reden: 'vervalt' + bedErbij(v.id) }; })
           // EXTRA (v110): de bestelde blijven, dus niets te annuleren.
@@ -1738,6 +1861,7 @@
           }));
         if (ann.length) annulerenTabel(doc, titel, 'ANNULEREN, als dat nog kan', ann);
         if ((t.bediening || []).length) bedieningTabel(doc, titel, t.bediening);
+        if ((t.rooster || []).length) roosterTabel(doc, titel, t.rooster);   // v114
       } else if (modus === 'overzicht' && t && t.w) {
         if (t.w.vanLijst.length) {
           annulerenTabel(doc, titel, 'OOK BESTELD, hier niet getoond (in de app nu niet compleet)',
@@ -1763,6 +1887,7 @@
       var nNieuw = 0, nVervangt = 0, nExtra = 0;
       var nAnnuleren = annuleren.length + (modus === 'aanvulling' ? (t.minder || []).length : 0);
       var nBediening = modus === 'aanvulling' ? (t.bediening || []).length : 0;   // v112
+      var nRooster = modus === 'aanvulling' ? (t.rooster || []).length : 0;   // v114
       if (modus === 'aanvulling') {
         lijst.forEach(function (r) {
           var l = wijzLabel(r);
@@ -1774,7 +1899,8 @@
                (modus === 'aanvulling' ? '   |   alleen deze aanvulling: ' + nNieuw + ' NIEUW, ' +
                  nVervangt + ' VERVANGT' + (nExtra ? ', ' + nExtra + ' EXTRA' : '') +
                  (nAnnuleren ? ', ' + nAnnuleren + ' ANNULEREN' : '') +
-                 (nBediening ? ', ' + nBediening + ' ALLEEN BEDIENING' : '') : '') +
+                 (nBediening ? ', ' + nBediening + ' ALLEEN BEDIENING' : '') +
+                 (nRooster ? ', ' + nRooster + ' ALLEEN ROOSTER' : '') : '') +
                (modus === 'overzicht' ? '   |   alles wat besteld is' : '')), MARGE, y);
 
       return leverPagina(doc, project, datum).then(function () {
@@ -1825,7 +1951,8 @@
     // v110: ook alleen een lager aantal ("1 annuleren") is een bestelling.
     var alleenMinder = aanvulling && Object.keys(moment.ruiten || {}).some(function (id) {
       // v112: ook alleen een andere bediening is een bestelling.
-      return moment.ruiten[id] && (moment.ruiten[id].minder || moment.ruiten[id].bedieningVan);
+      // v114: of alleen een ander rooster.
+      return moment.ruiten[id] && (moment.ruiten[id].minder || moment.ruiten[id].bedieningVan || moment.ruiten[id].roosterVan);
     });
     if (!lijst.length && !(aanvulling && moment.vervallen && Object.keys(moment.vervallen).length) && !alleenMinder) {
       return Promise.resolve(false);
@@ -1895,11 +2022,17 @@
         regels.push('Onder de tabel staat ook bij welke al bestelde ruiten alleen de bediening verandert. ' +
           'Dat glas NIET opnieuw maken.');
       }
+      if ((bm.t.rooster || []).length) {   // v114
+        regels.push('Onder de tabel staat ook bij welke al bestelde ruiten alleen het rooster (type of kleur) verandert. ' +
+          'Dat glas NIET opnieuw maken.');
+      }
+      regels.push(BEVESTIG_AANVULLING);   // v114, keuze van Jan
       aantal = bm.t.regels.length + ' (alleen deze aanvulling' +
         // v110: ook iets te annuleren (een ruit weg, of een lager aantal).
         ((bm.t.vervallen.length + (bm.t.minder || []).length)
           ? '; en ' + (bm.t.vervallen.length + (bm.t.minder || []).length) + ' te annuleren' : '') +
-        ((bm.t.bediening || []).length ? '; en ' + bm.t.bediening.length + ' met alleen een andere bediening' : '') + ')';
+        ((bm.t.bediening || []).length ? '; en ' + bm.t.bediening.length + ' met alleen een andere bediening' : '') +
+        ((bm.t.rooster || []).length ? '; en ' + bm.t.rooster.length + ' met alleen een ander rooster' : '') + ')';
     } else if (modus === 'overzicht') {
       regels.push('Bijgaand het overzicht van alles wat er voor ' + (project || 'dit project') +
         ' besteld is. Dit is GEEN nieuwe bestelling.');
@@ -2005,7 +2138,8 @@
             ? '<div class="mail-al-besteld"><b>Dit wordt een aanvulling</b> op de eerdere bestelling: ' +
               'alleen de nieuwe en gewijzigde ruiten' + ((bmVenster.t.vervallen.length || (bmVenster.t.minder || []).length) ? ', en wat er ' +
               'geannuleerd moet worden' : '') +
-              ((bmVenster.t.bediening || []).length ? ', en waar alleen de bediening verandert' : '') + '.</div>'
+              ((bmVenster.t.bediening || []).length ? ', en waar alleen de bediening verandert' : '') +
+              ((bmVenster.t.rooster || []).length ? ', en waar alleen het rooster verandert' : '') + '.</div>'
             : bmVenster.modus === 'overzicht'
             ? '<div class="mail-al-besteld"><b>Er is niets bij te bestellen.</b> De bijlage is een overzicht ' +
               'van wat er besteld is, geen nieuwe bestelling.</div>'

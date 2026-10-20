@@ -145,8 +145,9 @@
       { kop: 'Rooster', titel: 'Rooster', html: function () {
           return '<select id="bulkVeld">' + LEEGKEUZE + opts(ROOSTER_JA_NEE) + '</select>'; },
         // v111: geen rooster = ook geen extra bediening (stang/koord).
+        // v114: en ook geen bi-color.
         zet: function (r, v) { r.rooster = v; if (v === 'Nee') { r.ducoType = ''; r.ralKleur = '';
-          delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; } },
+          delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; delete r.biColor; delete r.ralBinnen; } },
         leeg: function (r) { return r.rooster !== 'Ja'; } },
 
       { kop: 'Duco Type', titel: 'Duco type', html: function () {
@@ -154,10 +155,25 @@
         zet: function (r, v) { r.ducoType = v; if (v) r.rooster = 'Ja'; },
         leeg: function (r) { return !r.ducoType; } },
 
-      { kop: 'RAL Kleur', titel: 'RAL kleur', html: function () {
+      // v114: de kop heet "RAL Kleur" of "RAL buiten" (bi-color); de eigen
+      // tekst van de kop is in beide gevallen "RAL".
+      { kop: 'RAL', groep: 'kol-ral', titel: 'RAL kleur (bij bi-color: buiten)', html: function () {
           return '<select id="bulkVeld">' + LEEGKEUZE + opts(DATA.ral_kleuren) + '</select>'; },
         zet: function (r, v) { r.ralKleur = v; },
         leeg: function (r) { return !r.ralKleur; } },
+
+      // v114: bi-color (binnen een andere kleur). Alleen bij een rooster; Nee
+      // haalt ook de kleur binnen weg.
+      { kop: 'Bi-color', groep: 'kol-bi', titel: 'Bi-color rooster', html: function () {
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(['Nee', 'Ja']) + '</select>'; },
+        zet: function (r, v) {
+          if (v === 'Ja') { if (r.rooster === 'Ja') r.biColor = 'Ja'; }
+          else { delete r.biColor; delete r.ralBinnen; } },
+        leeg: function (r) { return r.rooster === 'Ja' && r.biColor !== 'Ja'; } },
+      { kop: 'RAL binnen', groep: 'kol-ralbin', titel: 'RAL kleur binnen (bi-color)', html: function () {
+          return '<select id="bulkVeld">' + LEEGKEUZE + opts(DATA.ral_kleuren) + '</select>'; },
+        zet: function (r, v) { if (r.rooster === 'Ja') { r.ralBinnen = v; r.biColor = 'Ja'; } },
+        leeg: function (r) { return r.biColor === 'Ja' && !r.ralBinnen; } },
 
       { kop: 'Bewerking', titel: 'Glasbewerking', html: function () {
           return '<select id="bulkVeld">' + LEEGKEUZE + opts(DATA.glasbewerking) + '</select>'; },
@@ -180,7 +196,7 @@
       // waarde, en leeg = wissen (controle v113). Een ongeldige waarde wordt
       // geweigerd vóór er iets verandert (controle()).
       // De waarden staan bij Toebehoren per ruit (latten.js rw()).
-      { kop: 'Diepte', groep: 'kol-spon', titel: 'Sponningdiepte (mm)', leegMag: true, vrijBijSlot: true, html: function () {
+      { kop: 'Diepte', groep: 'kol-spon', titel: 'Sponningdiepte (mm)', leegMag: true, html: function () {
           return '<input type="text" id="bulkVeld" inputmode="decimal" placeholder="mm (leeg = wissen)">'; },
         controle: function (v) {
           return window.GlasLatten && GlasLatten.diepteVan(v) === undefined
@@ -192,7 +208,7 @@
         },
         leeg: function (r) { return !(window.GlasLatten && GlasLatten.ruit(r).sponningDiepte > 0); } },
 
-      { kop: 'Glaslat', groep: 'kol-lat', titel: 'Glaslat', leegMag: true, vrijBijSlot: true, html: function () {
+      { kop: 'Glaslat', groep: 'kol-lat', titel: 'Glaslat', leegMag: true, html: function () {
           var G = window.GlasLatten;
           if (!G) return '<select id="bulkVeld"></select>';
           var groepen = {};
@@ -210,6 +226,17 @@
           if (window.toebehorenZetRuit) toebehorenZetRuit(r.id, 'glaslat', v && window.GlasLatten && GlasLatten.latVan(v) ? v : '');
         },
         leeg: function (r) { return !(window.GlasLatten && GlasLatten.ruit(r).glaslat); } },
+
+      // v114: de latzijde (binnen/buiten/beide), per ruit; leeg = "?".
+      { kop: 'Latzijde', groep: 'kol-zijde', titel: 'Latzijde (binnen, buiten, beide)', leegMag: true, html: function () {
+          return '<select id="bulkVeld"><option value="">? (nog niet gekozen)</option><option value="binnen">binnen</option>' +
+            '<option value="buiten">buiten</option><option value="beide">beide (glas tussen twee latten)</option></select>'; },
+        zet: function (r, v) {
+          if (!window.toebehorenZetRuit) return;
+          toebehorenZetRuit(r.id, 'latZijde', ['binnen', 'buiten', 'beide'].indexOf(v) >= 0 ? v : '');
+          toebehorenZetRuit(r.id, 'tweeKanten', '');
+        },
+        leeg: function (r) { return !(window.GlasLatten && GlasLatten.zijde(r)); } },
 
       { kop: 'Opm.', groep: 'groep-glas', titel: 'Opmerking', leegMag: true, html: function () {
           return '<input type="text" id="bulkVeld" placeholder="opmerking…">'; },
@@ -296,9 +323,7 @@
   }
 
   window.bulkAnnuleer = sluitPopover;
-  // v113: Diepte en Glaslat mogen ook na een bestelling doorgevoerd worden
-  // (ze gaan niet naar de leverancier); de slotbewaking in index.html vraagt dit na.
-  window.bulkVrijBijSlot = function () { return !!(popover && popover._veld && popover._veld.vrijBijSlot); };
+
 
   window.bulkTypeGewijzigd = function () {
     var type = document.getElementById('bulkType').value;

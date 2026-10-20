@@ -43,8 +43,9 @@ const MUTATIES = {
   zaagpast: ["toebehoren.js", "        if (staven[i].rest >= l) {", "        if (staven[i].rest >= l + snede) {"],
   controle: ["toebehoren.js", "      var metVerlies = Math.ceil(totaal * (1 + g.CONTROLE_VERLIES_PROCENT / 100) / staaf - 1e-9);", "      var metVerlies = Math.ceil(totaal / staaf - 1e-9);"],
   sponning: ["toebehoren.js", "    if (r.maatsoort === 'Sponningmaat' && getal(r.breedte) > 0 && getal(r.hoogte) > 0) {", "    if (0) {"],
-  onderlatRuit: ["toebehoren.js", "      var onderKeuze = onderNaam(eigen.onderlat) || k.standaardOnderlat || boven;", "      var onderKeuze = k.standaardOnderlat || boven;"],
-  tweeKanten: ["toebehoren.js", "      var dubbel = eigen.tweeKanten ? 2 : 1;", "      var dubbel = 1;"],
+  // v114: de onderlat per ruit staat in latten.js (onderlatVoorRuit); twee kanten = zijde "beide".
+  onderlatRuit: ["latten.js", "    var keuze = eigen || (zijde(r) === 'buiten'", "    var keuze = (zijde(r) === 'buiten'"],
+  tweeKanten: ["toebehoren.js", "      var dubbel = zijde === 'beide' ? 2 : 1;", "      var dubbel = 1;"],
   opDeRuit: ["toebehoren.js", "    zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');", "    r.onderlat = w; r.gewOp = new Date().toISOString(); zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');"],
   latRol: ["toebehoren.js", "(rol.onder + rol.binnen === rol.rond) ? 'rondom' :", "0 ? 'rondom' :"],
   komma: ["toebehoren.js", "    if (t.indexOf(',') >= 0) t = t.replace(/\\./g, '').replace(',', '.');", ""],
@@ -64,12 +65,12 @@ const MUTATIES = {
   pdfInvoer: ["pdf.js", "        toebehorenPagina(doc);\n\n        spoorregel(doc);", "        spoorregel(doc);"],
   kenmerkAltijd: ["index.html", "    (rij.bediening && rij.rooster === 'Ja' ? '|bed:' + rij.bediening", "    ('|bed:' + rij.bediening"],
   kenmerkNooit: ["index.html", "    (rij.bediening && rij.rooster === 'Ja' ? '|bed:' + rij.bediening", "    (0 ? '|bed:' + rij.bediening"],
-  bulkRooster: ["bulk.js", "          delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; } },", "          } },"],
+  bulkRooster: ["bulk.js", "          delete r.bediening; delete r.bedieningAantal; delete r.bedieningLengte; delete r.biColor; delete r.ralBinnen; } },", "          delete r.biColor; delete r.ralBinnen; } },"],
   zonderRooster: ["index.html", "  if (!r || !roosterJa || !r.bediening", "  if (!r || !r.bediening"],
   undoBediening: ["undo.js", "    omhul('setBediening', 'Bediening gewijzigd');", ""],
   kortRooster: ["index.html", " || (r.kort && !('rooster' in r))", ""],
   kenmerkRooster: ["index.html", "    (rij.bediening && rij.rooster === 'Ja' ? '|bed:'", "    (rij.bediening ? '|bed:'"],
-  terugRooster: ["index.html", "    if (doel.rooster !== 'Ja') BEDIENING_VELDEN.forEach(v => { delete doel[v]; });", ""],
+  terugRooster: ["index.html", "    if (doel.rooster !== 'Ja') BEDIENING_VELDEN.concat(BI_VELDEN).forEach(v => { delete doel[v]; });", ""],
   lengteControle: ["index.html", "  else if (!(n >= 100 && n <= 9999)) {", "  else if (!(n >= 1)) {"],
   duizendtal: ["index.html", "  const n = /^\\d{1,3}(\\.\\d{3})+$/.test(tekst) ? parseInt(tekst.replace(/\\./g, ''), 10) :", "  const n = 0 ? 0 :"],
   omzetten: ["pdf.js", "      .replace(/\\u0142/g, 'l')", "      .replace(/\\u0142/g, '')"],
@@ -83,7 +84,7 @@ const MUTATIES = {
   letOp: ["pdf.js", "        var bedRegel = (stangen || koorden) ?", "        var bedRegel = 0 ?"],
   bestelKolom: ["pdf.js", "      { kop: 'Bediening',  w: 30, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r) : ''; } },\n", ""],
   invoerKolom: ["pdf.js", "      { kop: 'Bediening', w: 26, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r, true) : ''; } },\n", ""],
-  samenvatting: ["index.html", "      <td>${esc(r.ralKleur)}</td>\n      <td>${esc(bedieningTekst(r))}</td>\n      <td>${esc(r.glasbewerking)}</td>", "      <td>${esc(r.ralKleur)}</td>\n      <td></td>\n      <td>${esc(r.glasbewerking)}</td>"],
+  samenvatting: ["index.html", "      <td>${esc(ralTekst(r))}</td>\n      <td>${esc(bedieningTekst(r))}</td>\n      <td>${esc(r.glasbewerking)}</td>", "      <td>${esc(ralTekst(r))}</td>\n      <td></td>\n      <td>${esc(r.glasbewerking)}</td>"],
   bestelTab: ["index.html", "    <td>${esc(bedieningTekst(r))}</td>\n    <td>${esc(r.glasbewerking !== 'Helder (standaard)'", "    <td></td>\n    <td>${esc(r.glasbewerking !== 'Helder (standaard)'"],
   export: ["index.html", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      bedieningTekst(r),\n", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      '',\n"],
   verschil: ["index.html", "    if (bo !== bn) uit.push('bediening ' + (bo || '(geen)') + ' → ' + (bn || '(geen)'));", ""],
@@ -753,7 +754,10 @@ function tbProject(extra) {
     ruit(2, 'Y', '900', '1500', Object.assign({ aantal: 2, roedenverdeling: 'Wienersprossen - 2H x 2V (raster)', roedenbreedte: '26 mm' }, k))
   ];
   p.data.volgendId = 3;
-  p.data.info = { leverInstructie: 'achterom', opnemer: 'julian', status: 'bezig met inmeten/verwerken' };
+  // v114: geen standaardzijde meer (keuze Jan). Deze reeks rekent met latten
+  // buiten (onderin de neuslat), zoals tot v113 de standaard was.
+  p.data.info = { leverInstructie: 'achterom', opnemer: 'julian', status: 'bezig met inmeten/verwerken',
+                  toebehoren: { perRuit: { 1: { latZijde: 'buiten' }, 2: { latZijde: 'buiten' }, 3: { latZijde: 'buiten' } } } };
   p.status = 'bezig met inmeten/verwerken';
   if (extra) extra(p);
 }
@@ -817,7 +821,10 @@ async function naarToebehoren(page) {
       const r = (merk, b, h, extra) => Object.assign({ id: 900 + merk.length, merk: merk, aantal: 1, maatsoort: 'Sponningmaat', breedte: b, hoogte: h,
         glasType: 'HR++ glas', opbouw: '4-15-4', rooster: 'Nee', roedenverdeling: 'Geen roedenverdeling' }, extra || {});
       const uit = {};
-      const reken = (naam, rij) => { berekenGlasMaat(rij); rijen = [rij]; const x = toebehorenBerekenen(); rijen = bewaard;
+      // v114: met latten buiten (onderin de neuslat), zoals de reeks rekent.
+      const pr = ((projectInfo.toebehoren = projectInfo.toebehoren || {}).perRuit = projectInfo.toebehoren.perRuit || {});
+      const reken = (naam, rij) => { berekenGlasMaat(rij); pr[rij.id] = { latZijde: 'buiten' }; rijen = [rij]; const x = toebehorenBerekenen();
+        rijen = bewaard; delete pr[rij.id];
         const gl = x.latten.find(l => l.type === 'A4') || {};
         uit[naam] = { plan: (gl.plan || []).map(s => s.stukken), staven: gl.staven, controle: gl.metVerlies, sponning: x.perRuit[0].sponning }; };
       reken('A', r('A', '980', '980', { aantal: 4 }));     // 12 latten van 1000: met zaagsnede 3 per staaf
@@ -876,7 +883,8 @@ async function naarToebehoren(page) {
     check('de tekst bij de latten klopt: "A4 glaslat … (boven en zijkanten)", "Neuslat … (onder)", "C1 ventilatielat … (onder)"',
       /A4 glaslat schuin 17x15 \(boven en zijkanten\)/.test(t) && /Neuslat, maat nog onbekend \(onder\)/.test(t) &&
       /C1 ventilatielat 17x26 \(onder\)/.test(t), t.slice(0, 300));
-    await tbRij(page, 'X').locator('input.tb-tweekanten').check();
+    // v114: "twee kanten" is de latzijde "beide" (ook te kiezen op Toebehoren).
+    await tbRij(page, 'X').locator('select.tb-zijde-sel').selectOption('beide');
     await wacht(300);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen())));
     // v113: aan de 2e kant komt onderin een gewone glaslat, geen 2e neuslat.
@@ -887,7 +895,7 @@ async function naarToebehoren(page) {
     await page.selectOption('#tbAlleOnderlat', '');
     await page.click('button:has-text("Toepassen")');
     check('"Onderlat voor alle ruiten: standaard" → Y weer neuslat', await opgeslagenAls(() => perRuitDb('Y').onderlat === undefined &&
-      perRuitDb('X').tweeKanten === true), JSON.stringify(info().toebehoren));
+      perRuitDb('X').latZijde === 'beide'), JSON.stringify(info().toebehoren));
     await page.selectOption('#tbAlleOnderlat', 'A4');
     await page.click('button:has-text("Toepassen")');
     await wacht(300);
@@ -1102,10 +1110,15 @@ async function naarToebehoren(page) {
     await eersteBestelling(page);
     check('besteld en op slot', await opSlot(page));
     await naarToebehoren(page);
-    await tbRij(page, 'Y').locator('select.tb-onderlat').selectOption('C1');
-    await tbRij(page, 'X').locator('input.tb-tweekanten').check();
-    check('op slot mag de onderlat en "twee kanten" nog wel (het gaat niet naar de leverancier)', await opgeslagenAls(() =>
-      perRuitDb('Y').onderlat === 'C1' && perRuitDb('X').tweeKanten === true), JSON.stringify(info().toebehoren));
+    // v114 (keuze Jan: "Mee op slot"): onderlat en latzijde staan na de bestelling vast, net als de maten.
+    check('op slot (v114): de keuzelijsten onderlat en latzijde staan uit', await tbRij(page, 'Y').locator('select.tb-onderlat').isDisabled() &&
+      await tbRij(page, 'X').locator('select.tb-zijde-sel').isDisabled());
+    await page.evaluate(() => { toebehorenOnderlat(rijen[1].id, 'C1'); latZijde(rijen[0].id, 'beide'); });
+    await wacht(600);
+    await sluitMeldingen(page);
+    m = await page.evaluate(() => [GlasLatten.ruit(rijen[1]).onderlat, GlasLatten.ruit(rijen[0]).latZijde]);   // in de app zelf (de database loopt achter)
+    check('en ook niet langs een andere weg: niets bewaard', perRuitDb('Y').onderlat === undefined && perRuitDb('X').latZijde === 'buiten' &&
+      m[0] === undefined && m[1] === 'buiten', JSON.stringify([m, info().toebehoren]));
     check('en de ruiten zelf houden hun stempel (geen "Gewijzigd", "Oudere stand?" blijft werken)',
       ['X', 'Y'].every(m => dbRij(m).gewOp === INGEMETEN.gewOp && !('onderlat' in dbRij(m))), JSON.stringify([dbRij('X').gewOp, dbRij('Y').gewOp]));
     let w = await page.evaluate(() => { const x = teBestellen(); return { a: x.aanvulling, g: x.gewijzigd.length, r: x.regels.length }; });
@@ -1157,8 +1170,10 @@ async function naarToebehoren(page) {
     await wacht(600);
     await sluitMeldingen(page);
     const st = await page.evaluate(() => JSON.stringify([projectInfo.toebehoren]));
-    check('en de functies weigeren (niets veranderd, ook niet op het scherm)', st === '[null]' &&
-      !info().toebehoren, st);
+    // v114: het project begint met de latzijde per ruit (tbProject); verder niets.
+    const begin = JSON.stringify([{ perRuit: { 1: { latZijde: 'buiten' }, 2: { latZijde: 'buiten' }, 3: { latZijde: 'buiten' } } }]);
+    check('en de functies weigeren (niets veranderd, ook niet op het scherm)', st === begin &&
+      JSON.stringify([info().toebehoren]) === begin, st);
     await page.evaluate(() => { window.glasAlleenKijken = window._echtKijken; renderToebehoren(); });
     await ctx.close();
     // Telefoon: niets schuift de pagina opzij.

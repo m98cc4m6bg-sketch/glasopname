@@ -399,6 +399,33 @@ harde eis wint.
   - les: een mutatie die de app laat vastlopen (time-out) is "gevangen",
     maar zonder duidelijke reden. Maak er een `check` met
     `waitForSelector(...).then(() => true, () => false)` van.
+- `test-v114.js` (latzijde, onderdorpel, merk in beeld, slot, bi-color,
+  ALLEEN ROOSTER, vaste zin, latmaten):
+  - onderdeel 1 rekent zonder klikken (`GlasLatten.oordeelRuit`,
+    `onderlatVoorRuit`, `toebehorenBerekenen`); 2 klikt echt, ook zijwaarts
+    vegen in `.invoer-wrap` (de vaste eerste kolom moet op x = 0 blijven);
+    6 doet de echte reeks: bestellen, ontgrendelen, kleur wijzigen,
+    aanvulling, ‹Ja, verstuurd›, daarna een maat (VERVANGT) en een ander
+    Duco type (met en zonder dezelfde glasaftrek); 7 opent een project
+    met gegevens van v113 (oude vink, GL13, B2);
+  - les: **controleer een weigering in de app zelf**, niet alleen in de
+    nagebootste database. Opslaan loopt achter; "niets in de database na
+    0,5 s" bewees niets, en zo bleef een slotgat (het venster riep de
+    functie direct aan) eerst onopgemerkt;
+  - les: `selectOption` geeft een vak geen focus. Wie ongedaan maken test
+    (focusin/focusout in undo.js), doet `focus()`, kiezen, `Tab`, zoals op
+    een tablet;
+  - les: `overflow: hidden` op de tabel brak `position: sticky`, en geen
+    enkele test zag het: de CSS "klopte". Meet de plek na het vegen.
+  - les: **een bewuste gedragswijziging kan een oude proefmutatie
+    onschadelijk maken.** `test-v112` gebruikte een andere RAL-kleur als
+    voorbeeld van "glas anders, glasmaat gelijk"; sinds v114 is dat ALLEEN
+    ROOSTER, en de mutatie `glasGelijk` werd niet meer gevangen. Het
+    voorbeeld is nu een andere opmerking. Draai na zo'n wijziging de
+    mutaties van de oudere reeksen die het raakt opnieuw;
+  - les: bij de proef `ducoAftrek` hield de diktecontrole van het rooster
+    de fout toch tegen (23 mm past niet in een DucoTon 18). Isoleer wat je
+    test: K2 heeft daarom 22 mm glas.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

@@ -1,6 +1,8 @@
-# Glaslatten, glasband en "past het in de sponning?" (v113)
+# Glaslatten, glasband en "past het in de sponning?" (v113, bijgewerkt v114)
 
-*Uitgezocht 19 oktober 2026 voor de glasopname-app.* Dit is de kennis
+*Uitgezocht 19 oktober 2026 voor de glasopname-app; v114 (20 oktober 2026):
+de latzijde per ruit, de onderdorpel, en de maten volgens de tekeningen van
+Jongeneel.* Dit is de kennis
 achter `latten.js`. De code rekent precies zoals hieronder staat. Verander
 je hier iets, verander het daar ook (en andersom).
 
@@ -16,18 +18,55 @@ glaslat. Past het niet, dan zegt de app wat wel kan:
 
 Daarnaast telt het tabblad Toebehoren de latten die je moet bestellen:
 - een lat per kant;
-- onderaan een neuslat als je dat kiest;
+- onderaan een neuslat of dezelfde lat, volgens de latzijde (§1a);
 - in lengtes van 4 m.
 
-**Waar het staat.** Per ruit zijn er vier waarden: sponningdiepte, glaslat,
-band binnen en uitfrezen. Je vult ze in op Invoer, maar de app bewaart ze
-bij het project (`info.toebehoren.perRuit`), net als de onderlat. Ze staan
-dus niet op de ruit zelf. Daar zijn twee redenen voor:
-- **geen nieuw stempel**: een wijziging op de ruit geeft hem een nieuw
-  stempel, en dan herkent de app een oudere stand van een ander apparaat
-  niet meer;
-- **ook na een bestelling**: het gaat niet naar de glasleverancier, dus het
-  mag zonder ontgrendelen. Wie alleen meekijkt, kan het niet.
+**Waar het staat.** Per ruit zijn er deze waarden: sponningdiepte, glaslat,
+band binnen, uitfrezen, latzijde, diepte onderdorpel en onderlat. Je vult ze
+in op Invoer (de onderlat op Toebehoren), maar de app bewaart ze bij het
+project (`info.toebehoren.perRuit`). Ze staan dus niet op de ruit zelf:
+een wijziging op de ruit geeft hem een nieuw stempel, en dan herkent de app
+een oudere stand van een ander apparaat niet meer. Het gaat ook niet naar de
+glasleverancier.
+
+**Na een bestelling op slot** (v114, keuze van Jan: "mee op slot"; in v113
+was het vrij). Sponningdiepte, glaslat, band binnen, uitfrezen, latzijde,
+onderdorpel, onderlat en de standaardlat van het project staan dan vast, net
+als de maten. Ontgrendelen kan met je wachtwoord (balk bovenaan Invoer). De
+instellingen van band, kit en verlies op Toebehoren blijven vrij. Wie alleen
+meekijkt, kan niets.
+
+## 1a. Latzijde: binnen, buiten of beide (v114)
+
+**Geen standaard** (Jan: "dit wisselt continu, binnen een project, of zelfs
+binnen een kozijn"). Per ruit kies je in de kolom **Latzijde**:
+
+| keuze | betekenis | onderin |
+|---|---|---|
+| **binnen** | binnenbeglazing: de latten zitten binnen | dezelfde lat als boven |
+| **buiten** | buitenbeglazing: de latten zitten buiten | de **passende neuslat** (de app kiest de maat, §6) |
+| **beide** | glas tussen twee latten, zonder aanslag | de lat telt **twee keer** in de sponning; onderin buiten de neuslat, binnen dezelfde lat |
+| **?** | nog niet gekozen | dezelfde lat als boven, met een melding |
+
+- Een nieuwe ruit staat op **?**. Toebehoren en de controle vóór de
+  bestellijst noemen de ruiten zonder keuze (alleen in een project waar de
+  latten bijgehouden worden: ergens een diepte of een zijde).
+- De onderlat kun je per ruit anders kiezen op Toebehoren (bijv. een
+  ventilatielat, of een bepaalde neuslat). Die keuze gaat altijd voor.
+- **Oude projecten**: de vink "latten aan twee kanten" (v111–v113) telt als
+  **beide**. De oude projectinstellingen "glaslatten zitten" en "standaard
+  onderlat" gebruikt de app niet meer (ze blijven wel bewaard). Zonder zijde
+  rekent hij onderin met dezelfde lat; de melding vraagt om te kiezen.
+- **Open vraag aan Jan** (zie de nota): bij "beide" komt onderin buiten een
+  neuslat. Bij binnendeuren en tussenwanden is dat niet nodig; kies dan op
+  Toebehoren dezelfde lat als onderlat.
+
+## 1b. De onderdorpel (v114)
+
+Is de sponning onderin anders dan aan de zijkanten (vaak minder diep), vul
+dan in het venster van de ruit **Diepte onderdorpel** in. Leeg = gelijk.
+De app beoordeelt boven en onder apart en toont **het slechtste** van de
+twee, bijv. "onder: past niet −4". De neuslat rekent met de diepte onderin.
 
 ## 2. De maten van een sponning
 
@@ -106,6 +145,10 @@ De marge van 1 mm staat bovenin `latten.js` (`MARGE_MM`).
 uitfrezen naar = nodig − eigen sponning van de lat (naar boven afgerond)
 ```
 
+Het advies kun je in het venster **aantikken** (v114): de lat, het band en/of
+uitfrezen worden dan in één keer gekozen (één keer ongedaan maken).
+Het advies kijkt (nog) alleen naar boven en de zijkanten.
+
 Zet je in het venster van de ruit "sponning uitfrezen" aan, dan rekent de
 app met die maat.
 - **Waar het staat**: in de tabel en de pdf staat dan "(frezen N)" bij het
@@ -166,7 +209,7 @@ Een neuslat 18x50 (Jongeneel N35) neemt **geen 50 mm** sponningruimte in.
            │ │┌──────────────────────────────┐
            │ ││  lijf 13 hoog     │ neus 18  │
            │ │└───────────────────┤ hoog     │
-           │ │  uitsparing 5 hoog │ (15 mm   │ ← steekt vóór het kozijn uit
+           │ │  uitsparing 5 hoog │ (9 mm    │ ← steekt vóór het kozijn uit
            │ │                    │  breed)  │
    ────────┴─┴────────────────────┴──────────┘
    dorpel           S = 35 mm (modelnummer)
@@ -174,8 +217,10 @@ Een neuslat 18x50 (Jongeneel N35) neemt **geen 50 mm** sponningruimte in.
 
 - Onderin zit een **uitsparing van ±5 mm hoog en S mm breed**. S is het
   modelnummer: N35 → 35 mm. Die valt over de dorpel.
-- De rest (bij Jongeneel **15 mm**) is de **neus**. Die steekt vóór het
-  kozijn uit, als druiplijst.
+- De rest is de **neus**. Die steekt vóór het kozijn uit, als druiplijst.
+  Volgens de tekeningen van Jongeneel is de neus **9 mm** (v114; tot v113
+  rekende de app met 15). Dat telt alleen voor hoe ver hij uitsteekt, niet
+  voor of hij past.
 - **Hij past als: ruimte vóór het glas + 5 mm ≤ S.**
   - De ruimte vóór het glas is de sponningdiepte min glas en band, dus
     vanaf de buitenkant van het band.
@@ -189,12 +234,12 @@ Een neuslat 18x50 (Jongeneel N35) neemt **geen 50 mm** sponningruimte in.
   geen neuslat. Op Toebehoren staat dan de reden.
 - **De app kiest de kleinste die past.** Een te grote neuslat steekt alleen
   verder uit; een te kleine past niet.
-- Kies je op Toebehoren bij Onderlat "passende neuslat (automatisch)", dan
-  zoekt de app per ruit de goede maat. Zonder sponningdiepte weet hij het
-  niet; dan staat er "Neuslat, maat nog onbekend". Met een diepte waarbij
-  geen enkele past, staat de reden erbij ("geen neuslat breed genoeg").
-- **Neuslat hoort bij buitenbeglazing.** Staan de latten op Toebehoren op
-  "binnen" en de onderlat op neuslat, dan zegt de app dat erbij.
+- Bij latzijde **buiten** (of beide) zoekt de app per ruit de goede maat.
+  Zonder sponningdiepte weet hij het niet; dan staat er "Neuslat, maat nog
+  onbekend". Met een diepte waarbij geen enkele past, staat de reden erbij
+  ("geen neuslat breed genoeg").
+- **Een bepaalde neuslat gekozen** als onderlat (bijv. N30): die beoordeelt
+  de app ook als neuslat. Is hij te smal, dan staat er "onder: N30 te smal".
 
 | model | maat | S (over de dorpel) | max. ruimte vóór het glas |
 |---|---|---|---|
@@ -220,24 +265,26 @@ mag dus c mm buiten het vlak uitsteken.
 beschikbaar = sponningdiepte + c        (de lat zelf neemt 0 mm in)
 ```
 
-| lat | eigen sponning (c) in de app | zeker? |
+| lat | eigen sponning (c) in de app | bron |
 |---|---|---|
-| E6 9x32 | 0 (vlak) | aangenomen |
-| E7 9x32 met sponning | 3 | andere merken: 3x16 |
-| E8 13x32 | 3 | andere merken: 3 of 5; nameten (rekent de app met minder dan er is, dan klemt het glas niet) |
-| E22 12x33 met sponning | 5 | Dekkerhout en Arie Romijn: 12x33 met 5x16 (andere modelcodes, zelfde maat) |
-| GLD1 20x34,5 (deur) | 7,5 | andere merken: 7,5 of 10 |
-| GLD2 25x34,5 (deur) | 13 | andere merken: 13 |
-
-**Na te meten.** Jongeneel noemt de sponningmaat niet in de titels.
-Staat hij op de productpagina of het etiket, zet hem dan in `latten.js`
-(`eigenSponning`) en zet `zeker: true`.
+| E6 9x32 | 0 (vlak) | productpagina Jongeneel |
+| E7 9x32 met sponning | 3 | productpagina Jongeneel |
+| E8 13x32 | **0** (v114; was 3) | Jongeneel: zonder sponning |
+| E22 12x33 met sponning | 5 | tekening Jongeneel |
+| GLD1 20x34,5 (deur) | 7,5 (sponning 17,5 breed × 7,5 diep) | tekening Jongeneel (screenshot van Jan) |
+| GLD2 25x34,5 (deur) | **14** (v114; was 13; sponning 17,5 × 14) | tekening Jongeneel (screenshot van Jan) |
 
 ## 8. Alle latten in de app
 
 Allemaal **Meranti FSC, gevingerlast, gegrond, 4000 mm**, behalve de twee
-grenen latten (2700 mm). "?" = maat nog niet nagemeten (`zeker: false`).
-De app toont dan "maat nog niet nagemeten", ook in het advies.
+grenen latten (2700 mm). Sinds v114 zijn alle maten nagekeken op de
+productpagina's en tekeningen van Jongeneel (`zeker: true`). Komt er een lat
+bij waarvan de maat niet zeker is, zet dan `zeker: false`: de app toont dan
+"maat nog niet nagemeten", ook in het advies.
+
+**Vervallen in v114**: B2 (Jongeneel verkoopt hem niet meer; een oude keuze
+B2 wordt B1). **Andere naam**: GL13 heet B13 (een oude keuze GL13 wordt
+B13). Beide staan in `OUDE_NAMEN` in `latten.js`.
 
 **Niet in het advies**: latten lager dan 17 mm (A16, de grenen latjes) bij
 dubbel glas. KVT 12.3.2 vraagt minstens 17 mm.
@@ -245,24 +292,23 @@ dubbel glas. KVT 12.3.2 vraagt minstens 17 mm.
 | model | soort | maat | in de sponning | artikelnr. |
 |---|---|---|---|---|
 | A4 | schuin | 17x15 | 15 | B7601017015400.FVG |
-| A5 ? | schuin met sponning | 17x15 | 12 | B7602017015400.FVG |
-| A10 ? | schuin | 17x19 | 19 | B7602017019400.FVG |
+| A5 | schuin met sponning | 17x15 | 12 | B7602017015400.FVG |
+| A10 | schuin | 17x19 | 19 | B7602017019400.FVG |
 | A12 | schuin | 17x26 | 26 | B7601017026400.FVG |
-| A16 ? | schuin | 15x33 | 33 | B7601015033400.FVG |
+| A16 | schuin | 15x33 | 33 | B7601015033400.FVG |
 | B1 | recht | 17x17 | 17 | B7621017017400.FVG |
-| B2 ? | recht | 17x17 | 17 | B7622017017400.FVG |
 | B5 | recht | 17x19 | 19 | B7621017019400.FVG |
-| GL13 | recht | 17x27 | 27 | B7621017027400.FVG |
+| B13 (was GL13) | recht | 17x27 | 27 | B7621017027400.FVG |
 | B14 | recht | 25x25 | 25 | B7621025025400.FVG |
 | B17 | recht | 17x35 | 35 | B7621017035400.FVG |
-| C1 ? | ventilatie | 17x26 | 26 | B7641017026400.FVG |
-| C2 ? | ventilatie | 20x26,6 | 26,6 | B7641020027400.FVG |
-| C3 ? | ventilatie | 22x30 | 30 | B7641022030400.FVG |
-| E6, E7, E8, E22 ? | opdek | zie §7 | 0 | B765… |
-| GLD1, GLD2 ? | opdek, deur | zie §7 | 0 | B7652020035400.FVG, B7652025035400.FVG |
-| N25 … N55 ? | neuslat | zie §6 | zie §6 | B7691018040400.FVG … |
-| G915 ? | grenen rond | 9x15 | 15 | B7702009015270F |
-| G916 ? | grenen recht | 9x16 | 16 | B7702009016270F |
+| C1 | ventilatie | 17x26 | 26 | B7641017026400.FVG |
+| C2 | ventilatie | **20x27** (v114) | 27 | B7641020027400.FVG |
+| C3 | ventilatie | 22x30 | 30 | B7641022030400.FVG |
+| E6, E7, E8, E22 | opdek | zie §7 | 0 | B765… |
+| GLD1, GLD2 | opdek, deur | zie §7 | 0 | B7652020035400.FVG, B7652025035400.FVG |
+| N25 … N55 | neuslat | zie §6 (neus 9) | zie §6 | B7691018040400.FVG … |
+| G915 | grenen rond | 9x15 | 15 | B7702009015270F |
+| G916 | grenen recht | 9x16 | 16 | B7702009016270F |
 
 **Hoe het artikelnummer is opgebouwd** (Jongeneel en Pontmeyer):
 
@@ -277,34 +323,35 @@ B76 91 018 055 400 .FVG
 ## 9. De onderlat apart
 
 Kies je onderin een andere gewone lat of ventilatielat dan boven (bijv. C1,
-26 mm, onder een A4 van 15 mm), dan beoordeelt de app die apart. Op
-Toebehoren staat dat onder de keuze: "onderin: past niet −10".
+26 mm, onder een A4 van 15 mm), of is de onderdorpel minder diep (§1b), dan
+beoordeelt de app onderin apart. Op Toebehoren staat dat onder de keuze:
+"onderin: past niet −10"; in de tabel op Invoer het slechtste van de twee.
 
-## 10. Foto's
+## 10. Foto's en tekeningen
 
-De foto's komen van de productpagina's van Jongeneel (`latfotos.txt`). De
-site laat zich niet automatisch lezen vanaf de server waar de app gebouwd
-wordt. Daarom haal je ze op de Mac op:
+In `latten/` staan per lat een productfoto (`<id>.jpg`) en, waar Jongeneel
+die heeft, de maattekening (`<id>-tek.jpg`); samen 51 bestanden. Tik je op
+een foto, dan zie je hem groot met de tekening eronder. De service worker
+bewaart ze voor offline (`LAT_FOTOS` in `sw.js`).
 
-```
-bash latfotos-ophalen.sh
-```
+**Hoe ze opgehaald zijn** (v114). Jongeneel blokkeert scripts ("Challenge
+Validation"): het oude script `latfotos-ophalen.sh` kreeg alleen een
+controlepagina terug en is in v114 weggehaald. De foto's en tekeningen zijn
+opgehaald door Claude, via de ingebouwde browser van de Claude-app op de Mac
+(daar laadt de site gewoon). De pagina's staan in `latfotos.txt`.
 
-Het script doet drie dingen:
-- het zet de foto's verkleind in `latten/<id>.jpg`;
-- het schrijft de titels van de pagina's in `/tmp/latten-specs.txt`
-  (leg die naast §8);
-- het slaat over wat er al staat.
-
-**Zonder foto tekent de app de doorsnede zelf.** Lukt een foto niet, sla
-hem dan in Safari op als `latten/<id>.jpg`.
+**Een lat erbij of een nieuwe foto?** Vraag het Claude ("haal de foto en
+tekening van lat X van jongeneel.nl"), of sla hem in Safari op als
+`latten/<id>.jpg` (verkleind, ±600 px). Zet hem dan ook in `LAT_FOTOS` in
+`sw.js`. **Zonder foto tekent de app de doorsnede zelf.**
 
 ## 11. Wat niet zeker is
 
-- **De eigen sponning van de opdeklatten** (§7) en **de neus van 15 mm**
-  bij de neuslatten. Die komen van andere leveranciers. De neus van 15 mm
-  en S = modelnummer zijn bevestigd door Dekkerhout (NL25 18x40 met
-  sponning 25 … NL50 18x65 met sponning 50).
+- **De neuslat**: volgens de tekening van Jongeneel staat bij de maat S
+  het modelnummer, terwijl de nettomaat 6 mm groter lijkt. De app rekent
+  met S = modelnummer (zoals Dekkerhout: NL25 18x40 met sponning 25 …) en
+  een neus van 9 mm. Wijkt het in de praktijk af, dan in `latten.js`
+  (`eigenSponning`, `neus`) aanpassen.
 - **Modelcodes verschillen per leverancier.** Dekkerhout A12 is 17x15 en
   Elephant C1 is 9x33. Neem dus alleen een maat over van een leverancier met
   dezelfde artikelnummers als Jongeneel (Pontmeyer, Beekhuizen-Hoekerd).
@@ -320,7 +367,6 @@ hem dan in Safari op als `latten/<id>.jpg`.
 - **"Sponningdiepte" heet in veel bronnen de maat langs het glas** (17 mm).
   Is de ingevulde diepte kleiner dan glas en band samen, dan vraagt het
   venster of je de goede maat hebt gemeten.
-- **B2 tegenover B1** en **A10**: het verschil is niet bekend.
 - **De maatlezing van de ventilatielatten** en van A16 15x33.
 
 Weet je het zeker (profieltekening, etiket, een lat opgemeten)? Pas dan in
@@ -328,7 +374,8 @@ Weet je het zeker (profieltekening, etiket, een lat opgemeten)? Pas dan in
 
 ## 12. Bronnen
 
-- **Jongeneel**, het assortiment en de artikelnummers:
+- **Jongeneel**, het assortiment, de artikelnummers en de maattekeningen
+  (v114, ook GLD1/GLD2 uit Jans screenshots):
   - https://www.jongeneel.nl/c/glaslatten
   - de productpagina's in `latfotos.txt`.
 - **KVT 12.3** (latten voor beglazen: vorm, afmetingen, neuslat 5 mm vrij):

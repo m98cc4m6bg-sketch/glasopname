@@ -43,16 +43,16 @@ const MUTATIES = {
   neusVrij: ["latten.js", "  var NEUS_VRIJ_MM = 5;", "  var NEUS_VRIJ_MM = 0;"],
   neusKleinste: ["latten.js", ".sort(function (a, b) { return a.eigenSponning - b.eigenSponning; });", ".sort(function (a, b) { return b.eigenSponning - a.eigenSponning; });"],
   neusTweeKanten: ["latten.js", "      (u.keer === 2 ? u.inSponning / 2 : 0)) * 100) / 100;", "      0) * 100) / 100;"],
-  tweeKeer: ["latten.js", "window.toebehorenIsTweeKanten(r))) ? 2 : 1;", "window.toebehorenIsTweeKanten(r))) ? 1 : 1;"],
+  tweeKeer: ["latten.js", "zijde(r) === 'beide') ? 2 : 1;", "zijde(r) === 'beide') ? 1 : 1;"],
   opdekExtra: ["latten.js", "    var extra = (lat && lat.soort === 'opdek' ? getal(lat.eigenSponning) || 0 : 0) * keer;", "    var extra = 0;"],
   a5: ["latten.js", "hoogte: 17, inSponning: 12,", "hoogte: 17, inSponning: 15,"],
   uitfrezen: ["latten.js", "    var beschikbaar = (uitfrezen ? Math.max(diepte, uit.uitfrezenNaar) : diepte) + extra;", "    var beschikbaar = diepte + extra;"],
   adviesCombi: ["latten.js", "var x = pakket(r, { lat: l.id, bandBinnen: b });", "var x = pakket(r, { lat: l.id });"],
-  oudeNamen: ["latten.js", "  var OUDE_NAMEN = { 'Glaslat': STANDAARD_LAT, 'Neuslat': 'NEUS', 'Ventilatielat': 'C1' };", "  var OUDE_NAMEN = {};"],
+  oudeNamen: ["latten.js", "  var OUDE_NAMEN = { 'Glaslat': STANDAARD_LAT, 'Neuslat': 'NEUS', 'Ventilatielat': 'C1', 'B2': 'B1', 'GL13': 'B13' };", "  var OUDE_NAMEN = {};"],
   diepteGeldig: ["latten.js", "    return n > 0 && n < 200 ? Math.round(n * 10) / 10 : undefined;", "    return Math.round(n * 10) / 10;"],
   komma: ["latten.js", "    var t = String(waarde == null ? '' : waarde).trim().replace(',', '.');", "    var t = String(waarde == null ? '' : waarde).trim();"],
   kiezerTerug: ["latten.js", "      if (terug) pakketVenster(id);\n", ""],
-  vakVrij: ["latten.js", "class=\"spon-input vrij-bij-slot\"", "class=\"spon-input\""],
+  vakVrij: ["latten.js", "s.status.replace(' ', '-')) + ' vrij-bij-slot',", "s.status.replace(' ', '-')),"],
   opRuit: ["latten.js", "  function zetRw(id, veld, waarde) { if (window.toebehorenZetRuit) toebehorenZetRuit(id, veld, waarde); }",
            "  function zetRw(id, veld, waarde) { var r = getRij(id); if (waarde === '') delete r[veld]; else r[veld] = waarde; if (window.toebehorenZetRuit) toebehorenZetRuit(id, veld, waarde); }"],
   vakLaten: ["latten.js", "      if (vakLaten) {", "      if (0) {"],
@@ -62,21 +62,22 @@ const MUTATIES = {
   neusGlas: ["latten.js", "    if (rest < -MARGE_MM) return {", "    if (0) return {"],
   frezenNiets: ["latten.js", "    uit.frezen = uitfrezen && uit.uitfrezenNaar > diepte;", "    uit.frezen = uitfrezen;"],
   undoVenster: ["melding.js", "    return !!document.querySelector('.melding-laag, .lat-laag, .lat-groot');", "    return !!document.querySelector('.melding-laag');"],
-  slotBulk: ["index.html", "      if (naam === 'bulkPasToe' && window.bulkVrijBijSlot && bulkVrijBijSlot()) {", "      if (0) {"],
+  slotBulk: ["index.html", "  'bulkPasToe', 'bulkVerwijderSelectie',", "  'bulkVerwijderSelectie',"],
   bulkControle: ["bulk.js", "      if (fout) { if (window.appFout) appFout(fout, { kop: veld.titel }); return; }", ""],
-  oudGlaslatOnder: ["toebehoren.js", "    if (w === 'Glaslat') return '';\n", ""],
+  // v114: de onderlat bepaalt latten.js (onderlatVoorRuit); daar zit de omzetting van 'Glaslat'.
+  oudGlaslatOnder: ["latten.js", "    var eigen = e.onderlat === 'Glaslat' ? '' : normaal(e.onderlat);", "    var eigen = normaal(e.onderlat);"],
   misStrook: ["toebehoren.js", "    if (mis.length) {", "    if (0) {"],
-  onderPast: ["toebehoren.js", "      var pkOnder = GL() && onder !== boven", "      var pkOnder = 0 && onder !== boven"],
+  onderPast: ["toebehoren.js", "      var pkOnder = oo && oo.onder && !ol.isNeus ? oo.onder : null;", "      var pkOnder = null;"],
   staven: ["toebehoren.js", "      var nodig = Math.max(metVerlies, plan.staven.length + plan.teLang.length);", "      var nodig = plan.staven.length + plan.teLang.length;"],
   bandPerRuit: ["toebehoren.js", "        if (kant === 'binnen' && [2, 3, 4].indexOf(+eigen.bandBinnen) >= 0) c =", "        if (0) c ="],
   buitenNooit2: ["toebehoren.js", "      if (kant === 'buiten' && BAND_DIKTES_BUITEN.indexOf(d) < 0) d = 3;", ""],
-  neusMaat: ["toebehoren.js", "        onder = neus.lat ? neus.lat.id : 'NEUS';", "        onder = 'NEUS';"],
+  neusMaat: ["toebehoren.js", "      var onder = ol.id, neus", "      var onder = ol.isNeus ? 'NEUS' : ol.id, neus"],
   onderEenKeer: ["toebehoren.js", "      lat(onder, sp.b + t, n, 'onder', n);", "      lat(onder, sp.b + t, n * dubbel, 'onder', n);"],
   latPerRuit: ["toebehoren.js", "      var boven = GL() ? GL().latVoorRuit(r).id : k.standaardLat;", "      var boven = GL() ? GL().normaal(k.standaardLat) : k.standaardLat;"],
   chipsMee: ["toebehoren.js", "    if (window.latPakketBijwerken) latPakketBijwerken();\n  }", "  }"],
   pakketControle: ["pdf.js", "      return k === 'door' ? pakketControle(bm) : k;", "      return k;"],
   pdfKolom: ["pdf.js", "      { kop: 'Spon.',     w: 11, haal: function (r) { return window.GlasLatten ? GlasLatten.ruit(r).sponningDiepte : ''; } },\n", ""],
-  exportKolom: ["index.html", "      G ? getal(G.ruit(r).sponningDiepte) : '', lat ? lat.naam : '', pk\n", "      '', '', ''\n"],
+  exportKolom: ["index.html", "      G ? getal(G.ruit(r).sponningDiepte) : '', lat ? lat.naam : '', pk,\n", "      '', '', '',\n"],
   accent: ["index.html", "    --accent: #c1121c;", "    --accent: #d00243;"],
   bulkDiepte: ["bulk.js", "          if (n !== undefined && window.toebehorenZetRuit) toebehorenZetRuit(r.id, 'sponningDiepte', n == null ? '' : n);", ""],
   swShell: ["sw.js", "  './latten.js',", "  './latten-x.js',"],
@@ -86,7 +87,7 @@ const WAAR = {
   adviesCombi: '1', oudeNamen: '3', diepteGeldig: '2', komma: '2', kiezerTerug: '2', staven: '3', bandPerRuit: '3',
   buitenNooit2: '3', neusMaat: '3', onderEenKeer: '3', latPerRuit: '3', chipsMee: '3', pakketControle: '4', pdfKolom: '4',
   exportKolom: '4', accent: '5', bulkDiepte: '2', swShell: '5', vakVrij: '4', opRuit: '2', vakLaten: '2', escGroot: '2', passend: '2',
-  hoogte17: '1', neusGlas: '1', frezenNiets: '1', undoVenster: '2', slotBulk: '4', bulkControle: '4', oudGlaslatOnder: '3', misStrook: '3',
+  hoogte17: '1', neusGlas: '1', frezenNiets: '1', undoVenster: '2', slotBulk: '4', bulkControle: '2', oudGlaslatOnder: '3', misStrook: '3',
   onderPast: '3',
 };
 
@@ -850,8 +851,8 @@ function latProject(extra) {
     m = await page.evaluate(() => GlasLatten.adviezen(rijen.find(x => x.merk === 'X')));
     u = await oordeel(page, 'X');
     check('sponning 61 met A4: "te ruim: 17 mm over, de lat ligt 17 mm terug"', /te ruim: 17 mm over, de lat ligt 17 mm terug/.test(u.tekst), u.tekst);
-    check('het advies noemt geen A16 (15 hoog) of grenen latje (9 hoog), wel de breedste lat die erin past (GL13, ligt 4 mm terug)',
-      !m.some(a => /A16|G91/.test(a)) && m.some(a => /^Breedste lat die erin past: GL13 .*\+ band binnen 4 mm: ligt 4 mm terug$/.test(a)), JSON.stringify(m));
+    check('het advies noemt geen A16 (15 hoog) of grenen latje (9 hoog), wel de breedste lat die erin past (B13, v114: was GL13; ligt 4 mm terug)',
+      !m.some(a => /A16|G91/.test(a)) && m.some(a => /^Breedste lat die erin past: B13 .*\+ band binnen 4 mm: ligt 4 mm terug$/.test(a)), JSON.stringify(m));
     await zet(page, 'X', { sponningDiepte: 44 });
     // Band binnen per ruit.
     u = await oordeel(page, 'X', { sponningDiepte: 43, bandBinnen: 2 });
@@ -884,8 +885,9 @@ function latProject(extra) {
     check('neuslat: sponning 45 → ruimte vóór het glas 16 + 5 = 21 → N25; 50 → 26 → N30; 52 → 28 → N30; 80 → te breed (geen)',
       neus[45].lat === 'N25' && neus[45].rest === 16 && neus[50].lat === 'N30' && neus[52].lat === 'N30' && neus[80].lat === null, JSON.stringify(neus));
     check('sponning 25: het glas met band (29) past er al niet in → geen neuslat', neus[25].lat === null, JSON.stringify(neus[25]));
-    check('een N30 (18x45) bij sponning 50 steekt 30 − 21 + 15 = 24 mm voorbij het glas uit, niet 45',
-      neus[50].uitsteek === 24, JSON.stringify(neus[50]));
+    // v114: de neus is volgens de tekening van Jongeneel 9 mm breed (was 15).
+    check('een N30 bij sponning 50 steekt 30 − 21 + 9 = 18 mm voorbij het glas uit, niet 45',
+      neus[50].uitsteek === 18, JSON.stringify(neus[50]));
     // Latten aan twee kanten (binnen en buiten): de lat telt twee keer.
     m = await page.evaluate(() => { const r = rijen.find(x => x.merk === 'X'); toebehorenZetRuit(r.id, 'sponningDiepte', 59);
       const een = GlasLatten.pakket(r, { tweeKanten: false }), twee = GlasLatten.pakket(r, { tweeKanten: true });
@@ -1000,8 +1002,9 @@ function latProject(extra) {
     await page.click('.lat-venster .lat-item[data-kies="E7"]');
     check('na het kiezen terug in het pakketvenster', await page.waitForSelector('.lat-venster .pakket-svg', { timeout: 3000 }).then(() => true, () => false));
     t = await page.$eval('.lat-venster', e => e.innerText.replace(/\s+/g, ' '));
-    check('E7 gekozen: terug in het venster, met de opdeklat in de som, "het glas klemt niet" en "nog niet nagemeten"', /opdeklat E7/.test(t) &&
-      /het glas klemt niet/.test(t) && /nog niet nagemeten/.test(t), t.slice(0, 500));
+    // v114: de maten van E7 zijn nagemeten (tekening Jongeneel): geen "nog niet nagemeten" meer.
+    check('E7 gekozen: terug in het venster, met de opdeklat in de som en "het glas klemt niet"', /opdeklat E7/.test(t) &&
+      /het glas klemt niet/.test(t) && !/nog niet nagemeten/.test(t), t.slice(0, 500));
     check('bewaard (glaslat E7), de knop in de tabel zegt E7', await opgeslagenAls(() => perRuitDb('X').glaslat === 'E7') &&
       await page.$eval('#lat-' + idVan('X') + ' .lat-knop', e => e.textContent) === 'E7');
     await page.keyboard.press('Escape');
@@ -1027,6 +1030,16 @@ function latProject(extra) {
     await wacht(300);
     m = await page.evaluate(() => rijen.map(r => GlasLatten.ruit(r).sponningDiepte));
     check('doorvoeren: sponningdiepte 50 op alle ruiten', m.every(d => d === 50), JSON.stringify(m));
+    // v114: de controle bij doorvoeren (stond tot v113 in het slot-blok, dat nu weigert).
+    await page.click('#invoerTabel th.kol-spon .bulk-vul');
+    await page.fill('#bulkVeld', 'abc');
+    await page.click('button:has-text("Doorvoeren")');
+    await wacht(300);
+    m = (await meldingen(page)).join(' | ');
+    check('doorvoeren "abc": een melding, en er verandert niets (blijft 50)', /geen sponningdiepte/.test(m) &&
+      await page.evaluate(() => rijen.every(r => GlasLatten.ruit(r).sponningDiepte === 50)), m.slice(0, 150));
+    await sluitMeldingen(page);
+    await page.evaluate(() => window.bulkAnnuleer && bulkAnnuleer());
     await page.click('#invoerTabel th.kol-lat .bulk-vul');
     await page.selectOption('#bulkVeld', 'A12');
     await page.click('button:has-text("Doorvoeren")');
@@ -1076,9 +1089,10 @@ function latProject(extra) {
     // Lat per ruit, neuslat automatisch, band per ruit.
     latProject(p => {
       p.data.info.toebehoren = { perRuit: {
-        1: { sponningDiepte: 50 },                                     // X: rest 21 → N30
-        2: { glaslat: 'B5', sponningDiepte: 48, bandBinnen: 2 },       // Y ×2
-        3: { sponningDiepte: 40 } } };                                 // D: 22 glas, rest 12 → N25
+        // v114: latten buiten (onderin de neuslat); er is geen standaardzijde meer.
+        1: { sponningDiepte: 50, latZijde: 'buiten' },                  // X: rest 21 → N30
+        2: { glaslat: 'B5', sponningDiepte: 48, bandBinnen: 2, latZijde: 'buiten' },   // Y ×2
+        3: { sponningDiepte: 40, latZijde: 'buiten' } } };              // D: 22 glas, rest 12 → N25
     });
     ({ ctx, page } = await openProject());
     await naarToebehoren(page);
@@ -1095,8 +1109,9 @@ function latProject(extra) {
     check('bovenaan: "Bij 2 ruiten past het niet goed in de sponning: X, D" (X te ruim +6, D past niet −3)',
       /Bij 2 ruiten past het niet goed in de sponning: X, D\./.test(t), (t.match(/Bij \d+ ruit.{0,80}/) || [''])[0]);
     check('in de tabel per ruit het oordeel bij de lat (X: te ruim +6)', /te ruim \+6/.test(await tbRij(page, 'X').locator('td.tb-lat').innerText()));
-    check('de tabel per ruit: kop "Latten twee kanten (binnen en buiten)", kolom Lat, neuslat met maat',
-      /Latten twee kanten \(binnen en buiten\)/.test(t) && await page.$('.tb-tabel th:has-text("Lat")') !== null &&
+    // v114: de kolom Latten (zijde) met een keuzelijst, in plaats van de vink "twee kanten".
+    check('de tabel per ruit: kolom Latten (zijde, X: buiten), kolom Lat, neuslat met maat',
+      await tbRij(page, 'X').locator('select.tb-zijde-sel').inputValue() === 'buiten' && await page.$('.tb-tabel th:has-text("Lat")') !== null &&
       /N30/.test(await tbRij(page, 'X').innerText()), (await tbRij(page, 'X').innerText()).replace(/\s+/g, ' '));
     // Standaardlat van het project → de chips op Invoer lopen mee (zonder het tabblad te wisselen).
     await page.click('.tb-inst-kop'); await wacht(200);
@@ -1123,8 +1138,10 @@ function latProject(extra) {
     await naarToebehoren(page);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen())));
     m = await page.evaluate(() => GlasLatten.project());
-    check('oude namen (v111): Glaslat → A4, Neuslat → passende neuslat, Ventilatielat → C1; een oude 2 mm buiten telt als 3',
-      JSON.stringify(u.latten.map(l => l.type).sort()) === '["A4","C1","NEUS"]' && m.lat === 'A4' && m.bandBuiten === 3 &&
+    // v114 (keuze Jan): geen standaardzijde en geen standaard onderlat meer. De
+    // oude "Neuslat" voor het hele project telt niet: zonder zijde onderin dezelfde lat.
+    check('oude namen (v111): Glaslat → A4, Ventilatielat → C1, een oude 2 mm buiten telt als 3 (de oude standaard Neuslat geldt niet meer)',
+      JSON.stringify(u.latten.map(l => l.type).sort()) === '["A4","C1"]' && m.lat === 'A4' && m.bandBuiten === 3 &&
       u.band.every(b => b.dikte === 3), JSON.stringify([u.latten.map(l => l.type), m, u.band]));
     check('en er is niets in het project veranderd door alleen te kijken', JSON.stringify(info().toebehoren.perRuit) ===
       JSON.stringify({ [idVan('Y')]: { onderlat: 'Ventilatielat' } }), JSON.stringify(info().toebehoren));
@@ -1141,7 +1158,10 @@ function latProject(extra) {
     check('oude onderlat "Glaslat" = dezelfde lat als boven (X met B5: onder ook B5, de rest A4)', JSON.stringify(m) === '["X:B5/B5","Y:A4/A4","D:A4/A4"]',
       JSON.stringify(m));
     // Twee kanten: één neuslat, onderin aan de andere kant de gewone lat.
-    await tbRij(page, 'X').locator('input.tb-tweekanten').check();
+    // v114: X latten "beide", D "buiten" (de neuslat onder D).
+    await tbRij(page, 'X').locator('select.tb-zijde-sel').selectOption('beide');
+    await wacht(300);
+    await tbRij(page, 'D').locator('select.tb-zijde-sel').selectOption('buiten');
     await wacht(300);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen().latten.map(l => [l.type, l.stukken, l.totaalMm, l.rol]))));
     const a4 = u.find(l => l[0] === 'A4'), ns = u.find(l => l[0] === 'NEUS');
@@ -1163,9 +1183,12 @@ function latProject(extra) {
       Math.round(e.querySelector('select.tb-onderlat').getBoundingClientRect().right)]);
     check('telefoon (390): per ruit een kaartje (geen koprij), alles binnen beeld, niet hoger dan 150 px',
       breed[0] <= 390 && tabel[0] <= tabel[1] && tabel[3] === 0 && tabel[2] <= 150 && tabel[4] <= 380, JSON.stringify([breed, tabel]));
+    // v114: dicht één regel; tik erop voor de rest (de zijde, onderlat, getallen).
+    await tbRij(tp, 'Y').locator('.tb-kort-knop').click(); await wacht(300);
     t = await tbRij(tp, 'Y').innerText();
-    check('het kaartje van Y: "Y ×2", de maat, de lat, de onderlat, "latten twee kanten (binnen en buiten)" en de getallen met kopje',
-      await tbRij(tp, 'Y').locator('td.tb-merk').getAttribute('data-aant') === '×2' && /900 × 1\.500/.test(t) && /A4/.test(t) && /latten twee kanten \(binnen en buiten\)/.test(t) &&
+    check('het kaartje van Y (open getikt): "Y ×2", de maat, de lat, de onderlat, de latzijde en de getallen met kopje',
+      await tbRij(tp, 'Y').locator('td.tb-merk').getAttribute('data-aant') === '×2' && /900 × 1\.500/.test(t) && /A4/.test(t) &&
+      await tbRij(tp, 'Y').locator('select.tb-zijde-sel').isVisible() &&
       await tbRij(tp, 'Y').locator('td.tb-num').first().evaluate(e => getComputedStyle(e, '::before').content) === '"Latten m"' &&
       await tbRij(tp, 'Y').locator('td.tb-aant').evaluate(e => getComputedStyle(e).display) === 'none',
       t.replace(/\s+/g, ' '));
@@ -1202,13 +1225,13 @@ function latProject(extra) {
     check('PDF invoer (eigen archief): kolommen Spon. en Lat/pakket, "A4: past niet -4" en "A4: ruim +1"', /Spon\./.test(t) &&
       /Lat\/pakket/.test(t) && /A4: past niet -4/.test(t) && /A4: ruim \+1/.test(t), (t.match(/Spon\..{0,200}/) || [''])[0]);
     m = await page.evaluate(() => { const x = exportTabel(); const i = x.koppen.indexOf('Sponningdiepte (mm)');
-      return [x.koppen.slice(-3), x.regels.map(r => r.slice(i))]; });
+      return [x.koppen.slice(i, i + 3), x.regels.map(r => r.slice(i))]; });   // v114: daarachter nog zijde, onderdorpel, bi-color
     check('export (xlsx/csv): achteraan Sponningdiepte, Glaslat en Pakket', JSON.stringify(m[0]) === '["Sponningdiepte (mm)","Glaslat","Pakket"]' &&
       m[1][0][0] === 40 && m[1][0][1] === 'A4 glaslat schuin 17x15' && /past niet: 4 mm te weinig/.test(m[1][0][2]) && m[1][2][0] === '',
       JSON.stringify(m).slice(0, 400));
     if (PLAATJES) fs.copyFileSync(pi, path.join(PLAATJES, 'v113-pdf-invoer.pdf'));
-    // Besteld → op slot. Sponning en glaslat mogen dan nog wel (keuze v113, na
-    // de controle): ze gaan niet naar de leverancier, net als de onderlat.
+    // Besteld → op slot. v114 (keuze Jan: "Mee op slot", was in v113 vrij):
+    // sponning, glaslat, band, uitfrezen en latzijde staan dan vast, net als de maten.
     await page.evaluate(() => { delete projectInfo.toebehoren; renderTabel(); opslaan(); });
     await wacht(500);
     await eersteBestelling(page);
@@ -1216,34 +1239,31 @@ function latProject(extra) {
     const vX = JSON.stringify(dbRij('X'));
     m = await page.evaluate(() => { const id = rijen.find(x => x.merk === 'X').id;
       return [document.querySelector('#pk-' + id + ' .spon-input').disabled, document.querySelector('#pk-' + id + ' .pk-chip').disabled,
-              document.querySelector('#lat-' + id + ' .lat-knop').disabled, document.querySelector('#rij-' + id + ' select').disabled]; });
-    check('op slot: de rest van de rij staat uit, maar het vak, de latknop en het oordeel niet', !m[0] && !m[1] && !m[2] && m[3], JSON.stringify(m));
-    await diepteTypen(page, 'X', '40');
-    await page.click('#lat-' + idVan('X') + ' .lat-knop');
-    await page.click('.lat-venster .lat-item[data-kies="B5"]');
-    await wacht(300);
-    await page.click('#pk-' + idVan('X') + ' .pk-chip');
-    await page.selectOption('.lat-venster .pk-band', '2');
-    await page.keyboard.press('Escape');
-    await wacht(300);
-    check('op slot: diepte 40, glaslat B5 en band 2 bewaard bij het project; de ruit zelf is niet veranderd (geen stempel)',
-      await opgeslagenAls(() => JSON.stringify(perRuitDb('X')) === JSON.stringify({ sponningDiepte: 40, glaslat: 'B5', bandBinnen: 2 })) &&
+              document.querySelector('#lat-' + id + ' .lat-knop').disabled, document.querySelector('#zijde-' + id + ' select').disabled,
+              document.querySelector('#rij-' + id + ' select').disabled]; });
+    check('op slot (v114): ook het vak, de latknop en de latzijde staan uit; het oordeel is wel te openen',
+      m[0] && !m[1] && m[2] && m[3] && m[4], JSON.stringify(m));
+    await page.evaluate(() => { const id = rijen.find(x => x.merk === 'X').id;
+      latDiepte(id, '40'); latKies(id, 'B5'); latBand(id, '2'); latZijde(id, 'buiten'); latUitfrezen(id, true); latOnderDiepte(id, '30'); });
+    await wacht(500);
+    const slotMelding = (await meldingen(page)).join(' | ');
+    check('en de functies weigeren: niets bewaard, de ruit zelf niet veranderd', JSON.stringify(perRuitDb('X')) === '{}' &&
       JSON.stringify(dbRij('X')) === vX, JSON.stringify([perRuitDb('X'), dbRij('X').gewOp]));
-    check('geen melding over het slot', !(await meldingen(page)).length, (await meldingen(page)).join(' | '));
-    // Doorvoeren mag op slot ook (alleen Diepte en Glaslat).
+    check('met de melding "Op slot"', /besteld/.test(slotMelding), slotMelding.slice(0, 150));
+    await sluitMeldingen(page);
+    await page.click('#pk-' + idVan('X') + ' .pk-chip');
+    await page.waitForSelector('.lat-venster', { timeout: 2000 });
+    m = await page.$$eval('.lat-venster input, .lat-venster select, .lat-venster .pk-lat', l => l.map(e => e.disabled));
+    check('op slot: het venster is te bekijken, maar alles staat uit', m.length >= 3 && m.every(Boolean), JSON.stringify(m));
+    await page.keyboard.press('Escape');
+    await wacht(200);
+    // Doorvoeren op slot: geweigerd.
     await page.click('#invoerTabel th.kol-spon .bulk-vul');
     await page.fill('#bulkVeld', '44,5');
     await page.click('button:has-text("Doorvoeren")');
-    await wacht(300);
-    check('op slot: Diepte doorvoeren werkt ook ("44,5" op alle ruiten)', await page.evaluate(() =>
-      rijen.filter(r => r.merk).every(r => GlasLatten.ruit(r).sponningDiepte === 44.5)));
-    await page.click('#invoerTabel th.kol-spon .bulk-vul');
-    await page.fill('#bulkVeld', 'abc');
-    await page.click('button:has-text("Doorvoeren")');
-    await wacht(300);
-    m = (await meldingen(page)).join(' | ');
-    check('doorvoeren "abc": een melding, en er verandert niets (niet "doorgevoerd")', /geen sponningdiepte/.test(m) &&
-      await page.evaluate(() => rijen.filter(r => r.merk).every(r => GlasLatten.ruit(r).sponningDiepte === 44.5)), m.slice(0, 150));
+    await wacht(400);
+    check('op slot: Diepte doorvoeren wordt geweigerd', await page.evaluate(() =>
+      rijen.filter(r => r.merk).every(r => !(GlasLatten.ruit(r).sponningDiepte > 0))));
     await sluitMeldingen(page);
     await page.evaluate(() => window.bulkAnnuleer && bulkAnnuleer());
     // Alleen meekijken: niets wijzigen.
@@ -1294,11 +1314,13 @@ function latProject(extra) {
     check('latten.js in index.html (vóór toebehoren.js) en in de offline-lijst', html.indexOf('<script src="latten.js') > 0 &&
       html.indexOf('<script src="latten.js') < html.indexOf('<script src="toebehoren.js') && /'\.\/latten\.js'/.test(sw));
     check('alle ' + ids.length + ' latten: een foto in de offline-lijst (mag ontbreken) en een Jongeneel-pagina in latfotos.txt',
-      ids.length === 29 && ids.every(id => sw.indexOf("'./latten/" + id + ".jpg'") >= 0) &&
+      ids.length === 28 && ids.every(id => sw.indexOf("'./latten/" + id + ".jpg'") >= 0) &&
       ids.every(id => txt.some(l => l[0] === id && /^https:\/\/www\.jongeneel\.nl\//.test(l[1]))), ids.length + ' / ' + txt.length);
     const versies = [html.match(/APP_VERSIE = '(v\d+)'/)[1], pdfjs.match(/PDF_VERSIE = '(v\d+)'/)[1], sw.match(/VERSIE = '(v\d+)'/)[1]];
-    check('de drie versienummers zijn v113', versies.every(v => v === 'v113'), JSON.stringify(versies));
-    check('GLASLATTEN.md en latfotos-ophalen.sh staan erbij', fs.existsSync(path.join(map, 'GLASLATTEN.md')) && fs.existsSync(path.join(map, 'latfotos-ophalen.sh')));
+    // v114: de nummers gaan mee omhoog; hier alleen dat ze gelijk zijn.
+    check('de drie versienummers zijn gelijk', versies.every(v => v === versies[0]), JSON.stringify(versies));
+    // v114 (keuze Jan): het fotoscript is weg (Jongeneel blokkeert scripts); de foto's staan in latten/.
+    check('GLASLATTEN.md staat erbij, latfotos-ophalen.sh niet meer', fs.existsSync(path.join(map, 'GLASLATTEN.md')) && !fs.existsSync(path.join(map, 'latfotos-ophalen.sh')));
   }
 
   /* ══ ═══════════════════════════════════════════════════════════ */

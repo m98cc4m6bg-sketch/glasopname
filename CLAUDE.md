@@ -161,7 +161,9 @@ Een feit staat op één plek; elders verwijs je ernaar.
   VERVANGT: `bedieningVerschil` → blok ALLEEN BEDIENING (`teBestellen().bediening`,
   `bedieningVan` in de momentopname, `bedieningTabel`). Glas en bediening
   kunnen uit verschillende lijsten komen: noem ze met `besteldInTekst` en
-  `bedieningInTekst`.
+  `bedieningInTekst`. Op papier en scherm `bedieningOpPapier` (v117: bij een
+  rooster zonder extra bediening "standaard"); vergelijken en het kenmerk
+  blijven op de kale velden.
 * **Bi-color en ALLEEN ROOSTER** (v114, keuze Jan): `biColor` ('Ja' of
   afwezig) en `ralBinnen` op de ruit; in het kenmerk alleen als bi-color
   gekozen is (anders "gewijzigd" bij elke bestelde ruit). Op papier altijd
@@ -221,6 +223,11 @@ Een feit staat op één plek; elders verwijs je ernaar.
     Marge 1 mm. Een gewone glaslat met ruimte over = status **'zicht'**
     (`u.zicht` mm; A5 eerst 3 mm speling), géén waarschuwing (Jan, v115);
     alleen een opdeklat kan 'ruim'/'te ruim' zijn. `ERNST`: zicht = past.
+  - **Binnen (v117, Jan): nooit een neus- of ventilatielat** (`onderMagBij`).
+    Een oude keuze: `alleenBuiten` → rood, niet stil veranderd.
+  - **Max glaspakket** (v117): `r.maxPakket` (op de ruit, uit de import);
+    `maxOordeel` telt mee in `oordeelRuit` (`waar: 'max'`), ook bij 'geen';
+    `opbouwTeDik` voor de keuzelijst. Niet in de opmerking.
   - **Neuslat (v115).** rest = diepte onder − glas − band (− lat aan de 2e
     kant); ventilatie = S − rest (≥ 5), uitsteek = ventilatie + 9.
     `neuslatOpties(r)`: passend / te klein; automatisch de kleinste die past.
@@ -266,6 +273,13 @@ Een feit staat op één plek; elders verwijs je ernaar.
 * Iconen met versie in het adres (`?v=2`) in index.html, manifest én SHELL.
 * Foto's via `bewaarBestand()` / `fotoBlob()` (wachtrij op het apparaat);
   nooit rechtstreeks `storage.upload`. Originelen in `<project>/origineel/`.
+* **Een bestand uit IndexedDB nooit zelf uploaden** (v116): Safari stuurt
+  het als 0 bytes mee ("No content provided", 400), Chrome niet. Altijd de
+  inhoud inlezen en een nieuwe `Blob` versturen (`kopie()` in wachtrij.js);
+  een `File` bewaart `zet()` als kopie (`alsKopie`). Een leeg bestand nooit
+  uploaden of weggooien; gelezen ≠ bewaarde grootte = niet uploaden. Een
+  fout op het apparaat zelf (`e.lokaal`, ook een tijdslimiet bij het
+  lezen) mag de ronde niet stoppen.
 
 **Scherm**
 * Meer dan één tekenroute (`renderTabel`, `renderFotos`,
@@ -323,12 +337,13 @@ node test-index.js && node test-naslag.js && node test-cloudguard.js
 node test-herstel.js && node test-start.js && node test-import.js
 node test-slot.js && node test-offline.js && node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
-OUD=/tmp/live node test-overgang.js   # OUD = kopie van wat live staat (20-10-2026: v114, 0c8b64c; 1ebfa26 haalde alleen een zip weg); ook vanaf v98
+OUD=/tmp/live node test-overgang.js   # OUD = kopie van wat live staat (20-10-2026: v115, d0e094a); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 
 Draai daarnaast altijd de reeks(en) van het onderdeel dat je raakt
-(bijv. latten → `test-v113/v114/v115.js`, bestellen → `test-v104/105/110/112/114.js`,
+(bijv. latten → `test-v113/v114/v115/v117.js`, foto's en wachtrij → `test-v93/v103/v116.js`,
+bestellen → `test-v104/105/110/112/114.js`,
 bewerkslot → `test-v106.js`, inloggen → `test-v109.js`).
 
 **Volledige batterij** (±25 min). Bij 🟠 en 🔴, één keer, op de
@@ -350,6 +365,8 @@ OUD=/tmp/live109 node test-v111.js      #  70 s; OUD = map met v109 (kenmerk)
 node test-v112.js && node test-v113.js                  #  16 s, 35 s
 node test-v114.js                       # latzijde, onderdorpel, bi-color, ALLEEN ROOSTER, latmaten; PLAATJES=map
 node test-v115.js                       #  41 s; latten op Toebehoren, omgekeerd, zicht, neuslat, geen (meegeleverd), naslag
+node test-v116.js                       #  ±25 s; wachtrij: Safari stuurt een bestand uit IndexedDB leeg (nagebootst)
+node test-v117.js                       #  ±60 s; pakket, max glaspakket, binnen, voorbeeld, zaagplan, bediening standaard; PLAATJES=map
 ```
 
 **Mutatieproef** (`--mutaties`): alleen bij 🔴, en alleen voor de reeks
@@ -357,9 +374,9 @@ die je wijziging raakt. Een nieuwe test bewijs je met de hand (reparatie
 terugdraaien, rood, terugzetten), dat kost minuten. Duur per reeks:
 v106 48 mutaties ±25–40 min, v109 22 ±25 min, v110 61 ±45+ min,
 v111 51 ±40 min, v112 21 ±15 min, v113 40 ±30 min, v114 34 ±40 min,
-v115 37 ±45 min.
-Die van v104 en v105 werken nu niet (zie TESTEN.md, "Onderhoud van de
-batterij"). Een oudere reeks opnieuw alleen gericht (`ALLEEN=`), zie
+v115 37 ±45 min, v116 9 ±4 min, v117 17 ±10 min.
+Die van v104 en v105 werken nu niet, en van v110 passen 9 mutaties niet
+meer (gezien 21-10-2026; zie TESTEN.md, "Onderhoud van de batterij"). Een oudere reeks opnieuw alleen gericht (`ALLEEN=`), zie
 TESTEN.md.
 
 Verwacht jsdom, jspdf, jspdf-autotable en playwright in

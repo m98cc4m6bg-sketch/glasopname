@@ -892,10 +892,11 @@
       } else if (o.opbouw) {
         onbekend.push('opbouw ' + o.opbouw);
       }
-      if (o.maxPakket) {
-        r.maxPakket = o.maxPakket;
-        onbekend.push('max pakket ' + o.maxPakket + ' mm');
-      }
+      // v117 (wens Jan): de app begrijpt het max glaspakket (incl. band) nu
+      // zelf: Toebehoren controleert glas + band ertegen en de keuzelijst van
+      // de opbouw zet te dikke opbouwen apart. Dus niet meer in de opmerking
+      // (die gaat naar de leverancier).
+      if (o.maxPakket) r.maxPakket = o.maxPakket;
       if (onbekend.length) {
         r.opmerking = (r.opmerking ? r.opmerking + ' — ' : '') + onbekend.join(', ');
       }

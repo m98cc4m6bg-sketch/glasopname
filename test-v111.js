@@ -59,7 +59,7 @@ const MUTATIES = {
   delerTypen: ["toebehoren.js", " || (n === 0 && DELERS.indexOf(sleutel) >= 0))) { renderToebehoren(); return; }", ")) { renderToebehoren(); return; }"],
   afwijkingBewaard: ["toebehoren.js", "    else p.afwijkingen[sleutel] = n;", "    else {}"],
   standaardKnop: ["toebehoren.js", "    delete p.afwijkingen;\n", ""],
-  alleOnderlat: ["toebehoren.js", "      if (ow !== '-') { var w = onderNaam(ow); zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : ''); }", ""],
+  alleOnderlat: ["toebehoren.js", "        else zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');", "        else 0;"],
   kijken: ["toebehoren.js", "  function magNiet() { return window.kijkWeigert ? kijkWeigert() : false; }", "  function magNiet() { return false; }"],
   kijkenScherm: ["toebehoren.js", "    var uit = kijken ? ' disabled' : '';", "    var uit = '';"],
   waardeTekst: ["toebehoren.js", "' ' + nlWaarde(g[s]) + ' ' + esc(UITLEG[s][1])", "' ' + nl(g[s], 1) + ' ' + esc(UITLEG[s][1])"],
@@ -83,11 +83,11 @@ const MUTATIES = {
   slotBediening: ["index.html", "function setBediening(id, waarde) {\n  if (slotWeigert()) return;", "function setBediening(id, waarde) {",
                   "  'setBediening', 'setBedieningLengte',", ""],
   letOp: ["pdf.js", "        var bedRegel = (stangen || koorden) ?", "        var bedRegel = 0 ?"],
-  bestelKolom: ["pdf.js", "      { kop: 'Bediening',  w: 30, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r) : ''; } },\n", ""],
-  invoerKolom: ["pdf.js", "      { kop: 'Bediening', w: 26, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r, true) : ''; } },\n", ""],
-  samenvatting: ["index.html", "      <td>${esc(ralTekst(r))}</td>\n      <td>${esc(bedieningTekst(r))}</td>\n      <td>${esc(r.glasbewerking)}</td>", "      <td>${esc(ralTekst(r))}</td>\n      <td></td>\n      <td>${esc(r.glasbewerking)}</td>"],
-  bestelTab: ["index.html", "    <td>${esc(bedieningTekst(r))}</td>\n    <td>${esc(r.glasbewerking !== 'Helder (standaard)'", "    <td></td>\n    <td>${esc(r.glasbewerking !== 'Helder (standaard)'"],
-  export: ["index.html", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      bedieningTekst(r),\n", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      '',\n"],
+  bestelKolom: ["pdf.js", "      { kop: 'Bediening',  w: 30, haal: function (r) { return window.bedieningOpPapier ? bedieningOpPapier(r) : ''; } },\n", ""],
+  invoerKolom: ["pdf.js", "      { kop: 'Bediening', w: 26, haal: function (r) { return window.bedieningOpPapier ? bedieningOpPapier(r, true) : ''; } },\n", ""],
+  samenvatting: ["index.html", "      <td>${esc(ralTekst(r))}</td>\n      <td>${esc(bedieningOpPapier(r))}</td>\n      <td>${esc(r.glasbewerking)}</td>", "      <td>${esc(ralTekst(r))}</td>\n      <td></td>\n      <td>${esc(r.glasbewerking)}</td>"],
+  bestelTab: ["index.html", "    <td>${esc(bedieningOpPapier(r))}</td>\n    <td>${esc(r.glasbewerking !== 'Helder (standaard)'", "    <td></td>\n    <td>${esc(r.glasbewerking !== 'Helder (standaard)'"],
+  export: ["index.html", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      bedieningOpPapier(r),\n", "      isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',\n      '',\n"],
   verschil: ["index.html", "    if (bo !== bn) uit.push('bediening ' + (bo || '(geen)') + ' → ' + (bn || '(geen)'));", ""],
   favicon: ["sw.js", "'./favicon-v3.ico'", "'./favicon.ico'"],
   pijl: ["pdf.js", "      .replace(/\\u2192/g, '->')", ""],
@@ -967,8 +967,9 @@ async function naarToebehoren(page) {
       /Glaskit wit: 3 kokers \(290 ml\)/.test(t) && /Wienersprossen-tape \(dubbelzijdig\): 19,1 m \(1 rol\)/.test(t),
       (t.match(/Toebehoren - intern.{0,500}/) || [''])[0]);
     check('met de gebruikte instellingen en de zaaglijst', /Gerekend met: lengte glaslat 4\.000 mm/.test(t) &&
-      /Zaaglijst A4 glaslat schuin 17x15 \(zaagplan 4 x 4,0 m; besteld 4\) 1: 2\.020 \+ 1\.520/.test(t), (t.match(/Gerekend met.{0,200}/) || [''])[0] + ' | ' +
-      (t.match(/Zaaglijst.{0,120}/) || [''])[0]);
+      // v117: het zaagplan als tekening (nr, de stukken in mm, rest).
+      /Zaagplan A4 glaslat schuin 17x15 \(4 x 4,0 m; besteld 4\) 1 2\.020 1\.520 rest/.test(t), (t.match(/Gerekend met.{0,200}/) || [''])[0] + ' | ' +
+      (t.match(/Zaagplan.{0,120}/) || [''])[0]);
     if (process.env.PLAATJES) {
       fs.copyFileSync(pi, path.join(process.env.PLAATJES, 'v111-pdf-invoer.pdf'));
       await naarToebehoren(page); await page.click('.tb-inst-kop'); await wacht(300);
@@ -984,7 +985,7 @@ async function naarToebehoren(page) {
     check('een emoji verminkt de regel niet meer: "achter — boven links" leesbaar', /achter — boven +links/.test(t) && !/\(cid:0\)/.test(t) &&
       />= 6 mm/.test(t) && /Lódz, Zólkiewskiego/.test(t) && /Škoda™/.test(t),
       (t.match(/.{0,30}achter.{0,60}/) || [t.slice(0, 300)])[0]);
-    check('de bestellijst heeft niets van toebehoren', /Bestellijst glas/.test(t) && !/Toebehoren|Glasband|Glaskit|Zaaglijst|glaslat/i.test(t),
+    check('de bestellijst heeft niets van toebehoren', /Bestellijst glas/.test(t) && !/Toebehoren|Glasband|Glaskit|Zaaglijst|Zaagplan|glaslat/i.test(t),
       t.slice(0, 200));
     await ctx.close();
   }

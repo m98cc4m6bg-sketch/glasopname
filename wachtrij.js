@@ -108,10 +108,51 @@
 
   /* ─── erin, eruit ──────────────────────────────────────────── */
 
+  // De inhoud van een bestand inlezen en als nieuw bestand in het geheugen
+  // teruggeven (v116). Safari stuurt een bestand dat uit IndexedDB komt bij
+  // het uploaden als 0 bytes mee ("No content provided", code 400; gezien bij
+  // Jan op de Mac, 20-10-2026), terwijl de inhoud er wel is: zelf inlezen
+  // lukt. Een kopie in het geheugen gaat wel goed (zoals de verkleinde
+  // foto's, die de app zelf maakt). Chrome had dit probleem niet.
+  function inlezen(blob) {
+    if (blob && typeof blob.arrayBuffer === 'function') return blob.arrayBuffer();
+    // Safari ouder dan 14 kent arrayBuffer() niet.
+    return new Promise(function (ok, fout) {
+      var lezer = new FileReader();
+      lezer.onload = function () { ok(lezer.result); };
+      lezer.onerror = function () { fout(lezer.error || new Error('bestand lezen mislukt')); };
+      lezer.readAsArrayBuffer(blob);
+    });
+  }
+  function kopie(blob, type) {
+    return inlezen(blob).then(function (buf) {
+      return new Blob([buf], { type: type || blob.type || 'image/jpeg' });
+    });
+  }
+
+  // Een bestand van de camera of uit de bestandskiezer (een File) is een
+  // verwijzing naar het bestand op het apparaat. Bewaar de inhoud zelf
+  // (v116); lukt dat niet, dan het bestand zoals het is (uploaden maakt
+  // toch nog een kopie, zie uploadEen).
+  function alsKopie(blob, type) {
+    if (typeof File === 'undefined' || !(blob instanceof File)) return Promise.resolve(blob);
+    return kopie(blob, type).then(function (k) {
+      return k.size === blob.size ? k : blob;
+    }, function (e) {
+      console.warn('[wachtrij] kopie maken mislukt, het bestand zelf bewaren', e);
+      return blob;
+    });
+  }
+
   // Een bestand in de wachtrij zetten. Pas als dit gelukt is, staat het
   // veilig op het apparaat; dan mag het pad in het project.
-  function zet(pad, blob, opties) {
+  function zet(pad, bestand, opties) {
     var o = opties || {};
+    return alsKopie(bestand, o.type || bestand.type).then(function (blob) {
+      return zetNu(pad, blob, o);
+    });
+  }
+  function zetNu(pad, blob, o) {
     var meta = {
       pad: pad,
       projectId: o.projectId || String(pad).split('/')[0],
@@ -209,6 +250,7 @@
   // nog niet gedraaid. Deze sessie niet opnieuw; na een herstart wel, want
   // dan kan het script inmiddels gedraaid zijn.
   function blijvend(e) {
+    if (e && e.blijvend) return true;      // v116: leeg bestand op het apparaat
     var t = foutTekst(e);
     if (opslagVol(e)) return false;     // gaat over zodra er ruimte is (v103)
     return /\b(413|415)\b|too large|maximum allowed size|exceeded|mime type|invalid_mime/i.test(t);
@@ -228,6 +270,7 @@
   // het eerste bestand dat niet lukte; zat dat vast, dan ging er nooit
   // meer een foto omhoog (gevonden bij de controle van v103).
   function geenVerbinding(e) {
+    if (e && e.lokaal) return false;       // v116: fout op het apparaat zelf
     var code = Number((e && (e.statusCode || e.status)) || 0);
     if (code >= 400 && code < 500) return false;
     var t = foutTekst(e);
@@ -245,14 +288,45 @@
   }
 
   function uploadEen(meta) {
+    var ms = TIJDSLIMIET_BASIS + Math.ceil((meta.grootte || 0) / 1048576) * TIJDSLIMIET_PER_MB;
+    // Een fout op het apparaat zelf (lezen) mag de ronde niet stoppen: dan
+    // zouden de andere foto's ook blijven staan (v116).
+    function opApparaat(e, wat) {
+      var f = new Error(wat + ': ' + foutTekst(e));
+      f.lokaal = true;
+      return f;
+    }
     // leesBlob en niet haalBlob: een leesfout mag hier niet als 'leeg'
     // tellen, want dan zou het bestand uit de wachtrij verdwijnen.
-    return leesBlob(meta.pad).then(function (blob) {
+    // v116: met een tijdslimiet; blijft het lezen hangen (iPad die uit de
+    // achtergrond komt), dan zou de wachtrij tot een herstart stilstaan.
+    return metTijdslimiet(leesBlob(meta.pad), ms).then(function (blob) {
       if (!blob) return haalWeg(meta.pad);          // niets meer te doen
-      var ms = TIJDSLIMIET_BASIS + Math.ceil((meta.grootte || 0) / 1048576) * TIJDSLIMIET_PER_MB;
-      var verzoek = sb().storage.from(BUCKET).upload(meta.pad, blob,
-        { contentType: meta.type || 'image/jpeg', upsert: false });
-      return metTijdslimiet(Promise.resolve(verzoek), ms).then(function (res) {
+      // v116: de inhoud zelf versturen, niet het bestand uit IndexedDB (Safari).
+      return metTijdslimiet(kopie(blob, meta.type), ms).then(function (inhoud) {
+        if (!inhoud.size) {
+          // Nooit een leeg bestand uploaden en nooit weggooien: misschien
+          // is het na een herstart wel te lezen.
+          var leeg = new Error('het bestand is leeg op dit apparaat (' + (meta.grootte || 0) + ' bytes verwacht)');
+          leeg.lokaal = true; leeg.blijvend = true;
+          throw leeg;
+        }
+        if (meta.grootte && inhoud.size !== meta.grootte) {
+          // Minder (of meer) gelezen dan er bewaard is: niet een kapot bestand
+          // uploaden en het goede hier weggooien. Volgende ronde opnieuw.
+          var anders = new Error('bestand op dit apparaat niet goed gelezen (' + inhoud.size + ' van ' +
+                                 meta.grootte + ' bytes)');
+          anders.lokaal = true;
+          throw anders;
+        }
+        return sb().storage.from(BUCKET).upload(meta.pad, inhoud,
+          { contentType: meta.type || 'image/jpeg', upsert: false });
+      }, function (e) {
+        // Inlezen mislukt of duurt te lang: een fout op dit apparaat.
+        throw opApparaat(e, 'bestand lezen op dit apparaat mislukt');
+      }).then(function (verzoek) {
+        return metTijdslimiet(Promise.resolve(verzoek), ms);
+      }).then(function (res) {
         if (res && res.error) throw res.error;
         vol = false;
         return haalWeg(meta.pad);
@@ -269,6 +343,8 @@
           .catch(function () {})
           .then(function () { bekend[meta.pad] = meta; melden(); throw e; });
       });
+    }, function (e) {
+      throw opApparaat(e, 'wachtrij lezen op dit apparaat mislukt');
     });
   }
 
@@ -308,13 +384,14 @@
   /* ─── laten zien wat er nog wacht ──────────────────────────── */
 
   var DAG = 24 * 3600 * 1000;
+  var VAST_NA = 3;          // pogingen voordat het venster de fout noemt (v116)
 
   // oudste: wanneer het oudste bestand in de wachtrij kwam. Staat er iets
   // langer dan een dag, dan klopt er iets niet (v103): dan wordt de teller
   // rood en zegt het startscherm het.
   function telling() {
     var t = { beeld: 0, origineel: 0, geweigerd: 0, totaal: 0, mb: 0,
-              oudste: null, fout: laatsteFout, vol: vol, lang: false };
+              oudste: null, fout: laatsteFout, vol: vol, lang: false, vast: 0, vastFout: '' };
     Object.keys(bekend).forEach(function (p) {
       var m = bekend[p];
       t.totaal++;
@@ -323,6 +400,9 @@
       if (geweigerd[p]) t.geweigerd++;
       if (m.gemaakt && (t.oudste === null || m.gemaakt < t.oudste)) t.oudste = m.gemaakt;
       if (!t.fout && m.fout) t.fout = m.fout;
+      // v116: lukt het al VAST_NA keer niet, dan meteen zeggen (niet pas na
+      // een dag): bij Jan bleef "No content provided" eindeloos herhalen.
+      if ((m.pogingen || 0) >= VAST_NA && !geweigerd[p]) { t.vast++; if (!t.vastFout) t.vastFout = m.fout || ''; }
     });
     t.lang = !!(t.oudste && Date.now() - t.oudste > DAG);
     return t;
@@ -341,7 +421,7 @@
     if (vak) {
       vak.hidden = !t.totaal;
       vak.textContent = t.totaal ? '⇡ ' + t.totaal + ' te uploaden' : '';
-      vak.classList.toggle('probleem', !!(t.geweigerd || t.vol || t.lang));
+      vak.classList.toggle('probleem', !!(t.geweigerd || t.vol || t.lang || t.vast));
       vak.title = t.totaal
         ? t.beeld + ' foto(\'s) en ' + t.origineel + ' origine(e)l(en) staan alleen nog op dit apparaat. ' +
           'Ze gaan vanzelf naar de cloud zodra er verbinding is. Tik voor meer.'
@@ -374,13 +454,26 @@
     if (navigator.onLine === false) regels.push('Dit apparaat is nu offline. Zodra er bereik is, gaan ze vanzelf.');
     else if (!ingelogd()) regels.push('Je bent niet ingelogd. Na het inloggen gaan ze vanzelf.');
     else regels.push('De app probeert het elke halve minuut, en meteen als er weer bereik is.');
-    if (t.geweigerd) {
+    var leeg = t.geweigerd ? Object.keys(geweigerd).filter(function (p) { return /leeg op dit apparaat/.test(geweigerd[p]); }).length : 0;
+    if (leeg) {
+      // v116: niet de opslag, maar het bestand op dit apparaat.
       regels.push('');
-      regels.push(t.geweigerd + ' bestand(en) worden door de opslag geweigerd, omdat ze te groot ' +
+      regels.push(leeg + ' bestand(en) zijn op dit apparaat leeg en kunnen niet omhoog. Ze blijven bewaard; ' +
+                  'na een herstart van de app probeert hij het opnieuw. Heb je de foto nog (camera, ' +
+                  'fotobibliotheek)? Zet hem dan opnieuw in het project.');
+    }
+    if (t.geweigerd > leeg) {
+      regels.push('');
+      regels.push((t.geweigerd - leeg) + ' bestand(en) worden door de opslag geweigerd, omdat ze te groot ' +
                   'zijn of een soort bestand dat de opslag niet aanneemt. Voor Jan: controleer in Supabase ' +
                   '(Storage → projectfotos) de maximale bestandsgrootte en de toegestane soorten ' +
                   '(19_originelen.sql). Daarna de app opnieuw starten. (' + (laatsteFout || '') + ')');
-    } else if (t.fout && (t.lang || t.vol)) {
+    }
+    if (t.vast) {
+      regels.push('');
+      regels.push(t.vast + ' bestand(en) lukken al ' + VAST_NA + ' keer of vaker niet. De app blijft het ' +
+                  'proberen. Blijft dit staan, geef dan deze foutmelding door: ' + (t.vastFout || t.fout || 'onbekend'));
+    } else if (!t.geweigerd && t.fout && (t.lang || t.vol)) {
       regels.push('');
       regels.push('Laatste foutmelding: ' + t.fout);
     }

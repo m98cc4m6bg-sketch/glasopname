@@ -922,7 +922,8 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel tbody tr.tb-ruit')].map(tr => [tr.className, Math.round(tr.getBoundingClientRect().height)]));
     check('telefoon: elke ruit dicht, kort (≤ 120 px: merk, maat, lat en oordeel, dan een tikregel van 44 px)', m.length === 3 && m.every(x => /dicht/.test(x[0]) && x[1] <= 120), JSON.stringify(m));
     t = await tbRij(page, 'X').locator('.tb-kort-knop').innerText();
-    check('de regel zegt de zijde, de lat en de onderlat ("buiten · A4 · onder N30 · 9 mm vent.")', /buiten · A4 · onder N30 · 9 mm vent\./.test(t), t);
+    // v117: met de uitsteek erbij.
+    check('de regel zegt de zijde, de lat en de onderlat ("buiten · A4 · onder N30 · vent. 9 · uitst. 18")', /buiten · A4 · onder N30 · vent\. 9 · uitst\. 18/.test(t), t);
     await tbRij(page, 'X').locator('.tb-kort-knop').click(); await wacht(300);
     m = await tbRij(page, 'X').evaluate(tr => [tr.className, tr.querySelector('[data-sleutel^="olat-"]').offsetParent !== null]);
     check('tik: open, met de keuzes', !/dicht/.test(m[0]) && m[1], JSON.stringify(m));

@@ -1,4 +1,4 @@
-# Glaslatten, glasband en "past het in de sponning?" (v113, bijgewerkt v115)
+# Glaslatten, glasband en "past het in de sponning?" (v113, bijgewerkt v117)
 
 *Uitgezocht 19 oktober 2026 voor de glasopname-app; v114 (20 oktober 2026):
 de latzijde per ruit, de onderdorpel, en de maten volgens de tekeningen van
@@ -67,6 +67,12 @@ binnen een kozijn"). Per ruit kies je in de kolom **Latzijde**:
   ruit te veranderen.
 - **Beide** (v115, keuze Jan): onderin dezelfde lat als boven, aan beide
   kanten. Wil je buiten toch een neuslat, kies hem dan als onderlat.
+- **Binnen = nooit een neuslat of ventilatielat** (v117, Jan): die zijn voor
+  buitenbeglazing. In het venster voor de onderlat staan ze bij binnen niet;
+  "Alle ruiten" slaat de ruiten met binnen over en zegt welke. Had een ruit
+  er al een (of zet je hem daarna op binnen), dan wordt het oordeel rood
+  ("onder: N30 alleen buiten") tot je iets anders kiest. De app verandert
+  het niet stil (keuze Jan).
 
 ## 1b. De onderdorpel en de scharniersponning (v114, v115)
 
@@ -384,6 +390,31 @@ Kies je onderin een andere gewone lat of ventilatielat dan boven, of is de
 onderdorpel anders (§1b), dan beoordeelt de app onderin apart. Het oordeel
 in de tabel is het slechtste van de twee.
 
+## 9a. Max glaspakket uit een maatstaat (v117)
+
+Een maatstaat van de kozijnfabriek heeft soms een kolom **"Max glaspakket
+incl band"**: zo dik mag glas + band (binnen en buiten) zijn (Jan bevestigd,
+21-10-2026: band aan beide kanten). De import
+herkent die kolom (ook "max glaspakket", "glaspakket", "max dikte") en
+bewaart het getal bij de ruit (`maxPakket`).
+- Toebehoren rekent **glas + band binnen + band buiten** en zet dat naast
+  het max: past het niet, dan is het oordeel rood "te dik −1 (max 28)".
+  Ook bij latzijde "geen (meegeleverd)", juist dan. Precies gelijk = past.
+- In de keuzelijst van de **opbouw** (Invoer en Toebehoren) staan de
+  opbouwen die met band te dik zijn onder een eigen kopje "Te dik voor max
+  glaspakket …", grijs. Ze blijven te kiezen (keuze Jan: controleren en
+  grijs maken, niet automatisch kiezen).
+- Het max komt **niet** meer in de opmerking (die gaat naar de leverancier).
+- Vóór de bestellijst: zo'n ruit staat in de vraag "Past het in de
+  sponning?".
+
+## 9b. De dikte van het pakket (v117)
+
+Op Toebehoren staat naast Dikte de kolom **Pakket**: glas + band binnen +
+band buiten (zonder lat), daaronder **met lat** (wat er in de sponning moet:
+glas + band + de lat in de sponning, × 2 bij beide), en het **max** uit de
+maatstaat (rood als het te dik is).
+
 ## 10. Foto's en tekeningen
 
 In `latten/` staan per lat een productfoto (`<id>.jpg`) en, waar Jongeneel
@@ -438,13 +469,18 @@ Wens van Jan: Invoer compact houden; de latten (veel keuzes) op Toebehoren.
 - **Per foto of tekening** een kopje met de afbeelding en de merkletters
   (tik = groot), zodat je ziet over welke ruit het gaat; daarna de losse
   regels. Per foto: "latzijde hier" (alle ruiten van die foto in één keer).
-- Kolommen: **Merk, Glastype, Opbouw, Dikte, Diepte, Onder** (van Invoer,
+- Kolommen: **Merk, Glastype, Opbouw, Dikte, Pakket (v117), Diepte, Onder** (van Invoer,
   hier ook te wijzigen: dezelfde gegevens, dus Invoer, pdf en bestellijst
   volgen), **Latzijde, Glaslat, Onderlat, Band binnen, Oordeel** en wat er
   per ruit nodig is. Zo kun je ook glastype of opbouw aanpassen om een
   pakket passend te krijgen.
 - Bovenaan **"Alle ruiten"**: zijde, glaslat (ook omgekeerd) en onderlat in
-  één keer.
+  één keer. Bij de glaslat een **voorbeeld** (foto, maten, normaal of
+  omgekeerd; tik = groot met de maattekening; v117).
+- Bij elk lattype een uitklapbaar **zaagplan** als tekening (v117): per
+  lengte een balk met de stukken in mm en de rest. Ook in de PDF invoer.
+- De onderlatknop zegt bij een neuslat ventilatie én uitsteek ("N30 · vent.
+  7 · uitst. 16"; v117).
 - De kiezers voor glaslat en onderlat tonen bovenin de foto met de
   merkletter van die ruit opgelicht.
 - Op de telefoon is elke ruit een kaartje (dicht één regel, tik voor de rest).

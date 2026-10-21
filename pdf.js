@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v115';
+  var PDF_VERSIE = 'v117';
   // v114 (keuze van Jan): vaste zin bovenaan elke aanvulling (pdf en mail).
   var BEVESTIG_AANVULLING = 'Graag bevestigen dat u deze aanvulling verwerkt, met name VERVANGT en ANNULEREN.';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
@@ -81,7 +81,7 @@
       // v114: bi-color = "buiten: … / binnen: …".
       { kop: 'RAL',       w: 26, haal: function (r) { return window.ralTekst ? ralTekst(r) : r.ralKleur; } },
       // v111: extra bediening bij een rooster (stang/koord).
-      { kop: 'Bediening', w: 26, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r, true) : ''; } },
+      { kop: 'Bediening', w: 26, haal: function (r) { return window.bedieningOpPapier ? bedieningOpPapier(r, true) : ''; } },
       { kop: 'Bewerking', w: 24, haal: function (r) { return kort(r.glasbewerking); } },
       { kop: 'Roeden',    w: 22, haal: function (r) { return kort(r.roedenverdeling); } },
       { kop: 'Roede br',  w: 16, haal: function (r) { return r.roedenbreedte; } },
@@ -646,13 +646,33 @@
       didDrawPage: function (data) { if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)'); }
     });
     y = doc.lastAutoTable.finalY + 6;
-    // Zaaglijst per lattype: welke latten uit welke lengte.
+    // Zaaglijst per lattype: welke latten uit welke lengte. v117 (wens Jan):
+    // als tekening, per lengte een balk met de stukken in mm en de rest.
     u.latten.forEach(function (l) {
-      tekst('Zaaglijst ' + (l.naam || l.type) + ' (zaagplan ' + l.zaagplanStaven + ' x ' + nl(l.staaf / 1000, 1) + ' m; besteld ' + l.staven + ')',
-        { vet: true, grootte: 9, na: 0.5 });
-      tekst(l.plan.map(function (st, i) {
-        return (i + 1) + ': ' + st.stukken.map(function (x) { return nl(x); }).join(' + ') + ' (rest ' + nl(Math.max(0, st.rest)) + ')';
-      }).join('   '), { grootte: 7.5, kleur: [60, 70, 84], na: 2.5 });
+      tekst('Zaagplan ' + (l.naam || l.type) + ' (' + l.zaagplanStaven + ' x ' + nl(l.staaf / 1000, 1) + ' m; besteld ' + l.staven +
+        (l.staven > l.zaagplanStaven ? ', ' + (l.staven - l.zaagplanStaven) + ' extra voor zaagverlies' : '') + ')',
+        { vet: true, grootte: 9, na: 1 });
+      var BH = 5, tussen = 1.6, x0 = MARGE + 6, bw = INHOUD - 6 - 18;
+      var sc = bw / l.staaf;
+      l.plan.forEach(function (st, i) {
+        if (y + BH > HOOGTE - MARGE - 10) { doc.addPage(); kopregel(doc, titel + ' (vervolg)'); y = MARGE + 10; }
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(110, 110, 110);
+        doc.text(String(i + 1), MARGE + 4.5, y + BH - 1.4, { align: 'right' });
+        doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.2); doc.setFillColor(238, 238, 238);
+        doc.rect(x0, y, bw, BH, 'FD');
+        var x = x0;
+        st.stukken.forEach(function (mm) {
+          var w = mm * sc;
+          doc.setFillColor(217, 185, 138); doc.setDrawColor(122, 90, 58);
+          doc.rect(x, y, w, BH, 'FD');
+          if (w > 9) { doc.setTextColor(58, 42, 26); doc.text(schoon(nl(mm)), x + w / 2, y + BH - 1.4, { align: 'center' }); }
+          x += w + (l.snede || 0) * sc;
+        });
+        doc.setTextColor(110, 110, 110);
+        doc.text('rest ' + nl(Math.max(0, st.rest)), x0 + bw + 1.5, y + BH - 1.4);
+        y += BH + tussen;
+      });
+      y += 2.5;
     });
   }
 
@@ -915,7 +935,7 @@
     }
     // v111: is de bediening anders, dan ziet de leverancier wat het was.
     var bedOud = window.bedieningTekst ? bedieningTekst(oud) : '', bedNu = window.bedieningTekst ? bedieningTekst(r) : '';
-    if (bedOud !== bedNu) was += ', ' + (bedOud || 'zonder bediening');
+    if (bedOud !== bedNu) was += ', ' + (bedOud || 'standaard bediening');
     // v114: idem het rooster (type, kleur, bi-color), alleen als dat bewaard is.
     if (window.roosterTekst && (!oud.kort || oud.kort >= 2)) {
       var rOud = roosterTekst(oud), rNu = roosterTekst(r);
@@ -1018,7 +1038,8 @@
       // v114 (keuze Jan): bi-color duidelijk op de bestellijst, buiten en binnen apart.
       { kop: 'RAL kleur',  w: 30, haal: function (r) { return window.ralTekst ? ralTekst(r) : r.ralKleur; } },
       // v111: extra bediening bij een rooster, gaat mee naar de leverancier.
-      { kop: 'Bediening',  w: 30, haal: function (r) { return window.bedieningTekst ? bedieningTekst(r) : ''; } },
+      // v117 (Jan): bij een rooster zonder extra bediening "standaard".
+      { kop: 'Bediening',  w: 30, haal: function (r) { return window.bedieningOpPapier ? bedieningOpPapier(r) : ''; } },
       { kop: 'Glasbewerking', w: 26, haal: function (r) {
           var t = r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '';
           // Een sterretje bij een combinatie die volgens de catalogus niet

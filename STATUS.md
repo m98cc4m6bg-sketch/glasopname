@@ -1,21 +1,38 @@
 # Glasopname — stand van zaken
 
 *Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens één
-pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 20 oktober 2026,
-bij v115.*
+pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 21 oktober 2026,
+bij v117.*
 
 ## Live
 
-- **v114** staat live: commit `0c8b64c` (20-10), plus `1ebfa26` (Jan haalde
-  de per ongeluk meegecommitte `Claude outputs/glasopname-v114.zip` weg).
-  Nagekeken: gelijk aan het pakket.
-- **v115 opgeleverd** (20-10), nog niet gepusht. Geen SQL, geen nieuwe
-  bestanden, niets weggooien.
+- **v115** staat live: commit `d0e094a` (20-10). Nagekeken: gelijk aan het
+  pakket, behalve `.gitignore` (verborgen bestand, niet mee gesleept; zit
+  weer in v116).
+- **v117 opgeleverd** (21-10), nog niet gepusht; **v116 zit erin** (v116 is
+  niet apart gezet). Geen SQL, nieuw: `test-v116.js` en `test-v117.js`,
+  niets weggooien.
 - Alle SQL-scripts t/m **25** horen gedraaid te zijn.
 - De bestelmail (Edge Function `mail` + Resend) is **niet ingesteld**.
 
-## Vorige sessie (20 oktober 2026)
+## Vorige sessie (20–21 oktober 2026)
 
+- v117 (Jans to-do-lijstje, keuzes in vier vragen): kolom **Pakket** op
+  Toebehoren; **max glaspakket** uit een maatstaat controleren en te dikke
+  opbouwen grijs; **binnen = nooit neus/ventilatielat** (oude keuze rood);
+  uitsteek in de onderlatknop; voorbeeld bij "Alle ruiten → glaslat";
+  **zaagplan als tekening** (Toebehoren en PDF invoer); bediening
+  **"standaard" op de bestellijst**; Naslag: je bestelt de totale glasmaat incl. rooster, de leverancier trekt de speling eraf (tekst Jan).
+  De rest van het lijstje was al klaar (v113–v115).
+
+- v116 (🔴, akkoord Jan): **originele foto's bleven in Safari hangen**
+  ("No content provided", code 400; Jan zag het op zijn Mac). Safari stuurt
+  een bestand uit IndexedDB als 0 bytes mee. Nu: altijd een kopie in het
+  geheugen uploaden, een nieuw origineel als kopie bewaren, een leeg
+  bestand nooit uploaden of weggooien, een leesfout houdt de rest niet
+  tegen, en na 3 mislukte pogingen zegt het venster het (teller rood).
+  Waarschijnlijk zit dit er al in sinds v93: op elk apparaat met Safari
+  kunnen originelen hangen; die gaan na het bijwerken vanzelf omhoog.
 - v115 (wens Jan, keuzes in vier vragen):
   - **latten op Toebehoren**, op Invoer alleen **Diepte** en **Onder**
     (scharniersponning zij/boven: onder vaak dieper);
@@ -34,7 +51,9 @@ bij v115.*
 
 ## Wacht op Jan
 
-1. **v115 pushen** (`LEES-MIJ-EERST-v115.md`) en alle apparaten bijwerken (↻).
+1. **v117 pushen** (`LEES-MIJ-EERST-v117.md`, ook `.gitignore`) en alle
+   apparaten bijwerken (↻). Daarna op de Mac en elke iPad: verdwijnt de
+   teller "te uploaden" vanzelf? (v116 stap 1–2 in `WIJZIGINGEN-v117.md`)
 2. **Vragen bij v115** (nota): A5 3 mm speling; buiten geen rechte latten in
    het advies; melden welke bestaande ruiten bij "beide" nu onderin dezelfde
    lat krijgen?

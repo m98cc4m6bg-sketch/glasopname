@@ -216,6 +216,34 @@
     return { staven: staven, teLang: teLang };
   }
 
+  // v117 (wens Jan): het zaagplan als tekening: per lengte een balk, met de
+  // stukken (in mm) en wat er overblijft. Zelfde plan als de rekenregel
+  // (zaagplan hierboven); extra lengtes voor zaagverlies staan eronder.
+  var zaagOpen = {};
+  window.toebehorenZaagKlap = function (type, open) { if (open) zaagOpen[type] = true; else delete zaagOpen[type]; };
+  // HTML-balken (geen SVG): dan blijven de maten leesbaar op een telefoon.
+  function zaagBalken(l) {
+    var plan = l.plan || [];
+    var pct = function (mm) { return (mm / l.staaf * 100).toFixed(2) + '%'; };
+    return '<div class="tb-zaag-plan">' + plan.map(function (st, i) {
+      var rest = Math.max(0, st.rest);
+      return '<div class="tb-zaag-rij"><span class="tb-zaag-nr">' + (i + 1) + '</span><div class="tb-zaag-staaf">' +
+        st.stukken.map(function (mm, k) {
+          return '<span class="tb-zaag-stuk" style="width:' + pct(mm) + (k < st.stukken.length - 1 ? ';margin-right:' + pct(l.snede || 0) : '') +
+            '" title="' + nl(mm) + ' mm">' + nl(mm) + '</span>';
+        }).join('') + '</div><span class="tb-zaag-rest">rest ' + nl(rest) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function zaagHTML(l) {
+    var plan = l.plan || [];
+    if (!plan.length) return '';
+    var extra = l.staven - plan.length - (l.teLang ? l.teLang.length : 0);
+    return '<details class="tb-zaag"' + (zaagOpen[l.type] ? ' open' : '') + ' ontoggle="toebehorenZaagKlap(\'' + esc(l.type) + '\', this.open)">' +
+      '<summary>Zaagplan: ' + plan.length + ' × ' + nl(l.staaf / 1000, 1) + ' m</summary>' + zaagBalken(l) +
+      '<div class="tb-reken">Elke balk is één lengte van ' + nl(l.staaf) + ' mm; de stukken zijn de latten in mm (met verstek), met ' +
+      nl(l.snede || 0) + ' mm zaagsnede ertussen.' + (extra > 0 ? ' Besteld ' + l.staven + ': ' + extra + ' extra voor zaagverlies.' : '') + '</div></details>';
+  }
+
   function bereken(lijst) {
     var ins = instellingen();
     var g = ins.getallen, k = ins.keuze;
@@ -321,7 +349,7 @@
         'boven en zijkanten' + (rol.onder ? ', onder waar gekozen' : '') +
         (rol.binnen ? (rol.onder ? ' en' : ',') + ' onder aan de 2e kant' : '');
       return { type: type, naam: latNaam(type), rol: rolTekst, stukken: st.length, totaalMm: totaal, staaf: staaf,
-               staven: nodig, metVerlies: metVerlies, zaagplanStaven: plan.staven.length, plan: plan.staven,
+               staven: nodig, metVerlies: metVerlies, zaagplanStaven: plan.staven.length, plan: plan.staven, snede: g.ZAAGSNEDE_MM,
                teLang: plan.teLang, onbekend: type === 'NEUS', zeker: !info || info.zeker };
     }).sort(function (a, b) {
       return (latRol[b.type].rond - latRol[a.type].rond) || a.type.localeCompare(b.type, 'nl');
@@ -538,7 +566,10 @@
     if (zw === '-' && lw === '-' && ow === '-') return;
     var p = deelVoorWijzigen(); if (!p) return;
     if (window.bewaarStap) bewaarStap('Latten alle ruiten');
+    var overgeslagen = [];
     (rijen || []).filter(heeftInhoud).forEach(function (r) {
+      // De zijde zoals hij na deze stap is (v117: binnen = geen neus/ventilatie onderin).
+      var zNa = zw !== '-' ? zw : (GL() ? GL().zijde(r) : '');
       if (zw !== '-') { zetPerRuit(p, r.id, 'latZijde', GL() && GL().ZIJDEN.indexOf(zw) >= 0 ? zw : ''); zetPerRuit(p, r.id, 'tweeKanten', ''); }
       if (lw !== '-') {
         var d = lw.split('|');
@@ -546,10 +577,42 @@
         zetPerRuit(p, r.id, 'glaslat', lat && geldigeLat(d[0], 'boven') ? d[0] : '');
         zetPerRuit(p, r.id, 'latOmgekeerd', d[1] === 'om' && lat && GL().draaibaar(lat) ? true : '');
       }
-      if (ow !== '-') { var w = onderNaam(ow); zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : ''); }
+      if (ow !== '-') {
+        var w = onderNaam(ow);
+        if (GL() && !GL().onderMagBij(r, w, zNa)) overgeslagen.push(r.merk || '(zonder merk)');
+        else zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');
+      }
     });
+    alleKeuze = { zijde: '-', lat: '-', onder: '-' };
     bewaarEnTeken();
+    // v117 (Jan): bij latzijde binnen nooit een neus- of ventilatielat. Niet
+    // stil overslaan: zeggen welke ruiten.
+    if (overgeslagen.length && window.appMelding) {
+      appMelding('De onderlat is niet gewijzigd bij ' + overgeslagen.length + (overgeslagen.length === 1 ? ' ruit' : ' ruiten') +
+        ' met latzijde binnen (' + overgeslagen.slice(0, 12).join(', ') + (overgeslagen.length > 12 ? ' …' : '') + '): ' +
+        'neuslatten en ventilatielatten zijn alleen voor buiten.', { kop: 'Alleen voor buiten' });
+    }
   };
+  // De keuzes in de balk "Alle ruiten" onthouden (v117), zodat het voorbeeld
+  // van de glaslat blijft staan als de tabel opnieuw getekend wordt.
+  var alleKeuze = { zijde: '-', lat: '-', onder: '-' };
+  window.toebehorenAlleKies = function (wat, waarde) {
+    alleKeuze[wat] = waarde;
+    if (wat === 'lat') { var v = el('tbAlleVoorbeeld'); if (v) v.outerHTML = alleVoorbeeldHTML(); }
+  };
+  // Een voorbeeld van de gekozen glaslat (v117, wens Jan): foto, maten, en
+  // tik voor groot (met de maattekening).
+  function alleVoorbeeldHTML() {
+    var L = GL();
+    var d = String(alleKeuze.lat || '-').split('|');
+    var l = L && d[0] !== '-' ? (d[0] ? L.latVan(d[0]) : L.latVan(L.project().lat)) : null;
+    if (!l) return '<span id="tbAlleVoorbeeld" class="tb-alle-voorbeeld" hidden></span>';
+    var om = d[1] === 'om';
+    return '<span id="tbAlleVoorbeeld" class="tb-alle-voorbeeld" role="button" tabindex="0" title="Tik om groot te zien" onclick="GlasLatten.groot(\'' + esc(l.id) + '\')">' +
+      L.plaatje(l, 44) + (L.draaibaar(l) ? L.montageSVG(l, om, 44) : '') +
+      '<span><b>' + esc(l.id) + '</b> ' + esc(l.maat) + (L.draaibaar(l) ? ' · ' + (om ? 'omgekeerd' : 'normaal') : '') +
+      (d[0] ? '' : ' (projectstandaard)') + '<small>' + L.latInfo(l) + '</small></span></span>';
+  }
   // Na een wijziging in latten.js: Toebehoren opnieuw tekenen als het open
   // staat. Een tik later, zodat het vak waar je naartoe tabt al de focus
   // heeft; renderToebehoren zet die focus daarna terug (data-sleutel).
@@ -646,29 +709,35 @@
     if (!sl || !L) return '';
     var st = sl.status === 'onbekend' ? 'leeg' : sl.status === 'geen' ? 'geen' : sl.status.replace(' ', '-');
     var tekst = sl.status === 'onbekend' ? (p.zijde ? '?' : 'zijde?') : L.kortRuit(p.oordeel);
-    var titel = sl.status === 'onbekend' ? (sl.reden || '') : (p.oordeel.boven.tekst || '') + (p.oordeel.onder && p.oordeel.onder.tekst ? ' · ' + p.oordeel.onder.tekst : '');
+    var titel = sl.status === 'onbekend' ? (sl.reden || '') : (p.oordeel.boven.tekst || '') + (p.oordeel.onder && p.oordeel.onder.tekst ? ' · ' + p.oordeel.onder.tekst : '') +
+      (p.oordeel.max ? ' · ' + p.oordeel.max.tekst : '');
     // Altijd aan te tikken (ook op slot: dan om te kijken).
     return '<button type="button" class="pk-chip pk-' + st + ' vrij-bij-slot" onclick="latPakket(' + p.rij.id + ')" title="' + esc(titel) + '">' + esc(tekst) + '</button>';
   }
   function perRuitHTML(u, latUit, uit) {
     var L = GL();
     var h = [];
-    var zijdeAlle = '<select id="tbAlleZijde"' + latUit + '><option value="-">zijde: niet wijzigen</option><option value="">zijde: ?</option>' +
-      (L ? L.ZIJDEN.map(function (z) { return '<option value="' + z + '">zijde: ' + esc(L.ZIJDE_NAAM[z]) + '</option>'; }).join('') : '') + '</select>';
-    var latAlle = '<select id="tbAlleLat"' + latUit + '><option value="-">glaslat: niet wijzigen</option><option value="">glaslat: projectstandaard</option>' +
+    var sel = function (v, w) { return String(v) === String(w) ? ' selected' : ''; };
+    var zijdeAlle = '<select id="tbAlleZijde" onchange="toebehorenAlleKies(\'zijde\', this.value)"' + latUit + '><option value="-"' + sel('-', alleKeuze.zijde) +
+      '>zijde: niet wijzigen</option><option value=""' + sel('', alleKeuze.zijde) + '>zijde: ?</option>' +
+      (L ? L.ZIJDEN.map(function (z) { return '<option value="' + z + '"' + sel(z, alleKeuze.zijde) + '>zijde: ' + esc(L.ZIJDE_NAAM[z]) + '</option>'; }).join('') : '') + '</select>';
+    var latAlle = '<select id="tbAlleLat" onchange="toebehorenAlleKies(\'lat\', this.value)"' + latUit + '><option value="-"' + sel('-', alleKeuze.lat) +
+      '>glaslat: niet wijzigen</option><option value=""' + sel('', alleKeuze.lat) + '>glaslat: projectstandaard</option>' +
       (L ? L.LATTEN.filter(function (l) { return geldigeLat(l.id, 'boven'); }).map(function (l) {
-        return '<option value="' + esc(l.id) + '">' + esc(l.id + ' ' + l.maat) + '</option>' +
-          (L.draaibaar(l) ? '<option value="' + esc(l.id) + '|om">' + esc(l.id + ' ' + l.maat + ' omgekeerd') + '</option>' : '');
+        return '<option value="' + esc(l.id) + '"' + sel(l.id, alleKeuze.lat) + '>' + esc(l.id + ' ' + l.maat) + '</option>' +
+          (L.draaibaar(l) ? '<option value="' + esc(l.id) + '|om"' + sel(l.id + '|om', alleKeuze.lat) + '>' + esc(l.id + ' ' + l.maat + ' omgekeerd') + '</option>' : '');
       }).join('') : '') + '</select>';
-    var onderAlle = latKeuze('onder', '-', 'id="tbAlleOnderlat"' + latUit, [['-', 'onderlat: niet wijzigen'], ['', 'onderlat: automatisch'], ['ZELFDE', 'onderlat: zelfde als boven']]);
-    h.push('<div class="tb-perruit-kop"><h3>Per ruit: latten kiezen</h3><span class="tb-alles">Alle ruiten: ' + zijdeAlle + latAlle + onderAlle +
+    var onderAlle = latKeuze('onder', alleKeuze.onder, 'id="tbAlleOnderlat" onchange="toebehorenAlleKies(\'onder\', this.value)"' + latUit,
+      [['-', 'onderlat: niet wijzigen'], ['', 'onderlat: automatisch'], ['ZELFDE', 'onderlat: zelfde als boven']]);
+    h.push('<div class="tb-perruit-kop"><h3>Per ruit: latten kiezen</h3><span class="tb-alles">Alle ruiten: ' + zijdeAlle + latAlle + alleVoorbeeldHTML() + onderAlle +
       ' <button class="btn btn-ghost btn-sm" onclick="toebehorenAlles()"' + latUit + '>Toepassen</button></span></div>');
     h.push('<div class="tb-uitleg">Kies per ruit aan welke kant de latten zitten, welke glaslat en wat er onderin komt. ' +
       'Tik op het oordeel voor de tekening en wat wel past. <b>geen (meegeleverd)</b>: nieuwe kozijnen met latten (bijv. uit een csv): ' +
       'dan telt alleen band, kit en tape.</div>');
-    var kolommen = 13;
+    var kolommen = 14;
     h.push('<div class="invoer-wrap tb-wrap"><table class="samenvatting tb-tabel"><thead><tr>' +
       '<th class="tb-smal">Merk</th><th class="tb-smal">Glastype</th><th class="tb-smal">Opbouw</th><th class="num tb-smal">Dikte</th>' +
+      '<th class="num tb-smal" title="Glas + band binnen en buiten (zonder lat); daaronder met de lat in de sponning, en het max glaspakket uit de maatstaat">Pakket</th>' +
       '<th class="num tb-smal" title="Diepte zij en boven (bruikbaar)">Diepte</th><th class="num tb-smal" title="Diepte onder (leeg = gelijk)">Onder</th>' +
       '<th class="tb-smal">Latzijde</th><th class="tb-smal">Glaslat</th><th class="tb-smal">Onderlat</th><th class="tb-smal">Band binnen</th>' +
       '<th class="tb-smal">Oordeel</th><th class="tb-smal">Nodig</th><th class="tb-kort-kop"></th></tr></thead><tbody>');
@@ -724,6 +793,14 @@
     var nodig = esc(geen ? 'latten meegeleverd' : nl(p.latM, 1) + ' m lat') + '<br>' + esc([nl(p.bandM, 1) + ' m band', nl(p.kitMl) + ' ml kit']
       .concat(p.roeden === 'zelf' ? ['tape zelf'] : p.tapeM ? [nl(p.tapeM, 1) + ' m tape'] : []).join(' · '));
     var dikte = r.totaalDikte != null && r.totaalDikte !== '' ? String(r.totaalDikte).replace('.', ',') : '—';
+    // v117 (wens Jan): de dikte van het pakket, zonder en met lat, en het
+    // max glaspakket uit de maatstaat (rood als het te dik is).
+    var pd = L ? L.pakketDikte(r) : null;
+    var mx = p.oordeel && p.oordeel.max;
+    var mm = function (x) { return String(Math.round(x * 10) / 10).replace('.', ','); };
+    var pakketHTML = !pd ? '—' : '<span title="glas ' + esc(mm(pd.glas)) + ' + band ' + esc(mm(pd.band)) + ' mm">' + esc(mm(pd.zonder)) + '</span>' +
+      (pd.met != null && pd.met !== pd.zonder ? '<small class="tb-pk-met">met lat ' + esc(mm(pd.met)) + '</small>' : '') +
+      (pd.max ? '<small class="tb-pk-max' + (mx && mx.status === 'past niet' ? ' te-dik' : '') + '">max ' + esc(mm(pd.max)) + '</small>' : '');
     // De klassen tb-… en data-kop zijn voor de telefoon: daar wordt elke rij
     // een kaartje (CSS), dicht één regel (v114, keuze Jan); tik voor de rest.
     var kortTekst = (p.zijde ? (L ? L.ZIJDE_NAAM[p.zijde] : p.zijde) : '?') + (geen ? '' : ' · ' + (latL ? latL.id : '') + ' · onder ' + (L ? L.keuzeNaam(r) : ''));
@@ -732,6 +809,7 @@
       '<td class="tb-smal tb-type" data-kop="Glastype">' + typeSel + '</td>' +
       '<td class="tb-smal tb-opb" data-kop="Opbouw">' + opbSel + '</td>' +
       '<td class="num tb-smal tb-dikte" data-kop="Dikte">' + esc(dikte) + '</td>' +
+      '<td class="num tb-smal tb-pakket" data-kop="Pakket">' + pakketHTML + '</td>' +
       '<td class="num tb-smal tb-diepte" data-kop="Diepte">' + diepte + '</td>' +
       '<td class="num tb-smal tb-onder" data-kop="Onder">' + onder + '</td>' +
       '<td class="tb-smal tb-zijde' + (p.zijde ? '' : ' leeg') + '" data-kop="Latzijde">' + zijde + '</td>' +
@@ -894,7 +972,7 @@
         '<div class="tb-wat">' + esc(l.naam) + ' (' + esc(l.rol) + ')' + (l.zeker ? '' : ' <span class="tb-controle">maat nog niet nagemeten</span>') + '</div>' +
         (l.teLang.length ? '<div class="tb-let">⚠ ' + l.teLang.length + ' lat langer dan ' + nl(l.staaf / 1000, 1) +
           ' m (' + l.teLang.map(function (x) { return nl(x); }).join(', ') + ' mm): apart bestellen</div>' : '') +
-        '<div class="tb-reken">' + esc(regel['lat:' + l.type]) + '</div></div>');
+        '<div class="tb-reken">' + esc(regel['lat:' + l.type]) + '</div>' + zaagHTML(l) + '</div>');
     });
     u.band.forEach(function (b) {
       h.push('<div class="tb-blok"><div class="tb-getal">' + nl(b.meters, 1) + ' m</div>' +

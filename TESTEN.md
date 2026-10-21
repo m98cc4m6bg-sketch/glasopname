@@ -208,6 +208,11 @@ Moet eerst (anders vals rood):
   en `test-v105.js` (`cumulatief`, `vervangt`, `momentalles`) passen niet
   meer op de code (die kreeg o.a. `nrTekst`). De proef is daardoor altijd
   rood. Bijwerken, en de controle vooraf uit `test-v106.js` overnemen.
+- Ook in `test-v110.js` passen 9 mutaties niet meer (`anderVeld`,
+  `minderMoment`, `blokTelt`, `kort`, `nietsTeBestellen`, `oudLos`,
+  `oudStempel`, `blokBollen`, `oudOffline`; al zo in v115, gezien 21-10-2026).
+  Snel nakijken voor alle reeksen: een scriptje dat van elke mutatie het
+  anker in de code zoekt (handover §10).
 - `test-v106.js` §22 wil `/tmp/v105werk`, `test-v111.js` §4 wil
   `/tmp/live109`. Die mappen moeten elke sessie opnieuw klaargezet worden.
   Liever de benodigde oude stukken vast in de test opnemen.
@@ -534,6 +539,46 @@ harde eis wint.
     wijziging in de code eerst kijken of de ankers nog kloppen;
   - niet getest: het toetsenbord op een echte iPad na Tab (Playwright kan
     dat niet nabootsen).
+- `test-v116.js` (de wachtrij in Safari: originelen gingen leeg omhoog):
+  - **Chromium laat dit niet zien.** Safari stuurt een bestand dat uit
+    IndexedDB komt als 0 bytes mee; Chrome niet. De reeks bootst het na: een
+    init-script onthoudt elk `Blob` dat uit IndexedDB gelezen wordt
+    (`IDBRequest.result`), en de namaak van Supabase stuurt zo'n bestand leeg
+    mee en antwoordt dan "No content provided" (400). §1 bewijst eerst dat de
+    nabootsing Jans fout geeft (het bestand zoals v115 uploaden);
+  - 1 een wachtrij zoals v115 hem achterliet (een `File`, 7 pogingen) gaat
+    omhoog, byte voor byte; 2 een nieuwe foto via de bestandskiezer: in
+    IndexedDB staat een kopie, geen `File`; 3 een leeg bestand gaat niet
+    omhoog en blijft bewaard, het venster zegt het; 4 een leesfout houdt de
+    rest niet tegen; 5 na 3 mislukte pogingen meldt het venster de fout;
+    7 oude Safari zonder `Blob.arrayBuffer` (FileReader); 8 minder gelezen
+    dan bewaard = niets uploaden;
+  - les: **de console van Jan was de doorbraak.** Een vast scriptje dat
+    alleen leest (hoeveel bytes staan er echt) scheidde "inhoud weg" van
+    "inhoud er, versturen gaat mis". Vraag bij een Safari-probleem eerst om
+    de console-regels, en geef een leesscriptje, nooit een die iets wijzigt;
+  - bij een versiecontrole in een reeks altijd "vN of later": test-v115
+    eiste precies v115 en werd bij v116 rood;
+  - niet getest: de tijdslimiet bij het lezen (een minuut), en echte Safari (of een kopie in het geheugen daar wel goed
+    meegaat; de verkleinde foto's, ook in het geheugen gemaakt, gingen bij
+    Jan wel goed).
+- `test-v117.js` (Jans to-do-lijstje: pakket, max glaspakket, binnen,
+  voorbeeld, zaagplan, bediening "standaard", glasaftrek):
+  - 1 rekent zonder klikken; 2 klikt op Toebehoren (pc, laptop 1280, iPad,
+    telefoon: niets schuift opzij), het onderlat-venster bij binnen,
+    "Alle ruiten" met voorbeeld en de melding over binnen, het zaagplan
+    open en dicht; 3 een echte csv met "Max glaspakket incl band"; 4 de
+    bestellijst, export en PDF invoer teruggelezen; 5 de Naslag;
+  - les: **een kolom erbij past niet zomaar.** Met Pakket paste de tabel op
+    een laptop van 1280 niet meer; de grens voor twee regels per ruit ging
+    naar 1360 px. Meet op 1280 en 1440, niet alleen iPad en telefoon;
+  - les: **een lange chip breekt de telefoon** ("onder: N30 alleen
+    buiten"): `white-space: normal` op de telefoon;
+  - les: zet je een verwachting om ("zonder bediening" → "standaard
+    bediening"), zoek dan ook de mutaties die op die tekst leunen
+    (`wasBediening` in test-v112, zes in test-v111);
+  - niet getest: echte Safari (keuzelijst met grijze opbouwen: Safari op de
+    iPhone toont de kleur van een optie niet, wel het kopje).
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

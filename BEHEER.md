@@ -1,8 +1,8 @@
 # Glasopname — beheerhandleiding
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
-Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 20 oktober 2026,
-bij v115.*
+Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 21 oktober 2026,
+bij v117.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -379,6 +379,36 @@ Daarna:
 - *"Waarom staat er een neuslat maat N30?"* De app kiest de kleinste
   neuslat die past bij de sponningdiepte (`GLASLATTEN.md` §6). Zonder
   diepte staat er "maat nog onbekend".
+**Vragen die je kunt verwachten na v117**
+
+- *"Een ruit is rood: 'te dik −1 (max 28)'."* De maatstaat gaf een max
+  glaspakket (incl. band), en glas + band is dikker. Kies een dunnere
+  opbouw: in de keuzelijst staan de te dikke onder "Te dik voor max
+  glaspakket". Of controleer bij de kozijnfabriek of het max klopt.
+- *"'onder: N30 alleen buiten'."* De latzijde staat op binnen, maar onderin
+  staat een neuslat of ventilatielat (die zijn voor buiten). Kies onderin
+  een andere lat, of zet de latzijde op buiten. De app verandert het niet
+  zelf.
+- *"Op de bestellijst staat bij Bediening 'standaard'."* Klopt: een rooster
+  zonder extra stang of koord heeft de gewone bediening (het knopje).
+- *"Waar is het zaagplan?"* Op Toebehoren, onder elk lattype: "Zaagplan: …"
+  (tik om open te klappen). En in de PDF invoer.
+
+**Vragen die je kunt verwachten na v116**
+
+- *"Bovenin staat een gele of rode teller '⇡ 2 te uploaden'."* Er staan nog
+  foto's alleen op dat apparaat. Tik op de teller: het venster zegt hoeveel,
+  hoe lang al, en sinds v116 meteen (na 3 mislukte pogingen) welke
+  foutmelding er komt. Geef die foutmelding door. **Niet** de
+  websitegegevens wissen zolang de teller er staat.
+- *"Er staat 'leeg op dit apparaat'."* Dat bestand is op dat apparaat
+  echt leeg; het gaat niet als leeg bestand naar de cloud en wordt niet
+  weggegooid. Heb je de foto nog (camera, fotobibliotheek), zet hem dan
+  opnieuw in het project.
+- *"Op de Mac of iPad (Safari) bleven originele foto's hangen."* Opgelost in
+  v116: Safari stuurde ze leeg mee ("No content provided"). Na ↻ Bijwerken
+  gaan ze vanzelf omhoog.
+
 **Vragen die je kunt verwachten na v115**
 
 - *"Waar zijn de kolommen Glaslat en Latzijde op Invoer?"* Verhuisd naar

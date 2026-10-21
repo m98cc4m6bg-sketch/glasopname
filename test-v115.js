@@ -72,7 +72,7 @@ const MUTATIES = {
   gitignore: [".gitignore", "Claude outputs/\n", ""],
   // Toebehoren → Invoer: het vak op Invoer loopt mee (latten.js bijwerken).
   invoerMeeloop: ["latten.js", "        if (vak && document.activeElement !== vak && vak.value !== x[1]) vak.value = x[1];", ""],
-  ipad: ["index.html", "  @media (min-width: 641px) and (max-width: 1180px) {\n    .tb-wrap { display: block; }", "  @media (min-width: 9641px) and (max-width: 1180px) {\n    .tb-wrap { display: block; }"],
+  ipad: ["index.html", "  @media (min-width: 641px) and (max-width: 1360px) {\n    .tb-wrap { display: block; }", "  @media (min-width: 9641px) and (max-width: 1360px) {\n    .tb-wrap { display: block; }"],
   naslagZoek: ["naslag.js", "    if (naslagZoek && latGevonden) { naslagOpen['Glaslatten'] = true; gevonden += latGevonden; }\n    if (!naslagZoek || latGevonden) {", "    if (naslagZoek && latGevonden) { naslagOpen['Glaslatten'] = true; gevonden += latGevonden; }\n    if (!naslagZoek) {"],
   telefoonDicht: ["index.html", "    table.samenvatting.tb-tabel tr.tb-ruit.dicht td:not(.tb-merk):not(.tb-oordeel):not(.tb-kort) { display: none; }", ""],
 };
@@ -924,8 +924,9 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
     check('per foto een kopje met de foto en de merkletters (A, B ×3, C, E ×2), daarna de losse regels',
       m.length === 2 && m[0].t === 'Voorgevel' && m[0].img && m[0].marks === 'ABBBCEE' && /Losse regels/.test(m[1].t), JSON.stringify(m));
     m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel thead th')].map(th => th.textContent.trim()).filter(Boolean));
-    check('kolommen: Merk, Glastype, Opbouw, Dikte, Diepte, Onder, Latzijde, Glaslat, Onderlat, Band, Oordeel, Nodig',
-      JSON.stringify(m) === '["Merk","Glastype","Opbouw","Dikte","Diepte","Onder","Latzijde","Glaslat","Onderlat","Band binnen","Oordeel","Nodig"]', JSON.stringify(m));
+    // v117: kolom Pakket erbij (wens Jan).
+    check('kolommen: Merk, Glastype, Opbouw, Dikte, Pakket, Diepte, Onder, Latzijde, Glaslat, Onderlat, Band, Oordeel, Nodig',
+      JSON.stringify(m) === '["Merk","Glastype","Opbouw","Dikte","Pakket","Diepte","Onder","Latzijde","Glaslat","Onderlat","Band binnen","Oordeel","Nodig"]', JSON.stringify(m));
     id = await idOp(page, 'A');
     // Glastype en opbouw hier wijzigen: dezelfde gegevens als op Invoer.
     await page.selectOption('[data-sleutel="type-' + id + '"]', 'HR+ glas'); await wacht(400);
@@ -1038,7 +1039,8 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
     check('en de foto met de drie B\'s opgelicht', m.licht === 'BBB', m.licht);
     await page.click('[data-onder="N35"]'); await wacht(500);
     m = await page.evaluate(i => [GlasLatten.ruit(rijen.find(x => x.id === i)).onderlat, document.querySelector('[data-sleutel="olat-' + i + '"]').textContent], idB);
-    check('N35 gekozen: in de tabel "N35 · 12 mm vent."', m[0] === 'N35' && /N35 · 12 mm vent\./.test(m[1]), JSON.stringify(m));
+    // v117: ook de uitsteek in de knop (wens Jan).
+    check('N35 gekozen: in de tabel "N35 · vent. 12 · uitst. 21"', m[0] === 'N35' && /N35 · vent\. 12 · uitst\. 21/.test(m[1]), JSON.stringify(m));
     // Het venster van B: boven en onderin met tekening.
     await page.click('[data-sleutel="olat-' + idB + '"] >> xpath=ancestor::tr//td[contains(@class,"tb-oordeel")]//button'); await wacht(500);
     m = await page.evaluate(() => { const v = document.querySelector('.lat-venster'); return { t: v.innerText.replace(/\s+/g, ' '), neus: !!v.querySelector('svg.neus-svg') }; });
@@ -1115,7 +1117,8 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
     check('geen vraag "Past het in de sponning?" bij 6 mm sponning in zicht', gevraagd.indexOf('Past het in de sponning?') < 0, gevraagd.join(' / '));
     check('ruiten zonder merk: geen lege kolom "Merk" op de bestellijst', !/\bMerk\b/.test(t.split('\n').find(l => /Glasbreedte/.test(l)) || ''),
       (t.split('\n').find(l => /Glasbreedte/.test(l)) || '').slice(0, 120));
-    check('ook geen lege kolom Bediening of Glasbewerking', !/Bediening|Glasbewerking/.test(t), '');
+    // v117 (Jan): bij een rooster zonder extra bediening staat er "standaard", dus de kolom blijft.
+    check('geen lege kolom Glasbewerking; Bediening wel, met "standaard" (rooster)', !/Glasbewerking/.test(t) && /Bediening/.test(t) && /standaard/.test(t), '');
     await vraagOpScherm(page); await sluitMeldingen(page); await wacht(300);
     const pi = await bestellijstPdf(page, ONVOLLEDIG, 'PDF invoer');
     t = plat(pdfTekst(pi));
@@ -1164,8 +1167,10 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
     console.log('\n9. Versie en .gitignore');
     const lees = n => fs.readFileSync(path.join(map, n), 'utf8');
     check('.gitignore: "Claude outputs/" (de map van de Claude-app, in v114 per ongeluk mee gepusht)', /^Claude outputs\/$/m.test(lees('.gitignore')));
-    check('versie v115 in index.html, pdf.js en sw.js', /APP_VERSIE = 'v115'/.test(lees('index.html')) && /PDF_VERSIE = 'v115'/.test(lees('pdf.js')) &&
-      /VERSIE = 'v115'/.test(lees('sw.js')));
+    // v116: "v115 of later" (een latere versie mag deze reeks niet rood maken).
+    const versies = [lees('index.html').match(/APP_VERSIE = 'v(\d+)'/), lees('pdf.js').match(/PDF_VERSIE = 'v(\d+)'/),
+                     lees('sw.js').match(/const VERSIE = 'v(\d+)'/)].map(m => m ? +m[1] : 0);
+    check('versie v115 of later, gelijk in index.html, pdf.js en sw.js', versies.every(v => v === versies[0] && v >= 115), JSON.stringify(versies));
   }
 
   check('geen fouten in de console', !consoleFouten.length, consoleFouten.slice(0, 3).join(' | '));

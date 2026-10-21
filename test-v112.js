@@ -46,7 +46,7 @@ const MUTATIES = {
   ouderStand: ["index.html", "(aantalVerschil(oud, rij) || bedieningVerschil(oud, rij))", "aantalVerschil(oud, rij)"],
   uitleg: ["pdf.js", "((t.bediening || []).length ? ' Onder de tabel: ALLEEN BEDIENING", "(0 ? ' Onder de tabel: ALLEEN BEDIENING"],
   tabTekst: ["index.html", "(!b ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ' +", "(1 ? '' : (v ? '; en' : ' — op de aanvulling') + ' onder ' +"],
-  wasBediening: ["pdf.js", "    if (bedOud !== bedNu) was += ', ' + (bedOud || 'zonder bediening');", ""],
+  wasBediening: ["pdf.js", "    if (bedOud !== bedNu) was += ', ' + (bedOud || 'standaard bediening');", ""],
   collega: ["index.html", "        if (vorigO && typeof vorigO === 'object' && !vorigO.kort && !o.kort) {", "        if (0) {"],
   bedIn: ["index.html", "        if (o.bediening) bedieningIn[id] = dezeNr; else delete bedieningIn[id];", ""],
   bedInTabel: ["pdf.js", "(b.was && b.bedTekst ? '; bediening: ' + b.bedTekst : '')", "''"],
@@ -884,8 +884,9 @@ async function verstuurd(page, n) {
   const p4 = await bestellijstPdf(page);
   t = plat(pdfTekst(p4));
   // (v114: de regel kan anders afbreken, nu Z een opmerking heeft; daarom los gezocht.)
-  check('pdf: "K2 VERVANGT K2 uit de 1e (1x 692 x 892, zonder bediening)", nieuwe breedte 702',
-    /VERVANGT K2 uit de 1e (\(1x )?702/.test(t) && /692 x 892, zonder [^)]{0,20}bediening\)/.test(t), (t.match(/VERVANGT K2.{0,200}/) || [''])[0]);
+  // v117: "standaard bediening" (was: "zonder bediening"; Jan: bij een rooster heet dat standaard).
+  check('pdf: "K2 VERVANGT K2 uit de 1e (1x 692 x 892, standaard bediening)", nieuwe breedte 702',
+    /VERVANGT K2 uit de 1e (\(1x )?702/.test(t) && /692 x 892, standaard [^)]{0,20}bediening\)/.test(t), (t.match(/VERVANGT K2.{0,200}/) || [''])[0]);
   check('pdf: Z met een andere opmerking = VERVANGT, en geen blok ALLEEN BEDIENING', /VERVANGT Z uit de 1e/.test(t) && !/ALLEEN BEDIENING - glas/.test(t),
     (t.match(/VERVANGT Z.{0,80}/) || [''])[0]);
   check('ANNULEREN: de oude W "(en de bediening uit de 2e)"', /vervangen door W op deze lijst \(en de bediening uit de 2e\)/.test(t),

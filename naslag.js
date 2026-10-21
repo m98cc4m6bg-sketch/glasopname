@@ -511,10 +511,27 @@ function opbouwKeuzeHTML(rij) {
   var bew = (rij && rij.glasbewerking) || '';
   var mag = type ? opbouwVoorBewerking(type, bew) : [];
   var html = '<option value="">— kies opbouw —</option>';
+  // v117 (keuze Jan: controleren en grijs maken): staat er een max
+  // glaspakket bij de ruit (uit de maatstaat), dan komen de opbouwen die
+  // met band te dik zijn onder een eigen kopje, grijs. Ze blijven kiesbaar.
+  var G = window.GlasLatten;
+  var teDik = function (o) {
+    if (!G || !G.maxPakket(rij)) return false;
+    var e = typeof DATA !== 'undefined' && DATA.lookup ? DATA.lookup[type + '|' + o] : null;
+    return !!(e && G.opbouwTeDik(rij, e.totaal));
+  };
+  var dik = [];
   mag.forEach(function (o) {
+    if (teDik(o)) { dik.push(o); return; }
     html += '<option value="' + naslagEsc(o) + '"' +
             (o === huidig ? ' selected' : '') + '>' + naslagEsc(o) + '</option>';
   });
+  if (dik.length) {
+    html += '<optgroup label="Te dik voor max glaspakket ' + naslagEsc(String(G.maxPakket(rij)).replace('.', ',')) + ' mm (met band)">' +
+      dik.map(function (o) {
+        return '<option value="' + naslagEsc(o) + '"' + (o === huidig ? ' selected' : '') + ' class="niet-lever">' + naslagEsc(o) + '</option>';
+      }).join('') + '</optgroup>';
+  }
   if (huidig && mag.indexOf(huidig) < 0) {
     html += '<optgroup label="Huidig · past niet bij de bewerking">' +
             '<option value="' + naslagEsc(huidig) + '" selected class="niet-lever">' +
@@ -748,8 +765,10 @@ function ducoTabel() {
     '<div class="info-note" style="margin-top:10px">Foto\u2019s van Duco. Is er geen bereik en ' +
     'staan de foto\u2019s nog niet in de map <code>roosters/</code>, dan zie je een eigen ' +
     'doorsnedetekening van het profiel. De glasdiktes zijn dezelfde waarden waarop de app ' +
-    'in de invoertabel controleert. Glasaftrek: zoveel gaat er voor het rooster van de glashoogte af ' +
-    '(ter info; de app rekent ermee, bijv. bij de tape voor wienersprossen).</div>';
+    'in de invoertabel controleert. Glasaftrek: zoveel gaat er voor het rooster van de glashoogte af. ' +
+    // v117 (tekst van Jan, 21-10-2026).
+    '<b>Je bestelt de totale glasmaat incl. rooster; de hoogte-aftrek (speling) voor het rooster trekt de leverancier er zelf af.</b> ' +
+    '(Ter info; de app rekent er alleen intern mee, bijv. bij de tape voor wienersprossen.)</div>';
 }
 
 // v115 (wens Jan): alle glaslatten met foto, maattekening en maten. Eén bron:

@@ -898,6 +898,18 @@
   .tb-wat { font-size: 13px; font-weight: 600; margin-top: 2px; }
   .tb-reken { font-size: 11px; color: var(--grijs-tekst); margin-top: 6px; line-height: 1.35; }
   .tb-let { font-size: 12px; color: var(--rood); margin-top: 4px; }
+  /* v117: het zaagplan als tekening, uit te klappen per lattype. */
+  .tb-zaag { margin-top: 6px; }
+  .tb-zaag summary { cursor: pointer; font-size: 12px; color: var(--ink); text-decoration: underline; min-height: 32px; display: flex; align-items: center; }
+  .tb-blok:has(.tb-zaag[open]) { grid-column: 1 / -1; }
+  .tb-zaag-plan { margin-top: 4px; display: grid; gap: 4px; }
+  .tb-zaag-rij { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+  .tb-zaag-nr { width: 1.6em; text-align: right; color: var(--grijs-tekst); flex: none; }
+  .tb-zaag-staaf { flex: 1 1 auto; display: flex; height: 22px; background: repeating-linear-gradient(45deg, #eee 0 4px, #f8f8f8 4px 8px);
+    border: 1px solid #999; overflow: hidden; }
+  .tb-zaag-stuk { display: flex; align-items: center; justify-content: center; background: #d9b98a; border-right: 1px solid #7a5a3a;
+    color: #3a2a1a; overflow: hidden; white-space: nowrap; font-size: 11px; min-width: 0; flex: none; }
+  .tb-zaag-rest { width: 5.5em; color: var(--grijs-tekst); flex: none; }
   .tb-inst-kop { cursor: pointer; padding: 8px 10px; border-radius: var(--radius); background: var(--grijs-licht);
     font-size: 13px; margin-bottom: 10px; }
   .tb-inst-kop.afwijkend { background: #fff3e0; border-left: 4px solid #e8890c; }
@@ -945,14 +957,17 @@
   /* v115 (controle): op een iPad (smaller dan ±1180 px) paste de tabel niet
      en viel het oordeel buiten beeld. Dan per ruit twee regels: glas en
      diepten bovenaan, de latten en het oordeel eronder; het merk links. */
-  @media (min-width: 641px) and (max-width: 1180px) {
+  /* v117: met de kolom Pakket past de hele tabel pas vanaf ±1360 px; daaronder
+     ook de twee regels per ruit (een laptop van 1280). */
+  @media (min-width: 641px) and (max-width: 1360px) {
     .tb-wrap { display: block; }
     table.samenvatting.tb-tabel, table.samenvatting.tb-tabel tbody { display: block; width: 100%; }
     table.samenvatting.tb-tabel thead { display: none; }
     table.samenvatting.tb-tabel tr.tb-groep, table.samenvatting.tb-tabel tr.tb-groep td { display: block; }
-    table.samenvatting.tb-tabel tr.tb-ruit { display: grid; grid-template-columns: minmax(44px, 64px) repeat(6, minmax(0, 1fr)); gap: 4px 10px;
+    table.samenvatting.tb-tabel tr.tb-ruit { display: grid; grid-template-columns: minmax(44px, 64px) repeat(7, minmax(0, 1fr)); gap: 4px 10px;
       padding: 8px 4px; border-bottom: 1px solid var(--grijs-rand); align-items: end;
-      grid-template-areas: "merk type type opb dikte diepte onder" "merk zijde lat olat band oordeel nodig"; }
+      grid-template-areas: "merk type type opb dikte pakket diepte onder" "merk zijde lat olat band oordeel nodig nodig"; }
+    table.samenvatting.tb-tabel td.tb-pakket { grid-area: pakket; }
     table.samenvatting.tb-tabel tr.tb-ruit td { display: block; padding: 0; border: 0; min-width: 0; text-align: left; white-space: normal; background: none; }
     table.samenvatting.tb-tabel tr.tb-ruit td[data-kop]::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); margin-bottom: 1px; }
     table.samenvatting.tb-tabel td.tb-merk { grid-area: merk; align-self: center; font-size: 15px; }
@@ -967,6 +982,15 @@
     table.samenvatting.tb-tabel tr.tb-ruit .pk-chip { white-space: normal; }
     table.samenvatting.tb-tabel tr.tb-ruit td.tb-kort { display: none; }
   }
+  /* v117: de dikte van het pakket (zonder lat; met lat; max uit de maatstaat). */
+  .tb-pakket small { display: block; font-size: 10.5px; color: var(--grijs-tekst); white-space: nowrap; }
+  .tb-pakket small.te-dik { color: var(--err); font-weight: 700; }
+  /* v117: voorbeeld van de glaslat bij "Alle ruiten". */
+  .tb-alle-voorbeeld { display: inline-flex; align-items: center; gap: 6px; padding: 2px 6px; border: 1px solid var(--grijs-rand);
+    border-radius: 6px; background: #fff; cursor: zoom-in; vertical-align: middle; max-width: 340px; font-size: 12px; }
+  .tb-alle-voorbeeld[hidden] { display: none; }
+  .tb-alle-voorbeeld small { display: block; color: var(--grijs-tekst); font-size: 10.5px; white-space: normal; }
+  .tb-alle-voorbeeld .lat-plaatje, .tb-alle-voorbeeld svg { flex: none; }
   /* Het oordeel is aan te tikken (v115: dat zag je niet). */
   .tb-oordeel .pk-chip::after { content: " \203A"; font-weight: 700; }
   @media (max-width: 640px) {
@@ -976,7 +1000,8 @@
     /* v115: elke ruit een kaartje; dicht één regel (merk, oordeel, samenvatting). */
     table.samenvatting.tb-tabel tr.tb-ruit { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 8px; padding: 8px 2px;
       border-bottom: 1px solid var(--grijs-rand); grid-template-areas: "merk merk oordeel oordeel" "type type opb opb"
-      "dikte diepte onder zijde" "lat lat olat olat" "band nodig nodig nodig" "kort kort kort kort"; }
+      "dikte pakket diepte onder" "zijde zijde band band" "lat lat olat olat" "nodig nodig nodig nodig" "kort kort kort kort"; }
+    table.samenvatting.tb-tabel td.tb-pakket { grid-area: pakket; }
     table.samenvatting.tb-tabel tr.tb-groep { display: block; }
     table.samenvatting.tb-tabel tr.tb-groep td { display: block; }
     table.samenvatting.tb-tabel tr.tb-ruit td { display: block; padding: 0; border: 0; width: auto; min-width: 0; text-align: left; white-space: normal; }
@@ -985,6 +1010,8 @@
     table.samenvatting.tb-tabel td.tb-oordeel::before { display: none; }
     table.samenvatting.tb-tabel td.tb-merk { grid-area: merk; font-size: 15px; align-self: center; }
     table.samenvatting.tb-tabel td.tb-oordeel { grid-area: oordeel; text-align: right; align-self: center; }
+    /* v117: een lang oordeel ("onder: N30 alleen buiten") mag afbreken. */
+    table.samenvatting.tb-tabel td.tb-oordeel .pk-chip { white-space: normal; max-width: 100%; text-align: right; }
     table.samenvatting.tb-tabel td.tb-type { grid-area: type; } table.samenvatting.tb-tabel td.tb-opb { grid-area: opb; }
     table.samenvatting.tb-tabel td.tb-type select, table.samenvatting.tb-tabel td.tb-opb select { max-width: none; width: 100%; }
     table.samenvatting.tb-tabel td.tb-dikte { grid-area: dikte; } table.samenvatting.tb-tabel td.tb-diepte { grid-area: diepte; }
@@ -3365,7 +3392,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v115';
+const APP_VERSIE = 'v117';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -4501,6 +4528,17 @@ function bedieningTekst(r, kort) {
   return n + '× ' + (kort ? r.bediening : BEDIENING_SOORTEN[r.bediening]) + ' ' + l;
 }
 window.bedieningTekst = bedieningTekst;
+// v117 (wens Jan): op papier en op het scherm bij een rooster zonder extra
+// bediening "standaard" (het gewone knopje), net als op Invoer; tot v116 bleef
+// het vak leeg en viel de kolom zelfs weg. Alleen tekst: het kenmerk en de
+// vergelijking na een bestelling gebruiken de kale velden (bedieningTekst).
+function bedieningOpPapier(r, kort) {
+  const t = bedieningTekst(r, kort);
+  if (t) return t;
+  const roosterJa = r && (r.rooster === 'Ja' || (r.kort && !('rooster' in r)));
+  return roosterJa ? 'standaard' : '';
+}
+window.bedieningOpPapier = bedieningOpPapier;
 
 function bedieningCel(rij) {
   const id = rij.id;
@@ -4721,7 +4759,7 @@ function renderSamenvatting() {
       <td class="num highlight">${ant}</td>
       <td>${esc(r.ducoType)}</td>
       <td>${esc(ralTekst(r))}</td>
-      <td>${esc(bedieningTekst(r))}</td>
+      <td>${esc(bedieningOpPapier(r))}</td>
       <td>${esc(r.glasbewerking)}</td>
       <td>${esc(r.roedenverdeling)}</td>
       <td>${esc(r.roedenbreedte)}</td>
@@ -6096,7 +6134,7 @@ function renderBestellijst() {
     <td>${r.rooster === 'Ja' ? '<b class="rooster-ja">Ja ▲</b>' : ''}</td>
     <td>${esc(r.ducoType)}</td>
     <td>${esc(ralTekst(r))}</td>
-    <td>${esc(bedieningTekst(r))}</td>
+    <td>${esc(bedieningOpPapier(r))}</td>
     <td>${esc(r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '')}${isStrijdig(r) ? '<span class="strijdig-teken">*</span>' : ''}</td>
     <td>${esc(r.roedenverdeling !== 'Geen roedenverdeling' ? r.roedenverdeling : '')}</td>
     <td>${esc(r.roedenbreedte)}</td>
@@ -6265,7 +6303,7 @@ function exportTabel() {
       r.rooster==='Ja'?'Ja':'Nee', r.ducoType || '', r.ralKleur || '',
       r.glasbewerking || '', r.opmerking || '', r.roedenverdeling || '', r.roedenbreedte || '', r.roedenopmerking || '',
       isStrijdig(r) ? (window.STRIJDIG_NOOT || '') : '',
-      bedieningTekst(r),
+      bedieningOpPapier(r),
       G ? getal(G.ruit(r).sponningDiepte) : '', lat && G.zijde(r) !== 'geen' ? lat.naam + (G.omgekeerd(r) ? ' (omgekeerd)' : '') : '', pk,
       G ? G.zijde(r) : '', G ? getal(G.ruit(r).diepteOnder) : '',
       r.rooster === 'Ja' && r.biColor === 'Ja' ? 'Ja' : 'Nee', r.rooster === 'Ja' && r.biColor === 'Ja' ? (r.ralBinnen || '') : '',

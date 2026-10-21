@@ -423,18 +423,23 @@
     var boven = latVoorRuit(r);
     var eigen = onderKeuze(r);
     var keuze = eigen === 'ZELFDE' ? boven.id : eigen || (zijde(r) === 'buiten' ? 'NEUS' : boven.id);
+    // v117 (Jan): bij latzijde binnen nooit een neus- of ventilatielat (die
+    // zijn voor buiten). Een eerdere keuze wordt niet stil veranderd: het
+    // oordeel wordt rood tot je iets anders kiest (keuze Jan).
+    var binnen = zijde(r) === 'binnen';
     if (keuze === 'NEUS') {
       var n = neuslatVoor(r);
-      return { id: n.lat ? n.lat.id : 'NEUS', lat: n.lat, neus: n, eigen: !!eigen, isNeus: true, zelfde: false };
+      return { id: n.lat ? n.lat.id : 'NEUS', lat: n.lat, neus: n, eigen: !!eigen, isNeus: true, zelfde: false, alleenBuiten: binnen };
     }
     var l = latVan(keuze) || boven;
     // Een bepaalde neuslat gekozen (bijv. N30): als neuslat beoordelen (heeft
     // geen "in de sponning"), niet als gewone lat (controle v114).
     if (l.soort === 'neuslat') {
       var ng = neuslatVoor(r, l);
-      return { id: l.id, lat: ng.lat, neus: ng, eigen: !!eigen, isNeus: true, zelfde: false, gekozen: l };
+      return { id: l.id, lat: ng.lat, neus: ng, eigen: !!eigen, isNeus: true, zelfde: false, gekozen: l, alleenBuiten: binnen };
     }
-    return { id: l.id, lat: l, neus: null, eigen: !!eigen, isNeus: false, zelfde: l.id === boven.id };
+    return { id: l.id, lat: l, neus: null, eigen: !!eigen, isNeus: false, zelfde: l.id === boven.id,
+             alleenBuiten: binnen && l.soort === 'ventilatie' };
   }
   // Het pakket onderin (niet bij een neuslat).
   function pakketOnder(r, anders) {
@@ -450,13 +455,56 @@
   function neusTekst(n) {
     return n.lat.naam + ': ' + nl(n.ventilatie) + ' mm ventilatie, steekt ' + nl(n.uitsteek) + ' mm voor het kozijn uit';
   }
+  // v117 (wens Jan): de dikte van het pakket. Zonder lat = glas + band
+  // binnen + band buiten; met lat = wat er in de sponning moet (nodig).
+  function pakketDikte(r) {
+    var u = pakket(r);
+    if (!(u.glas > 0)) return null;
+    var zonder = rond(u.glas + u.bandBinnen + u.bandBuiten);
+    return { glas: u.glas, band: u.bandBinnen + u.bandBuiten, zonder: zonder,
+             met: u.status !== 'geen' && u.nodig != null && u.lat ? u.nodig : null, max: maxPakket(r) };
+  }
+  // Max glaspakket (incl. band) uit een maatstaat (import, kozijnfabriek).
+  function maxPakket(r) {
+    var m = getal(r && r.maxPakket);
+    return m > 0 ? m : null;
+  }
+  // v117 (keuze Jan: controleren en grijs maken): past glas + band binnen
+  // het max glaspakket? Ook bij latten "geen (meegeleverd)": juist dan.
+  function maxOordeel(r, glas) {
+    var max = maxPakket(r);
+    if (!max) return null;
+    var u = pakket(r);
+    var g = glas != null ? glas : u.glas;
+    if (!(g > 0)) return null;
+    var pk = rond(g + u.bandBinnen + u.bandBuiten);
+    var over = rond(max - pk);
+    return { status: over < 0 ? 'past niet' : 'past', over: over, max: max, pakket: pk, plek: 'max',
+             tekst: 'glas ' + nl(g) + ' + band ' + u.bandBinnen + ' + ' + u.bandBuiten + ' = ' + nl(pk) + ' mm; max glaspakket (maatstaat) ' +
+               nl(max) + ' mm: ' + (over < 0 ? 'te dik, ' + nl(-over) + ' mm' : 'past' + (over > 0 ? ', ' + nl(over) + ' mm over' : '')) };
+  }
+  // Te dik voor het max glaspakket? Voor de keuzelijst van de opbouw (grijs).
+  function opbouwTeDik(r, dikte) {
+    var m = maxOordeel(r, getal(dikte));
+    return !!(m && m.status === 'past niet');
+  }
+
   function oordeelRuit(r) {
+    var mx = maxOordeel(r);
     var boven = pakket(r);
-    if (boven.status === 'geen') return { boven: boven, onder: null, onderlat: onderlatVoorRuit(r), slechtste: boven, waar: 'boven', geen: true };
+    if (boven.status === 'geen') {
+      var og = { boven: boven, onder: null, onderlat: onderlatVoorRuit(r), slechtste: boven, waar: 'boven', geen: true, max: mx };
+      if (mx && mx.status === 'past niet') { og.slechtste = mx; og.waar = 'max'; }
+      return og;
+    }
     var o = onderlatVoorRuit(r);
     var onder = null;
     var e = rw(r);
-    if (o.isNeus) {
+    if (o.alleenBuiten) {
+      onder = { status: 'past niet', over: null, plek: 'onder', alleenBuiten: true,
+                tekst: 'onderin ' + (o.isNeus ? 'een neuslat' : 'een ventilatielat') + ' (' + (o.gekozen || o.lat || { id: 'neuslat' }).id +
+                  '): die is alleen voor buiten; bij latzijde binnen kies je een lat voor binnen' };
+    } else if (o.isNeus) {
       // Alleen iets te zeggen als de diepte er is.
       if (o.neus && o.neus.rest != null) {
         onder = o.lat ? { status: 'past', tekst: 'onderin ' + neusTekst(o.neus), neus: o.neus, plek: 'onder' }
@@ -467,12 +515,19 @@
       if (onder && onder.status === 'onbekend') onder = null;
     }
     var slechtste = boven, waar = 'boven';
-    if (onder && ERNST[onder.status] > ERNST[boven.status]) { slechtste = onder; waar = 'onder'; }
-    return { boven: boven, onder: onder, onderlat: o, slechtste: slechtste, waar: waar };
+    // v117: een neus- of ventilatielat bij binnen gaat voor, ook als boven
+    // even slecht is: dat is een keuze die je moet zien.
+    if (onder && (ERNST[onder.status] > ERNST[boven.status] || (onder.alleenBuiten && ERNST[onder.status] >= ERNST[boven.status]))) {
+      slechtste = onder; waar = 'onder';
+    }
+    if (mx && ERNST[mx.status] > ERNST[slechtste.status]) { slechtste = mx; waar = 'max'; }
+    return { boven: boven, onder: onder, onderlat: o, slechtste: slechtste, waar: waar, max: mx };
   }
   // Kort voor het label: "past niet −4", of "onder: past niet −3", of "geen neuslat".
   function kortRuit(o) {
+    if (o.waar === 'max') return 'te dik −' + nl(-o.slechtste.over) + ' (max ' + nl(o.slechtste.max) + ')';
     if (o.geen) return 'meegeleverd';
+    if (o.waar === 'onder' && o.slechtste.alleenBuiten) return 'onder: ' + ((o.onderlat.gekozen || o.onderlat.lat || { id: 'neuslat' }).id) + ' alleen buiten';
     if (o.waar === 'onder') {
       // Een neuslat (boven nog onbekend): de neuslat noemen (controle v114).
       if (o.slechtste.over == null) {
@@ -946,10 +1001,13 @@
     var neusBlok = z === 'buiten' || !z ? '<div class="lat-groep lat-passend"><h4>Neuslatten die passen</h4>' + nh + '</div>'
       : '<details class="lat-groep"' + (keuze && latVan(keuze) && latVan(keuze).soort === 'neuslat' ? ' open' : '') +
         '><summary><h4>Neuslatten die passen (buitenbeglazing)</h4></summary>' + nh + '</details>';
+    // v117 (Jan): bij binnen kunnen ze helemaal niet (alleen voor buiten).
+    var binnen = z === 'binnen';
     html += (z === 'buiten' || !z ? neusBlok : '') +
-      andere(['ventilatie'], 'Ventilatielatten', z === 'buiten' && no.bekend && !no.passend.length) +
+      (binnen ? '' : andere(['ventilatie'], 'Ventilatielatten', z === 'buiten' && no.bekend && !no.passend.length)) +
       andere(['glaslat', 'glaslat-sponning', 'opdek'], 'Andere lat onderin', keuze && keuze !== 'NEUS' && keuze !== 'ZELFDE' && latVan(keuze) && latVan(keuze).soort !== 'ventilatie') +
-      (z === 'buiten' || !z ? '' : neusBlok);
+      (z === 'buiten' || !z || binnen ? '' : neusBlok) +
+      (binnen ? '<p class="lat-uitleg">Latzijde binnen: neuslatten en ventilatielatten horen bij buitenbeglazing en zijn hier niet te kiezen.</p>' : '');
     var l = venster('Onderlat · ' + (r.merk || 'deze ruit'), html);
     l.querySelector('.lat-inhoud').addEventListener('click', function (ev) {
       var foto = ev.target.closest && ev.target.closest('.lat-plaatje');
@@ -999,11 +1057,26 @@
     zetRw(id, 'latOmgekeerd', om && draaibaar(wordt) ? true : '');
     naWijziging(id);
   }
+  // Mag deze onderlat bij deze ruit? Neus- en ventilatielatten alleen als
+  // de latzijde niet "binnen" is (v117, Jan).
+  function onderMagBij(r, w, z) {
+    var zz = z !== undefined ? z : zijde(r);
+    if (zz !== 'binnen' || !w) return true;
+    if (w === 'NEUS') return false;
+    var l = latVan(normaal(w));
+    return !(l && (l.soort === 'neuslat' || l.soort === 'ventilatie'));
+  }
   function kiesOnder(id, waarde) {
     if (!magKiezen()) return;
     var r = getRij(id); if (!r) return;
-    if (window.bewaarStap) bewaarStap('Onderlat ' + (r.merk || ''));
     var w = waarde === 'ZELFDE' || waarde === 'NEUS' ? waarde : waarde && latVan(waarde) ? normaal(waarde) : '';
+    // v117: bij latzijde binnen geen neus- of ventilatielat.
+    if (!onderMagBij(r, w)) {
+      if (window.appMelding) appMelding('Bij latzijde binnen kan onderin geen neuslat of ventilatielat: die zijn voor buiten. ' +
+        'Kies een lat voor binnen, of zet de latzijde op buiten.', { kop: 'Alleen voor buiten' });
+      return;
+    }
+    if (window.bewaarStap) bewaarStap('Onderlat ' + (r.merk || ''));
     zetRw(id, 'onderlat', w);
     naWijziging(id);
   }
@@ -1044,10 +1117,13 @@
       var zijdeVeld = '<label>Latzijde <span><select class="pk-zijde' + (z ? '' : ' leeg') + '"' + uit + '>' + zijdeOpties(z) + '</select></span>' +
         '<small>buiten: onderin de passende neuslat; binnen: onderin dezelfde lat; beide: glas tussen twee latten (geen aanslag), onderin dezelfde lat; ' +
         'geen: latten meegeleverd (nieuwe kozijnen)</small></label>';
+      // v117: max glaspakket uit de maatstaat (import).
+      var maxHTML = o.max ? '<h4 class="pk-plek">Max glaspakket (maatstaat)</h4><p class="pk-oordeel pk-' + o.max.status.replace(' ', '-') + '">' +
+        esc(o.max.tekst) + '</p>' : '';
       if (u.status === 'geen') {
         adv = { boven: [], onder: [] };
         return ruitKop(r) + slotTekst + '<p class="pk-oordeel pk-leeg">Geen latten: meegeleverd met het kozijn. Toebehoren telt voor deze ruit alleen band, kit en tape.</p>' +
-          '<div class="pk-velden">' + zijdeVeld + '</div>';
+          maxHTML + '<div class="pk-velden">' + zijdeVeld + '</div>';
       }
       adv = { boven: adviezenMet(r), onder: adviezenMet(r, 'onder') };
       var advHTML = function (lijst, plek) {
@@ -1064,7 +1140,9 @@
       var ol = o.onderlat;
       var onderHTML = '<h4 class="pk-plek">Onderin · ' + esc(ol.isNeus ? (ol.lat ? ol.lat.naam : 'neuslat') : latLabel(ol.lat, ol.zelfde && omgekeerd(r)) +
         (ol.zelfde ? ' (zelfde als boven)' : '')) + (dOnder ? ' · onder ' + nl(dOnder) + ' mm' : '') + '</h4>';
-      if (ol.isNeus) {
+      if (ol.alleenBuiten) {
+        onderHTML += '<p class="pk-oordeel pk-past-niet">' + esc(o.onder.tekst) + '.</p>';
+      } else if (ol.isNeus) {
         onderHTML += ol.lat ? neusSVG(r, ol.neus) + '<p class="pk-oordeel pk-past">' + esc(neusTekst(ol.neus)) + '</p>'
           : ol.neus && ol.neus.rest != null ? '<p class="pk-oordeel pk-past-niet">Geen neuslat: ' + esc(ol.neus.reden) + '</p>'
           : '<p class="lat-uitleg">Welke neuslat, volgt uit de diepte en de glasopbouw.</p>';
@@ -1080,7 +1158,7 @@
         '<option value="1"' + (omgekeerd(r) ? ' selected' : '') + '>omgekeerd: dikke deel in de sponning (−' + nl(lat.eigenSponning) + ' mm)</option>' +
         '</select>' + montageSVG(lat, omgekeerd(r), 60) + '</span></label>' : '';
       var onderNaam = keuzeNaam(r);
-      return ruitKop(r) + slotTekst + bovenHTML + onderHTML +
+      return ruitKop(r) + slotTekst + bovenHTML + onderHTML + maxHTML +
         '<div class="pk-velden">' +
           '<div class="pk-paar">' +
           '<label>Diepte zij/boven <span><input type="text" inputmode="decimal" class="pk-diepte" value="' +
@@ -1141,7 +1219,9 @@
     var ol = onderlatVoorRuit(r);
     if (ol.geen) return '—';
     var k = onderKeuze(r);
-    if (ol.isNeus) return ol.lat ? ol.lat.id + ' · ' + nl(ol.neus.ventilatie) + ' mm vent.' : (ol.gekozen ? ol.gekozen.id + ' te klein' : 'neuslat ?');
+    if (ol.alleenBuiten) return (ol.gekozen || ol.lat || { id: 'neuslat' }).id + ' · alleen buiten!';
+    // v117 (Jan): ook hoe ver hij uitsteekt, zonder het venster te openen.
+    if (ol.isNeus) return ol.lat ? ol.lat.id + ' · vent. ' + nl(ol.neus.ventilatie) + ' · uitst. ' + nl(ol.neus.uitsteek) : (ol.gekozen ? ol.gekozen.id + ' te klein' : 'neuslat ?');
     return (k === 'ZELFDE' || (!k && ol.zelfde) ? 'zelfde (' + ol.lat.id + ')' : ol.lat.id);
   }
 
@@ -1274,7 +1354,8 @@
     profielSVG: profielSVG, pakketSVG: pakketSVG, montageSVG: montageSVG, neusSVG: neusSVG, plaatje: plaatje, groot: groot, latInfo: latInfo,
     ruit: rw, diepteVan: diepteVan, zijde: zijde, ZIJDEN: ZIJDEN, ZIJDE_NAAM: ZIJDE_NAAM, onderKeuze: onderKeuze, keuzeNaam: keuzeNaam,
     onderlatVoorRuit: onderlatVoorRuit, oordeelRuit: oordeelRuit, kortRuit: kortRuit, adviezenMet: adviezenMet, zijdeOpties: zijdeOpties,
-    opSlot: opSlot, ERNST: ERNST
+    opSlot: opSlot, ERNST: ERNST,
+    pakketDikte: pakketDikte, maxPakket: maxPakket, maxOordeel: maxOordeel, opbouwTeDik: opbouwTeDik, onderMagBij: onderMagBij
   };
   window.latPakket = pakketVenster;
   window.latKiezen = kiezer;

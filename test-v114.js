@@ -812,7 +812,7 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await zetPR(page, 'X', { latZijde: 'beide', sponningDiepte: 59 });   // 23 + 6 + 2 × 15 = 59
     m = await G(page, 'X');
     // v115 (keuze Jan): bij beide onderin dezelfde lat, geen neuslat.
-    check('beide: glas tussen twee latten, de lat telt twee keer (59 past), onderin dezelfde lat (v115)', m.boven === 'past' && !m.isNeus && m.onder === 'A4', JSON.stringify(m));
+    check('beide: glas tussen twee latten, de lat telt twee keer (59 past; v119: vlak met kozijn), onderin dezelfde lat (v115)', m.boven === 'past · vlak met kozijn' && !m.isNeus && m.onder === 'A4', JSON.stringify(m));
     // Een bepaalde neuslat gekozen als onderlat (Toebehoren): als neuslat beoordeeld (controle v114).
     await zetPR(page, 'X', { latZijde: 'buiten', sponningDiepte: 45, onderlat: 'N30' });
     m = await G(page, 'X');
@@ -830,10 +830,10 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await zetPR(page, 'X', { latZijde: 'binnen', sponningDiepte: 44, diepteOnder: 40 });
     m = await G(page, 'X');
     check('onderdorpel 40 (boven 44): boven past, onderin "past niet −4"; het oordeel is "onder: past niet −4"',
-      m.boven === 'past' && m.slechtste === 'past niet' && m.waar === 'onder' && m.kort === 'onder: past niet −4', JSON.stringify(m));
+      m.boven === 'past · vlak met kozijn' && m.slechtste === 'past niet' && m.waar === 'onder' && m.kort === 'onder: past niet −4', JSON.stringify(m));
     await zetPR(page, 'X', { diepteOnder: null });
     m = await G(page, 'X');
-    check('diepte onderdorpel leeg = gelijk aan boven: weer "past"', m.slechtste === 'past' && m.waar === 'boven', JSON.stringify(m));
+    check('diepte onderdorpel leeg = gelijk aan boven: weer "past" (v119: vlak met kozijn)', m.slechtste === 'vlak' && m.waar === 'boven', JSON.stringify(m));
     // Toebehoren telt de latten volgens de zijde.
     u = await page.evaluate(() => { const uit = {};
       const x = rijen.find(r => r.merk === 'X');
@@ -895,7 +895,8 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await page.click('.lat-venster .pk-advies-knop[data-advies="' + await page.$$eval('.lat-venster .pk-advies-knop', (l, i) => l[i].dataset.advies, adv) + '"]');
     await wacht(400);
     check('advies aantikken: die lat is gekozen (' + latAdv + '), het oordeel past nu', await opgeslagenAls(() => perRuitDb('X').glaslat === latAdv) &&
-      /past|krap|ruim/.test((await G(page, 'X')).boven) && !/niet|te ruim/.test((await G(page, 'X')).boven), JSON.stringify([perRuitDb('X'), await G(page, 'X')]));
+      // v120: een A5 die 1 mm te krap zit, heet nu "nood" (steekt uit); hier past alleen die.
+      /past|krap|ruim|nood/.test((await G(page, 'X')).boven) && !/niet|te ruim/.test((await G(page, 'X')).boven), JSON.stringify([perRuitDb('X'), await G(page, 'X')]));
     await page.keyboard.press('Escape'); await wacht(200);
     await page.keyboard.press('Control+z'); await wacht(500);
     check('ongedaan maken: één stap terug (weer de standaardlat)', await page.evaluate(id => !GlasLatten.ruit(rijen.find(r => String(r.id) === id)).glaslat, idX));
@@ -1217,7 +1218,8 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
       m.e8 === 0 && m.c2[0] === '20x27' && m.c2[1] === 27 && m.gld1[0] === 34.5 && m.gld1[1] === 7.5 && m.gld2 === 14, JSON.stringify(m));
     check('neuslatten: neus 9 mm (tekening)', m.neus.length === 7 && m.neus.every(n => n === 9), JSON.stringify(m.neus));
     check('B2 vervallen (oude naam → B1), GL13 heet B13', !m.b2 && m.gl13 === 'B13' && m.b2naar === 'B1', JSON.stringify(m));
-    check('alle latten nagemeten (zeker)', m.zeker.length === 0, JSON.stringify(m.zeker));
+    // v120: de C1 niet (Jongeneel geeft twee maten, 26 en 23; Jan meet hem na).
+    check('alle latten nagemeten (zeker), behalve de C1', JSON.stringify(m.zeker) === '["C1"]', JSON.stringify(m.zeker));
     check('de tekeningen staan erbij', m.tek.length >= 20 && m.tek.every(p => fs.existsSync(path.join(map, p))), m.tek.length + ' ' + m.tek.filter(p => !fs.existsSync(path.join(map, p))).join(','));
     // Grote foto met de tekening eronder.
     await naarToebehoren(page);   // v115: de latknop staat op Toebehoren

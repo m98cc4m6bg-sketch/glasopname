@@ -1037,12 +1037,13 @@ function naslagEsc(s) {
 
 function naslagSectie(id, titel, aantalTekst, inhoud, uitleg) {
   const open = !!naslagOpen[id];
-  return `<section class="nsl-sectie">
+  // v118 (Jan): open = een kruisje rechtsboven om in te klappen.
+  return `<section class="nsl-sectie${open ? ' nsl-open' : ''}">
     <button class="nsl-kop" onclick="naslagKlap('${naslagEsc(id)}')">
       <span class="nsl-pijl">${open ? '▾' : '▸'}</span>
       <h3>${naslagEsc(titel)}</h3>
       <span class="nsl-aantal">${aantalTekst}</span>
-    </button>
+    </button>${open ? `<button type="button" class="sluit-x" aria-label="Inklappen" onclick="naslagKlap('${naslagEsc(id)}')">✕</button>` : ''}
     ${open ? (uitleg ? `<p class="nsl-uitleg">${uitleg}</p>` : '') + inhoud : ''}
   </section>`;
 }
@@ -1063,7 +1064,7 @@ function renderNaslag() {
     // wel maar zie je niets.
     if (naslagZoek) naslagOpen[groep.groep] = true;
     const raster = '<div class="nsl-raster">' + items.map(i => naslagKaart(i, groep)).join('') + '</div>';
-    secties += naslagSectie(groep.groep, groep.groep, items.length + ' soorten', raster, groep.uitleg);
+    secties += naslagSectie(groep.groep, groep.groep, items.length + (items.length === 1 ? ' soort' : ' soorten'), raster, groep.uitleg);
   });
 
   // v115: de glaslatten (uit latten.js), vóór de tabellen; ook te zoeken

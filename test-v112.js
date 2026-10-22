@@ -50,7 +50,7 @@ const MUTATIES = {
   collega: ["index.html", "        if (vorigO && typeof vorigO === 'object' && !vorigO.kort && !o.kort) {", "        if (0) {"],
   bedIn: ["index.html", "        if (o.bediening) bedieningIn[id] = dezeNr; else delete bedieningIn[id];", ""],
   bedInTabel: ["pdf.js", "(b.was && b.bedTekst ? '; bediening: ' + b.bedTekst : '')", "''"],
-  annBed: ["pdf.js", "          return (n ? ' (en de bediening uit de ' + n + ')' : '') +", "          return '' +"],
+  annBed: ["pdf.js", "      return (n ? ' (en de bediening uit de ' + n + ')' : '') +", "      return '' +"],
   overzichtGlas: ["pdf.js", "return (h.length ? h[0].nr : nr) + 'e' + (bed ? '; bediening ' + bed : '') + (roo ? '; rooster ' + roo : '');", "return nr + 'e' + (roo ? '; rooster ' + roo : '');"],
   stuksLengte: ["pdf.js", "      return tal + ' ' + m[2] + (tal === 1 ? '' : 'en') + ' ' + m[3];", "      return tal + ' ' + m[2] + (tal === 1 ? '' : 'en');"],
   bijExtra: ["index.html", "      o.extraBij = besteldInTekst(r.id, st) || '1e';\n      metBediening(o);", "      o.extraBij = besteldInTekst(r.id, st) || '1e';"],
@@ -808,7 +808,11 @@ async function verstuurd(page, n) {
   t = plat(pdfTekst(p2));
   check('pdf: nergens VERVANGT, en geen tabel ANNULEREN (geen glas weg)', !/VERVANGT \w+ uit/.test(t) && !/ANNULEREN, als dat nog kan/.test(t),
     (t.match(/VERVANGT \w+ uit.{0,60}/) || [''])[0]);
-  check('pdf: W als EXTRA (+1, samen 4x) in de tabel', /W EXTRA bij W uit de 1e: \+1 592 992/.test(t) && /\(samen 4x\)/.test(t), (t.match(/Pos.{0,300}/) || [''])[0]);
+  // v118: de kolom Glasbewerking staat er nu altijd ("Helder (standaard)"), dus de cellen breken anders af;
+  // de inhoud van de cel via het model (dezelfde als de pdf), de pdf op de losse stukken.
+  m = await page.evaluate(() => { const mo = bestellijstModel(); const i = mo.kolommen.indexOf('Wijz.'); const g = mo.regels.find(x => x.cellen.indexOf('W') >= 0); return g ? g.cellen[i] : ''; });
+  check('pdf: W als EXTRA (+1, samen 4x) in de tabel', /EXTRA bij W uit de 1e: \+1/.test(m) && /samen 4x/.test(m) && /W EXTRA bij W uit de 1e:/.test(t) && /\(samen 4x\)/.test(t),
+    m + ' | ' + (t.match(/Pos.{0,300}/) || [''])[0]);
   check('pdf: het blok "ALLEEN BEDIENING - glas NIET opnieuw maken" met de uitleg bovenaan',
     /ALLEEN BEDIENING - glas NIET opnieuw maken/.test(t) && /Onder de tabel: ALLEEN BEDIENING = bij een ruit die al besteld is/.test(t),
     (t.match(/ALLEEN BEDIENING.{0,200}/) || [''])[0]);
@@ -885,8 +889,12 @@ async function verstuurd(page, n) {
   t = plat(pdfTekst(p4));
   // (v114: de regel kan anders afbreken, nu Z een opmerking heeft; daarom los gezocht.)
   // v117: "standaard bediening" (was: "zonder bediening"; Jan: bij een rooster heet dat standaard).
+  // v118: via het model (de cel zoals op de pdf); de pdf breekt de cel anders af door de kolom Glasbewerking.
+  m = await page.evaluate(() => { const mo = bestellijstModel(); const i = mo.kolommen.indexOf('Wijz.'), b = mo.kolommen.indexOf('Glasbreedte');
+    const g = mo.regels.find(x => x.cellen.indexOf('K2') >= 0); return g ? [g.cellen[i], g.cellen[b]] : []; });
   check('pdf: "K2 VERVANGT K2 uit de 1e (1x 692 x 892, standaard bediening)", nieuwe breedte 702',
-    /VERVANGT K2 uit de 1e (\(1x )?702/.test(t) && /692 x 892, standaard [^)]{0,20}bediening\)/.test(t), (t.match(/VERVANGT K2.{0,200}/) || [''])[0]);
+    /^VERVANGT K2 uit de 1e \(1x 692 x 892, standaard bediening\)$/.test(m[0]) && m[1] === '702' && /VERVANGT K2 uit de/.test(t) && /standaard\b.{0,80}bediening\)/.test(t),
+    JSON.stringify(m) + ' | ' + (t.match(/VERVANGT K2.{0,200}/) || [''])[0]);
   check('pdf: Z met een andere opmerking = VERVANGT, en geen blok ALLEEN BEDIENING', /VERVANGT Z uit de 1e/.test(t) && !/ALLEEN BEDIENING - glas/.test(t),
     (t.match(/VERVANGT Z.{0,80}/) || [''])[0]);
   check('ANNULEREN: de oude W "(en de bediening uit de 2e)"', /vervangen door W op deze lijst \(en de bediening uit de 2e\)/.test(t),

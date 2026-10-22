@@ -19,7 +19,8 @@
   // project stond blijft in de gegevens staan en gaat niet verloren.
   var KLANT_VELDEN = [
     { id: 'klant',     label: 'Klantnaam',       breed: 2 },
-    { id: 'contact',   label: 'Contactpersoon' },
+    // v120: het is de persoon op het werk (voor de leverancier en de chauffeur).
+    { id: 'contact',   label: 'Contactpersoon op het werk' },
     { id: 'telefoon',  label: 'Telefoon', type: 'tel' },
     { id: 'straat',    label: 'Straat en huisnummer', breed: 2 },
     { id: 'postcode',  label: 'Postcode' },
@@ -116,6 +117,8 @@
     var menu = document.createElement('div');
     menu.className = 'veld-menu adres-menu';
     menu.innerHTML = inhoud;
+    // v118 (Jan): overal een kruisje om een uitgeklapt menu te sluiten.
+    if (window.sluitKruis) sluitKruis(menu, sluitAdresMenu, 'Sluiten');
     document.body.appendChild(menu);
     zoekMenu = menu;
     var r = veld.getBoundingClientRect();
@@ -617,6 +620,7 @@
     var menu = document.createElement('div');
     menu.className = 'veld-menu kalender' + (heelJaar ? ' kalender-jaar' : '');
     menu.innerHTML = html;
+    if (window.sluitKruis) sluitKruis(menu, sluitKalender, 'Kalender sluiten');   // v118
     document.body.appendChild(menu);
     plaatsKalender(menu, knop);
     setTimeout(function () { document.addEventListener('pointerdown', kalenderBuiten, true); }, 0);

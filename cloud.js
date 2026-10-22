@@ -194,6 +194,18 @@
     volgendId = state.volgendId || (rijen.length + 1);
     fotos = state.fotos || [];
     projectInfo = state.info || {};
+    // v120 (beveiliging): vreemde nummers van ruiten en foto's niet in de HTML.
+    // Is er iets hersteld, dan gaat de herstelde stand ook naar de server
+    // (anders blijft hij daar staan tot iemand iets wijzigt).
+    if (window.glasVeiligeIds && glasVeiligeIds()) {
+      var hersteldVoor = projectId;
+      setTimeout(function () {
+        if (projectId !== hersteldVoor || !projectId) return;
+        vuil = true;
+        if (window.glasMarkeerWerk) glasMarkeerWerk();
+        window.opslaan();
+      }, 1500);
+    }
     // Hier niet meer 'Opgenomen door' invullen (v93): openen is geen
     // inmeten. Zie vulOpnemer().
     projectTaken = state.taken || [];
@@ -281,6 +293,8 @@
     vak.innerHTML = 'Ingelogd als <b></b>';
     vak.querySelector('b').textContent = naam;
     vak.title = gebruiker.email;
+    // v120: je telefoonnummer (voor op de bestellijst) alvast ophalen.
+    if (window.glasMijnLaden) glasMijnLaden();
   }
 
   // Wat de projectlijst moet tonen bewaren we apart, zodat die lijst niet
@@ -350,6 +364,16 @@
       // project open staat. Die twee verschillen zolang een project nog
       // niet geladen is; wie dan typt, typt in de inhoud van het vorige
       // (v103).
+      // v120: staat er nog werk van een ánder project dat niet omhoog is (een
+      // tweede tabblad, zonder bereik), dan dat eerst apart bewaren. Er is
+      // één kopie per apparaat; overschrijven maakte dat werk stil kwijt.
+      try {
+        var oud = JSON.parse(localStorage.getItem(LS_STATE) || 'null');
+        if (oud && oud._projectId && oud._projectId !== (basisVan || null) && localStorage.getItem(LS_PENDING) === '1') {
+          reddingBewaar(oud, 'werk uit een ander tabblad');
+          setTimeout(reddingenUploaden, 1000);
+        }
+      } catch (e) {}
       localStorage.setItem(LS_STATE, JSON.stringify(Object.assign({}, staat, { _projectId: basisVan || null, _basis: basisRev })));
       return true;
     } catch (e) {
@@ -655,6 +679,9 @@
         opslaanLokaal();
         if (window.renderBestellijst) renderBestellijst();
         if (window.renderProject) renderProject();
+        // v120: bestelde een ander intussen ook (dubbel), dan dát zeggen,
+        // niet "zodat niemand hem nog een keer bestelt".
+        if (window.glasDubbelBestelMelding && glasDubbelBestelMelding()) return;
         if (window.appMelding) {
           appMelding('Je bestelling (' + (nieuw || 'Ja, verstuurd') + ') is alsnog in het project gezet, zodat ' +
             'niemand hem nog een keer bestelt.', { kop: 'Bestelling in het project', soort: 'letop' });
@@ -1604,7 +1631,54 @@
 
   window.glasGebruiker = function () {
     return { id: gebruiker ? gebruiker.id : null, naam: gebruikersNaam(),
-             email: (gebruiker && gebruiker.email) || '' };
+             email: (gebruiker && gebruiker.email) || '', telefoon: mijnTelefoon() };
+  };
+
+  /* ─── mijn telefoonnummer (v120, wens Jan) ─────────────────── */
+  // Op de bestellijst: wie bestelt, met telefoon, zodat de leverancier kan
+  // bellen. Iedereen zet zijn eigen nummer (startscherm, 📞). Het staat in
+  // de tabel gebruikers (kolom telefoon, script 26) en zolang dat er nog
+  // niet is ook op dit apparaat.
+  var mijnRij = null, mijnRijBezig = null;
+  function telefoonSleutel() { return 'glasopname_telefoon_' + (gebruiker ? gebruiker.id : ''); }
+  function mijnTelefoon() {
+    if (mijnRij && mijnRij.telefoon) return String(mijnRij.telefoon);
+    try { return localStorage.getItem(telefoonSleutel()) || ''; } catch (e) { return ''; }
+  }
+  window.glasMijnLaden = function () {
+    if (!sb || !gebruiker || !gebruiker.id) return Promise.resolve(null);
+    if (mijnRijBezig) return mijnRijBezig;
+    mijnRijBezig = Promise.resolve(sb.from('gebruikers').select('*').eq('id', gebruiker.id)).then(function (r) {
+      mijnRijBezig = null;
+      var d = r && !r.error && r.data;
+      mijnRij = Array.isArray(d) ? (d[0] || null) : (d || null);
+      return mijnRij;
+    }, function () { mijnRijBezig = null; return null; });
+    return mijnRijBezig;
+  };
+  window.glasMijnTelefoon = async function () {
+    if (!window.appInvoer) return;
+    var nu = mijnTelefoon();
+    var t = await appInvoer('Je telefoonnummer, voor op de bestellijst (de leverancier belt je bij vragen):',
+      { kop: 'Mijn telefoonnummer', waarde: nu, plaatshouder: '06 12345678', soort2: 'tel' });
+    if (t === null || t === undefined) return;
+    t = String(t).replace(/\s+/g, ' ').trim();
+    if (t && !/^\+?[0-9 ()\-]{6,20}$/.test(t)) {
+      if (window.appMelding) await appMelding('«' + t + '» lijkt geen telefoonnummer. Alleen cijfers, spaties, + en -.', { kop: 'Telefoon', soort: 'letop' });
+      return;
+    }
+    try { if (t) localStorage.setItem(telefoonSleutel(), t); else localStorage.removeItem(telefoonSleutel()); } catch (e) {}
+    var gelukt = false;
+    if (sb && gebruiker && gebruiker.id) {
+      try {
+        var r = await sb.from('gebruikers').update({ telefoon: t || null }).eq('id', gebruiker.id).select();
+        gelukt = !!(r && !r.error && r.data && (r.data.length === undefined || r.data.length));
+      } catch (e) { gelukt = false; }
+    }
+    if (gelukt) mijnRij = Object.assign({}, mijnRij || {}, { telefoon: t || null });
+    if (window.kortBericht) kortBericht(gelukt ? 'Telefoonnummer bewaard.' :
+      'Telefoonnummer bewaard op dit apparaat. Voor je andere apparaten: Jan draait eerst script 26.', { soort: 'info' });
+    if (window.glasStartTelefoonKnop) glasStartTelefoonKnop();
   };
 
   /* ─── de namen van de collega's ───────────────────────────── */
@@ -2811,7 +2885,7 @@
                  '<span>' + (p.status && p.status !== 'open' && p.status !== 'aangemaakt'
                      ? '<em class="pl-status">' + esc(p.status) + '</em> · ' : '') +
                  (p.adres ? markeer(p.adres, zoekTerm) + ' · ' : '') +
-                 n + ' ruiten' +
+                 n + (n === 1 ? ' ruit' : ' ruiten') +
                  (p.open_taken ? ' · <b class="pl-taken">' + p.open_taken + ' open ' +
                     (p.open_taken === 1 ? 'taak' : 'taken') + '</b>' : '') +
                  (p.datum ? ' · ' + markeer(p.datum, zoekTerm) : '') +
@@ -3498,6 +3572,8 @@
   function start() {
     haalData();
     startHartslag();
+    // v120: je telefoonnummer (voor op de bestellijst) alvast ophalen.
+    if (window.glasMijnLaden) setTimeout(glasMijnLaden, 500);
     sessieGemeld = false;
     // Werk dat eerder apart bewaard moest worden en nog op dit apparaat
     // staat (geen bereik op dat moment): nu alsnog naar de server (v103).
@@ -3534,11 +3610,28 @@
           }, 4000);
         }
       } else if (uitHash !== projectId) {
+        // v120 (gevonden bij de grote proef, akkoord Jan): "het laatst geopende
+        // project" (LS_PROJECT) is van alle tabbladen samen. Had een tweede
+        // tabblad intussen een ander project geopend, dan kwam dit tabblad bij
+        // herladen hier en gooide de vlag "moet nog omhoog" weg, ook als het
+        // bewaarde werk juist bij het project in het adres hoorde. Dat werk was
+        // dan stil weg. Nu blijft de vlag staan als de kopie bij het project
+        // in het adres hoort (dan wint het werk, zie hieronder) of bij een
+        // ander bekend project (dan gaat het apart, reddenEnLaden). Alleen een
+        // kopie zonder project (van vóór v103) gaat apart en dan pas weg.
+        var pendNu = localStorage.getItem(LS_PENDING) === '1';
+        var vanWie = kopieVan(uitHash);
         projectId = uitHash;
         window.glasProjectId = projectId;
         localStorage.setItem(LS_PROJECT, projectId);
-        localStorage.removeItem(LS_PENDING);
-        vuil = false;
+        if (!pendNu || vanWie === 'geen') {
+          localStorage.removeItem(LS_PENDING);
+          vuil = false;
+        } else if (vanWie === 'onbekend') {
+          try { reddingBewaar(JSON.parse(localStorage.getItem(LS_STATE) || 'null'), 'kopie zonder project'); } catch (e) {}
+          localStorage.removeItem(LS_PENDING);
+          vuil = false;
+        }
       }
     } else if (projectId && localStorage.getItem(LS_PENDING) !== '1') {
       // Geen link met een project erin en niets wat nog omhoog moet: dan

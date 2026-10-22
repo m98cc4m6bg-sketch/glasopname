@@ -1,4 +1,4 @@
-# Glaslatten, glasband en "past het in de sponning?" (v113, bijgewerkt v117)
+# Glaslatten, glasband en "past het in de sponning?" (v113, bijgewerkt v121)
 
 *Uitgezocht 19 oktober 2026 voor de glasopname-app; v114 (20 oktober 2026):
 de latzijde per ruit, de onderdorpel, en de maten volgens de tekeningen van
@@ -67,6 +67,12 @@ binnen een kozijn"). Per ruit kies je in de kolom **Latzijde**:
   ruit te veranderen.
 - **Beide** (v115, keuze Jan): onderin dezelfde lat als boven, aan beide
   kanten. Wil je buiten toch een neuslat, kies hem dan als onderlat.
+  Tot v114 kwam er buiten automatisch een neuslat; daarom (v119, keuze Jan)
+  een **strook op Toebehoren** met de ruiten op "beide" zonder eigen
+  onderlat, tot je er een kiest of op **Begrepen** tikt (per ruit bewaard).
+  Sinds v121 (Jan: "duidelijk, subtiel") is dat een **rustige grijze
+  melding** (geen ⚠, niet oranje: er is niets fout), en zegt de knop van
+  de onderlat bij zo'n ruit stil "beide kanten" (ook na Begrepen).
 - **Binnen = nooit een neuslat of ventilatielat** (v117, Jan): die zijn voor
   buitenbeglazing. In het venster voor de onderlat staan ze bij binnen niet;
   "Alle ruiten" slaat de ruiten met binnen over en zegt welke. Had een ruit
@@ -128,23 +134,26 @@ nodig = band binnen + glas + band buiten + lat (in de sponning)
     "krap". Volgens EN 1279 mag de dikte daar ±1,5 mm afwijken (gewoon
     floatglas ±1,0 mm).
 - **Glasband**: dubbelzijdig PE-band, meestal 9 mm breed, in grijs of wit.
-  - **Binnen 2, 3 of 4 mm.**
+  - **Binnen 2, 3, 4 of 5 mm.** 5 mm bestaat niet als rol: dat is **een rol
+    2 mm en een rol 3 mm op elkaar** (v118, Jan). De app telt dan op beide
+    rollen de omtrek, en per ruit dubbel "m band".
   - **Nat beglazen** (band + kit erover): daar vraagt NPR 3577 een kitvoeg
     van minstens 4 mm breed en 6 mm diep, met band van minstens 4 mm. Band
     van 2 of 3 mm is dus voor droog beglazen (alleen band).
-  - **Buiten 3 of 4 mm, nooit 2** (Jan). De buitenkant werkt het meest
+  - **Buiten 3, 4 of 5 mm, nooit 2** (Jan). De buitenkant werkt het meest
     door zon, vocht en wind.
-  - Per project kies je de kleur en de dikte voor binnen en buiten. Per
-    ruit kan het band binnen anders.
+  - Per project kies je de kleur en de dikte voor binnen en buiten
+    (standaard 3 en 3). Per ruit kan het band binnen én, sinds v118, het
+    band buiten anders (Toebehoren, kolommen Band dikte binnen/buiten).
 - **Glaslat**: de ruimte die de lat in de sponning inneemt. Zie §5.
 
 **Wanneer past het?** (keuze van Jan)
 
 | verschil `diepte − nodig` | gewone glaslat | opdeklat |
 |---|---|---|
-| 0 | past | past |
+| 0 | **past · vlak met kozijn** (oranje, v119; sinds v120 ook onderin buiten) | past |
 | meer dan 0 | **past · N mm in zicht** (groen, v115) | +0,1 … +1: **ruim**; meer: **te ruim** (oranje) |
-| −0,1 … −1 mm | **krap** (het band vangt het op) | krap |
+| −0,1 … −1 mm | **krap** (het band vangt het op); een A5: **nood** (v120) | krap |
 | meer dan 1 mm te krap | **past niet** (rood) | past niet |
 
 **Ruimte over bij een gewone glaslat is géén fout** (Jan, v115). De lat
@@ -154,6 +163,28 @@ monteren. De app zegt dan "past · N mm sponning in zicht" (tot v114: "te
 ruim"). In de kiezer staan de latten met weinig zicht bovenaan ("Past bij
 deze ruit"); wie een bestaande lat wil volgen, ziet bij elke lat hoeveel
 zicht er overblijft.
+
+**Latten nooit laten uitsteken, en liever niet precies vlak** (Jan,
+22-10-2026, v119):
+- Komt een lat **precies vlak** met het kozijn (0 mm over), dan is dat
+  oranje **"past · vlak met kozijn"**: het past, maar het oogt niet
+  (esthetisch). Het advies noemt latten waarbij een randje sponning in
+  zicht blijft. Geen vraag vóór de bestellijst, wel een strook op
+  Toebehoren met de ruiten (v120) en "vlak met kozijn" bij Let op op de
+  werkvloer-pdf.
+  - **Ook onderin aan de buitenkant** (Jan, v120): in v119 zei de app daar
+    "past" (water), maar Jan wil ook daar oranje. Het advies noemt daar
+    eerst een **neuslat** (het water loopt af), want een randje sponning
+    houdt onderin buiten water vast.
+- Een **A5** (glaslat met sponninkje) past soms alleen omdat zijn
+  sponninkje (3 mm) over de rand van het kozijn valt (0 tot 3 mm over met
+  12 mm in de sponning). Dan steekt hij 1–3 mm voor het kozijn uit: oranje
+  **"nood: steekt N mm uit"**, een **noodmaatregel**. Zit hij ook nog tot
+  1 mm te krap (het band vangt dat op), dan steekt hij 4 mm uit: ook "nood"
+  (sinds v120; daarvoor het mildere "krap"). Strook op
+  Toebehoren, ook in de vraag "Past het in de sponning?" vóór de
+  bestellijst, en "NOOD: A5 steekt N mm uit" bij Let op op de
+  werkvloer-pdf. Met precies 3 mm over ligt de A5 vlak, daarboven in zicht.
 
 **Bij een opdeklat is te ruim wel een fout**: die ligt vast op het
 kozijnvlak en kan niet verder schuiven, dus het glas klemt niet. Advies:
@@ -255,8 +286,13 @@ Een neuslat 18x50 (Jongeneel N35) neemt **geen 50 mm** sponningruimte in.
 **Hoe hij gemonteerd wordt** (v115, uitgezocht): de neuslat ligt onderin
 **tegen het glas** (met band) op de dorpel, op blokjes van ±5 mm. Het lijf
 met de uitsparing (S breed) ligt over de dorpel; de neus hangt vóór het
-kozijn. Afgekort met ±4 mm ruimte aan elke kant, de ventilatieopening
-niet dichtkitten. De **totale breedte** (S + 9) zegt dus weinig over wat hij
+kozijn. De ventilatieopening niet dichtkitten. **Lengte** (v121, Jan):
+**recht** afgekort (geen verstek), **20 mm langer dan de sponningbreedte**:
+hij loopt aan beide kanten door in de scharniersponning. In het zaagplan
+is dat de instelling "Neuslat (recht): langer dan sponning" (standaard
+20 mm), los van de toeslag voor het verstek; tot v120 kreeg hij die
+verstektoeslag en heette het "verstek". (De montagerichtlijn van de
+fabrikant noemt ±4 mm ruimte aan elke kant; Jans praktijk gaat voor.) De **totale breedte** (S + 9) zegt dus weinig over wat hij
 in de sponning doet: dat bepaalt **S** (zijn "sponningmaat").
 
 ```
@@ -359,7 +395,7 @@ dubbel glas. KVT 12.3.2 vraagt minstens 17 mm.
 | B13 (was GL13) | recht | 17x27 | 27 | B7621017027400.FVG |
 | B14 | recht | 25x25 | 25 | B7621025025400.FVG |
 | B17 | recht | 17x35 | 35 | B7621017035400.FVG |
-| C1 | ventilatie | 17x26 | 26 | B7641017026400.FVG |
+| C1 | ventilatie | 17x26 | 26 (*) | B7641017026400.FVG |
 | C2 | ventilatie | **20x27** (v114) | 27 | B7641020027400.FVG |
 | C3 | ventilatie | 22x30 | 30 | B7641022030400.FVG |
 | E6, E7, E8, E22 | opdek | zie §7 | 0 | B765… |
@@ -367,6 +403,12 @@ dubbel glas. KVT 12.3.2 vraagt minstens 17 mm.
 | N25 … N55 | neuslat | zie §6 (neus 9) | zie §6 | B7691018040400.FVG … |
 | G915 | grenen rond | 9x15 | 15 | B7702009015270F |
 | G916 | grenen recht | 9x16 | 16 | B7702009016270F |
+
+(*) **C1, twee maten bij Jongeneel** (Jan, 22-10-2026, v120): de naam en de
+productfoto zeggen 17x26, een tweede (CAD-)tekening op dezelfde pagina zegt
+23 breed. De app rekent met 26 (is hij 23, dan zegt de app eerder "past
+niet" dan dat hij uitsteekt), toont de tekening van 23 niet, en zet de C1 op
+"maat nog niet nagemeten" tot Jan er één nagemeten heeft.
 
 **Hoe het artikelnummer is opgebouwd** (Jongeneel en Pontmeyer):
 
@@ -407,6 +449,9 @@ bewaart het getal bij de ruit (`maxPakket`).
 - Het max komt **niet** meer in de opmerking (die gaat naar de leverancier).
 - Vóór de bestellijst: zo'n ruit staat in de vraag "Past het in de
   sponning?".
+- Sinds v118 (keuze Jan) ook **op Invoer rood**: de dikte "23 · te dik" en
+  de opbouw rood omrand, met de rekensom in de tip. Gerekend met het band
+  van die ruit (zonder keuze 3 + 3, de projectstandaard). Kiezen mag.
 
 ## 9b. De dikte van het pakket (v117)
 
@@ -435,18 +480,15 @@ tekening van lat X van jongeneel.nl"), of sla hem in Safari op als
 
 ## 11. Wat niet zeker is
 
-- **De neuslat**: volgens de maattekening van Jongeneel is het profiel
-  S + 9 (N25: 25 + 9 = 34 mm, onderkant schuin 80°), terwijl de handelsmaat
-  6 mm groter is (18x40). De productfoto van N40 noemt 40 en 55. Wij lezen
-  de handelsmaat als ruwe maat. Klopt dat niet (meet één neuslat: de vlakke
-  onderkant en de totale breedte), dan is de uitsteek 6 mm meer. De app rekent
-  met S = modelnummer (zoals Dekkerhout: NL25 18x40 met sponning 25 …) en
-  een neus van 9 mm. Wijkt het in de praktijk af, dan in `latten.js`
-  (`eigenSponning`, `neus`) aanpassen.
+- **De neuslat** (v121: **bevestigd door Jan**, "tekening klopt"): het
+  profiel is S + 9 (N25: 25 + 9 = 34 mm); de handelsmaat (18x40) is de
+  ruwe maat. De app rekent met S = modelnummer en een neus van 9 mm.
 - **Modelcodes verschillen per leverancier.** Dekkerhout A12 is 17x15 en
   Elephant C1 is 9x33. Neem dus alleen een maat over van een leverancier met
   dezelfde artikelnummers als Jongeneel (Pontmeyer, Beekhuizen-Hoekerd).
-- **A5 "12 mm in de sponning"**: keuze van Jan.
+- **A5 "12 mm in de sponning"**: keuze van Jan. Jan bevestigde (22-10-2026)
+  dat het sponninkje over de rand van het kozijn valt; dat gebruiken is
+  een noodmaatregel (zie §3).
   - In de bronnen zit het sponninkje (3x3 of 3x4 mm) aan de glaszijde, als
     "kitsponning". Dan mag het band aan de latkant 1 mm zijn in plaats van
     4 mm.
@@ -469,21 +511,55 @@ Wens van Jan: Invoer compact houden; de latten (veel keuzes) op Toebehoren.
 - **Per foto of tekening** een kopje met de afbeelding en de merkletters
   (tik = groot), zodat je ziet over welke ruit het gaat; daarna de losse
   regels. Per foto: "latzijde hier" (alle ruiten van die foto in één keer).
-- Kolommen: **Merk, Glastype, Opbouw, Dikte, Pakket (v117), Diepte, Onder** (van Invoer,
+- Sinds v118 (wens Jan) per foto, tekening en de losse regels een **eigen
+  tabel met een eigen kopregel**, ónder de foto (zoals de tabellen op
+  Invoer). Op een laptop en groter staan de kolommen van alle tabellen
+  recht onder elkaar.
+- Kolommen (namen sinds v118): **Merk, Glastype, Opbouw, Glas dikte, Pakket
+  dikte, Sponning diepte, Sponning diepte onder** (van Invoer,
   hier ook te wijzigen: dezelfde gegevens, dus Invoer, pdf en bestellijst
-  volgen), **Latzijde, Glaslat, Onderlat, Band binnen, Oordeel** en wat er
-  per ruit nodig is. Zo kun je ook glastype of opbouw aanpassen om een
+  volgen), **Latzijde, Glaslat type, Onderlat type, Band dikte binnen, Band
+  dikte buiten (v118), Oordeel** en wat er per ruit **Nodig** is. Zo kun je ook glastype of opbouw aanpassen om een
   pakket passend te krijgen.
-- Bovenaan **"Alle ruiten"**: zijde, glaslat (ook omgekeerd) en onderlat in
-  één keer. Bij de glaslat een **voorbeeld** (foto, maten, normaal of
+- Bovenaan, los en vóór "Per ruit", het blok **"Voor het hele project (alle
+  ruiten)"** (v118): zijde, glaslat (ook omgekeerd) en onderlat in één keer. Bij de glaslat een **voorbeeld** (foto, maten, normaal of
   omgekeerd; tik = groot met de maattekening; v117).
+  - **Ruiten aanvinken** (v120, keuze Jan: blok én vinkjes): ☐ bij het merk,
+    of "☐ deze foto kiezen". Sinds v121 (P3, keuze Jan) komt dan onderin
+    het scherm een **actiebalk**: diepte (zij en boven), latzijde, glaslat,
+    onderlat en band binnen, met **vóór het toepassen** per ruit wat het
+    oordeel wordt ("A5 · nood → A5 · past · 1 mm in zicht") en "slechter
+    bij …" als het erop achteruitgaat. Het voorbeeld is de controle: geen
+    extra vraag; daarna ↶ **Terugzetten** in het berichtje (boven de balk).
+    Bij latzijde binnen wordt een neus- of ventilatielat overgeslagen (en
+    gezegd). Het blok bovenin is dan één regel ("N ruiten gekozen"); zonder
+    vinkjes is het weer "Voor het hele project", met een vraag vooraf. Op
+    slot (na een bestelling) geen balk. Tot v120 werkte het blok bovenin
+    op de gekozen ruiten.
+  - **Enter** in een dieptevak gaat naar hetzelfde vak van de volgende ruit
+    (v120): typen, Enter, typen, langs de gevel.
+  - **⧉ Dupliceren** op Invoer neemt de keuzes van Toebehoren mee
+    (sponningdiepte, onderdiepte, latzijde, glaslat …), met de melding
+    "Controleer …" (v120, keuze Jan).
 - Bij elk lattype een uitklapbaar **zaagplan** als tekening (v117): per
   lengte een balk met de stukken in mm en de rest. Ook in de PDF invoer.
+  **Bestellen = het zaagplan + 1 reserve per lattype** (v120, keuze Jan;
+  tot v119: de totale lengte + 10 % zaagverlies). De reserve staat bij de
+  instellingen ("Reserve per lattype"). Een lat langer dan de lengte zit
+  niet in het zaagplan: die staat apart ("apart bestellen") en telt niet
+  ook nog als gewone lengte (tot v119 wel). Een lengte onder 1 m typen
+  (bijv. "5,4" in het vak voor mm): eerst een vraag (5.400 mm?).
 - De onderlatknop zegt bij een neuslat ventilatie én uitsteek ("N30 · vent.
   7 · uitst. 16"; v117).
 - De kiezers voor glaslat en onderlat tonen bovenin de foto met de
   merkletter van die ruit opgelicht.
-- Op de telefoon is elke ruit een kaartje (dicht één regel, tik voor de rest).
+- Op de telefoon is elke ruit een kaartje (dicht één regel, tik voor de
+  rest; open: "✕ inklappen"). Zaagplan, instellingen, lattengroepen en de
+  grote foto of tekening hebben een ✕ (v118).
+- **PDF werkvloer** (v118): per foto de foto met de letters en per ruit
+  glasmaat, opbouw, latzijde, glaslat, onderlat, band en de latten met
+  stuklengtes (bij ×3: samen), met een kolom "Let op" (latzijde nog kiezen,
+  past niet, te dik); daarna benodigdheden en zaagplan.
 - Na een bestelling op slot (zoals de maten); het oordeel blijft aan te
   tikken om te kijken.
 - **De Naslag** heeft een tabblad **Glaslatten (Jongeneel)** met alle

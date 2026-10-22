@@ -97,6 +97,8 @@ function resetDb() {
 resetDb();
 
 function dbVraag(st) {
+  // v120: zonder bereik bereikt ook de database niets (proef 3).
+  if (S.offline) return { data: null, error: { message: 'TypeError: Failed to fetch', code: '' } };
   const lijst = S.db[st.tabel] || (S.db[st.tabel] = []);
   const past = r => Object.keys(st.filters).every(k => r[k] === st.filters[k]) &&
     st.leeg.every(k => r[k] == null) && st.gevuld.every(k => r[k] != null);
@@ -417,6 +419,42 @@ async function wachtOpOpslaan(page) {
   check('… en na het herladen terug te vinden in het project',
         await wachtTot(async () => (await evalVeilig(page, () => typeof projectInfo !== 'undefined' && window.glasProjectId &&
           projectInfo.contact)) === getypt, 15000));
+  await ctx.close();
+
+  /* ─── 3 ─────────────────────────────────────────────────────── */
+  // v120 (grote proef, 🔴): werk zonder bereik op de oude versie, de app dicht
+  // (alleen op het apparaat, "moet nog omhoog"); intussen staat de nieuwe
+  // versie online. Met bereik weer open: het werk moet in de database komen.
+  console.log('\n3. Werk zonder bereik op de oude versie, app dicht; daarna bereik en de nieuwe versie');
+  zetBestanden(OUD);
+  ctx = await nieuweContext();
+  page = await nieuwePagina(ctx);
+  await page.goto('about:blank');
+  await page.goto(adres + '#project=' + P(8));
+  await page.waitForFunction(id => window.glasProjectId === id, P(8), { timeout: 15000 });
+  await page.waitForFunction(() => navigator.serviceWorker && navigator.serviceWorker.controller, null, { timeout: 15000 });
+  await wacht(1500);
+  check('het apparaat draait ' + OUDV, (await versieVan(page)) === OUDV);
+  S.offline = true;
+  await page.evaluate(() => { if (window.klantBlokOpen) klantBlokOpen(); });
+  await page.click('#pi-contact');
+  await page.keyboard.press('End');
+  await page.keyboard.type(' (zonder bereik)');
+  await page.keyboard.press('Tab');
+  await wacht(2500);
+  const offlineGetypt = await page.evaluate(() => projectInfo.contact);
+  check('zonder bereik: alleen op het apparaat (moet nog omhoog)', rij(8).data.info.contact !== offlineGetypt &&
+    await page.evaluate(() => localStorage.getItem('glasopname_pending')) === '1', rij(8).data.info.contact);
+  await page.close();
+  zetBestanden(__dirname);
+  S.offline = false;
+  page = await nieuwePagina(ctx);
+  await page.goto(adres + '#project=' + P(8));
+  await wachtTot(async () => (await evalVeilig(page, () => !!navigator.serviceWorker.controller)), 15000);
+  await controle(page);
+  check('het werk van zonder bereik staat in de database (harde eis)',
+        await wachtTot(async () => rij(8).data.info.contact === offlineGetypt, 40000), rij(8).data.info.contact);
+  check('het apparaat komt op ' + NIEUW, await wachtTot(async () => (await versieVan(page)) === NIEUW, 40000), await versieVan(page));
   await ctx.close();
 
   check('geen fouten in de pagina', consoleFouten.length === 0, consoleFouten.slice(0, 3).join(' | '));

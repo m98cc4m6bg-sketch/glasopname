@@ -1424,7 +1424,8 @@ async function bestelTekst(page) {
   await page.click('button:has-text("⬇ Exporteren")');
   await page.click('button:has-text("Alles exporteren")');
   m = await vraagOpScherm(page);
-  check('Alles exporteren: twee bestanden, daarna de vraag', m.ok && downloads === 2, downloads + ' downloads');
+  // v119 (Jan): ook de werkvloer-pdf, dus drie bestanden.
+  check('Alles exporteren: drie bestanden, daarna de vraag', m.ok && downloads === 3, downloads + ' downloads');
   await knop(page, 'Ja, verstuurd');
   await wachtTot(() => (info().bestellingen || []).length === 1, 10000);
   check('en Ja legt de bestellijst vast', (info().bestellingen || []).length === 1 && info().bestellingen[0].aantal === 3);

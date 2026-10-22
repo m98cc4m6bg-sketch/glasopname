@@ -58,7 +58,16 @@ Een feit staat op één plek; elders verwijs je ernaar.
   echte e-mailadressen of wachtwoorden: gebruik `naam@voorbeeld.test`.
 * **Na Jans push de repo nakijken**: `git clone --depth 1
   https://github.com/m98cc4m6bg-sketch/glasopname` en `diff -rq` met het pakket
-  (v106: vier bestanden ontbraken, het slot deed niets).
+  (v106: vier bestanden ontbraken, het slot deed niets). **`.gitignore`**
+  komt bij slepen vaak niet mee (verborgen bestand). Staat `Claude outputs/`
+  er niet in: Jan eraan herinneren bij elke oplevering (zijn verzoek, 21-10):
+  GitHub Desktop → Repository → Repository Settings → Ignored Files, de regel
+  `Claude outputs/` onderaan, Save, meecommitten.
+* **Het webadres en het GitHub-account** (handover §9, met de uitleg): Jan
+  herinneren (met uitleg) zodra er een site of app bijkomt op het account
+  `m98cc4m6bg-sketch`, bij een eigen domein of het klantportaal, en als het
+  lang blijft liggen (zijn verzoek, 22-10-2026). Wat er speelt, staat alleen
+  in de handover.
 * **Nooit `config.js`** meesturen of wijzigen. Nooit een `service_role`- of
   `sb_secret_…`-sleutel in de repo of een workflow.
 * **SQL eerst**: staat er een script bij, dan bovenaan de nota: eerst in
@@ -168,6 +177,25 @@ Een feit staat op één plek; elders verwijs je ernaar.
   afwezig) en `ralBinnen` op de ruit; in het kenmerk alleen als bi-color
   gekozen is (anders "gewijzigd" bij elke bestelde ruit). Op papier altijd
   `ralTekst(r)` / `roosterTekst(r)`, nooit `r.ralKleur` rauw.
+* **Bestellijst: één bron** (v118, wens Jan): `bestellijstModel()` in pdf.js
+  bepaalt kolommen (lege weg, `leegWaarde`), regels, kader, blokken
+  (annuleren, bediening, rooster) en totaal, voor de pdf **én** het tabblad
+  (`renderBestellijst`). Iets veranderen aan de lijst = in het model, nooit
+  alleen in één van de twee. Zonder pdf.js (test-index, test-herstel in
+  jsdom) een eenvoudig model in `renderBestellijst`.
+* **Kruisje** (v118, wens Jan): elk menu of venster dat openklapt krijgt
+  `sluitKruis(el, sluit, label)` (index.html; ook Escape) of, in een
+  `<details>`, een `button.sluit-x` direct na de summary. In een menu is
+  een knop normaal 100 % breed: de regels `.veld-menu > button.sluit-x` e.d.
+  houden hem rond (32 px, op een aanraakscherm 44 px).
+* **Toebehoren-tabellen** (v118): per foto een `section.tb-groep` met een
+  eigen tabel en kopregel; vanaf 1261 px vaste kolommen (`colgroup`
+  `tbc-…`, `table-layout: fixed`), 641–1260 px twee regels per ruit,
+  ≤ 640 px kaartjes. Een kolom erbij = ook een `col` en de breedtes
+  narekenen op 1280 (test-v118 onderdeel 7 meet dat).
+* **PDF werkvloer** (v118): `bouwWerkvloerPdf` in pdf.js; niet voor de
+  leverancier (geen levercontrole in `startExport`, niets vastgelegd);
+  de laatste pagina's zijn `toebehorenPagina(doc, eigenTitel)`.
   `bedieningVerschil` kijkt naar bediening én rooster (`ROOSTER_VELDEN`) en
   geeft `roosterWas/roosterNu` → `teBestellen().rooster`, `roosterVan` in
   de momentopname, `roosterIn` in `standVan`, `roosterTabel`. Een ander
@@ -223,7 +251,19 @@ Een feit staat op één plek; elders verwijs je ernaar.
     Marge 1 mm. Een gewone glaslat met ruimte over = status **'zicht'**
     (`u.zicht` mm; A5 eerst 3 mm speling), géén waarschuwing (Jan, v115);
     alleen een opdeklat kan 'ruim'/'te ruim' zijn. `ERNST`: zicht = past.
+    **v119 (Jan): nooit uitsteken, liever niet vlak.** Precies 0 over =
+    **'vlak'** (oranje; **v120: ook onderin buiten**, met eerst een neuslat
+    in het advies). Een A5 met −1 tot 3 mm over = **'nood'** (`u.uitsteek`
+    = 3 − over; v120: ook 1 mm te krap), ook in `pakketScheef` (vraag vóór
+    de bestellijst) en `werkvloerLetOp` (v120: plus 'vlak met kozijn' en de
+    opmerking). Het advies (`adviezenMet`) noemt bij vlak/nood alleen wat
+    netjes in valt (zicht, of een opdeklat 'past'). Strook "vlak" op
+    Toebehoren (v120).
   - **Binnen (v117, Jan): nooit een neus- of ventilatielat** (`onderMagBij`).
+  - **Neuslat in het zaagplan** (v121, Jan): recht, sponningbreedte +
+    `NEUSLAT_TOESLAG_MM` (20; de scharniersponning), los van
+    `VERSTEK_TOESLAG_MM`. Stukken hebben `recht: true` (`isNeuslat`); de
+    werkvloer zegt "N30 recht". De maat S + 9 is bevestigd (Jan, v121).
     Een oude keuze: `alleenBuiten` → rood, niet stil veranderd.
   - **Max glaspakket** (v117): `r.maxPakket` (op de ruit, uit de import);
     `maxOordeel` telt mee in `oordeelRuit` (`waar: 'max'`), ook bij 'geen';
@@ -238,7 +278,10 @@ Een feit staat op één plek; elders verwijs je ernaar.
   - **Eén bron** voor de Naslag: `lattenTabel()` in naslag.js leest
     `GlasLatten.LATTEN`. De glasaftrek van een rooster komt uit
     `ducoAftrek()` (DATA.roosters), niet uit de tekst in naslag.js.
-  - **Band buiten** nooit 2 mm.
+  - **Band buiten** nooit 2 mm. Band per ruit (v118): binnen 2/3/4/5, buiten
+    3/4/5 (`BAND_BINNEN`, `BAND_BUITEN`, `bandBuitenVan`); leeg = de
+    projectstandaard. **5 mm = een rol 2 + een rol 3** op elkaar: in het
+    totaal per rol en in "m band" per ruit dubbel.
   - **Oude namen** ('Glaslat', 'Neuslat', 'Ventilatielat', en sinds v114
     'GL13' → B13 en 'B2' → B1) worden bij het lezen omgezet (`normaal`,
     `onderNaam`). Een oude onderlat 'Glaslat' wordt 'ZELFDE' (v115; tot v114
@@ -307,6 +350,47 @@ Een feit staat op één plek; elders verwijs je ernaar.
   `same_password` van Supabase = gelukt (het getypte wachtwoord IS het
   wachtwoord).
 * Eén naslag (`#naslagInhoud`), verplaatst, nooit gekopieerd.
+* **Een maat is een tekstvak** (v120, `leesMaat`, `maatNaTypen`): een
+  getalvak liet in Chrome de komma stil weg (1212,5 → 12125). Een halve mm
+  naar beneden, met een melding (`kortBericht`). Het aantal: `zetAantal`
+  (heel getal 1–999). Vóór de bestellijst `vreemdeControle` (glas < 100 mm,
+  > 3210 × 6000, aantal > 99, rooster en glasdikte).
+* **Alles wat uit een project komt, gaat door `esc()`** (escapet ook `'` en
+  `>`, v120). Nummers van ruiten en foto's komen in de HTML; bij het laden
+  zet `glasVeiligeIds()` ze recht (ruit: heel getal; foto: `[A-Za-z0-9_-]`),
+  met de bolletjes mee, en slaat de herstelde stand op. Script 26 weigert
+  vreemde nummers in de database.
+* **`kortBericht(tekst, {soort, knop, actie, ms})`** (v120): een berichtje
+  onderin met hoogstens één knop (Terugzetten, ↶). Rood alleen bij
+  `soort: 'fout'`.
+* **Rood** (v120, Jan): alleen de hoofdknop en fouten; geen rode
+  kolomkoppen of knoppen die gewoon iets doen.
+* **Aanraakscherm** (v120): knoppen 44 px, bolletjes minstens 22 px met
+  een tik-plek van 44 px (`.foto-mark::before`); de tabellen blijven
+  compact.
+* **Bestellingen** (v120): elke bestelling heeft `basis` (het tijdstip van
+  de laatst bekende geldige; '' = de eerste). Twee geldige met dezelfde
+  basis = dubbel besteld (`glasDubbelBestelMelding`, rode balk
+  `.bestel-dubbel`). Het nummer voor de leverancier: `volgendBestelNr()`
+  (ingetrokken telt niet mee).
+* **Eén kopie per apparaat** (`glasopname_v2`): twee tabbladen delen hem.
+  `opslaanLokaal` bewaart werk van een ánder project dat nog omhoog moet
+  eerst apart (`reddingBewaar`); `start()` gooit "moet nog omhoog" niet weg
+  als de kopie bij een bekend project hoort. Hetzelfde project in twee
+  tabbladen: een `kortBericht` (BroadcastChannel), **geen venster**.
+* **Een open venster (`.melding-laag`) houdt het bewerkslot op**
+  (`anderVenster()` in bewerkslot.js): een collega die wil overnemen, wacht
+  tot het dicht is. Iets wat alleen informeert en vanzelf kan komen: een
+  `kortBericht`, geen `appMelding` (v120, gevonden met test-v106 §11).
+* **De actiebalk op Toebehoren** (v121, P3): alleen bij aangevinkte ruiten
+  (`gekozen`, alleen in het geheugen) en niet op slot. Het voorbeeld rekent
+  met keuzes die nog niet bewaard zijn via `proef` in `perRuitVan`; zet
+  `proef` **altijd** terug in een `finally`, anders toont de tabel iets wat
+  niet bewaard is. Een keuze in de balk tekent alleen het voorbeeld en de
+  knop opnieuw (`toebehorenBalkKies`), niet de pagina: zo blijft de cursor
+  in het vak. `keuzeOp` is de ene plek die een keuze op een ruit toepast
+  (voorbeeld én Toepassen). Het blok bovenin is dan één regel; zonder
+  vinkjes werkt het op alle ruiten (met een vraag).
 * Telefoon of tablet: `glasMobiel()`. Bestanden naar de gebruiker:
   `bestandAfleveren()` / `afleveren()`; liever xlsx dan csv.
 * Taken en logboek horen bij één project: een laat antwoord voor een ander
@@ -342,7 +426,7 @@ bun test-mailfunctie.ts
 ```
 
 Draai daarnaast altijd de reeks(en) van het onderdeel dat je raakt
-(bijv. latten → `test-v113/v114/v115/v117.js`, foto's en wachtrij → `test-v93/v103/v116.js`,
+(bijv. latten → `test-v113/v114/v115/v117/v118.js`, bestellijst-tabblad en werkvloer → `test-v118.js`, foto's en wachtrij → `test-v93/v103/v116.js`,
 bestellen → `test-v104/105/110/112/114.js`,
 bewerkslot → `test-v106.js`, inloggen → `test-v109.js`).
 
@@ -367,6 +451,10 @@ node test-v114.js                       # latzijde, onderdorpel, bi-color, ALLEE
 node test-v115.js                       #  41 s; latten op Toebehoren, omgekeerd, zicht, neuslat, geen (meegeleverd), naslag
 node test-v116.js                       #  ±25 s; wachtrij: Safari stuurt een bestand uit IndexedDB leeg (nagebootst)
 node test-v117.js                       #  ±60 s; pakket, max glaspakket, binnen, voorbeeld, zaagplan, bediening standaard; PLAATJES=map
+node test-v118.js                       #  ±3 min; werkvloer-pdf, tabblad = pdf, Invoer rood, per-foto-tabellen, ✕, band buiten; PLAATJES=map
+node test-v119.js                       #  ±70 s; vlak met kozijn, A5 nood, strook beide, Alles exporteren + werkvloer
+node test-v120.js                       #  ±6 min; grote proef: komma, aantallen, twee tabbladen, dubbel besteld, import, latten, pdf-kop, ✕ terug, ids, telefoon, back-up
+node test-v121.js                       #  ±2 min; neuslat recht + 20, melding beide, actiebalk (P3) op pc, iPad, iPhone; PLAATJES=map
 ```
 
 **Mutatieproef** (`--mutaties`): alleen bij 🔴, en alleen voor de reeks
@@ -374,7 +462,9 @@ die je wijziging raakt. Een nieuwe test bewijs je met de hand (reparatie
 terugdraaien, rood, terugzetten), dat kost minuten. Duur per reeks:
 v106 48 mutaties ±25–40 min, v109 22 ±25 min, v110 61 ±45+ min,
 v111 51 ±40 min, v112 21 ±15 min, v113 40 ±30 min, v114 34 ±40 min,
-v115 37 ±45 min, v116 9 ±4 min, v117 17 ±10 min.
+v115 37 ±45 min, v116 9 ±4 min, v117 17 ±10 min, v118 18 ±25 min, v119 11 ±10 min,
+v120 33 ±40 min, v121 17 ±20 min. Script 26 (rechten): een eigen proef tegen een lokale
+PostgreSQL met 14 mutaties (staat in de zip "niet-in-repo", niet in de repo).
 Die van v104 en v105 werken nu niet, en van v110 passen 9 mutaties niet
 meer (gezien 21-10-2026; zie TESTEN.md, "Onderhoud van de batterij"). Een oudere reeks opnieuw alleen gericht (`ALLEEN=`), zie
 TESTEN.md.

@@ -13,7 +13,7 @@
 
   function esc2(s) {
     return String(s === null || s === undefined ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');   // v120: ook '
   }
 
   // Zonder lege eerste optie staat de bovenste waarde meteen geselecteerd:
@@ -115,6 +115,8 @@
     return [
       { kop: 'Aantal', titel: 'Aantal', html: function (v) {
           return '<input type="number" id="bulkVeld" min="1" max="999" value="' + (v || 1) + '">'; },
+        // v120: alleen een heel getal van 1 tot 999 (eerder ging −5 mee).
+        controle: function (v) { var n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 999 ? '' : 'Het aantal moet een heel getal zijn van 1 tot 999.'; },
         zet: function (r, v) { r.aantal = +v || 1; },
         leeg: function (r) { return !r.aantal || r.aantal === 1; },
         // v110: een regel met bolletjes op de foto houdt zijn aantal; dat
@@ -258,6 +260,7 @@
     sluitPopover();
     var p = document.createElement('div');
     p.className = 'bulk-pop';
+    if (window.sluitKruis) setTimeout(function () { sluitKruis(p, sluitPopover, 'Sluiten'); }, 0);   // v118
 
     var body;
     if (veld.glas) {
@@ -329,7 +332,9 @@
       var opbouw = document.getElementById('bulkOpbouw').value;
       if (!type && !opbouw) { sluitPopover(); return; }
       doel.forEach(function (r) {
-        if (bereik === 'leeg' && !veld.leeg(r)) { overgeslagen++; return; }
+        // v120: "alleen nog lege" slaat ook helemaal lege regels over (geen merk,
+        // geen maat); die werden anders half ingevuld en gaven ruis bij bestellen.
+        if (bereik === 'leeg' && (!veld.leeg(r) || (!r.merk && !r.breedte && !r.hoogte))) { overgeslagen++; return; }
         if (type) { r.glasType = type; if (r.opbouw && (DATA.opbouw_per_type[type] || []).indexOf(r.opbouw) < 0) r.opbouw = ''; }
         if (opbouw) {
           var t = type || r.glasType;
@@ -347,7 +352,9 @@
       var fout = veld.controle ? veld.controle(waarde) : '';
       if (fout) { if (window.appFout) appFout(fout, { kop: veld.titel }); return; }
       doel.forEach(function (r) {
-        if (bereik === 'leeg' && !veld.leeg(r)) { overgeslagen++; return; }
+        // v120: "alleen nog lege" slaat ook helemaal lege regels over (geen merk,
+        // geen maat); die werden anders half ingevuld en gaven ruis bij bestellen.
+        if (bereik === 'leeg' && (!veld.leeg(r) || (!r.merk && !r.breedte && !r.hoogte))) { overgeslagen++; return; }
         if (veld.mag && !veld.mag(r)) { vast++; return; }
         veld.zet(r, waarde);
         gewijzigd++;

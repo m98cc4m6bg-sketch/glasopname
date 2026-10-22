@@ -602,10 +602,10 @@
     houder.innerHTML =
       '<section class="foto-blok" id="blok-' + f.id + '">' +
         '<div class="foto-zoombalk">' +
-          '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', -20)">−</button>' +
+          '<button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="fotoZoom(\'' + f.id + '\', -20)">−</button>' +
           '<span class="foto-zoomwaarde" id="zoomwaarde-' + f.id + '">' + zoom + '%</span>' +
-          '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 20)">+</button>' +
-          '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 0)">Passend</button>' +
+          '<button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="fotoZoom(\'' + f.id + '\', 20)">+</button>' +
+          '<button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="fotoZoom(\'' + f.id + '\', 0)">Passend</button>' +
           '<button class="btn btn-ghost btn-sm" onclick="fotoDraaien(\'' + f.id + '\')" title="Kwartslag draaien">↻</button>' +
           '<button class="btn btn-secondary btn-sm tk-schakel" onclick="tekenModus(\'' + f.id + '\')">✏️ Tekenen</button>' +
           '<button class="btn btn-ghost btn-sm" onclick="leverFotoWeg()">🗑 Foto</button>' +
@@ -781,10 +781,10 @@
       var zoom = f.zoom || 100;
       var midden = f.pad
         ? '<div class="foto-zoombalk">' +
-            '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', -20)">−</button>' +
+            '<button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="fotoZoom(\'' + f.id + '\', -20)">−</button>' +
             '<span class="foto-zoomwaarde" id="zoomwaarde-' + f.id + '">' + zoom + '%</span>' +
-            '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 20)">+</button>' +
-            '<button class="btn btn-ghost btn-sm" onclick="fotoZoom(\'' + f.id + '\', 0)">Passend</button>' +
+            '<button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="fotoZoom(\'' + f.id + '\', 20)">+</button>' +
+            '<button class="btn btn-ghost btn-sm vrij-bij-slot" onclick="fotoZoom(\'' + f.id + '\', 0)">Passend</button>' +
             '<button class="btn btn-ghost btn-sm" onclick="fotoDraaien(\'' + f.id + '\')" ' +
               'title="Foto een kwartslag draaien">↻</button>' +
             '<button class="btn btn-secondary btn-sm tk-schakel" onclick="tekenModus(\'' + f.id + '\')">✏️ Tekenen</button>' +
@@ -810,7 +810,7 @@
       // openen "5 ruiten" voor vijf regels met samen acht ruiten; pas na een
       // wijziging kwam telBlok met de juiste telling.
       var telling = window.ruitenTelling ? ruitenTelling(rijenVan(f.id), 'nog geen ruiten')
-        : (aantal ? aantal + ' ruiten' : 'nog geen ruiten');
+        : (aantal ? aantal + (aantal === 1 ? ' ruit' : ' ruiten') : 'nog geen ruiten');
       var balk =
         '<div class="blok-balk" onclick="blokKlap(\'' + f.id + '\')">' +
           '<span class="blok-pijl" id="pijl-' + f.id + '">▾</span>' +
@@ -945,8 +945,10 @@
     if (!teller) return;
     var eigen = rijenVan(fotoId);
     teller.textContent = window.ruitenTelling ? ruitenTelling(eigen, 'nog geen ruiten')
-      : (eigen.length ? eigen.length + ' ruiten' : 'nog geen ruiten');
+      : (eigen.length ? eigen.length + (eigen.length === 1 ? ' ruit' : ' ruiten') : 'nog geen ruiten');
   }
+
+  window.fotoTellingen = function () { fotos.forEach(function (f) { telBlok(f.id); }); };
 
   function tekenMarkeringen(fotoId) {
     var doek = el('doek-' + fotoId);
@@ -1115,7 +1117,9 @@
     if (!doek) return;
     var breed = doek.getBoundingClientRect().width;
     if (!breed) return;
-    var maat = Math.max(13, Math.min(38, breed * 0.045));
+    // v120: op een aanraakscherm minstens 22 px (plus 44 px tik-plek in CSS).
+    var klein = window.matchMedia && matchMedia('(pointer: coarse)').matches ? 22 : 13;
+    var maat = Math.max(klein, Math.min(38, breed * 0.045));
     doek.style.setProperty('--bol', maat.toFixed(1) + 'px');
   };
 
@@ -1138,6 +1142,9 @@
     if (doek) doek.style.width = foto.zoom + '%';
     if (waarde) waarde.textContent = foto.zoom + '%';
     setTimeout(function () { bolGrootte(id); }, 0);
+    // v120: zoomen mag ook op slot of als je alleen kijkt (de knoppen zijn
+    // vrij-bij-slot); dan alleen op het scherm, niet opslaan.
+    if ((window.invoerOpSlot && invoerOpSlot()) || (window.glasAlleenKijken && glasAlleenKijken())) return;
     opslaan();
   };
 
@@ -1603,6 +1610,7 @@
       (rij && !teveel ? '<button class="gevaar" onclick="markRuitWeg(\'' + fotoId + '\',' + index + ')">' +
         (meer ? 'Hele regel verwijderen (' + st.aantal + ' ruiten)' : 'Ruit verwijderen') + '</button>' : '') +
       '<button onclick="markMenuSluit()">Annuleren</button>';
+    if (window.sluitKruis) sluitKruis(d, sluitMenu, 'Menu sluiten');   // v118
     document.body.appendChild(d);
     menu = d;
 
@@ -1845,7 +1853,8 @@
     g.className = 'lat-groot fv-groot';
     g.innerHTML = '<div class="lat-groot-inhoud fv-groot-inhoud">' +
       window.fotoVoorbeeldHTML(fotoId, { rijId: rijId }).replace('onclick=', 'data-x=') +
-      '<p><b>' + esc(f.titel || soortNaam(f, true)) + '</b></p><button type="button" class="btn btn-secondary btn-sm">Sluiten</button></div>';
+      '<p><b>' + esc(f.titel || soortNaam(f, true)) + '</b></p><button type="button" class="btn btn-secondary btn-sm">Sluiten</button>' +
+      '<button type="button" class="sluit-x" aria-label="Sluiten">✕</button></div>';   // v118: kruisje
     var weg = function (e) {
       if (e && e.type === 'keydown' && e.key !== 'Escape') return;
       if (g.parentNode) g.parentNode.removeChild(g);

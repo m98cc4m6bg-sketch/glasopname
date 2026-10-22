@@ -1,7 +1,7 @@
 # Glasopname — datamodel
 
 *Wat er in Supabase staat, wie wat mag, en welk script wat deed. Bijgewerkt
-op 21 oktober 2026, bij v117. Bron: de SQL-scripts 01 t/m 25 zelf.*
+op 22 oktober 2026, bij v120. Bron: de SQL-scripts 01 t/m 26 zelf.*
 
 Zie ook `OVERZICHT.md` (hoe de app werkt) en `BEHEER.md` (wat je doet).
 Wordt bij elke nieuwe versie bijgewerkt; elk nieuw SQL-script komt in de lijst
@@ -22,10 +22,11 @@ Storage (de opslagmap `projectfotos`), in een map per project.
 Een paar controles zitten **in de database zelf** (triggers): een oud apparaat
 kan geen nieuwere stand overschrijven, een bestelling gaat nooit verloren, en
 alleen het apparaat dat het project "heeft", mag opslaan. Ze gelden voor elke
-versie van de app, ook een oude die nog ergens draait. Ze zijn **geen
-beveiliging** tegen iemand die met opzet om de app heen gaat: de controles
-kijken naar wat de app zelf meestuurt (versienummer, apparaatcode), en wie
-ingelogd is, mag volgens de rechten alles in `projecten` wijzigen.
+versie van de app, ook een oude die nog ergens draait. Ze kijken naar wat de
+app zelf meestuurt (versienummer, apparaatcode); ze zijn bedoeld tegen
+vergissingen, niet tegen opzet. Sinds script 26 (v120) kan alleen een
+**actieve collega** (tabel `gebruikers`, `actief`) bij de projecten, en zet de
+database zelf wie iets wijzigde.
 
 ## Tabellen
 
@@ -42,7 +43,7 @@ ingelogd is, mag volgens de rechten alles in `projecten` wijzigen.
 | `adres` | werkadres voor de lijst | ja | `Dorpsstraat 1, 3311 AB Dordrecht` |
 | `open_taken` | aantal open taken (trigger) | ja | `2` |
 | `samenvatting` | korte tekst voor de lijst | ja | |
-| `gewijzigd_door` / `gewijzigd_naam` | wie het laatst opsloeg (code / naam) | — | `julian` |
+| `gewijzigd_door` / `gewijzigd_naam` | wie het laatst opsloeg (code / naam); sinds script 26 gezet door de database (naam uit `gebruikers`, anders het stuk vóór de @) | — | `julian` |
 | `besteld_op` / `besteld_door` | wanneer en door wie besteld. Alleen gevuld door de bestelmail (nog niet ingesteld); ‹Ja, verstuurd› in de app vult ze niet, die bestelling staat in `data.info.bestellingen` | — | meestal leeg |
 | `spoor_vervolg` | hoort deze opslag bij dezelfde werkgang (voor het logboek) | ja | |
 | `verwijderd_op` / `verwijderd_door` / `verwijderd_naam` | prullenbak: wanneer en door wie | — | leeg = niet weggegooid |
@@ -52,13 +53,14 @@ ingelogd is, mag volgens de rechten alles in `projecten` wijzigen.
 
 | onderdeel | wat |
 |---|---|
-| `rijen[]` | de ruiten: `merk`, `aantal`, `maatsoort`, `breedte`, `hoogte`, `glasType`, `opbouw`, `rooster`, `glasbewerking`, roeden, `opmerking`, en de berekende `glasBreedte`, `glasHoogte`, `totaalDikte`, `kgM2`; per ruit ook wie hem het laatst wijzigde (`gewDoor`, `gewOp`). Sinds v111 bij een rooster eventueel `bediening` (`'stang'` of `'koord'`), `bedieningAantal` (1 of 2) en `bedieningLengte` (mm; ontbreekt = standaardlengte); geen bediening = de drie velden ontbreken. Ze gaan mee in de momentopname van een bestelling, en in het kenmerk `k` alleen als er een bediening is (anders bleven de kenmerken van bestaande bestellingen gelijk). Sinds v114 bij een rooster eventueel `biColor` (`'Ja'`; ontbreekt = Nee) en `ralBinnen` (de kleur binnen; alleen bij bi-color); `ralKleur` is dan de kleur buiten. Op dezelfde manier alleen in het kenmerk als bi-color gekozen is. Uit een maatstaat-import eventueel `maxPakket` (mm, max glaspakket incl. band; v117: de app controleert ertegen, niets aan de database veranderd) |
-| `fotos[]` | foto's en tekeningen, met de merkbolletjes (`markeringen[]`: `{rijId, x, y}`, x en y als deel van de breedte/hoogte, 0–1) en het pad in Storage. Een regel ×3 heeft drie bolletjes met dezelfde `rijId`. Sinds v110 houdt de app het `aantal` van een regel met bolletjes gelijk aan het aantal bolletjes (alleen samen te wijzigen); de database controleert dat niet, en een oud project kan nog verschillen |
+| `rijen[]` | de ruiten: `merk`, `aantal`, `maatsoort`, `breedte`, `hoogte`, `glasType`, `opbouw`, `rooster`, `glasbewerking`, roeden, `opmerking`, en de berekende `glasBreedte`, `glasHoogte`, `totaalDikte`, `kgM2`; per ruit ook wie hem het laatst wijzigde (`gewDoor`, `gewOp`). Sinds v111 bij een rooster eventueel `bediening` (`'stang'` of `'koord'`), `bedieningAantal` (1 of 2) en `bedieningLengte` (mm; ontbreekt = standaardlengte); geen bediening = de drie velden ontbreken. Ze gaan mee in de momentopname van een bestelling, en in het kenmerk `k` alleen als er een bediening is (anders bleven de kenmerken van bestaande bestellingen gelijk). Sinds v114 bij een rooster eventueel `biColor` (`'Ja'`; ontbreekt = Nee) en `ralBinnen` (de kleur binnen; alleen bij bi-color); `ralKleur` is dan de kleur buiten. Op dezelfde manier alleen in het kenmerk als bi-color gekozen is. Uit een maatstaat-import eventueel `maxPakket` (mm, max glaspakket incl. band; v117: de app controleert ertegen, niets aan de database veranderd; v120: een halve mm of tekst naar beneden afgerond). `id` is een heel getal (1–999 999 999; sinds script 26 gecontroleerd door de database, en door de app bij het laden) |
+| `fotos[]` | foto's en tekeningen (`id`: letters, cijfers, - en _, max. 64; sinds script 26 gecontroleerd), met de merkbolletjes (`markeringen[]`: `{rijId, x, y}`; `rijId` een heel getal, x en y als deel van de breedte/hoogte, 0–1) en het pad in Storage. Een regel ×3 heeft drie bolletjes met dezelfde `rijId`. Sinds v110 houdt de app het `aantal` van een regel met bolletjes gelijk aan het aantal bolletjes (alleen samen te wijzigen); de database controleert dat niet, en een oud project kan nog verschillen |
 | `info` | klant, werkadres, levering, `status`, `opnemer` (opgenomen door), `slot` (leeg = normaal; `{open:true, door, op}` = na bestellen met wachtwoord **ontgrendeld**. Het slot zelf volgt uit de status: vanaf 'besteld' staat de invoer vast), `bestellingen[]` (elke bestelling met momentopname), `besteld` (samenvatting daarvan), en sinds v111 `toebehoren` (zie hieronder) |
-| `info.toebehoren` (v111) | alleen wat in dit project anders is dan de standaard op het tabblad Toebehoren: `latPositie` ('binnen'/'buiten'; sinds v114 niet meer gebruikt), `standaardLat`, `standaardOnderlat` (sinds v114 niet meer gebruikt: de onderlat volgt de latzijde per ruit; het veld blijft bewaard), `binnen` en `buiten` (`{kleur: 'wit'|'grijs', dikte}`), `afwijkingen` (`{INSTELLING: getal}`, bijv. `{KITVOEG_BREEDTE_MM: 5}`; de namen zijn die uit `INSTELLINGEN` in `toebehoren.js`), en `perRuit` (`{<id van de ruit>: {…}}`, zie hieronder). Bewust niet op de ruit zelf: dat gaf de ruit een nieuw stempel (`gewOp`). Ontbreekt het, dan geldt overal de standaard. Gaat niet naar de leverancier; de database kijkt er niet naar (geen SQL nodig) |
+| `info.toebehoren` (v111) | alleen wat in dit project anders is dan de standaard op het tabblad Toebehoren: `latPositie` ('binnen'/'buiten'; sinds v114 niet meer gebruikt), `standaardLat`, `standaardOnderlat` (sinds v114 niet meer gebruikt: de onderlat volgt de latzijde per ruit; het veld blijft bewaard), `binnen` en `buiten` (`{kleur: 'wit'|'grijs', dikte}`), `beideGezien` (v119: ids van ruiten op latzijde "beide" waarvoor op Toebehoren op Begrepen is getikt; dan staan ze niet meer in de strook), `afwijkingen` (`{INSTELLING: getal}`, bijv. `{KITVOEG_BREEDTE_MM: 5}`; de namen zijn die uit `INSTELLINGEN` in `toebehoren.js`; v121 nieuw: `NEUSLAT_TOESLAG_MM`, oude projecten zonder krijgen de standaard 20), en `perRuit` (`{<id van de ruit>: {…}}`, zie hieronder). Bewust niet op de ruit zelf: dat gaf de ruit een nieuw stempel (`gewOp`). Ontbreekt het, dan geldt overal de standaard. Gaat niet naar de leverancier; de database kijkt er niet naar (geen SQL nodig) |
 | — lattypen (v113) | `standaardLat` en `onderlat` zijn een id uit `LATTEN` in `latten.js` ('A4', 'B5', 'E7', 'C1', 'N35' …) of voor de onderlat `'NEUS'` (passende neuslat, de app kiest de maat) of sinds v115 `'ZELFDE'` (dezelfde lat als boven, ook bij latzijde buiten). Oude namen uit v111/v112 worden bij het lezen omgezet (niet in de database): 'Glaslat' → 'A4' als standaardlat, maar als onderlat 'ZELFDE' (v115; tot v114 werd dat '' = automatisch); 'Neuslat' → 'NEUS'; 'Ventilatielat' → 'C1' (als standaardlat → 'A4'). Pas bij een nieuwe keuze komt het nieuwe id in het project |
 | — band (v113) | `binnen.dikte` 2, 3 of 4; `buiten.dikte` alleen 3 of 4 (Jan: nooit 2; een oude 2 telt als 3) |
-| — `perRuit` (v111, v113, v114) | per ruit: `onderlat` (eigen keuze; gaat altijd voor), `tweeKanten` (true; van v111–v113, telt sinds v114 als latzijde 'beide' en wordt bij een nieuwe keuze gewist), sinds v113 `sponningDiepte` (mm, getal), `glaslat` (id uit `LATTEN`; leeg = projectstandaard; oude 'GL13' → B13, 'B2' → B1 bij het lezen), `bandBinnen` (2/3/4; leeg = projectstandaard), `uitfrezen` (true), en sinds v114 `latZijde` ('binnen', 'buiten' of 'beide', sinds v115 ook 'geen' = latten meegeleverd; ontbreekt = nog niet gekozen; een csv-import zet 'geen') en `diepteOnder` (mm; ontbreekt = gelijk aan `sponningDiepte`). Sinds v115 `latOmgekeerd` (true: een opdeklat met eigen sponning omgekeerd gemonteerd, neemt dan de eigen sponning in; alleen bij E7/E22/GLD1/GLD2) en kan `onderlat` 'ZELFDE' zijn. `sponningDiepte` is sinds v115 de bruikbare diepte van zij en boven (Invoer: Diepte), `diepteOnder` die van de onderdorpel (Invoer: Onder). Een lege keuze staat er niet in. Kopieer je een ruit, dan gaat dit niet mee (de kopie heeft een ander id). Na een bestelling op slot (v114), net als de maten |
+| — `perRuit` (v111, v113, v114, v118) | per ruit: `onderlat` (eigen keuze; gaat altijd voor), `tweeKanten` (true; van v111–v113, telt sinds v114 als latzijde 'beide' en wordt bij een nieuwe keuze gewist), sinds v113 `sponningDiepte` (mm, getal), `glaslat` (id uit `LATTEN`; leeg = projectstandaard; oude 'GL13' → B13, 'B2' → B1 bij het lezen), `bandBinnen` (2/3/4, sinds v118 ook 5 = rol 2 + rol 3; leeg = projectstandaard), sinds v118 `bandBuiten` (3/4/5; leeg = projectstandaard), `uitfrezen` (true), en sinds v114 `latZijde` ('binnen', 'buiten' of 'beide', sinds v115 ook 'geen' = latten meegeleverd; ontbreekt = nog niet gekozen; een csv-import zet 'geen') en `diepteOnder` (mm; ontbreekt = gelijk aan `sponningDiepte`). Sinds v115 `latOmgekeerd` (true: een opdeklat met eigen sponning omgekeerd gemonteerd, neemt dan de eigen sponning in; alleen bij E7/E22/GLD1/GLD2) en kan `onderlat` 'ZELFDE' zijn. `sponningDiepte` is sinds v115 de bruikbare diepte van zij en boven (Invoer: Diepte), `diepteOnder` die van de onderdorpel (Invoer: Onder). Een lege keuze staat er niet in. Kopieer je een ruit met ⧉, dan gaat dit sinds v120 mee (de kopie krijgt een eigen regel onder haar id); tot v119 niet. Na een bestelling op slot (v114), net als de maten |
+| `info.bestellingen[]` (v120) | elke bestelling: `nr`, `op`, `door`, `soort`, `ruiten`, eventueel `ingetrokken`, en sinds v120 `basis`: het tijdstip (`op`) van de laatst bekende geldige bestelling waarop hij voortbouwt ('' = de eerste). Twee geldige met dezelfde `basis` = dubbel besteld (de app meldt het). Het nummer voor de leverancier telt een ingetrokken lijst niet mee. Geen SQL nodig: script 23 kijkt er niet naar |
 | `info.bestellingen[].ruiten` | per ruit de momentopname: de velden, kenmerk `k`, `opLijst` (stond op deze lijst), `g` (stempel). Op een aanvulling ook: `vervangt` (nummer van de laatste bestelling met deze ruit), en sinds v110 `vervangtUit` (tekst: uit welke lijsten de vervangen ruiten komen, bijv. "1e en 2e"), `extra` + `extraBij` (alleen meer van dezelfde ruit: het eerder bestelde aantal, en de tekst van de lijsten) of `minder` + `minderUit` (alleen een lager aantal: het eerder bestelde aantal; staat met `opLijst` = waar, maar op papier onder ANNULEREN). Sinds v112: `bedieningVan` (de bediening zoals die besteld was, `{}` = geen) en `bedieningUit` (de lijsten van het glas) bij een ruit waarvan op deze lijst alleen de bediening veranderde (ook naast `extra`/`minder`); zo'n ruit staat met `opLijst` = waar, zonder `vervangt`, en zijn glas blijft "uit" de eerdere lijsten. Sinds v114 op dezelfde manier `roosterVan` (Duco type, RAL, bi-color en RAL binnen zoals besteld) en `roosterUit` bij alleen een ander rooster. Een oudere bestelling wordt ingekort (`kort`): sinds v114 met `kort: 2` en ook `rooster`, `ducoType`, `ralKleur`, `biColor`, `ralBinnen`; een ingekorte van daarvoor (`kort: 1`) kent die niet (de app behandelt ze daar als onbekend). Een vervallen ruit (`vervallen`) krijgt sinds v110 ook `nrTekst`. Uit welke lijsten de ruiten komen die nu gelden, rekent de app uit de hele reeks (`standVan`: `herkomst`, `minderIn`, sinds v112 `bedieningIn`: de lijst van de bediening die nu geldt, en sinds v114 `roosterIn`: idem voor het rooster). Script 23 kijkt alleen naar `k` en `opLijst`, dus de nieuwe velden vroegen geen SQL |
 | `project`, `datum`, `speling`, `bijtelling` | kop van het project |
 | `_versieNr` | het versienummer van de app die opsloeg (versieslot, script 21) |
@@ -89,8 +91,11 @@ database schrijft dit zelf (trigger), de app niet.
 ### `gebruikers` — leesbare kopie van de accounts (sinds 14)
 
 `id` (= de code van het account in Supabase), `naam` (standaard het stuk vóór
-de @), `email`, `actief`. Een trigger zet er iedereen in die je in Supabase
-aanmaakt. De echte accounts (`auth.users`, met wachtwoorden) kan de app niet
+de @), `email`, `actief`, sinds script 26 `telefoon` (max. 30 tekens; zet
+ieder zelf met 📞 op het startscherm, voor op de bestellijst). Een trigger
+zet er iedereen in die je in Supabase aanmaakt. Sinds script 26 bepaalt
+`actief` wie bij de projecten kan (`is_lid()`); iemand die uit dienst gaat:
+`actief = false`, niet verwijderen. De echte accounts (`auth.users`, met wachtwoorden) kan de app niet
 lezen, en dat hoort zo.
 
 ### `mailadressen` en `mailverzonden` — bestelmail (sinds 14)
@@ -148,20 +153,22 @@ hetzelfde adres krijgt een nieuwe code en hoort er niet meer bij. Zie
 
 ## Wie mag wat
 
-Het model is eenvoudig: **wie is ingelogd, hoort bij Jelier Bouw en mag alles
-zien; zonder inloggen niets.** Er zijn geen rollen.
+Het model is eenvoudig: **een actieve collega (ingelogd, en in `gebruikers`
+op actief; geen anonieme aanmelding) mag alles zien; verder niemand iets.**
+Er zijn geen rollen. ("collega" hieronder = `is_lid()`, sinds script 26;
+daarvoor: iedereen die ingelogd is.)
 
 | tabel | lezen | toevoegen | wijzigen | verwijderen |
 |---|---|---|---|---|
-| `projecten` | ingelogd | ingelogd | ingelogd (met de controles hieronder) | ingelogd |
-| `app_data` | ingelogd | — | — (alleen via SQL) | — |
-| `taken` | ingelogd | ingelogd | ingelogd | ingelogd |
-| `projectgeschiedenis` | ingelogd | ingelogd | **niemand** | **niemand** (de database ruimt zelf op) |
-| `gebruikers` | ingelogd | — (automatisch) | ingelogd (naam) | — (gaat mee met het account) |
-| `mailadressen` | ingelogd | ingelogd | ingelogd | ingelogd |
-| `mailverzonden` | ingelogd | alleen de mailfunctie | — | — |
-| `bewerkslot` | ingelogd | ingelogd | ingelogd | ingelogd |
-| Storage `projectfotos` | ingelogd | ingelogd | ingelogd | ingelogd |
+| `projecten` | collega | collega | collega (met de controles hieronder) | collega, **alleen vanuit de prullenbak** (26) |
+| `app_data` | collega | — | — (alleen via SQL) | — |
+| `taken` | collega | collega | collega | collega |
+| `projectgeschiedenis` | collega | **alleen de database** (26) | **niemand** | **niemand** (de database ruimt zelf op) |
+| `gebruikers` | collega | — (automatisch) | **alleen je eigen** naam en telefoon (26) | — (gaat mee met het account) |
+| `mailadressen` | collega | collega | collega | collega |
+| `mailverzonden` | collega | alleen de mailfunctie | — | — |
+| `bewerkslot` | collega | collega | collega | collega |
+| Storage `projectfotos` | collega | collega | **niemand** (26: niet overschrijven) | collega |
 
 Zelf een account aanmaken staat **uit**; accounts maakt Jan in Supabase.
 
@@ -175,6 +182,9 @@ Zelf een account aanmaken staat **uit**; accounts maakt Jan in Supabase.
 | bewerkslot | 24 | alleen het apparaat dat het project heeft, mag opslaan; werk op een oudere stand wordt geweigerd |
 | logboek | 13/14 | elke wijziging komt in `projectgeschiedenis` |
 | prullenbak op serverklok | 22 | het moment van weggooien kan niet verschoven worden |
+| wie wijzigde | 26 | `gewijzigd_door`/`_naam` en `verwijderd_door`/`_naam` zet de database; een nieuw project begint nooit in de prullenbak |
+| nummers | 26 | ruit-nummers hele getallen, foto-nummers letters/cijfers/-/_, bolletjes wijzen naar een getal |
+| versie niet absurd | 26 | een versienummer van 5 cijfers of meer wordt geweigerd |
 
 ## Functies in de database
 
@@ -185,6 +195,8 @@ Zelf een account aanmaken staat **uit**; accounts maakt Jan in Supabase.
 | `glas_gebruik()` | hoeveel ruimte database en foto's innemen (voor de waarschuwing op het startscherm) |
 | `prullenbak_opruimbaar(dagen)` | welke projecten langer dan 30 dagen in de prullenbak staan |
 | `glas_status_rang(status)` | volgorde van de statussen (besteld < geleverd < gemonteerd < afgerond) |
+| `is_lid()` (26) | is wie nu vraagt een actieve, niet-anonieme collega? Alle regels (policies) gebruiken hem |
+| `wie_is_het()`, `ids_controleren()` (26) | triggers: wie wijzigde, en de nummers in een project |
 
 Realtime (live bijwerken) staat aan voor `projecten` (script 07) en
 `bewerkslot` (24). Taken en het logboek werken niet live bij.
@@ -223,6 +235,7 @@ draaien**: dat is voor de tests en begint met alles weggooien.
 | 23 | v104/v105 | bestellingen samenvoegen in de database |
 | 24 | v106 | bewerkslot |
 | 25 | v109 | "Figuurglas — Canale mat blank" alsnog in de lijst Glasbewerking (script 12 vergat hem); daarna gebruikt de app de lijst uit de database weer. Mag vaker gedraaid worden |
+| 26 | v120 | rechten: alleen actieve collega's (`is_lid()`); wie wijzigde zet de database; logboek alleen door de database; definitief verwijderen alleen uit de prullenbak; foto's niet overschrijven; in `gebruikers` alleen je eigen naam en telefoon; nummers en versienummer gecontroleerd; kolom `gebruikers.telefoon`. Stopt zelf als niemand actief is. Mag vaker gedraaid worden. Terugdraaien: `26_terug.sql` (niet in de repo) |
 
 **Twee kleine onjuistheden in oude scripts** (gevonden bij het schrijven van
 dit document; voor de gebruiker zonder gevolgen):

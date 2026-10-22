@@ -31,7 +31,10 @@
   function herstel(json) {
     var s = JSON.parse(json);
     rijen = s.rijen || [];
-    volgendId = s.volgendId || rijen.length + 1;
+    // v120: nooit terug naar een lager nummer. Na ongedaan maken kreeg een
+    // nieuwe ruit anders het nummer van een al bestelde (die werd dan
+    // "VERVANGT" in plaats van annuleren + nieuw).
+    volgendId = Math.max(volgendId || 1, s.volgendId || rijen.length + 1);
     fotos = s.fotos || [];
     // De bestelling is een gebeurtenis, geen bewerking: die draai je niet
     // terug met Cmd+Z. Een momentopname van vóór de bestelmail zette status,

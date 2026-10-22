@@ -843,8 +843,9 @@ const tbCel = (page, merk, kl) => tbR(page, merk).locator('td.' + kl).innerText(
     console.log('\n2. Toebehoren: kolom Pakket, voorbeeld bij "Alle ruiten", binnen, zaagplan');
     ({ ctx, page } = await gevelOpen(GEVEL117));
     await naarToebehoren(page);
-    m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel thead th')].map(th => th.textContent.trim()).filter(Boolean));
-    check('kolom Pakket naast Dikte', m.indexOf('Pakket') === m.indexOf('Dikte') + 1, JSON.stringify(m));
+    // v118: per foto een eigen tabel; kopteksten langer (wens Jan).
+    m = await page.evaluate(() => [...document.querySelector('.tb-tabel').querySelectorAll('thead th')].map(th => th.textContent.trim()).filter(Boolean));
+    check('kolom Pakket dikte naast Glas dikte', m.indexOf('Pakket dikte') === m.indexOf('Glas dikte') + 1, JSON.stringify(m));
     t = (await tbCel(page, 'A', 'tb-pakket')).replace(/\s+/g, ' ');
     check('A: pakket 29, met lat 44', /^29 met lat 44$/.test(t), t);
     t = (await tbCel(page, 'D', 'tb-pakket')).replace(/\s+/g, ' ');
@@ -889,7 +890,7 @@ const tbCel = (page, merk, kl) => tbR(page, merk).locator('td.' + kl).innerText(
     await page.selectOption('#tbAlleLat', '-'); await wacht(200);
     // Alle ruiten → onderlat N30: niet bij binnen, en zeggen welke.
     await page.selectOption('#tbAlleOnderlat', 'N30');
-    await page.click('button:has-text("Toepassen")'); await wacht(500);
+    await page.click('.tb-alles button:has-text("Toepassen")'); /* v120: eerst een vraag */ await page.click('.melding-laag button:has-text("Toepassen")'); await wacht(500);
     t = (await meldingen(page)).join(' | ');
     check('melding: niet gewijzigd bij 2 ruiten met latzijde binnen (A, C)', /niet gewijzigd bij 2 ruiten met latzijde binnen \(A, C\)/.test(t), t.slice(0, 200));
     await sluitMeldingen(page);
@@ -924,7 +925,7 @@ const tbCel = (page, merk, kl) => tbR(page, merk).locator('td.' + kl).innerText(
       m.groep && m.groep.indexOf('4-15-4') >= 0 && m.klasse === 'niet-lever' && !m.losTeDik.length, JSON.stringify(m));
     await ctx.close();
     // iPad en telefoon: de kolom past, niets schuift opzij.
-    for (const [naam, opt] of [['pc 1440', { viewport: { width: 1440, height: 900 } }], ['laptop 1280', { viewport: { width: 1280, height: 800 } }],
+    for (const [naam, opt] of [['pc 1600', { viewport: { width: 1600, height: 900 } }], ['pc 1440', { viewport: { width: 1440, height: 900 } }], ['laptop 1280', { viewport: { width: 1280, height: 800 } }],
                                ['ipad', { viewport: { width: 820, height: 1180 }, hasTouch: true }],
                                ['telefoon', { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }]]) {
       ({ ctx, page } = await gevelOpen(GEVEL117, opt));
@@ -981,9 +982,11 @@ const tbCel = (page, merk, kl) => tbR(page, merk).locator('td.' + kl).innerText(
     const pdf = await bestellijstPdf(page, Object.assign({ 'Past het in de sponning?': 'Toch doorgaan' }, ONVOLLEDIG));
     t = pdfTekst(pdf);
     const regel = mk => t.split('\n').find(l => new RegExp('\\b' + mk + '\\b').test(l) && /\d{3,4}/.test(l)) || '';
+    // v118: "Helder (standaard)" staat nu ook op de lijst; de bediening via het model (zelfde als de pdf).
+    u = await page.evaluate(() => { const mo = bestellijstModel(); const i = mo.kolommen.indexOf('Bediening'); return mo.regels.map(g => g.cellen[i]); });
     check('bestellijst: kolom Bediening, bij K1 en K2 (rooster) "standaard", bij K3 (geen rooster) niets',
-      /Bediening/.test(t) && /standaard/.test(regel('K1')) && /standaard/.test(regel('K2')) && !/standaard/.test(regel('K3')),
-      [regel('K1'), regel('K3')].join(' / '));
+      /Bediening/.test(t) && JSON.stringify(u) === '["standaard","standaard",""]' && /RAL 9010 - Zuiverwit standaard/.test(regel('K1')),
+      JSON.stringify(u) + ' / ' + regel('K1'));
     m = await page.evaluate(() => { const e = exportTabel(); const i = e.koppen.indexOf('Bediening'); return e.regels.map(r => r[i]); });
     check('export (xlsx/csv): Bediening "standaard", "standaard", ""', JSON.stringify(m) === '["standaard","standaard",""]', JSON.stringify(m));
     await vraagOpScherm(page); await sluitMeldingen(page); await wacht(300);

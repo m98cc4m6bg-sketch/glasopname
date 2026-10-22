@@ -14,7 +14,7 @@
 
   function esc2(t) {
     return String(t === undefined || t === null ? '' : t)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');   // v120: ook > en '
   }
 
   function datumKort(iso) {
@@ -34,6 +34,14 @@
 
   /* ─── tonen en verbergen ──────────────────────────────────── */
 
+  window.glasStartTelefoonKnop = function () {
+    var k = el('startTelefoon');
+    if (!k) return;
+    var tel = window.glasGebruiker ? glasGebruiker().telefoon : '';
+    k.textContent = tel ? '📞' : '📞 Telefoon toevoegen';
+    k.title = tel ? 'Mijn telefoonnummer: ' + tel + ' (tik om te wijzigen)' : 'Mijn telefoonnummer, voor op de bestellijst';
+  };
+
   window.glasToonStart = function () {
     var scherm = el('startScherm');
     if (!scherm) return;
@@ -44,6 +52,10 @@
     var naam = (window.glasGebruiker ? glasGebruiker().naam : '') || '';
     var wie = el('startGebruiker');
     if (wie) wie.innerHTML = naam ? 'Ingelogd als <b>' + esc2(naam) + '</b>' : '';
+    // v120: zonder telefoonnummer valt de knop op (voor op de bestellijst).
+    window.glasStartTelefoonKnop();
+    if (window.glasBackupKnop) glasBackupKnop();
+    if (window.glasMijnLaden) glasMijnLaden().then(window.glasStartTelefoonKnop);
     vulVerder();
     // Eerst opruimen wat langer dan 30 dagen in de prullenbak staat, dan
     // pas de prullenbak tonen. De taken van projecten in de prullenbak
@@ -396,7 +408,7 @@
           '<div class="start-project-info" onclick="cloudOpen(\'' + esc2(p.id) + '\')">' +
           '<strong>' + esc2(p.naam || '(naamloos)') + statusLabel(p) + '</strong>' +
           '<span>' + (p.adres ? esc2(p.adres) + ' · ' : '') +
-          (p.aantal_ruiten || 0) + ' ruiten' +
+          (p.aantal_ruiten || 0) + ((p.aantal_ruiten || 0) === 1 ? ' ruit' : ' ruiten') +
           (p.open_taken ? ' · <b class="pl-taken">' + p.open_taken + ' open ' +
              (p.open_taken === 1 ? 'taak' : 'taken') + '</b>' : '') +
           (p.datum ? ' · ' + esc2(p.datum) : '') +

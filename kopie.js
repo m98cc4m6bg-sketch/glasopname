@@ -45,7 +45,24 @@
     nieuw.id = id;
     nieuw.merk = nieuwMerk(bron, doelFotoId);
     if (doelFotoId) nieuw.fotoId = doelFotoId; else delete nieuw.fotoId;
+    // v120 (keuze Jan): ook de keuzes van Toebehoren (sponningdiepte,
+    // onderdiepte, latzijde …). Die staan niet op de ruit maar bij het
+    // project; tot v119 kreeg de kopie ze dus niet mee.
+    meegenomen = window.toebehorenKopieerRuit ? toebehorenKopieerRuit(bron.id, id) : [];
     return nieuw;
+  }
+  var meegenomen = [];
+
+  // "Controleer …" met wat er van Toebehoren meeging (keuze Jan).
+  var NAMEN = { sponningDiepte: 'sponningdiepte', diepteOnder: 'onderdiepte', latZijde: 'latzijde', tweeKanten: 'latzijde',
+                glaslat: 'glaslat', latOmgekeerd: 'montage lat', onderlat: 'onderlat', bandBinnen: 'band binnen',
+                bandBuiten: 'band buiten', uitfrezen: 'uitfrezen' };
+  function controleerTekst(velden) {
+    var v = [];
+    Object.keys(NAMEN).forEach(function (k) { if (velden.indexOf(k) >= 0 && v.indexOf(NAMEN[k]) < 0) v.push(NAMEN[k]); });
+    if (!v.length) return '';
+    return 'Controleer ' + (v.length === 1 ? v[0] : v.slice(0, -1).join(', ') + ' en ' + v[v.length - 1]) +
+      ': ' + (v.length === 1 ? 'die is' : 'die zijn') + ' meegekopieerd.';
   }
 
   function afronden(melding) {
@@ -66,6 +83,8 @@
     var kopie = maakKopie(bron, bron.fotoId || null);
     rijen.splice(rijen.indexOf(bron) + 1, 0, kopie);
     afronden('Regel gekopieerd naar ' + kopie.merk);
+    var controle = controleerTekst(meegenomen);
+    if (controle && window.kortBericht) kortBericht('Gekopieerd naar ' + kopie.merk + '. ' + controle, { soort: 'info' });
     setTimeout(function () {
       var tr = document.getElementById('rij-' + kopie.id);
       if (tr) {
@@ -90,15 +109,18 @@
     // een kopie wordt bepaald door wat er al in gebruik is, en dan moet
     // de vorige kopie er al tussen staan. Anders krijgen ze allemaal
     // dezelfde letter.
-    var nieuw = [];
+    var nieuw = [], alleVelden = [];
     bron.forEach(function (r) {
       var kopie = maakKopie(r, doelFotoId);
       rijen.push(kopie);
       nieuw.push(kopie);
+      alleVelden = alleVelden.concat(meegenomen);
     });
     if (window.bulkSelectieWissen) bulkSelectieWissen();
     afronden(nieuw.length + ' regels gekopieerd naar ' +
       (doelNaam || 'dezelfde plek') + ' (' + nieuw.map(function (r) { return r.merk; }).join(', ') + ')');
+    var controle = controleerTekst(alleVelden);
+    if (controle && window.kortBericht) kortBericht(nieuw.length + ' regels gekopieerd. ' + controle, { soort: 'info' });
   };
 
   /* ─── geselecteerde ruiten gelijktrekken ───────────────────── */

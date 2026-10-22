@@ -280,6 +280,23 @@
     padding-right: 8px;
   }
   table.invoer td.berekend.ongeldig { color: var(--grijs-tekst); font-weight: 400; }
+  /* v118: te dik voor het max glaspakket (maatstaat), al op Invoer. */
+  table.invoer td.berekend.te-dik, table.invoer .berekend.te-dik { color: var(--err); font-weight: 700; background: #fdecea; }
+  /* v118: de bestellijst in de app zoals op de pdf. */
+  .bl-titel { font-size: 15px; margin: 12px 0 6px; } .bl-titel small { font-weight: 400; color: var(--grijs-tekst); font-size: 12px; }
+  .bl-kader { background: #ffecaa; border: 2px solid #b8860b; border-radius: 6px; padding: 8px 10px; margin: 0 0 10px; color: #5a3a00; font-size: 12.5px; }
+  .bl-kader b { font-size: 14px; } .bl-kader p { margin: 4px 0 0; } .bl-bevestig { color: #961e1e; font-weight: 700; }
+  .bl-wrap { overflow-x: auto; margin-bottom: 8px; }
+  table.bl-tabel thead th { background: #c1121c; color: #fff; }
+  table.bl-tabel.bl-annuleren thead th { background: #8e1b12; } table.bl-tabel.bl-rustig thead th { background: #b8860b; }
+  table.bl-tabel.bl-bediening thead th { background: #154c79; }
+  table.bl-tabel td.bl-wijz { background: #ffecaa; color: #5a3a00; font-weight: 700; }
+  table.bl-tabel tr.strijdig td { background: #fdecea; color: #8e1b12; font-weight: 700; }
+  table.bl-tabel tr.bl-na-bestelling td:first-child { box-shadow: inset 4px 0 0 #e8b400; }
+  .bl-blok-kop { margin: 14px 0 4px; font-size: 14px; } .bl-blok-kop.bl-annuleren { color: #8e1b12; }
+  .bl-blok-kop.bl-rustig { color: #5a3a00; } .bl-blok-kop.bl-bediening { color: #154c79; }
+  .bl-totaal { font-weight: 700; font-size: 13px; margin: 10px 0; }
+  table.invoer select.te-dik { border-color: var(--err); background: #fdecea; color: var(--err); }
 
   table.invoer input[type=number],
   table.invoer input[type=text] {
@@ -664,7 +681,7 @@
     background: var(--grijs-licht); color: var(--grijs-tekst);
     border: 1px solid var(--grijs-rand); white-space: nowrap;
     display: inline-block; box-sizing: border-box;
-    width: 132px; text-align: center; flex: 0 0 132px;
+    width: 158px; text-align: center; flex: 0 0 158px;   /* v120: 132 kapte "Geen verbinding — lokaal" af */
     overflow: hidden; text-overflow: ellipsis;
   }
   /* Foto's die nog op het apparaat wachten op uploaden (v93). Oranje:
@@ -890,8 +907,23 @@
   }
   .foto-voet { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
   /* v111: het tabblad Toebehoren. */
+  /* v120: ruiten aanvinken op Toebehoren (keuze Jan: blok én vinkjes).
+     Het vakje is klein, de tik-plek 44 px op een aanraakscherm. */
+  .tb-kies { display: inline-flex; align-items: center; justify-content: center; margin: -6px 2px -6px -4px; padding: 6px; cursor: pointer; vertical-align: middle; }
+  .tb-kies input { width: 18px; height: 18px; margin: 0; accent-color: var(--blauw); cursor: pointer; }
+  @media (pointer: coarse) { .tb-kies { min-width: 44px; min-height: 44px; margin: -12px 0 -12px -10px; } .tb-kies input { width: 22px; height: 22px; } }
+  tr.tb-ruit.tb-gekozen > td { background: #eef4fb; }
+  .tb-alles-blok.tb-alles-gekozen { border-color: var(--blauw); box-shadow: inset 4px 0 0 var(--blauw); }
+  .tb-kies-groep { margin-left: 8px; }
   .tb-strook { padding: 8px 10px; border-radius: var(--radius); font-size: 13px; background: #fff6e0;
     border: 1px solid var(--geel); margin-bottom: 12px; }
+  /* v121 (Jan): rustige melding (latzijde beide): geen fout, wel duidelijk. */
+  .tb-strook.tb-zacht { display: flex; align-items: center; gap: 10px; background: #f5f6f8; border-color: var(--grijs-rand);
+    border-left: 3px solid #8b97a8; color: #3d3b38; }
+  .tb-strook.tb-zacht > span:nth-child(2) { flex: 1; }
+  .tb-zacht-i { flex: none; width: 18px; height: 18px; border-radius: 50%; background: #8b97a8; color: white; font: italic 700 12px/18px Georgia, serif; text-align: center; }
+  .tb-zacht-merken { color: var(--grijs-tekst); }
+  .lat-knop .tb-hint { color: var(--grijs-tekst); font-weight: 400; }
   .tb-totalen { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-bottom: 14px; }
   .tb-blok { border: 1px solid var(--grijs-rand); border-radius: var(--radius); padding: 10px 12px; background: white; }
   .tb-getal { font-size: 22px; font-weight: 800; line-height: 1.2; }
@@ -910,6 +942,12 @@
   .tb-zaag-stuk { display: flex; align-items: center; justify-content: center; background: #d9b98a; border-right: 1px solid #7a5a3a;
     color: #3a2a1a; overflow: hidden; white-space: nowrap; font-size: 11px; min-width: 0; flex: none; }
   .tb-zaag-rest { width: 5.5em; color: var(--grijs-tekst); flex: none; }
+  /* v120: de maten als tekst; op een groot scherm alleen als er een smal
+     stuk (zonder getal) in de balk zit, op een telefoon altijd. */
+  .tb-zaag-rij { flex-wrap: wrap; }
+  .tb-zaag-maten { display: none; flex: 1 0 100%; padding-left: calc(1.6em + 6px); color: var(--grijs-tekst); font-size: 11px; }
+  .tb-zaag-rij:has(.tb-zaag-stuk.smal) .tb-zaag-maten { display: block; }
+  @media (max-width: 600px) { .tb-zaag-maten { display: block; } .tb-zaag-stuk { font-size: 10px; } }
   .tb-inst-kop { cursor: pointer; padding: 8px 10px; border-radius: var(--radius); background: var(--grijs-licht);
     font-size: 13px; margin-bottom: 10px; }
   .tb-inst-kop.afwijkend { background: #fff3e0; border-left: 4px solid #e8890c; }
@@ -940,6 +978,8 @@
   /* Geen width: 1% (zoals eerst): een kolom in procenten laat een tabel met
      width: auto toch de hele breedte vullen. */
   .tb-tabel .tb-smal { white-space: nowrap; }
+  /* v118: de langere kopteksten (Sponning diepte onder, Band dikte buiten) mogen afbreken. */
+  .tb-tabel th.tb-smal { white-space: normal; vertical-align: bottom; line-height: 1.2; max-width: 92px; }
   .tb-tabel .tb-breed { min-width: 170px; max-width: 280px; }
   .tb-tabel .tb-breed select { width: 100%; max-width: 260px; }
   .tb-neus { display: block; font-size: 11px; color: var(--grijs-tekst); margin-top: 2px; }
@@ -958,15 +998,16 @@
      en viel het oordeel buiten beeld. Dan per ruit twee regels: glas en
      diepten bovenaan, de latten en het oordeel eronder; het merk links. */
   /* v117: met de kolom Pakket past de hele tabel pas vanaf ±1360 px; daaronder
-     ook de twee regels per ruit (een laptop van 1280). */
-  @media (min-width: 641px) and (max-width: 1360px) {
+     ook de twee regels per ruit. v118: vaste kolombreedtes (hieronder), dan
+     past de tabel met zijn kopregel vanaf 1261 px (een laptop van 1280). */
+  @media (min-width: 641px) and (max-width: 1260px) {
     .tb-wrap { display: block; }
     table.samenvatting.tb-tabel, table.samenvatting.tb-tabel tbody { display: block; width: 100%; }
     table.samenvatting.tb-tabel thead { display: none; }
-    table.samenvatting.tb-tabel tr.tb-groep, table.samenvatting.tb-tabel tr.tb-groep td { display: block; }
     table.samenvatting.tb-tabel tr.tb-ruit { display: grid; grid-template-columns: minmax(44px, 64px) repeat(7, minmax(0, 1fr)); gap: 4px 10px;
       padding: 8px 4px; border-bottom: 1px solid var(--grijs-rand); align-items: end;
-      grid-template-areas: "merk type type opb dikte pakket diepte onder" "merk zijde lat olat band oordeel nodig nodig"; }
+      grid-template-areas: "merk type type opb dikte pakket diepte onder" "merk zijde lat olat band bandb oordeel nodig"; }
+    table.samenvatting.tb-tabel td.tb-bandbuiten { grid-area: bandb; }
     table.samenvatting.tb-tabel td.tb-pakket { grid-area: pakket; }
     table.samenvatting.tb-tabel tr.tb-ruit td { display: block; padding: 0; border: 0; min-width: 0; text-align: left; white-space: normal; background: none; }
     table.samenvatting.tb-tabel tr.tb-ruit td[data-kop]::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); margin-bottom: 1px; }
@@ -978,9 +1019,32 @@
     table.samenvatting.tb-tabel td.tb-bandkol { grid-area: band; } table.samenvatting.tb-tabel td.tb-oordeel { grid-area: oordeel; }
     table.samenvatting.tb-tabel td.tb-nodig { grid-area: nodig; white-space: normal; }
     table.samenvatting.tb-tabel tr.tb-ruit select, table.samenvatting.tb-tabel tr.tb-ruit input.tb-mm { width: 100%; max-width: none; min-width: 0; }
-    table.samenvatting.tb-tabel tr.tb-ruit .lat-knop { width: 100%; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+    /* v118 (controle): niet afkappen; juist de ventilatie en uitsteek van de neuslat vielen weg. */
+    table.samenvatting.tb-tabel tr.tb-ruit .lat-knop { width: 100%; white-space: normal; text-align: left; }
     table.samenvatting.tb-tabel tr.tb-ruit .pk-chip { white-space: normal; }
     table.samenvatting.tb-tabel tr.tb-ruit td.tb-kort { display: none; }
+  }
+  /* v118 (wens Jan): per foto een eigen tabel met kopregel. Op een groot
+     scherm vaste kolombreedtes (colgroup in toebehoren.js), zodat de
+     kolommen van alle tabellen onder elkaar staan; kopteksten en de inhoud
+     mogen afbreken. Niet breder dan 1480 px (v113: "erg uitgestrekt"). */
+  @media (min-width: 1261px) {
+    .tb-wrap { display: block; }
+    section.tb-groep { max-width: 1500px; }
+    table.samenvatting.tb-tabel { width: 100%; table-layout: fixed; }
+    table.samenvatting.tb-tabel th.tb-smal { max-width: none; }
+    table.samenvatting.tb-tabel td { white-space: normal; overflow-wrap: anywhere; }
+    table.samenvatting.tb-tabel .tb-smal { white-space: normal; }
+    table.samenvatting.tb-tabel select, table.samenvatting.tb-tabel select.tb-glastype, table.samenvatting.tb-tabel select.tb-opbouw, table.samenvatting.tb-tabel .tb-zijde-sel, table.samenvatting.tb-tabel select.tb-band,
+    table.samenvatting.tb-tabel input.tb-mm { width: 100%; max-width: 100%; min-width: 0; }
+    table.samenvatting.tb-tabel .lat-knop { max-width: 100%; white-space: normal; text-align: left; }
+    table.samenvatting.tb-tabel .pk-chip { white-space: normal; }
+    table.samenvatting.tb-tabel .tb-nodig { white-space: normal; }
+    table.samenvatting.tb-tabel col.tbc-merk { width: 44px; } table.samenvatting.tb-tabel col.tbc-type { width: 120px; } table.samenvatting.tb-tabel col.tbc-opb { width: 88px; }
+    table.samenvatting.tb-tabel col.tbc-dikte { width: 48px; } table.samenvatting.tb-tabel col.tbc-pakket { width: 62px; } table.samenvatting.tb-tabel col.tbc-diepte { width: 60px; }
+    table.samenvatting.tb-tabel col.tbc-onder { width: 66px; } table.samenvatting.tb-tabel col.tbc-zijde { width: 96px; } table.samenvatting.tb-tabel col.tbc-lat { width: 74px; }
+    table.samenvatting.tb-tabel col.tbc-olat { width: 114px; } table.samenvatting.tb-tabel col.tbc-band { width: 66px; } table.samenvatting.tb-tabel col.tbc-bandb { width: 66px; }
+    table.samenvatting.tb-tabel col.tbc-oordeel { width: 116px; } table.samenvatting.tb-tabel col.tbc-nodig { width: 110px; }
   }
   /* v117: de dikte van het pakket (zonder lat; met lat; max uit de maatstaat). */
   .tb-pakket small { display: block; font-size: 10.5px; color: var(--grijs-tekst); white-space: nowrap; }
@@ -1000,10 +1064,9 @@
     /* v115: elke ruit een kaartje; dicht één regel (merk, oordeel, samenvatting). */
     table.samenvatting.tb-tabel tr.tb-ruit { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 8px; padding: 8px 2px;
       border-bottom: 1px solid var(--grijs-rand); grid-template-areas: "merk merk oordeel oordeel" "type type opb opb"
-      "dikte pakket diepte onder" "zijde zijde band band" "lat lat olat olat" "nodig nodig nodig nodig" "kort kort kort kort"; }
+      "dikte pakket diepte onder" "zijde zijde band bandb" "lat lat olat olat" "nodig nodig nodig nodig" "kort kort kort kort"; }
+    table.samenvatting.tb-tabel td.tb-bandbuiten { grid-area: bandb; }
     table.samenvatting.tb-tabel td.tb-pakket { grid-area: pakket; }
-    table.samenvatting.tb-tabel tr.tb-groep { display: block; }
-    table.samenvatting.tb-tabel tr.tb-groep td { display: block; }
     table.samenvatting.tb-tabel tr.tb-ruit td { display: block; padding: 0; border: 0; width: auto; min-width: 0; text-align: left; white-space: normal; }
     table.samenvatting.tb-tabel tr.tb-ruit:nth-child(n) td { background: none; border: 0; }
     table.samenvatting.tb-tabel td[data-kop]::before { content: attr(data-kop); display: block; font-size: 10.5px; color: var(--grijs-tekst); margin-bottom: 1px; }
@@ -1017,6 +1080,8 @@
     table.samenvatting.tb-tabel td.tb-dikte { grid-area: dikte; } table.samenvatting.tb-tabel td.tb-diepte { grid-area: diepte; }
     table.samenvatting.tb-tabel td.tb-onder { grid-area: onder; } table.samenvatting.tb-tabel td.tb-zijde { grid-area: zijde; }
     table.samenvatting.tb-tabel td.tb-zijde select { width: 100%; min-width: 0; }
+    /* v118: "5 mm (2+3)" maakte de keuzelijst van het band te breed voor het kaartje. */
+    table.samenvatting.tb-tabel td select.tb-band { width: 100%; min-width: 0; max-width: 100%; }
     table.samenvatting.tb-tabel td.tb-lat { grid-area: lat; } table.samenvatting.tb-tabel td.tb-olat { grid-area: olat; }
     table.samenvatting.tb-tabel td.tb-bandkol { grid-area: band; } table.samenvatting.tb-tabel td.tb-nodig { grid-area: nodig; white-space: normal; }
     table.samenvatting.tb-tabel input.tb-mm { width: 100%; }
@@ -1034,7 +1099,7 @@
     padding: 1px 8px; border-radius: 999px; border: 1px solid transparent;
   }
   .chip-ok, .pk-past, .pk-ruim { background: var(--ok-licht); color: var(--ok); border-color: #b9dcc6; }
-  .chip-warn, .pk-krap, .pk-te-ruim { background: var(--warn-licht); color: var(--warn); border-color: #f1cf9c; }
+  .chip-warn, .pk-krap, .pk-te-ruim, .pk-nood, .pk-vlak { background: var(--warn-licht); color: var(--warn); border-color: #f1cf9c; }  /* v119: nood, vlak */
   .chip-err, .pk-past-niet { background: var(--err-licht); color: var(--err); border-color: #f0b8b1; }
   .chip-info { background: #eaf1fb; color: #1b3b6f; border-color: #c4d6f0; }
   .pk-leeg { background: var(--grijs-licht); color: var(--grijs-tekst); border-color: var(--grijs-rand); }
@@ -1083,7 +1148,17 @@
   .tb-tabel .tb-nodig { font-size: 11px; color: var(--grijs-tekst); white-space: nowrap; line-height: 1.3; }
   .tb-tabel .tb-geen { color: var(--grijs-tekst); }
   .tb-tabel tr.tb-zonder td { color: var(--grijs-tekst); }
-  .tb-tabel tr.tb-groep td { background: var(--grijs-licht) !important; padding: 8px 8px; border-top: 2px solid var(--grijs-rand); }
+  /* v118 (Jan): per tabel van Invoer een eigen blok: foto bovenaan, dan de tabel met zijn kopregel. */
+  section.tb-groep { border: 1px solid var(--grijs-rand); border-radius: var(--radius); margin: 0 0 14px; background: white; overflow: hidden; }
+  section.tb-groep > .tb-groep-in { background: var(--grijs-licht); padding: 8px 10px; border-bottom: 1px solid var(--grijs-rand); }
+  section.tb-groep > .tb-wrap { margin: 0; border: 0; }
+  .tb-perruit-titel { margin: 14px 0 4px; font-size: 15px; }
+  /* v118 (Jan): de balk voor alle ruiten los, en duidelijk voor het hele project. */
+  /* v118 (controle): duidelijk een eigen blok voor het hele project, vóór "Per ruit". */
+  .tb-alles-blok { border: 1px solid #e6cdd1; border-left: 5px solid var(--merk); border-radius: var(--radius); padding: 10px 12px; margin: 14px 0 18px; background: #fdf7f8; }
+  .tb-alles-kop { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; font-size: 13px; }
+  .tb-alles-kop small { color: var(--grijs-tekst); font-size: 11.5px; }
+  .tb-alles { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
   .tb-groep-in { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .tb-groep-tekst { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
   .tb-groep-tekst span { color: var(--grijs-tekst); }
@@ -1124,7 +1199,7 @@
   /* Aanraakschermen: 16 px, anders zoomt iOS in bij tikken (controle v115:
      de regels hierboven kwamen na die voor aanraakschermen en wonnen). */
   @media (pointer: coarse) {
-    .tb-perruit-kop .tb-alles select, .tb-tabel select, .tb-tabel input.tb-mm, .tb-groep-zijde select { font-size: 16px; }
+    .tb-alles select, .tb-tabel select, .tb-tabel input.tb-mm, .tb-groep-zijde select { font-size: 16px; }
   }
 
   /* Vensters voor de glaslat en het pakket (latten.js). Eigen klasse, niet
@@ -1152,6 +1227,50 @@
   .lat-plaatje img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: white; opacity: 0; }
   .lat-plaatje.met-foto img { opacity: 1; }
   .lat-plaatje svg { max-width: 100%; max-height: 100%; }
+  /* v120: kort bericht onderin (afgerond, ongeldig, verwijderd + Terugzetten). */
+  .bestel-dubbel { background: var(--err-licht); color: var(--err); border: 1px solid #f0b8b1; padding: 10px 12px; border-radius: var(--radius); margin-bottom: 10px; }
+  .kort-bericht { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 9400; max-width: min(560px, calc(100vw - 24px));
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); background: var(--ink); color: white;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25); font-size: 13px; }
+  .kort-bericht.fout { background: var(--err); }
+  .kort-bericht[hidden] { display: none; }
+  .kort-bericht .btn { background: white; color: var(--ink); border: 0; min-height: 36px; font-weight: 700; }
+  .kort-bericht .kort-weg { background: none; border: 0; color: white; font-size: 16px; min-width: 36px; min-height: 36px; cursor: pointer; }
+  /* v118: het kruisje rechtsboven (sluitKruis, en in <details>). */
+  .sluit-x { position: absolute; top: 4px; right: 4px; width: 32px; height: 32px; min-height: 32px; padding: 0; border: 1px solid var(--grijs-rand);
+    border-radius: 50%; background: white; color: var(--ink); font-size: 15px; line-height: 1; cursor: pointer; z-index: 2;
+    display: inline-flex; align-items: center; justify-content: center; }
+  .sluit-x:hover { background: var(--grijs-licht); }
+  .met-kruis { padding-top: 38px !important; }
+  .lat-groot-inhoud, details.tb-zaag[open], details.lat-groep[open], .tb-instellingen-open, section.nsl-sectie.nsl-open { position: relative; }
+  .lat-groot-inhoud { padding-top: 40px !important; }
+  details.tb-zaag[open] > .sluit-x, details.lat-groep[open] > .sluit-x { top: 0; right: 0; }
+  details:not([open]) > .sluit-x { display: none; }
+  /* v118: in een menu is een knop normaal de hele breedte; het kruisje niet.
+     Bij een menu met een eigen kop (bolletje, doorvoeren) staat het kruisje
+     in die kop, zonder extra witruimte erboven. */
+  .veld-menu > button.sluit-x, .mark-menu > button.sluit-x, .bulk-pop > button.sluit-x, .info-tip > button.sluit-x {
+    display: inline-flex; position: absolute; top: 4px; right: 4px; width: 32px; height: 32px; min-height: 32px; padding: 0;
+    border: 1px solid var(--grijs-rand); border-radius: 50%; background: white; color: var(--ink); font-size: 15px; text-align: center; }
+  .veld-menu > button.sluit-x:hover, .mark-menu > button.sluit-x:hover { background: var(--grijs-licht); }
+  .mark-menu.met-kruis, .bulk-pop.met-kruis { padding-top: 0 !important; }
+  .mark-menu.met-kruis .mark-menu-kop { padding: 11px 44px 11px 12px; }
+  .bulk-pop.met-kruis .bulk-pop-kop { padding: 11px 44px 11px 12px; }
+  section.nsl-sectie.nsl-open > .nsl-kop { padding-right: 46px; }
+  .tb-instellingen-open { padding-top: 40px !important; }
+  details.tb-zaag[open] > summary, details.lat-groep[open] > summary { padding-right: 40px; }
+  details.lat-groep[open] > summary { min-height: 34px; display: flex; align-items: center; }
+  /* Op een aanraakscherm (bouw, handschoenen) groter: 44 px (controle v118). */
+  @media (pointer: coarse) {
+    .sluit-x, .veld-menu > button.sluit-x, .mark-menu > button.sluit-x, .bulk-pop > button.sluit-x, .info-tip > button.sluit-x {
+      width: 44px; height: 44px; min-height: 44px; font-size: 18px; }
+    .met-kruis { padding-top: 50px !important; }
+    .mark-menu.met-kruis, .bulk-pop.met-kruis { padding-top: 0 !important; }
+    .mark-menu.met-kruis .mark-menu-kop, .bulk-pop.met-kruis .bulk-pop-kop { padding: 15px 54px 15px 12px; }
+    .lat-groot-inhoud, .tb-instellingen-open { padding-top: 52px !important; }
+    details.tb-zaag[open] > summary, details.lat-groep[open] > summary { padding-right: 52px; min-height: 46px; }
+    section.nsl-sectie.nsl-open > .nsl-kop { padding-right: 58px; }
+  }
   .lat-groot { position: fixed; inset: 0; z-index: 9350; background: rgba(29,29,27,0.6); display: flex;
     align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
   /* v114: groter (foto's van Jongeneel zijn 3:2), met de maattekening eronder;
@@ -1796,6 +1915,10 @@
   }
   .imp-goed { background: #eef7f1; border-color: var(--groen); color: #14532b; }
   .imp-let-op { background: #fdf1ee; border-color: var(--rood); color: #7a1a12; }
+  /* v120: iets niet overgenomen in stap 3 (oranje: let op, geen fout). */
+  .imp-waarsch { font-size: 12px; line-height: 1.5; padding: 8px 10px; margin: 8px 0; border-radius: var(--radius);
+    border-left: 3px solid var(--geel); background: #fff6e0; color: #5a3d00; }
+  .imp-waarsch-kort { color: #8a5a00; font-size: 11px; }
   .imp-splits { font-size: 12px; color: var(--grijs-tekst); display: flex; align-items: center; gap: 6px; }
   .imp-splits input { accent-color: var(--merk); }
 
@@ -2451,6 +2574,78 @@
     .blok-bediening .btn { flex: 1; justify-content: center; }
   }
   @media print { .blok-bediening { display: none !important; } }
+
+  /* ═══ v120 (keuzes Jan, 22-10, na de UI-proef) ═══════════════════
+     Rood alleen voor de hoofdknop en fouten: kolomkoppen, de doorvoer-
+     knopjes (⤓), ongedaan maken en de rand langs de tabel neutraal.
+     Op een aanraakscherm knoppen en bolletjes 44 px; de tabel blijft compact. */
+  table.invoer thead tr:first-child th { color: var(--grijs-tekst); }
+  table.invoer thead th { border-bottom-color: var(--blauw-mid); }
+  table.invoer td.rijnr, table.invoer thead th:first-child { border-right-color: var(--grijs-rand); }
+  .bulk-vul { background: var(--blauw-mid); }
+  .bulk-vul:hover, .bulk-vul:active { background: var(--ink); }
+  .btn-undo { color: var(--ink); border-color: var(--grijs-rand); }
+  .btn-undo:hover:not(:disabled) { background: var(--grijs-licht); color: var(--ink); }
+  @media (pointer: coarse) {
+    .btn, .btn-sm { min-height: 44px; }
+    .btn-del { min-width: 44px; min-height: 44px; }
+    .bulk-vul { width: 30px; height: 28px; }
+    /* Het bolletje zelf blijft klein (de foto moet zichtbaar blijven); de
+       plek om te tikken is 44 px. Tot v119 17×15 px op de iPhone, en een tik
+       ernaast zette een nieuwe ruit (controle v119). */
+    .foto-mark::before { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px;
+      transform: translate(-50%, -50%); border-radius: 50%; }
+  }
+  /* De kolomkop "Aantal" bleef bij zijwaarts vegen staan, over "Glas B."
+     (controle v119): alleen de eerste kolom (het nummer) staat vast. */
+  table.invoer thead tr:last-child th:first-child:not(.rijnr-kop) { position: static; left: auto; }
+  /* iPhone: de knop Toevoegen bij Taken viel buiten beeld (pagina 502 px). */
+  /* Het oordeel op Toebehoren ("nood: steekt 2 mm uit") werd afgekapt in een
+     smalle kolom: daar mag het afbreken. */
+  .tb-oordeel .pk-chip { white-space: normal; text-align: left; max-width: 100%; }
+  /* Naslag op een aanraakscherm: het ✕ (44 px) viel over de eerste regel
+     uitleg onder de kop (controle v119). De kop is nu minstens zo hoog. */
+  @media (pointer: coarse) { section.nsl-sectie.nsl-open > .nsl-kop { min-height: 52px; } }
+  .taak-nieuw { flex-wrap: wrap; }
+  .taak-nieuw input { min-width: 0; flex: 1 1 160px; }
+  /* v121 (P3, keuze Jan): de actiebalk op Toebehoren voor de aangevinkte
+     ruiten, met vóór het toepassen per ruit wat het oordeel wordt. */
+  .tb-actiebalk { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 900;
+    width: min(1100px, calc(100vw - 16px)); background: white; border: 1px solid var(--grijs-rand); border-top: 3px solid var(--ink);
+    border-radius: 10px 10px 0 0; box-shadow: 0 -6px 24px rgba(0, 0, 0, .18);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .tb-balk-kop { position: relative; display: flex; align-items: center; gap: 8px; padding-right: 52px; margin-bottom: 8px; font-size: 14px;
+    min-width: 0; min-height: 36px; }
+  /* Het ✕ midden in de kopregel; de kop is minstens zo hoog, zodat hij niet
+     over het eerste vak valt (iPhone, 44 px). */
+  .tb-balk-kop .sluit-x { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+  .tb-balk-merken { color: var(--grijs-tekst); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tb-balk-velden { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .tb-balk-velden select, .tb-balk-diepte input { min-height: 36px; font-size: 14px; max-width: 100%; }
+  .tb-balk-diepte { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--grijs-tekst); }
+  .tb-balk-diepte input { width: 120px; }
+  .tb-balk-onder { display: flex; gap: 12px; align-items: flex-end; margin-top: 8px; }
+  .tb-balk-voorbeeld { flex: 1; min-width: 0; font-size: 13px; max-height: 96px; overflow: auto; }
+  .tb-vb-kop { font-weight: 600; margin-bottom: 4px; }
+  .tb-vb-lijst { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .tb-vb-lijst li { white-space: nowrap; }
+  .tb-vb-lijst li.slechter > b { color: var(--err); }
+  .pk-chip.tb-vb-chip { min-height: 0; padding: 1px 7px; font-size: 11px; pointer-events: none; }
+  .tb-vb-blijft, .tb-vb-leeg { color: var(--grijs-tekst); }
+  .tb-vb-slechter, .tb-vb-fout { color: var(--err); }
+  .tb-balk-knop { flex: none; }
+  .tb-balk-ruimte { height: calc(var(--tb-balk-h, 160px) + 16px); }
+  /* Een kort bericht (Toegepast … ↶ Terugzetten) boven de balk, niet erover. */
+  body:has(#panel-toebehoren.active .tb-actiebalk) .kort-bericht { bottom: calc(var(--tb-balk-h, 160px) + 12px); }
+  @media (max-width: 700px) {
+    .tb-balk-velden { display: grid; grid-template-columns: 1fr 1fr; }
+    .tb-balk-velden select, .tb-balk-diepte { width: 100%; min-width: 0; }
+    .tb-balk-diepte input { flex: 1; width: auto; min-width: 0; }
+    .tb-balk-onder { flex-direction: column; align-items: stretch; }
+    .tb-balk-voorbeeld { max-height: 22vh; }
+    .tb-balk-knop .btn { width: 100%; }
+  }
+  @media (pointer: coarse) { .tb-balk-velden select, .tb-balk-diepte input { min-height: 44px; } .tb-balk-kop { min-height: 46px; } }
 </style>
 </head>
 <body>
@@ -2472,6 +2667,10 @@
       <div class="subtitle">Startscherm · <span class="app-versie"></span></div>
     </div>
     <span class="kop-gebruiker" id="startGebruiker"></span>
+    <!-- v120: je eigen telefoonnummer, voor op de bestellijst. -->
+    <button class="btn btn-ghost btn-sm" id="startTelefoon" onclick="glasMijnTelefoon()" title="Mijn telefoonnummer (voor op de bestellijst)">📞</button>
+    <!-- v120: handmatige back-up van alles (backup.js). -->
+    <button class="btn btn-ghost btn-sm" id="startBackup" onclick="glasBackup()" title="Back-up van alle projecten">💾</button>
     <button class="btn btn-ghost btn-sm" onclick="startVernieuwen()" title="Lijsten opnieuw ophalen en controleren op een nieuwe versie">↻</button>
     <button class="btn btn-ghost btn-sm" onclick="cloudUitloggen()">Uitloggen</button>
   </div>
@@ -2611,7 +2810,10 @@
 
 <div class="actiebalk" id="actieBalk">
   <button class="btn btn-secondary btn-sm" onclick="importMenu(event)">⬆ Importeren</button>
-  <button class="btn btn-primary btn-sm" onclick="exportMenu(event)">⬇ Exporteren</button>
+  <!-- v120 (keuze Jan): een vaste knop voor een foto (stond alleen in ⬆). -->
+  <button class="btn btn-secondary btn-sm foto-toevoegen" onclick="importKies('foto')">📷 Foto toevoegen</button>
+  <!-- v120: niet meer rood (rood = hoofdknop en fouten). -->
+  <button class="btn btn-secondary btn-sm" onclick="exportMenu(event)">⬇ Exporteren</button>
   <span class="foto-melding" id="fotoMelding"></span>
   <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
   <input type="file" id="tekeningBestand" accept="application/pdf,image/*"
@@ -2889,7 +3091,10 @@
 <!-- ═══════════════ IMPORTEREN ═══════════════ -->
 <div class="cloud-overlay" id="impVenster">
   <div class="cloud-paneel" style="max-width:860px;">
-    <header>
+    <!-- v120: kruisje rechtsboven, ook in stap 2 en 3 (controle v119: daar
+         was geen weg terug behalve de knoppen onderaan). -->
+    <header style="position:relative;padding-right:56px;">
+      <button type="button" class="sluit-x" aria-label="Sluiten" onclick="impSluit()" style="top:8px;right:10px;">✕</button>
       <h2>📄 Sponningmaten importeren</h2>
       <div class="sub">PDF, Excel, CSV of geplakte tekst</div>
     </header>
@@ -3147,10 +3352,36 @@ function importKies(wat) {
 // Drie losse knoppen door de app heen werden er één met een uitklaplijst.
 let exportBalk = null;
 
+// v118 (wens Jan): alles wat uitklapt of opspringt krijgt rechtsboven een
+// kruisje, zodat altijd duidelijk is hoe je terug moet. Eén helper voor
+// alle menu's, tips en vensters; <details> krijgen het in hun eigen HTML.
+function sluitKruis(el, sluit, label) {
+  if (!el || el.querySelector(':scope > .sluit-x')) return el;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'sluit-x';
+  b.setAttribute('aria-label', label || 'Sluiten');
+  b.textContent = '✕';
+  b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); sluit(); });
+  // Ook Escape sluit (controle v118). Alleen zolang het menu er staat; een
+  // menu dat al weg is, ruimt hier zijn luisteraar op.
+  const toets = function (e) {
+    if (e.key !== 'Escape') return;
+    document.removeEventListener('keydown', toets, true);
+    if (el.isConnected) sluit();
+  };
+  document.addEventListener('keydown', toets, true);
+  el.classList.add('met-kruis');
+  el.insertBefore(b, el.firstChild);
+  return el;
+}
+window.sluitKruis = sluitKruis;
+
 function toonVeldMenu(knop, inhoud) {
   const menu = document.createElement('div');
   menu.className = 'veld-menu breed';
   menu.innerHTML = inhoud;
+  sluitKruis(menu, exportSluit, 'Menu sluiten');
   document.body.appendChild(menu);
   exportBalk = menu;
   const r = knop.getBoundingClientRect();
@@ -3171,13 +3402,16 @@ function exportMenu(e) {
       '<span>Voor de glasleverancier</span></button>' +
     '<button onclick="exportKies(\'fotos\')"><b>📄 PDF invoer</b>' +
       '<span>Foto\'s en tekeningen met de maten eronder</span></button>' +
+    // v118 (wens Jan): voor de werkvloer.
+    '<button onclick="exportKies(\'werkvloer\')"><b>🔨 PDF werkvloer</b>' +
+      '<span>Per foto welke ruit waar, met latten, zaagplan en benodigdheden</span></button>' +
     // Excel-bestand (v104): in een csv maakt Excel van 4-12-4 een datum.
     '<button onclick="exportKies(\'xlsx\')"><b>📊 Excel-bestand (.xlsx)</b>' +
       '<span>Om in Excel te openen, ook op Windows</span></button>' +
     '<button onclick="exportKies(\'csv\')"><b>📥 CSV-bestand</b>' +
       '<span>Voor andere programma\'s</span></button>' +
     '<button onclick="exportKies(\'alles\')"><b>📦📄 Alles exporteren</b>' +
-      '<span>Bestellijst én PDF invoer, als twee losse bestanden</span></button>' +
+      '<span>Bestellijst, PDF invoer én PDF werkvloer, als losse bestanden</span></button>' +
     // De foto's zoals ze van de camera kwamen, voor het archief (v93).
     '<button onclick="exportKies(\'originelen\')"><b>🗂 Originele foto\'s (zip)</b>' +
       '<span>Onbewerkt en op volle grootte, voor het archief</span></button>');
@@ -3210,6 +3444,7 @@ function exportKies(wat) {
   else if (wat === 'alles') startExport('alles');
   else if (wat === 'bestellijst') exportBestellijstPdf();
   else if (wat === 'originelen') exportOriginelen();
+  else if (wat === 'werkvloer') exportWerkvloerPdf();
   else exportFotoPdf();
 }
 
@@ -3226,6 +3461,7 @@ function datumKeuze(veld) {
   const menu = document.createElement('div');
   menu.className = 'veld-menu';
   menu.innerHTML = '<button onclick="datumZet(\'' + vandaag + '\')">Vandaag — ' + vandaag + '</button>';
+  sluitKruis(menu, datumSluit, 'Sluiten');
   document.body.appendChild(menu);
   datumBalk = menu;
 
@@ -3392,7 +3628,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v117';
+const APP_VERSIE = 'v121';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -3443,6 +3679,7 @@ function toonInfo(icoon) {
   const tip = document.createElement('div');
   tip.className = 'info-tip';
   tip.innerHTML = icoon.dataset.info;
+  sluitKruis(tip, verbergInfo, 'Uitleg sluiten');
   tip._bron = icoon;
   document.body.appendChild(tip);
   infoTip = tip;
@@ -3466,10 +3703,27 @@ function toon(tabNaam) {
     event.currentTarget.classList.add('active');
   }
   toonMaatinstelling(tabNaam);
+  // v120 (controle v119): de selectiebalk ("Geselecteerde verwijderen")
+  // bleef op andere tabbladen staan; de selectie hoort bij Invoer.
+  if (tabNaam !== 'invoer' && window.bulkSelectieWissen && window.bulkIsGeselecteerd &&
+      rijen.some(r => bulkIsGeselecteerd(r.id))) bulkSelectieWissen();
   // Het label "alleen kijken" alleen buiten Invoer (v108).
   if (typeof slotToepassen === 'function') slotToepassen();
   // Het klantblok dicht zodra het ingevuld is (v98, keuze van Jan).
   if (tabNaam === 'invoer' && window.klantBlokBijTonen) klantBlokBijTonen();
+  // v118: een band die op Toebehoren veranderde, maakt een ruit misschien te
+  // dik voor het max glaspakket: de rode dikte op Invoer meteen bijwerken.
+  if (tabNaam === 'invoer' && typeof updateBerekendCellen === 'function') updateBerekendCellen();
+  // … en de keuzelijst van de opbouw: welke opbouwen nu te dik zijn (grijs, apart).
+  if (tabNaam === 'invoer' && typeof opbouwKeuzeHTML === 'function') {
+    rijen.forEach(r => {
+      if (!r.maxPakket) return;
+      const o = document.getElementById('opb-' + r.id);
+      if (!o || o === document.activeElement) return;
+      o.innerHTML = opbouwKeuzeHTML(r);
+      o.value = r.opbouw || '';
+    });
+  }
   if (tabNaam === 'project') {
     renderProject();
     // Het logboek bij het openen van het tabblad verversen; dan zie je ook
@@ -3489,9 +3743,65 @@ function toon(tabNaam) {
 }
 
 // ═══════════════ RIJ BEHEER ═══════════════
+// v120: een nummer dat in een bestelling voorkomt, nooit opnieuw uitdelen.
+// v120 (beveiliging): de nummers van ruiten en foto's komen in de HTML
+// (onclick, id="rij-…"). Een project met een vreemd nummer (met de hand in de
+// database gezet, of een kapotte import) kon daar de pagina verstoren. Bij het
+// laden: een ruit-id moet een heel getal zijn, een foto-id letters, cijfers,
+// - en _. Anders krijgt hij een nieuw nummer; er gaat niets verloren (de
+// ruit of foto blijft, met zijn bolletjes; alleen een bolletje dat nergens
+// naar wijst vervalt). Geeft terug hoeveel er veranderd is.
+const FOTO_ID_GOED = /^[A-Za-z0-9_-]{1,64}$/;
+function veiligeIds() {
+  let n = 0;
+  if (!Array.isArray(rijen)) { rijen = []; n++; }
+  rijen = rijen.filter(r => { if (r && typeof r === 'object') return true; n++; return false; });
+  const hoogste = () => rijen.reduce((m, r) => Number.isSafeInteger(r.id) ? Math.max(m, r.id) : m, 0);
+  if (!Number.isSafeInteger(volgendId) || volgendId < 1 || volgendId > 1e9) { volgendId = hoogste() + 1; n++; }
+  const gezien = {}, nieuwNr = {};
+  rijen.forEach(r => {
+    if (typeof r.id === 'string' && /^\d{1,9}$/.test(r.id)) { r.id = parseInt(r.id, 10); n++; }
+    if (!Number.isSafeInteger(r.id) || r.id < 1 || r.id > 1e9 || gezien[r.id]) {
+      const oud = r.id;
+      r.id = Math.max(volgendId, hoogste() + 1); volgendId = r.id + 1; n++;
+      // Het bolletje dat naar het oude nummer wees, gaat mee (niet bij een dubbel nummer).
+      if (!gezien[oud]) nieuwNr[String(oud)] = r.id;
+    }
+    gezien[r.id] = true;
+  });
+  if (volgendId <= hoogste()) volgendId = hoogste() + 1;
+  if (!Array.isArray(fotos)) { fotos = []; n++; }
+  fotos = fotos.filter(f => { if (f && typeof f === 'object') return true; n++; return false; });
+  fotos.forEach(f => {
+    if (!FOTO_ID_GOED.test(String(f.id == null ? '' : f.id))) {
+      const oud = f.id, nieuw = 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      rijen.forEach(r => { if (r.fotoId === oud) r.fotoId = nieuw; });
+      f.id = nieuw; n++;
+    }
+    if (Array.isArray(f.markeringen)) {
+      f.markeringen = f.markeringen.filter(m => {
+        if (m && !Number.isSafeInteger(m.rijId) && nieuwNr[String(m.rijId)] !== undefined) { m.rijId = nieuwNr[String(m.rijId)]; n++; }
+        if (m && typeof m.rijId === 'string' && /^\d{1,9}$/.test(m.rijId)) { m.rijId = parseInt(m.rijId, 10); n++; }
+        if (m && Number.isSafeInteger(m.rijId)) return true;
+        n++; return false;
+      });
+    }
+  });
+  rijen.forEach(r => { if (r.fotoId != null && r.fotoId !== '' && !FOTO_ID_GOED.test(String(r.fotoId))) { delete r.fotoId; n++; } });
+  if (n && window.glasSpoorNotitie) { try { glasSpoorNotitie('nummers van ruiten of foto\'s hersteld bij het laden (' + n + ')'); } catch (e) {} }
+  return n;
+}
+window.glasVeiligeIds = veiligeIds;
+
+function vrijRijNummer() {
+  const bekend = {};
+  try { bestellingen().forEach(b => Object.keys((b && b.ruiten) || {}).forEach(id => { bekend[id] = true; })); } catch (e) {}
+  while (bekend[volgendId] || rijen.some(r => r.id === volgendId)) volgendId++;
+  return volgendId++;
+}
 function nieuweRij() {
   return {
-    id: volgendId++,
+    id: vrijRijNummer(),
     aantal: 1,
     merk: '',
     maatsoort: 'Sponningmaat',
@@ -3557,6 +3867,33 @@ function verwijderRij(id) {
   herbereken();
   opslaan();
 }
+
+// v120 (keuze Jan): het ✕ in de tabel verwijdert meteen (zoals altijd),
+// met daarna een melding met Terugzetten. Terugzetten zet precies deze
+// regel terug, op zijn plek, met zijn bolletjes (niet "de laatste stap
+// ongedaan", dat kan intussen iets anders zijn).
+function verwijderRijKnop(id) {
+  if (slotWeigert()) return;
+  const rij = getRij(id);
+  if (!rij) return;
+  const kopie = JSON.parse(JSON.stringify(rij));
+  const plek = rijen.indexOf(rij);
+  const bollen = (typeof fotos !== 'undefined' ? fotos : []).map(f => ({
+    f: f.id, m: (f.markeringen || []).filter(m => m.rijId === id).map(m => Object.assign({}, m)) })).filter(x => x.m.length);
+  verwijderRij(id);
+  const leeg = !kopie.merk && !kopie.breedte && !kopie.hoogte && !kopie.glasType && !bollen.length;
+  if (leeg) return;
+  kortBericht('Regel ' + (kopie.merk || '(zonder merk)') + ' verwijderd.', { soort: 'info', knop: '↶ Terugzetten', ms: 12000, actie: () => {
+    if (getRij(id) || slotWeigert()) return;
+    if (window.bewaarStap) bewaarStap('Rij teruggezet');
+    rijen.splice(Math.min(plek, rijen.length), 0, kopie);
+    bollen.forEach(x => { const f = fotos.find(g => g.id === x.f); if (f) f.markeringen = (f.markeringen || []).concat(x.m); });
+    renderTabel(); herbereken();
+    if (window.renderFotos) renderFotos();
+    opslaan();
+  } });
+}
+window.verwijderRijKnop = verwijderRijKnop;
 
 // ═══════════════ BEREKENINGEN ═══════════════
 function algemeneSpeling() {
@@ -3678,6 +4015,10 @@ function herbereken() {
   updateCorrectieCellen();
   updateStrijdigeRegels();
   updateStatusBar();
+  // v120 (controle v119): de telling in de balk van elk blok ("3 ruiten")
+  // ververste pas na herladen als je een aantal veranderde.
+  telLosseRijen();
+  if (window.fotoTellingen) fotoTellingen();
   groeiIndienNodig();
   bestelMarkeringenBijwerken();
 }
@@ -4167,7 +4508,7 @@ const SLOT_FUNCTIES = [
   // v113/v114: sponning en glaslat (latten.js). In v113 waren ze vrij na een
   // bestelling; sinds v114 gaan ze mee op slot (keuze Jan). latten.js vraagt
   // het slot ook zelf na (magKiezen); dubbel is hier goedkoop.
-  'latKies', 'latDiepte', 'latBand', 'latUitfrezen', 'latZijde', 'latOnderDiepte', 'latAdvies',
+  'latKies', 'latDiepte', 'latBand', 'latBandBuiten', 'latUitfrezen', 'latZijde', 'latOnderDiepte', 'latAdvies',
   'latOnderKies', 'latMontage',                   // v115: onderlat en montage (omgekeerd)
   'zetBiColor', 'zetRalBinnen',                   // v114: bi-color rooster
   'fotoVerwijder', 'fotoDraaien', 'fotoAanGroep', 'fotoTitelWijzig',
@@ -4317,6 +4658,9 @@ function rijHTML(rij, nr) {
   // in beslag die op een tablet steeds in beeld geschoven moest worden;
   // het staat nu in de tooltip, op de samenvatting en in de pdf.
   const dikteKg = rij.totaalDikte != null ? String(rij.totaalDikte) : '—';
+  // v118: te dik voor het max glaspakket uit de maatstaat (zie updateBerekendCellen).
+  const mxR = window.GlasLatten && GlasLatten.maxOordeel ? GlasLatten.maxOordeel(rij) : null;
+  const teDikMx = mxR && mxR.status === 'past niet' ? mxR : null;
   const dikteTitel = rij.totaalDikte != null
     ? `${rij.totaalDikte} mm · ${berekenGewicht(rij)} kg per ruit` : '';
 
@@ -4328,16 +4672,16 @@ function rijHTML(rij, nr) {
     <td><input type="text" class="merk-input" value="${esc(rij.merk)}" placeholder="merk…"
        oninput="setVal(${id},'merk',this.value); merkInRijnr(this); opslaan()"></td>
     <td class="kol-maatsoort"><select onchange="setVal(${id},'maatsoort',this.value); herbereken(); opslaan()">${maatsoortOpts}</select></td>
-    <td><input type="number" inputmode="numeric" enterkeyhint="next" class="breedte-input" value="${rij.breedte}" placeholder="mm"
-       oninput="setVal(${id},'breedte',this.value); herbereken(); opslaan()"></td>
-    <td><input type="number" inputmode="numeric" enterkeyhint="next" class="hoogte-input" value="${rij.hoogte}" placeholder="mm"
-       oninput="setVal(${id},'hoogte',this.value); herbereken(); opslaan()"></td>
+    <td><input type="text" inputmode="decimal" enterkeyhint="next" class="breedte-input" value="${esc(rij.breedte)}" placeholder="mm"
+       oninput="setVal(${id},'breedte',leesMaat(this.value)); herbereken(); opslaan()" onchange="maatNaTypen(${id},'breedte',this)"></td>
+    <td><input type="text" inputmode="decimal" enterkeyhint="next" class="hoogte-input" value="${esc(rij.hoogte)}" placeholder="mm"
+       oninput="setVal(${id},'hoogte',leesMaat(this.value)); herbereken(); opslaan()" onchange="maatNaTypen(${id},'hoogte',this)"></td>
     ${correctieCel(rij)}
     <td class="berekend ${rij.glasBreedte == null ? 'ongeldig' : ''}" id="br-${id}">${glasBr}</td>
     <td class="berekend ${rij.glasHoogte == null ? 'ongeldig' : ''}" id="bh-${id}">${glasH}</td>
     <td class="kol-type"><select onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
-    <td class="kol-opbouw"><select id="opb-${id}" onchange="wijzigOpbouw(${id},this.value)">${opbouwOpts}</select></td>
-    <td class="berekend ${rij.totaalDikte == null ? 'ongeldig' : ''}" id="dk-${id}" title="${esc(dikteTitel)}">${dikteKg}</td>
+    <td class="kol-opbouw"><select id="opb-${id}"${teDikMx ? ' class="te-dik" title="' + esc('Te dik voor het max glaspakket uit de maatstaat: ' + teDikMx.tekst) + '"' : ''} onchange="wijzigOpbouw(${id},this.value)">${opbouwOpts}</select></td>
+    <td class="berekend ${rij.totaalDikte == null ? 'ongeldig' : ''}${teDikMx ? ' te-dik' : ''}" id="dk-${id}" title="${esc(teDikMx ? teDikMx.tekst : dikteTitel)}">${dikteKg}${teDikMx ? ' · te dik' : ''}</td>
     ${window.sponCellenHTML ? sponCellenHTML(rij) : '<td></td><td></td>'}
     <td><select onchange="setVal(${id},'rooster',this.value); toggleDuco(${id},this.value); opslaan()">
       <option value="Nee" ${rij.rooster==='Nee'?'selected':''}>Nee</option>
@@ -4365,7 +4709,7 @@ function rijHTML(rij, nr) {
        oninput="setVal(${id},'roedenopmerking',this.value); opslaan()"></td>
     <td class="delete-cel">
       <button class="btn-kopie" onclick="kopieerRegel(${id})" title="Deze regel dupliceren">⧉</button>
-      <button class="btn-del" onclick="verwijderRij(${id})" title="Regel verwijderen">✕</button>
+      <button class="btn-del" onclick="verwijderRijKnop(${id})" title="Regel verwijderen">✕</button>
     </td>
   `;
 }
@@ -4403,6 +4747,20 @@ function updateBerekendCellen() {
     dkEl.title = rij.totaalDikte != null
       ? rij.totaalDikte + ' mm · ' + berekenGewicht(rij) + ' kg per ruit' : '';
     dkEl.className = 'berekend' + (rij.totaalDikte == null ? ' ongeldig' : '');
+    // v118 (keuze Jan): past het glas met band niet in het max glaspakket uit
+    // de maatstaat, dan al hier op Invoer rood (de keuze blijft vrij).
+    const mx = window.GlasLatten && GlasLatten.maxOordeel ? GlasLatten.maxOordeel(rij) : null;
+    const teDik = !!(mx && mx.status === 'past niet');
+    if (teDik) {
+      dkEl.className += ' te-dik';
+      dkEl.textContent = rij.totaalDikte + ' · te dik';
+      dkEl.title = mx.tekst;
+    }
+    const opbEl = document.getElementById('opb-' + rij.id);
+    if (opbEl) {
+      opbEl.classList.toggle('te-dik', teDik);
+      if (teDik) opbEl.title = 'Te dik voor het max glaspakket uit de maatstaat: ' + mx.tekst; else if (opbEl.title && /max glaspakket/.test(opbEl.title)) opbEl.title = '';
+    }
 
     // Roosterwaarschuwing: kleur de Duco-cel rood indien incompatibel
     if (ducoEl) {
@@ -4410,10 +4768,11 @@ function updateBerekendCellen() {
       if (rij.rooster === 'Ja' && rij.ducoType && rij.totaalDikte != null) {
         const rInfo = DATA.roosters.find(r => r.naam === rij.ducoType);
         if (rInfo) {
+          // v120: de tip zei "Invullen A.U.B!" terwijl alles ingevuld was.
           if (rij.totaalDikte < rInfo.minDikte) {
-            warn = `Invullen A.U.B!`;
+            warn = `${rij.ducoType} past niet: het glas (${rij.totaalDikte} mm) is te dun (${rInfo.minDikte}–${rInfo.maxDikte} mm).`;
           } else if (rij.totaalDikte > rInfo.maxDikte) {
-            warn = `Invullen A.U.B!`;
+            warn = `${rij.ducoType} past niet: het glas (${rij.totaalDikte} mm) is te dik (${rInfo.minDikte}–${rInfo.maxDikte} mm).`;
           }
         }
       }
@@ -4434,11 +4793,78 @@ function updateStatusBar() {
   const ingevuld = rijen.filter(r => r.glasType && r.opbouw && r.breedte && r.hoogte);
   const totAantal = ingevuld.reduce((s, r) => s + (parseInt(r.aantal) || 1), 0);
   document.getElementById('statusBar').textContent =
-    `${ingevuld.length} regel(s) ingevuld · ${totAantal} stuks totaal`;
+    // v120: enkelvoud waar het er één is.
+    `${ingevuld.length} ${ingevuld.length === 1 ? 'regel' : 'regels'} ingevuld · ${totAantal} ${totAantal === 1 ? 'stuk' : 'stuks'} totaal`;
 }
 
 // ═══════════════ HELPERS ═══════════════
 function getRij(id) { return rijen.find(r => r.id === id); }
+// v120: een kort bericht onderin (8 s), eventueel met één knop
+// ("Terugzetten"). Los van de balk van cloud.js, die over opslaan gaat.
+let kortBerichtKlok = null;
+function kortBericht(tekst, opties) {
+  opties = opties || {};
+  let b = document.getElementById('kortBericht');
+  if (!b) { b = document.createElement('div'); b.id = 'kortBericht'; b.setAttribute('role', 'status'); document.body.appendChild(b); }
+  clearTimeout(kortBerichtKlok);
+  b.className = 'kort-bericht' + (opties.soort === 'fout' ? ' fout' : '');
+  b.innerHTML = '';
+  const s = document.createElement('span'); s.textContent = tekst; b.appendChild(s);
+  if (opties.knop) {
+    const k = document.createElement('button'); k.type = 'button'; k.className = 'btn btn-sm'; k.textContent = opties.knop;
+    k.onclick = () => { b.hidden = true; opties.actie && opties.actie(); };
+    b.appendChild(k);
+  }
+  const x = document.createElement('button'); x.type = 'button'; x.className = 'kort-weg'; x.setAttribute('aria-label', 'Sluiten'); x.textContent = '✕';
+  x.onclick = () => { b.hidden = true; };
+  b.appendChild(x);
+  b.hidden = false;
+  kortBerichtKlok = setTimeout(() => { b.hidden = true; }, opties.ms || 8000);
+}
+window.kortBericht = kortBericht;
+
+// v120 (Jan, 22-10): een maat met een komma. In Chrome liet het getalvak de
+// komma stil weg (1212,5 werd 12125: tien keer te groot op de bestellijst).
+// Nu een tekstvak met het cijfertoetsenbord; een komma of punt mag, en een
+// halve mm gaat naar beneden (glas nooit te groot). "mm" en spaties mogen.
+function leesMaat(v) {
+  const t = String(v == null ? '' : v).replace(/mm/gi, '').replace(/\s+/g, '').replace(',', '.');
+  if (t === '') return '';
+  if (!/^\d+(\.\d*)?$/.test(t)) return '';
+  const n = Math.floor(parseFloat(t));
+  return n > 0 ? String(n) : '';
+}
+window.leesMaat = leesMaat;
+// Na het typen (Tab, Enter, wegtikken): het vak laten zien wat er bewaard is,
+// en zeggen als er iets is afgerond of niet gelezen kon worden.
+function maatNaTypen(id, veld, vak) {
+  const r = getRij(id); if (!r) return;
+  const getypt = String(vak.value || '').trim();
+  const bewaard = leesMaat(getypt);
+  if (getypt === '' || getypt === bewaard) return;
+  vak.value = bewaard;
+  if (!bewaard) {
+    kortBericht('"' + getypt + '" is geen maat in mm. Typ alleen cijfers (een komma mag).', { soort: 'fout' });
+  } else if (/[.,]\d*[1-9]/.test(getypt.replace(/mm/gi, ''))) {
+    kortBericht(getypt + ' mm afgerond naar ' + bewaard + ' mm (naar beneden: het glas wordt nooit te groot).');
+  }
+}
+window.maatNaTypen = maatNaTypen;
+// v120 (Jan): het aantal is een heel getal van 1 of meer. 0, negatief of met
+// decimalen ging eerder zo naar de leverancier ("−5 ruiten").
+function zetAantal(id, vak) {
+  const r = getRij(id); if (!r) return;
+  const t = String(vak.value || '').trim().replace(',', '.');
+  const n = Number(t);
+  if (t === '' || !Number.isInteger(n) || n < 1 || n > 999) {
+    kortBericht('Het aantal moet een heel getal zijn van 1 tot 999.', { soort: 'fout' });
+    vak.value = parseInt(r.aantal, 10) > 0 ? parseInt(r.aantal, 10) : 1;
+    return;
+  }
+  setVal(id, 'aantal', n); herbereken(); opslaan();
+}
+window.zetAantal = zetAantal;
+
 function setVal(id, veld, waarde) {
   // Hier komt elke wijziging in een veld langs, waar hij ook getypt is:
   // op Invoer, in de tabel onder een foto, of via doorvoeren (v90).
@@ -4476,8 +4902,8 @@ function aantalCel(rij) {
   const id = rij.id;
   const bol = bollenVanRij(id);
   if (!bol) {
-    return `<td><input type="number" inputmode="numeric" class="aantal-input" value="${esc(rij.aantal)}" min="1" max="999"
-       onchange="setVal(${id},'aantal',+this.value||1); herbereken(); opslaan()"></td>`;
+    return `<td><input type="number" inputmode="numeric" class="aantal-input" value="${esc(rij.aantal)}" min="1" max="999" step="1"
+       onchange="zetAantal(${id}, this)"></td>`;
   }
   const aantal = parseInt(rij.aantal, 10) > 0 ? parseInt(rij.aantal, 10) : 1;
   const extra = bol < aantal ? ' aantal-open' : bol > aantal ? ' aantal-teveel' : '';
@@ -4594,7 +5020,8 @@ function setBedieningLengte(id, waarde) {
 window.setBedieningLengte = setBedieningLengte;
 // String() erbij: een merk of opmerking uit een Excel-import kan een getal
 // zijn, en dan liep .replace stuk (v91).
-function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+// v120 (beveiliging): ook > en ' (een ' brak anders uit een attribuut tussen enkele aanhalingstekens).
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 function wijzigGlasType(id, type) {
   if (slotWeigert()) return;
@@ -4732,29 +5159,34 @@ function renderSamenvatting() {
   const datum = document.getElementById('projectDatum').value || '—';
   let totAantal = 0, totGewicht = 0;
 
+  // v120 (controle v119): getallen op z'n Nederlands (komma), alles uit de
+  // invoer ge-escapet (ook de maatvelden), en de opmerking van de ruit in
+  // de kolom Opmerking (stond er de roedenopmerking).
+  const nlGetal = (n, d) => Number(n).toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d });
   let rows = ingevuld.map((r, i) => {
     berekenGlasMaat(r); berekenDikte(r);
     const opp = r.glasBreedte && r.glasHoogte
-      ? ((r.glasBreedte/1000) * (r.glasHoogte/1000)).toFixed(3) : '—';
-    const gew = r.kgM2 && r.glasBreedte && r.glasHoogte
-      ? ((r.glasBreedte/1000) * (r.glasHoogte/1000) * r.kgM2).toFixed(1) : '—';
+      ? nlGetal((r.glasBreedte/1000) * (r.glasHoogte/1000), 3) : '—';
+    const gewGetal = r.kgM2 && r.glasBreedte && r.glasHoogte
+      ? (r.glasBreedte/1000) * (r.glasHoogte/1000) * r.kgM2 : null;
+    const gew = gewGetal == null ? '—' : nlGetal(gewGetal, 1);
     const ant = parseInt(r.aantal) || 1;
     totAantal += ant;
-    if (gew !== '—') totGewicht += parseFloat(gew) * ant;
+    if (gewGetal != null) totGewicht += Math.round(gewGetal * 10) / 10 * ant;
 
     return `<tr>
       <td class="rijnr">${i+1}</td>
       <td>${esc(r.merk)}</td>
-      <td>${r.maatsoort}</td>
-      <td class="num">${r.breedte}</td>
-      <td class="num">${r.hoogte}</td>
-      <td class="num highlight">${r.glasBreedte ?? '—'}</td>
-      <td class="num highlight">${r.glasHoogte ?? '—'}</td>
+      <td>${esc(r.maatsoort)}</td>
+      <td class="num">${esc(r.breedte)}</td>
+      <td class="num">${esc(r.hoogte)}</td>
+      <td class="num highlight">${esc(r.glasBreedte ?? '—')}</td>
+      <td class="num highlight">${esc(r.glasHoogte ?? '—')}</td>
       <td>${esc(r.glasType)}</td>
       <td>${esc(r.opbouw)}</td>
       <td class="num">${r.rooster === 'Ja' ? 'Ja' : 'Nee'}</td>
       <td class="num">${opp}</td>
-      <td class="num">${r.totaalDikte ?? '—'}</td>
+      <td class="num">${r.totaalDikte == null || r.totaalDikte === '' ? '—' : esc(String(r.totaalDikte).replace('.', ','))}</td>
       <td class="num">${gew}</td>
       <td class="num highlight">${ant}</td>
       <td>${esc(r.ducoType)}</td>
@@ -4763,7 +5195,7 @@ function renderSamenvatting() {
       <td>${esc(r.glasbewerking)}</td>
       <td>${esc(r.roedenverdeling)}</td>
       <td>${esc(r.roedenbreedte)}</td>
-      <td>${esc(r.roedenopmerking)}</td>
+      <td>${esc([r.opmerking, r.roedenopmerking ? 'roeden: ' + r.roedenopmerking : ''].filter(Boolean).join(' · '))}</td>
     </tr>`;
   }).join('');
 
@@ -4792,7 +5224,7 @@ function renderSamenvatting() {
     </table>
     </div>
     <div style="margin-top:10px;font-size:12px;color:var(--grijs-tekst)">
-      Totaal gewicht (excl. roeden, incl. alle aantallen): <strong>${totGewicht.toFixed(1)} kg</strong>
+      Totaal gewicht (excl. roeden, incl. alle aantallen): <strong>${nlGetal(totGewicht, 1)} kg</strong>
     </div>`;
 }
 
@@ -5445,6 +5877,72 @@ window.glasBestellingen = bestellingen;
 function geldigeBestellingen() { return bestellingen().filter(b => b && !b.ingetrokken); }
 window.glasGeldigeBestellingen = geldigeBestellingen;
 
+// v120 (keuze Jan): een ingetrokken lijst telt niet mee in de nummering die
+// de leverancier ziet. Na de 1e en een ingetrokken 2e is de volgende weer de
+// 2e (eerder: "3e", en de leverancier zocht een 2e die er niet was).
+function volgendBestelNr() {
+  return bestellingen().reduce((m, b, i) => b && !b.ingetrokken ? Math.max(m, b.nr || i + 1) : m, 0) + 1;
+}
+window.glasVolgendBestelNr = volgendBestelNr;
+
+// v120 (grote proef, akkoord Jan): twee keer besteld vanaf dezelfde stand.
+// Bijvoorbeeld: een iPad zonder bereik zegt "Ja, verstuurd" en intussen
+// bestelt een collega die het project overnam. Voorkomen kan niet (de iPad
+// heeft geen bereik); wel meteen luid zeggen. Elke bestelling sinds v120
+// weet op welke eerdere bestelling hij voortbouwt (basis: het tijdstip van
+// de laatst bekende geldige, of '' als er nog geen was).
+function dubbeleBestellingen() {
+  const groep = {};
+  geldigeBestellingen().forEach(b => {
+    if (!b || !('basis' in b)) return;
+    (groep[b.basis] = groep[b.basis] || []).push(b);
+  });
+  return Object.keys(groep).map(k => groep[k]).filter(g => g.length > 1);
+}
+window.glasDubbeleBestellingen = dubbeleBestellingen;
+const dubbelGemeld = {};
+function dubbelBestelMelding() {
+  const d = dubbeleBestellingen();
+  if (!d.length || !window.appFout) return false;
+  const sleutel = (window.glasProjectId || '') + '|' + d.map(g => g.map(b => b.op).join(',')).join(';');
+  if (dubbelGemeld[sleutel]) return true;
+  dubbelGemeld[sleutel] = true;
+  const wie = d.map(g => g.map(b => rangTekst(b.nr) + ' (' + (b.door || '?') + ', ' + korteDatum(b.op) + ')').join(' en ')).join('; ');
+  appFout('DUBBEL BESTELD: ' + wie + ' gingen allebei naar de leverancier, gemaakt vanaf dezelfde stand. ' +
+    'Bel de leverancier en laat de dubbele annuleren. Daarna kun je de verkeerde hier intrekken (Bestellijst, ‹Intrekken…›).',
+    { kop: 'Dubbel besteld' });
+  if (window.glasSpoorNotitie) glasSpoorNotitie('Dubbel besteld gezien: ' + wie);
+  return true;
+}
+window.glasDubbelBestelMelding = dubbelBestelMelding;
+
+// v120 (grote proef): hetzelfde project in twee tabbladen van één browser.
+// Er is één kopie per apparaat; zonder bereik kan het ene tabblad het werk
+// van het andere overschrijven. De app zegt het daarom één keer.
+(function tabbladWacht() {
+  if (!('BroadcastChannel' in window)) return;
+  let kanaal;
+  try { kanaal = new BroadcastChannel('glasopname-tabbladen'); } catch (e) { return; }
+  const ik = Math.random().toString(36).slice(2);
+  const gemeld = {};
+  const zeg = vraag => { if (window.glasProjectId || vraag) kanaal.postMessage({ ik: ik, p: window.glasProjectId || null, vraag: !!vraag }); };
+  kanaal.onmessage = e => {
+    const d = e.data || {};
+    if (d.ik === ik) return;
+    if (d.vraag) { zeg(false); }
+    // Een berichtje onderin, geen venster: een open venster houdt het
+    // bewerkslot tegen (een collega die wil overnemen, wacht dan; gevonden
+    // met test-v106 §11).
+    if (d.p && d.p === window.glasProjectId && !gemeld[d.p] && window.kortBericht) {
+      gemeld[d.p] = true;
+      kortBericht('Twee tabbladen: dit project staat ook open in een ander tabblad. Werk in één tabblad ' +
+        '(zonder bereik kan het ene het werk van het andere overschrijven).', { soort: 'info', ms: 20000 });
+    }
+  };
+  setTimeout(() => zeg(true), 3000);
+  setInterval(() => zeg(false), 20000);
+})();
+
 // Waar alles mee vergeleken wordt: de laatst verstuurde, geldige bestelling.
 function bestelling() {
   const l = geldigeBestellingen();
@@ -5782,8 +6280,10 @@ function bestellingVastleggen(lijst, via, moment) {
     const t = new Date(b.op);
     if (!isNaN(t.getTime()) && t >= op) op = new Date(t.getTime() + 1);
   });
+  const laatsteGeldig = vorige.filter(b => b && !b.ingetrokken).map(b => b.op).sort().pop() || '';
   const nieuw = {
-    nr: vorige.length + 1,
+    nr: volgendBestelNr(),
+    basis: laatsteGeldig,            // v120: om dubbel bestellen te herkennen
     op: op.toISOString(),
     door: door,
     via: via || 'pdf',
@@ -5893,8 +6393,18 @@ function bestellingenSamenvoegen(andereInfo) {
   const lijst = Object.keys(opOp).map(k => opOp[k]).sort((x, y) => String(x.op).localeCompare(String(y.op)));
   // Alleen inkorten wat niet meer nodig is om mee te vergelijken (v105:
   // ook uit de 1e kan nog besteld zijn wat geldt).
-  projectInfo.bestellingen = bestellingenOpschonen(lijst.map((b, i) => Object.assign({}, b, { nr: i + 1 })));
+  // v120: nummeren in volgorde van tijd, waarbij een ingetrokken lijst niet
+  // meetelt. Een nummer dat de leverancier al kreeg, wordt nooit lager
+  // (oude projecten met een ingetrokken lijst in het midden houden hun "3e").
+  let hoogste = 0;
+  projectInfo.bestellingen = bestellingenOpschonen(lijst.map((b, i) => {
+    if (b.ingetrokken) return Object.assign({}, b, { nr: b.nr || hoogste + 1 });
+    const nr = Math.max(hoogste + 1, b.nr || 0);
+    hoogste = nr;
+    return Object.assign({}, b, { nr: nr });
+  }));
   besteldBijwerken();
+  setTimeout(dubbelBestelMelding, 0);
   // Er kwam een geldige bestelling bij die dit apparaat niet kende: dan
   // hoort ook de status en het slot van die stand erbij.
   if (geldigErbij && statusRang(andereInfo.status) >= 2) {
@@ -5932,7 +6442,17 @@ function besteldTekst(oud, nr) {
 
 // Het blok op het tabblad Bestellijst: welke bestellingen er zijn, en wat
 // er anders is dan wat er besteld is — ook wat er vervallen is.
+// v120: staat er een dubbele bestelling in het project, dan bovenaan in rood.
 function bestellingenBlok() {
+  const dub = dubbeleBestellingen();
+  if (!dub.length) return bestellingenBlokBasis();
+  setTimeout(dubbelBestelMelding, 0);
+  return '<div class="bestel-balk bestel-dubbel">⚠ <b>Dubbel besteld:</b> ' +
+    esc(dub.map(g => g.map(b => rangTekst(b.nr) + ' (' + (b.door || '?') + ', ' + korteDatum(b.op) + ')').join(' en ')).join('; ')) +
+    ' zijn vanaf dezelfde stand gemaakt en gingen allebei naar de leverancier. Bel de leverancier; trek daarna de verkeerde hier in.</div>' +
+    bestellingenBlokBasis();
+}
+function bestellingenBlokBasis() {
   const lijst = bestellingen();
   if (!lijst.length) {
     return '<div class="bestel-balk bestel-geen">📦 Nog niets besteld. Maak de bestellijst-pdf; ' +
@@ -6103,7 +6623,15 @@ function renderBestellijst() {
   const ingevuld = rijen.filter(bestelbaar);
   const onvolledig = onvolledigeRijen();
   const el = document.getElementById('bestellijstInhoud');
-  if (ingevuld.length === 0) {
+  // Zonder pdf.js (laadt normaal altijd mee): een eenvoudige lijst.
+  const m = window.bestellijstModel ? bestellijstModel() : (ingevuld.length ? {
+    modus: 'volledig', titel: 'Bestellijst glas', kop: null, leeg: false, strijdig: 0, rooster: 0, bediening: '', blokken: [], totaal: '',
+    kolommen: ['Pos', 'Aantal', 'Merk', 'Glasbreedte', 'Glashoogte', 'Glas type', 'Opbouw', 'Glasbewerking', 'Opmerking'],
+    regels: ingevuld.map((r, i) => ({ id: r.id, strijdig: false, wijz: '', cellen: [String(i + 1), String(parseInt(r.aantal) || 1), r.merk || '',
+      String(r.glasBreedte), String(r.glasHoogte), r.glasType || '', r.opbouw || '', r.glasbewerking || '',
+      [r.opmerking, r.roedenopmerking].filter(Boolean).join(' \u00b7 ')] }))
+  } : null);
+  if (!m || (ingevuld.length === 0 && m.modus === 'volledig')) {
     // Ook zonder één complete regel: wat er besteld is en wat er vervallen
     // is, moet hier te zien blijven (v104).
     el.innerHTML = bestellingenBlok() +
@@ -6113,63 +6641,45 @@ function renderBestellijst() {
   }
   const project = document.getElementById('projectNaam').value || '—';
   const datum = document.getElementById('projectDatum').value || '—';
-  // Ruiten met een rooster krijgen een merkteken: de speling voor het
-  // rooster gaat er bij de leverancier nog af, niet bij ons.
-  const metRooster = ingevuld.filter(r => r.rooster === 'Ja').length;
-
-  // Combinaties van bewerking en opbouw die volgens de catalogus niet
-  // bestaan. Ze worden niet weggelaten — de leverancier kan best iets
-  // kunnen wat niet in de showroom staat — maar wel gemarkeerd.
-  const strijdig = ingevuld.filter(r => isStrijdig(r)).length;
-
-
-  let rows = ingevuld.map((r, i) => `<tr class="${isStrijdig(r) ? 'strijdig' : ''}">
-    <td class="rijnr${naBestellingGewijzigd(r) ? ' na-bestelling' : ''}" title="${esc(ruitSpoor(r))}">${i+1}</td>
-    <td class="num highlight">${parseInt(r.aantal)||1}</td>
-    <td>${esc(r.merk)}</td>
-    <td class="num highlight">${r.glasBreedte}</td>
-    <td class="num highlight${r.rooster === 'Ja' ? ' rooster-hoogte' : ''}">${r.glasHoogte}${r.rooster === 'Ja' ? '<span class="rooster-teken">▲</span>' : ''}</td>
-    <td>${esc(r.glasType)}</td>
-    <td>${esc(r.opbouw)}</td>
-    <td>${r.rooster === 'Ja' ? '<b class="rooster-ja">Ja ▲</b>' : ''}</td>
-    <td>${esc(r.ducoType)}</td>
-    <td>${esc(ralTekst(r))}</td>
-    <td>${esc(bedieningOpPapier(r))}</td>
-    <td>${esc(r.glasbewerking !== 'Helder (standaard)' ? r.glasbewerking : '')}${isStrijdig(r) ? '<span class="strijdig-teken">*</span>' : ''}</td>
-    <td>${esc(r.roedenverdeling !== 'Geen roedenverdeling' ? r.roedenverdeling : '')}</td>
-    <td>${esc(r.roedenbreedte)}</td>
-    <td>${esc([r.opmerking, r.roedenopmerking].filter(Boolean).join(' · '))}</td>
-  </tr>`).join('');
-
+  // v118 (wens Jan): dezelfde kolommen, volgorde, blokken en teksten als de
+  // pdf (bestellijstModel in pdf.js), zodat je hier al ziet wat de
+  // leverancier krijgt. Lege kolommen staan er niet.
+  const cel = (v, k) => {
+    const rechts = /^(Pos|Aantal|Glasbreedte|Glashoogte|Ruiten)$/.test(k);
+    return `<td class="${rechts ? 'num' : ''}">${esc(v)}</td>`;
+  };
+  const tabel = (kop, body, soort) => `<div class="bl-wrap"><table class="samenvatting bl-tabel bl-${soort || 'hoofd'}">
+      <thead><tr>${kop.map(k => `<th class="${/^(Pos|Aantal|Glasbreedte|Glashoogte|Ruiten)$/.test(k) ? 'num' : ''}">${esc(k)}</th>`).join('')}</tr></thead>
+      <tbody>${body}</tbody></table></div>`;
+  const wijzI = m.kolommen.indexOf('Wijz.');
+  const rows = m.regels.map((g, i) => {
+    const r = rijen.find(x => x.id === g.id) || {};
+    return `<tr class="${g.strijdig ? 'strijdig' : ''}${naBestellingGewijzigd(r) ? ' bl-na-bestelling' : ''}" title="${esc(ruitSpoor(r))}">` +
+      g.cellen.map((v, k) => k === wijzI && v ? `<td class="bl-wijz">${esc(v)}</td>` : cel(v, m.kolommen[k])).join('') + '</tr>';
+  }).join('');
   el.innerHTML = `
     <div style="margin-bottom:10px;font-size:12px;color:var(--grijs-tekst)">
       <strong>Project:</strong> ${esc(project)} &nbsp;|&nbsp; <strong>Datum:</strong> ${esc(datum)}
     </div>
     ${bestellingenBlok()}
-    <div style="overflow-x:auto">
-    <table class="samenvatting">
-      <thead><tr>
-        <th>Pos.</th><th class="num">Aantal</th><th>Merk</th>
-        <th class="num">Glasbreedte (mm)</th><th class="num">Glashoogte (mm)</th>
-        <th>Glas Type</th><th>Opbouw</th><th>Rooster</th>
-        <th>Duco Type</th><th>RAL Kleur</th><th>Bediening</th>
-        <th>Glasbewerking</th><th>Roedenverdeling</th><th>Roedenb.</th><th>Opmerking</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    </div>
-    ${metRooster ? `<div class="rooster-noot">
-      <span class="rooster-teken">▲</span>
-      <div><strong>Let op — ${metRooster} ${metRooster === 1 ? 'ruit' : 'ruiten'} met ventilatierooster.</strong>
-      Bij deze ruiten is de speling voor het rooster <u>nog niet</u> van de glashoogte afgetrokken.
-      Die aftrek wordt door de glasleverancier gedaan.</div>
-    </div>` : ''}
-    ${strijdig ? `<div class="strijdig-noot">
+    <h3 class="bl-titel">${esc(m.titel)} <small>zo komt hij op de pdf</small></h3>
+    ${m.kop ? `<div class="bl-kader"><b>${esc(m.kop.kopje)}</b>${m.kop.bevestig ? `<p class="bl-bevestig">${esc(m.kop.bevestig)}</p>` : ''}<p>${esc(m.kop.kopTekst)}</p></div>` : ''}
+    ${m.leeg ? '<p><b>Geen nieuwe of gewijzigde ruiten op deze aanvulling.</b></p>' : tabel(m.kolommen, rows)}
+    ${m.strijdig ? `<div class="strijdig-noot">
       <span class="strijdig-teken">*</span>
-      <div><strong>${window.STRIJDIG_NOOT || 'check beschikbaarheid combinatie dikte-glastype!'}</strong>
-      ${strijdig === 1 ? 'Eén regel staat' : strijdig + ' regels staan'} met een bewerking die volgens de
-      catalogus niet in de gekozen bladdikte bestaat.</div>
+      <div><strong>${esc(m.strijdigNoot)}</strong>
+      ${m.strijdig === 1 ? 'Eén regel staat' : m.strijdig + ' regels staan'} met een glasbewerking die volgens de
+      catalogus niet in de gekozen bladdikte bestaat. Rood gemarkeerd in de tabel hierboven.</div>
     </div>` : ''}
+    ${m.rooster ? `<div class="rooster-noot">
+      <span class="rooster-teken">▲</span>
+      <div><strong>LET OP – ${m.rooster} ${m.rooster === 1 ? 'ruit' : 'ruiten'} met ventilatierooster.</strong>
+      Bij deze ruiten is de speling voor het rooster nog NIET van de glashoogte afgetrokken. Die aftrek doet de glasleverancier.
+      ${m.bediening ? `<br><strong>${esc(m.bediening)}</strong>` : ''}</div>
+    </div>` : ''}
+    ${m.blokken.map(b => `<h4 class="bl-blok-kop bl-${b.soort}">${esc(b.kop)}</h4>` +
+      tabel(b.head, b.body.map(rij => '<tr>' + rij.map((v, k) => cel(v, b.head[k])).join('') + '</tr>').join(''), b.soort)).join('')}
+    <p class="bl-totaal">${esc(m.totaal)}</p>
     ${onvolledig.length ? onvolledigTekst(onvolledig) : ''}
 `;
 }
@@ -6223,6 +6733,7 @@ function laadOpgeslagen() {
     if (typeof fotos !== 'undefined') fotos = Array.isArray(state.fotos) ? state.fotos : [];
     if (typeof projectInfo !== 'undefined') projectInfo = (state.info && typeof state.info === 'object') ? state.info : {};
     if (typeof projectTaken !== 'undefined') projectTaken = Array.isArray(state.taken) ? state.taken : [];
+    veiligeIds();   // v120
     if (state.project) document.getElementById('projectNaam').value = state.project;
     if (state.datum) document.getElementById('projectDatum').value = state.datum;
     // Speling en bijtelling altijd zetten, ook als ze niet bewaard zijn:
@@ -6453,6 +6964,7 @@ window.veiligeBestandsnaam = veiligeBestandsnaam;
 <script src="naslag.js"></script>
 <script src="pdf.js"></script>
 <script src="originelen.js"></script>
+<script src="backup.js"></script>
 <script src="undo.js"></script>
 </body>
 </html>

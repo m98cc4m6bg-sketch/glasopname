@@ -217,6 +217,13 @@ Moet eerst (anders vals rood):
   `/tmp/live109`. Die mappen moeten elke sessie opnieuw klaargezet worden.
   Liever de benodigde oude stukken vast in de test opnemen.
 
+Opgelost (v120, 22-10-2026):
+- `test-v93.js` §6 en §8 waren wisselend rood (ook op v119, nagegaan): §6
+  keek naar de wachtrij vóór de poging voor het origineel geweest was; §8
+  zette de wachtrij pas stil nadat het bereik terug was, zodat een
+  herhaalpoging nog net kon uploaden. Nu: wachten op de fout, en eerst
+  stilzetten. Drie keer achter elkaar groen onder belasting.
+
 Grootste tijdwinst:
 - **Vaste wachttijden** (`wacht(…)`, `waitForTimeout`) vervangen door
   wachten op een signaal (`wachtTot`) of de klok van Playwright. In
@@ -579,6 +586,110 @@ harde eis wint.
     (`wasBediening` in test-v112, zes in test-v111);
   - niet getest: echte Safari (keuzelijst met grijze opbouwen: Safari op de
     iPhone toont de kleur van een optie niet, wel het kopje).
+- `test-v118.js` (Jans lijst na de eerste proef met v117):
+  - 1 rekent zonder klikken (band buiten per ruit, 5 mm = rol 2 + rol 3,
+    "m band" dubbel); 2 Toebehoren: blok "Voor het hele project" los, per
+    foto een tabel met kopregel, de nieuwe koppen, band buiten kiezen,
+    de cursor blijft staan bij Tab in de tweede tabel; 3 Invoer rood bij
+    te dik (ook na een bandwijziging op Toebehoren); 4 tabblad Bestellijst
+    = `bestellijstModel` = pdf (gewone lijst en aanvulling met
+    ANNULEREN), "Helder (standaard)", geen lege kolommen; 5 de
+    werkvloer-pdf teruggelezen (foto met bolletjes, stuklengtes, "Let op",
+    zaagplan, geen prijzen, geen levervragen); 6 een ✕ op elk menu en
+    venster (plek en maat gemeten, ook Escape); 7 pc 1600/1440, laptop
+    1280, iPad staand/liggend, telefoon: niets schuift opzij, op een
+    laptop en groter staan de kolommen van de tabellen onder elkaar;
+  - les: **vaste kolombreedtes rekenen met de inhoud**: een `select` of een
+    regel met `nowrap` uit een oudere CSS-regel (later in het bestand) liep
+    over de vaste breedte heen. Meet `scrollWidth` per cel, niet alleen
+    van de tabel;
+  - les: **een knop in een menu krijgt de menuregels** (`width: 100%`): het
+    kruisje werd een balk. Daarom een eigen, specifiekere regel;
+  - les: **een wijziging op het ene tabblad, zichtbaar op het andere**: de
+    rode dikte op Invoer bleef staan na een andere band op Toebehoren.
+    Bij het wisselen naar Invoer nu `updateBerekendCellen()`;
+  - twee agents (UI/UX en een tester) keken mee; hun punten staan in de
+    nota (verwerkt of als vraag);
+  - niet getest: echte Safari (Mac, iPad, iPhone), de werkvloer-pdf
+    geprint.
+- `test-v119.js` (Jans antwoorden van 22-10):
+  - 1 rekent: A4 precies vlak = "vlak met kozijn", A5 in 41–43 = "nood:
+    steekt 3/2/1 mm uit", 44 vlak, 45 zicht; opdeklat ongemoeid; onderin
+    buiten vlak = past (sinds v120: ook daar "vlak", en A5 in 40 = nood;
+    de reeks is daarop bijgewerkt); advies bij vlak en nood alleen wat netjes in valt;
+    2 Toebehoren: oranje chips (kleur gemeten), strook nood, strook "beide"
+    met Begrepen (bewaard, komt terug bij een nieuwe ruit, weg bij een eigen
+    onderlat; ook voor `tweeKanten` uit v113); 3 de vraag vóór de
+    bestellijst (wel bij nood, niet bij vlak); 4 Let op op de werkvloer;
+    5 Alles exporteren = drie bestanden; 6 versie;
+  - les: **een nieuwe status raakt oude verwachtingen**: "past" bij precies
+    passend stond in test-v113/v114/v115; die zijn bewust bijgewerkt (zie
+    de nota), de mutaties van v115 die op de oude regel leunden opnieuw
+    verankerd en gericht gedraaid;
+  - les: `toebehorenZetRuit` tekent het scherm niet opnieuw; in een test
+    daarna `renderToebehoren()`;
+  - niet getest: echte Safari.
+- `test-v120.js` (de grote proef van v119, Jans keuzes van 22-10):
+  - opgebouwd uit de opstelling van de storingzoekers (nagebootste
+    database mét bewerkslot, versieslot, bestellingen-trigger en live
+    doorgeven, en een apparaat zonder bereik per naam: `S.weg.ipad`);
+    alleen zo is een fout met twee apparaten eerlijk te laten zien;
+  - 1 komma en "mm" in een maat (echt typen), aantal 0/−5/2,7, tikfouten
+    vóór de bestellijst; 2 twee tabbladen zonder bereik (herladen, sluiten,
+    hetzelfde project twee keer); 3 iPad offline "Ja, verstuurd" + collega
+    neemt over en bestelt: DUBBEL BESTELD, rode balk; nummer na intrekken;
+    4 import: kolomkoppen, merk bestaat al (keuze, bolletjes mee), cijfers
+    → 1a/1b, Alles vervangen, max pakket met halve mm of tekst, lege cellen,
+    ✕ en Escape; 5 latten: A5 1 mm te krap = nood, vlak onderin buiten,
+    strook vlak, zaagplan + 1 reserve (scherm = werkvloer), te lange lat,
+    ⧉ met keuzes, "Alle ruiten" + vraag + Terugzetten (aanvinken: sinds
+    v121 in `test-v121.js`), Enter, lengte 5,4;
+    6 pdf-kop (besteller + telefoon, contact, referentie), opmerking en
+    "na de laatste bestelling gewijzigd" op werkvloer en PDF invoer,
+    samenvatting, ✕ met Terugzetten (bolletjes mee), selectie, 📷,
+    kleur, iPad 44 px; 7 vreemde nummers en HTML in een project; 8 📞 en
+    💾 (de zip uitgepakt en nagekeken); 9 versie;
+  - mutatieproef: 33 mutaties (`--mutaties`, of `--mutaties naam1,naam2`;
+    tot v120 34: `alleenGekozen` staat sinds v121 in `test-v121.js`);
+  - script 26 is apart getest tegen een echte PostgreSQL 16 met een
+    namaak van Supabase (40 controles, 14 mutaties); die proef staat in de
+    zip "niet-in-repo" (niet openbaar), net als `26_terug.sql`;
+  - les: **een getalvak in Chrome laat een komma stil weg**; een test die
+    `fill()` op een getalvak doet, ziet dat niet: echt typen
+    (`keyboard.type`) en dan Tab;
+  - les: **een opstelling zonder bewerkslot laat een twee-apparaten-fout
+    niet zien** (de echte database zou weigeren); de reeksen v119 en ouder
+    hebben het bewerkslot niet in hun namaak;
+  - niet getest: echte Safari (Mac, iPad, iPhone: het cijfertoetsenbord
+    met komma, de tik-plek van 44 px, de back-up als zip delen), Android,
+    Windows, de echte Supabase (script 26 alleen in een namaak).
+- `test-v121.js` (Jans keuzes na v120, 22-10): zelfde opstelling als v120;
+  1 neuslat recht + 20 mm (los van het verstek: verstek 30 → neuslat
+  blijft + 20; eigen toeslag 15; een gekozen N45 ook; A4 onderin houdt
+  verstek; "Nodig" telt mee; uitleg, zaagplan en PDF werkvloer "N30 recht",
+  nergens meer "verstek" in de werkvloer); 2 "beide": grijze melding
+  zonder ⚠, hint "beide kanten" in de knop (ook na Begrepen, weg bij een
+  eigen neuslat); 3 de actiebalk: alleen met vinkjes, vast onderin, het
+  blok bovenin één regel, Toepassen pas na een keuze, diepte echt typen
+  (de cursor blijft), voorbeeld vóór Toepassen en **niets bewaard vóór
+  Toepassen**, tikfout "4x", "slechter bij", geen extra vraag, alleen de
+  gekozen ruiten (ook in de database), **het voorbeeld = de uitkomst**,
+  Terugzetten boven de balk, binnen + neuslat overgeslagen en gemeld, ✕,
+  op slot geen balk, iPhone (in beeld, 44 px, ✕ niet over een vak, ≤ 60 %
+  van het scherm) en iPad; 4 versie;
+  - mutatieproef: 17 mutaties;
+  - les: **een voorbeeld dat met "proef"-keuzes rekent, moet die altijd
+    weer weghalen** (`finally`); anders toont de tabel iets wat niet
+    bewaard is (mutatie `proefLek`);
+  - les: in de pdf staat een kolomkop over twee regels, en pdfplumber zet
+    de tekst van naastliggende kolommen ertussen: zoek de delen apart;
+  - les: `ALLEEN` is een lijst met komma's: `ALLEEN=1,3`. Met `ALLEEN=13`
+    draait er niets en staat er toch "Alles goed" (zo gebeurd bij v121);
+  - les: de instellingen op Toebehoren staan pas in de pagina als ze
+    opengeklapt zijn (`.tb-inst-kop` aantikken);
+  - niet getest: echte Safari (de balk met `env(safe-area-inset-bottom)`
+    boven de thuisbalk van de iPhone; `:has()` voor het berichtje boven de
+    balk werkt vanaf iOS 15.4), Android, Windows.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

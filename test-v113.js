@@ -68,8 +68,9 @@ const MUTATIES = {
   // v114: de onderlat bepaalt latten.js (onderlatVoorRuit); daar zit de omzetting van 'Glaslat'.
   oudGlaslatOnder: ["latten.js", "    if (w === 'Glaslat' || w === 'ZELFDE') return 'ZELFDE';", "    if (w === 'ZELFDE') return 'ZELFDE';"],
   misStrook: ["toebehoren.js", "    if (mis.length) {", "    if (0) {"],
-  staven: ["toebehoren.js", "      var nodig = Math.max(metVerlies, plan.staven.length + plan.teLang.length);", "      var nodig = plan.staven.length + plan.teLang.length;"],
-  bandPerRuit: ["toebehoren.js", "        if (kant === 'binnen' && [2, 3, 4].indexOf(+eigen.bandBinnen) >= 0) c =", "        if (0) c ="],
+  // v120 (keuze Jan): zaagplan + 1 reserve per type.
+  staven: ["toebehoren.js", "      var nodig = plan.staven.length + reserve;", "      var nodig = plan.staven.length;"],
+  bandPerRuit: ["toebehoren.js", "        if (kant === 'binnen' && BAND_DIKTES.indexOf(+eigen.bandBinnen) >= 0) c =", "        if (0) c ="],
   buitenNooit2: ["toebehoren.js", "      if (kant === 'buiten' && BAND_DIKTES_BUITEN.indexOf(d) < 0) d = 3;", ""],
   neusMaat: ["toebehoren.js", "      var onder = ol.geen ? '' : ol.id, neus", "      var onder = ol.geen ? '' : ol.isNeus ? 'NEUS' : ol.id, neus"],
   onderEenKeer: ["toebehoren.js", "      lat(onder, sp.b + t, n, 'onder', n);", "      lat(onder, sp.b + t, n * dubbel, 'onder', n);"],
@@ -842,21 +843,23 @@ function latProject(extra) {
     const reeks = {};
     for (const d of [44, 45, 43, 42, 46]) { await zet(page, 'X', { sponningDiepte: d }); reeks[d] = (await oordeel(page, 'X')).kort; }
     // v115 (Jan): een gewone glaslat met ruimte over schuift verder in: "past · N mm in zicht", niet "ruim"/"te ruim".
-    check('X, A4, band 3+3: 44 past, 45 past · 1 mm in zicht, 43 krap −1, 42 past niet −2, 46 past · 2 mm in zicht',
-      reeks[44] === 'past' && reeks[45] === 'past · 1 mm in zicht' && reeks[43] === 'krap −1' && reeks[42] === 'past niet −2' && reeks[46] === 'past · 2 mm in zicht',
+    // v119 (Jan): precies vlak met het kozijn = waarschuwing "past · vlak met kozijn".
+    check('X, A4, band 3+3: 44 vlak met kozijn, 45 past · 1 mm in zicht, 43 krap −1, 42 past niet −2, 46 past · 2 mm in zicht',
+      reeks[44] === 'past · vlak met kozijn' && reeks[45] === 'past · 1 mm in zicht' && reeks[43] === 'krap −1' && reeks[42] === 'past niet −2' && reeks[46] === 'past · 2 mm in zicht',
       JSON.stringify(reeks));
     await zet(page, 'X', { sponningDiepte: 44 });
     u = await oordeel(page, 'X');
-    check('de uitleg rekent het voor: "23 glas + 3 + 3 band + 15 lat (A4) = 44 mm; sponning 44 mm → past precies"',
-      u.tekst === '23 glas + 3 + 3 band + 15 lat (A4) = 44 mm; sponning 44 mm → past precies', u.tekst);
+    check('de uitleg rekent het voor: "23 glas + 3 + 3 band + 15 lat (A4) = 44 mm; sponning 44 mm → past, maar de lat komt precies vlak met het kozijn"',
+      u.tekst.indexOf('23 glas + 3 + 3 band + 15 lat (A4) = 44 mm; sponning 44 mm → past, maar de lat komt precies vlak met het kozijn') === 0, u.tekst);
     // A5 met sponninkje: 12 mm in de sponning (Jan) → 41.
     u = await oordeel(page, 'X', { lat: 'A5', sponningDiepte: 41 });
-    check('A5 (glaslat met sponninkje) neemt 12 mm in: 23 + 6 + 12 = 41 past', u.status === 'past' && u.nodig === 41, JSON.stringify(u));
+    // v119 (Jan): dan past hij alleen dankzij het sponninkje: noodmaatregel, steekt 3 mm uit.
+    check('A5 (glaslat met sponninkje) neemt 12 mm in: 23 + 6 + 12 = 41 past (nood: steekt 3 mm uit)', u.status === 'nood' && u.nodig === 41 && u.kort === 'nood: steekt 3 mm uit', JSON.stringify(u));
     // Uitfrezen: 40 → nodig 44, dus uitfrezen naar 44.
     u = await oordeel(page, 'X', { sponningDiepte: 40 });
     const uf = await oordeel(page, 'X', { sponningDiepte: 40, uitfrezen: true });
     check('sponning 40: past niet −4, uitfrezen naar 44; met uitfrezen aan: "past (frezen 44)"',
-      u.kort === 'past niet −4' && u.uitfrezenNaar === 44 && uf.kort === 'past (frezen 44)', u.kort + ' / ' + uf.kort);
+      u.kort === 'past niet −4' && u.uitfrezenNaar === 44 && uf.kort === 'past · vlak met kozijn (frezen 44)', u.kort + ' / ' + uf.kort);
     u = await oordeel(page, 'X', { sponningDiepte: 47, uitfrezen: true });
     check('uitfrezen aan terwijl 47 al diep genoeg is: "past · 3 mm in zicht" zonder "(frezen …)"', u.kort === 'past · 3 mm in zicht', u.kort);
     // v115: veel ruimte over = sponning in zicht, geen advies.
@@ -873,7 +876,7 @@ function latProject(extra) {
     await zet(page, 'X', { sponningDiepte: 44, glaslat: null });
     // Band binnen per ruit.
     u = await oordeel(page, 'X', { sponningDiepte: 43, bandBinnen: 2 });
-    check('band binnen 2 mm bij deze ruit: 43 past', u.kort === 'past', u.kort);
+    check('band binnen 2 mm bij deze ruit: 43 past (vlak met kozijn, v119)', u.kort === 'past · vlak met kozijn', u.kort);
     // Jans deur: 27 mm sponning, 22 mm glas, 3 + 3 band.
     await zet(page, 'D', { sponningDiepte: 27 });
     const deur = {};
@@ -910,7 +913,7 @@ function latProject(extra) {
       const een = GlasLatten.pakket(r, { tweeKanten: false }), twee = GlasLatten.pakket(r, { tweeKanten: true });
       toebehorenZetRuit(r.id, 'sponningDiepte', 64); const n = GlasLatten.neuslatVoor(r); toebehorenZetRuit(r.id, 'sponningDiepte', 44);
       return [GlasLatten.kort(een), GlasLatten.kort(twee), twee.tekst, n.rest]; });
-    check('latten aan twee kanten: 23 + 6 + 2 × 15 = 59 past (met één lat: 15 mm in zicht)', m[0] === 'past · 15 mm in zicht' && m[1] === 'past' &&
+    check('latten aan twee kanten: 23 + 6 + 2 × 15 = 59 past (met één lat: 15 mm in zicht)', m[0] === 'past · 15 mm in zicht' && m[1] === 'past · vlak met kozijn' &&
       /2 × 15 lat \(A4, twee kanten\)/.test(m[2]), JSON.stringify(m));
     await page.evaluate(() => { toebehorenTweeKanten(rijen.find(x => x.merk === 'X').id, true); toebehorenZetRuit(rijen.find(x => x.merk === 'X').id, 'sponningDiepte', 64); });
     m = await page.evaluate(() => { const n = GlasLatten.neuslatVoor(rijen.find(x => x.merk === 'X')); return [n.rest, n.lat && n.lat.id]; });
@@ -980,7 +983,7 @@ function latProject(extra) {
     // (v115: geen chip meer naast het vak op Invoer; de breedte van het vak telt test-v115.)
     await page.check('.lat-venster .pk-uitfrezen');
     await wacht(250);
-    check('uitfrezen aan: "past (frezen 44)", bewaard als uitfrezen: true', (await chip(page, 'X')).tekst === 'past (frezen 44)' &&
+    check('uitfrezen aan: "past (frezen 44)", bewaard als uitfrezen: true', (await chip(page, 'X')).tekst === 'past · vlak met kozijn (frezen 44)' &&
       await opgeslagenAls(() => perRuitDb('X').uitfrezen === true), JSON.stringify(await chip(page, 'X')));
     await page.keyboard.press('Control+z');
     await wacht(300);
@@ -1087,9 +1090,10 @@ function latProject(extra) {
     await naarToebehoren(page);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen().latten)));
     t = await tbTekst(page);
-    const groot = (t.match(/(\d+) × 4,0 m A4 glaslat/) || [])[1], klein = (t.match(/÷ 4,0 m → (\d+) lengtes?/) || [])[1];
-    check('4 latten van 0,98 m (3,92 m + 10 % = 4,31 m): zaagplan 1, maar groot getal = klein getal = 2', u[0].zaagplanStaven === 1 &&
-      u[0].staven === 2 && groot === '2' && klein === '2',
+    // v120 (keuze Jan): niet meer 10 %, maar het zaagplan + 1 reserve per type.
+    const groot = (t.match(/(\d+) × 4,0 m A4 glaslat/) || [])[1], klein = (t.match(/ \+ 1 reserve = (\d+) lengtes?/) || [])[1];
+    check('4 latten van 0,98 m: zaagplan 1 + 1 reserve = 2; groot getal = klein getal = 2', u[0].zaagplanStaven === 1 &&
+      u[0].staven === 2 && u[0].reserve === 1 && groot === '2' && klein === '2',
       JSON.stringify([u[0].staven, u[0].zaagplanStaven, groot, klein]));
     await ctx.close();
     // En andersom: lange latten, het zaagplan heeft er meer nodig dan 10 % zegt.
@@ -1099,9 +1103,9 @@ function latProject(extra) {
     await naarToebehoren(page);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen().latten)));
     t = await tbTekst(page);
-    check('4 latten van 2,1 m: 10 % zegt 3, het zaagplan 4 (er past er maar één per lengte) → overal 4, met uitleg',
-      u[0].metVerlies === 3 && u[0].staven === 4 && /^4 × 4,0 m A4/.test((t.match(/\d+ × 4,0 m A4.*/) || [''])[0]) &&
-      /→ 3 lengtes; maar de latten zijn lang: volgens het zaagplan zijn er 4 nodig/.test(t), JSON.stringify(u[0]).slice(0, 200));
+    check('4 latten van 2,1 m: zaagplan 4 (er past er maar één per lengte) + 1 reserve → overal 5, met uitleg',
+      u[0].zaagplanStaven === 4 && u[0].staven === 5 && /^5 × 4,0 m A4/.test((t.match(/\d+ × 4,0 m A4.*/) || [''])[0]) &&
+      /zaagplan 4 lengtes van 4,0 m \+ 1 reserve = 5 lengtes/.test(t), JSON.stringify(u[0]).slice(0, 200));
     await ctx.close();
 
     // Lat per ruit, neuslat automatisch, band per ruit.
@@ -1143,8 +1147,9 @@ function latProject(extra) {
     m = await page.$$eval('select[onchange*="buiten.dikte"] option', l => l.map(o => o.value));
     const mb = await page.$$eval('select[onchange*="binnen.dikte"] option', l => l.map(o => o.value));
     await page.evaluate(() => toebehorenKeuze('buiten.dikte', '2'));
-    check('band buiten: alleen 3 en 4 te kiezen (binnen 2, 3, 4); "2" wordt geweigerd', JSON.stringify(m) === '["3","4"]' &&
-      JSON.stringify(mb) === '["2","3","4"]' && await page.evaluate(() => GlasLatten.project().bandBuiten) === 3,
+    // v118 (Jan): 5 mm erbij (2 + 3 op elkaar).
+    check('band buiten: alleen 3, 4 en 5 te kiezen (binnen 2, 3, 4, 5); "2" wordt geweigerd', JSON.stringify(m) === '["3","4","5"]' &&
+      JSON.stringify(mb) === '["2","3","4","5"]' && await page.evaluate(() => GlasLatten.project().bandBuiten) === 3,
       JSON.stringify([m, mb]));
     if (PLAATJES) await page.screenshot({ path: path.join(PLAATJES, 'v113-toebehoren.png'), fullPage: true });
     await ctx.close();

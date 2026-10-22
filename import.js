@@ -23,7 +23,10 @@
     ['glasType',    'Glas type'],
     ['opbouw',      'Opbouw'],
     ['maxPakket',   'Max glaspakket'],
-    ['opmerking',   'Opmerking']
+    ['opmerking',   'Opmerking'],
+    // v120: per regel, als het bestand het zegt (bijv. een eigen export
+    // terug inlezen). Anders geldt de keuze "Deze maten zijn" voor alles.
+    ['maatsoort',   'Maatsoort (per regel)']
   ];
 
   // Woorden waarop een kolomkop herkend wordt (kleine letters, zonder leestekens).
@@ -35,8 +38,27 @@
     ['glasType',  ['glastype', 'glas type', 'soort', 'type glas']],
     ['opbouw',    ['opbouw', 'samenstelling', 'spouw']],
     ['maxPakket', ['max glaspakket', 'glaspakket', 'maxpakket', 'max dikte', 'pakket']],
-    ['opmerking', ['opmerking', 'notitie', 'bijzonderheden', 'omschrijving', 'toelichting']]
+    ['opmerking', ['opmerking', 'notitie', 'bijzonderheden', 'omschrijving', 'toelichting']],
+    ['maatsoort', ['maatsoort', 'maat soort', 'soort maat']]
   ];
+
+  // v120: hoe goed past een kolomkop bij een trefwoord. 3 = precies, 2 = als
+  // los woord ("breedte mm"), 1 = als begin of eind van een samengesteld
+  // woord ("glasbreedte", "merknr"). Tot v119 telde elk stukje tekst, en
+  // werd "Opmerking" gelezen als Merk (op-MERK-ing) en "Maatsoort" als
+  // Glas type (maat-SOORT), omdat de eerste treffer won.
+  function kopScore(s, w) {
+    if (!s) return 0;
+    if (s === w) return 3;
+    if ((' ' + s + ' ').indexOf(' ' + w + ' ') >= 0) return 2;
+    if (w.length > 3 && w.indexOf(' ') < 0 && s.split(' ').some(function (d) {
+      return d.length > w.length && (d.indexOf(w) === 0 || d.slice(-w.length) === w);
+    })) return 1;
+    return 0;
+  }
+  function veldScore(s, h) {
+    return h[1].reduce(function (m, w) { return Math.max(m, kopScore(s, w)); }, 0);
+  }
 
   var tabel = null;    // { kop: [..], rijen: [[..]] }
   var mapping = [];    // per kolom een veldnaam of ''
@@ -279,7 +301,7 @@
         var s = schoon(cel);
         if (!s) return;
         HERKEN.forEach(function (h) {
-          if (h[1].some(function (w) { return s === w || s.indexOf(w) >= 0; })) score++;
+          if (veldScore(s, h) > 0) score++;
         });
       });
       if (score > besteScore) { besteScore = score; besteIndex = i; }
@@ -287,18 +309,32 @@
     return besteScore >= 2 ? besteIndex : -1;
   }
 
+  // v120: eerst de beste treffers koppelen (precies vóór los woord vóór
+  // stukje), bij gelijke stand de kolom die het eerst komt. Zo wint
+  // "Breedte invoer" van "Glasbreedte" en "Opmerking" van "Opmerking roeden".
   function raadMapping(kop) {
-    var gebruikt = {};
-    return kop.map(function (cel) {
-      var s = schoon(cel);
-      var gevonden = '';
-      HERKEN.forEach(function (h) {
-        if (gevonden || gebruikt[h[0]]) return;
-        if (h[1].some(function (w) { return s === w || (w.length > 3 && s.indexOf(w) >= 0); })) gevonden = h[0];
+    var schoonKop = kop.map(schoon);
+    // Een eigen export (v113+) heeft een kolom "Pakket" met het oordeel
+    // ("past", "vlak met kozijn"); dat is geen max glaspakket.
+    var eigenExport = schoonKop.indexOf('glaslat') >= 0 && schoonKop.indexOf('latzijde') >= 0;
+    var kandidaten = [];
+    schoonKop.forEach(function (s, i) {
+      HERKEN.forEach(function (h, j) {
+        if (eigenExport && h[0] === 'maxPakket' && s === 'pakket') return;
+        var sc = veldScore(s, h);
+        if (sc) kandidaten.push({ kolom: i, veld: h[0], score: sc, volg: j });
       });
-      if (gevonden) gebruikt[gevonden] = true;
-      return gevonden;
     });
+    kandidaten.sort(function (a, b) {
+      return (b.score - a.score) || (a.kolom - b.kolom) || (a.volg - b.volg);
+    });
+    var uit = kop.map(function () { return ''; }), gebruikt = {};
+    kandidaten.forEach(function (k) {
+      if (uit[k.kolom] || gebruikt[k.veld]) return;
+      uit[k.kolom] = k.veld;
+      gebruikt[k.veld] = true;
+    });
+    return uit;
   }
 
   /* ─── schermen ─────────────────────────────────────────────── */
@@ -525,6 +561,31 @@
     return { waarde: String(n), ruw: s };
   }
 
+  // v120: het max glaspakket mag een halve mm of tekst hebben ("27,5",
+  // "max 26 mm"). Eén getal erin: naar beneden afgerond (veilig: kleiner
+  // max = eerder een waarschuwing). Tot v119 verdween zo'n waarde stil.
+  // Niet te lezen ("past", "26/28"): in stap 3 gemeld, niet overgenomen.
+  function pakketLees(ruw) {
+    var s = String(ruw === undefined || ruw === null ? '' : ruw).trim();
+    var getallen = s.match(/\d+(?:[.,]\d+)?/g) || [];
+    if (getallen.length !== 1) return {};
+    var n = Math.floor(parseFloat(getallen[0].replace(',', '.')));
+    return n > 0 && n < 200 ? { waarde: String(n) } : {};
+  }
+
+  // v120: een maatsoort uit het bestand, alleen als die in de keuzelijst staat.
+  function maatsoortLees(ruw) {
+    var s = schoon(ruw);
+    if (!s) return '';
+    var lijst = Array.prototype.slice.call(document.getElementById('impMaatsoort').options)
+      .map(function (o) { return o.value; });
+    return lijst.find(function (m) {
+      var k = schoon(m);
+      return k === s || k.split(' ')[0] === s.split(' ')[0] ||
+             (s.length >= 3 && k.indexOf(s) === 0);
+    }) || '';
+  }
+
   function cel(r, i) { return i < 0 || r[i] === undefined ? '' : String(r[i]).trim(); }
   function kolomVan(veld) { return mapping.indexOf(veld); }
 
@@ -546,8 +607,12 @@
 
       // Meer cellen dan de kop: hier is iets verschoven. Dat is precies de
       // fout die een aanhalingsteken met een scheidingsteken erin maakte.
-      if (r.length > tabel.kop.length) {
-        regel.redenen.push('deze regel heeft ' + r.length + ' cellen, de kop ' +
+      // v120: lege cellen aan het eind tellen niet (Excel en een csv met
+      // ";;;" achteraan); tot v119 werd zo'n regel geweigerd.
+      var gevuld = r.length;
+      while (gevuld > 0 && String(r[gevuld - 1] === undefined || r[gevuld - 1] === null ? '' : r[gevuld - 1]).trim() === '') gevuld--;
+      if (gevuld > tabel.kop.length) {
+        regel.redenen.push('deze regel heeft ' + gevuld + ' cellen, de kop ' +
                            tabel.kop.length + ' — mogelijk verschoven');
       }
 
@@ -583,13 +648,20 @@
       regel.tekst.breedte = b.ruw;
       regel.tekst.hoogte = h.ruw;
       regel.tekst.aantal = a.ruw || '';
-      ['merk', 'glasType', 'opbouw', 'maxPakket', 'opmerking'].forEach(function (veld) {
+      ['merk', 'glasType', 'opbouw', 'maxPakket', 'opmerking', 'maatsoort'].forEach(function (veld) {
         var v = cel(r, kolomVan(veld));
         if (!v) return;
         if (veld === 'maxPakket') {
-          var mp = maatLees(v);
+          var mp = pakketLees(v);
           if (mp.waarde) regel.waarden.maxPakket = mp.waarde;
-          else regel.tekst.maxPakketOnbekend = v;
+          if (mp.waarde !== v) regel.tekst.maxPakket = v;
+          if (!mp.waarde) regel.tekst.maxPakketOnbekend = v;
+          return;
+        }
+        if (veld === 'maatsoort') {
+          var ms = maatsoortLees(v);
+          if (ms) regel.waarden.maatsoort = ms;
+          else regel.tekst.maatsoortOnbekend = v;
           return;
         }
         regel.waarden[veld] = v;
@@ -718,7 +790,7 @@
 
   function esc2(t) {
     return String(t === undefined || t === null ? '' : t)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');   // v120: ook > en '
   }
 
   // Kolommen die er wél naar uitzien maar niet gekoppeld zijn. Bij twee
@@ -731,9 +803,7 @@
       var s2 = schoon(k);
       if (!s2) return;
       HERKEN.forEach(function (h) {
-        if (h[1].some(function (w) { return s2 === w || (w.length > 3 && s2.indexOf(w) >= 0); })) {
-          if (uit.indexOf(k) < 0) uit.push(k);
-        }
+        if (veldScore(s2, h) > 0 && uit.indexOf(k) < 0) uit.push(k);
       });
     });
     return uit;
@@ -743,7 +813,7 @@
     var uit = [];
     [['breedte', 'Breedte'], ['hoogte', 'Hoogte'], ['aantal', 'Aantal'],
      ['merk', 'Merk'], ['glasType', 'Glas type'], ['opbouw', 'Opbouw'],
-     ['maxPakket', 'Max pakket'], ['opmerking', 'Opmerking']].forEach(function (v) {
+     ['maxPakket', 'Max pakket'], ['opmerking', 'Opmerking'], ['maatsoort', 'Maatsoort']].forEach(function (v) {
       var i = mapping.indexOf(v[0]);
       if (i < 0) return;
       uit.push('<li><b>' + v[1] + '</b> ← kolom ' + (i + 1) + ': «' +
@@ -783,9 +853,13 @@
         : '') +
       '<div class="imp-totalen"><b>' + posities + ' regels</b> · <b>' + ruiten + ' ruiten</b>' +
       ' · breedte ' + reeks(breedtes) + ' · hoogte ' + reeks(hoogtes) +
-      ' · als <b>' + esc2(maatsoort) + '</b>' +
+      (kolomVan('maatsoort') >= 0
+        ? ' · maatsoort per regel uit het bestand (anders <b>' + esc2(maatsoort) + '</b>)'
+        : ' · als <b>' + esc2(maatsoort) + '</b>') +
       (splits ? ' · regels met een aantal worden opgesplitst' : '') + '</div></div>';
 
+    var metPakket = kolomVan('maxPakket') >= 0;
+    var metSoort = kolomVan('maatsoort') >= 0;
     var rijenHtml = o.goed.map(function (r, i) {
       var w = r.waarden;
       var anders = function (veld) {
@@ -799,8 +873,27 @@
         '<td class="imp-maat">' + esc2(w.hoogte) + anders('hoogte') + '</td>' +
         '<td>' + esc2(w.aantal) + anders('aantal') + '</td>' +
         '<td>' + esc2([w.glasType, w.opbouw].filter(Boolean).join(' ')) + '</td>' +
+        // v120: het max glaspakket ook hier (controle v119: je zag niet of
+        // het goed gelezen was).
+        (metPakket ? '<td>' + (w.maxPakket ? esc2(w.maxPakket) + ' mm' + anders('maxPakket')
+          : (r.tekst.maxPakketOnbekend ? '<span class="imp-waarsch-kort">«' + esc2(r.tekst.maxPakketOnbekend) + '» niet te lezen</span>' : '')) + '</td>' : '') +
+        (metSoort ? '<td>' + esc2(w.maatsoort || maatsoort) +
+          (r.tekst.maatsoortOnbekend ? ' <span class="imp-waarsch-kort">(«' + esc2(r.tekst.maatsoortOnbekend) + '» onbekend)</span>' : '') + '</td>' : '') +
         '<td>' + esc2(w.opmerking || '') + '</td></tr>';
     }).join('');
+
+    // Wat níet is overgenomen, met de tekst uit het bestand, zodat niets stil
+    // verdwijnt (v120).
+    var pakketMis = o.goed.filter(function (r) { return r.tekst.maxPakketOnbekend; });
+    var soortMis = o.goed.filter(function (r) { return r.tekst.maatsoortOnbekend; });
+    var letOpHtml = (pakketMis.length
+        ? '<div class="imp-waarsch">⚠ Bij ' + pakketMis.length + ' regel' + (pakketMis.length === 1 ? '' : 's') +
+          ' is het max glaspakket niet te lezen (bijv. «' + esc2(pakketMis[0].tekst.maxPakketOnbekend) +
+          '»): niet overgenomen. Vul het zo nodig zelf in op Toebehoren.</div>' : '') +
+      (soortMis.length
+        ? '<div class="imp-waarsch">⚠ Bij ' + soortMis.length + ' regel' + (soortMis.length === 1 ? '' : 's') +
+          ' staat een onbekende maatsoort (bijv. «' + esc2(soortMis[0].tekst.maatsoortOnbekend) +
+          '»): die worden <b>' + esc2(maatsoort) + '</b>.</div>' : '');
 
     var foutHtml = '';
     if (o.fout.length) {
@@ -818,11 +911,12 @@
       (o.goed.length
         ? '<div class="imp-scroll"><table class="imp-tabel imp-controle"><thead><tr>' +
           '<th>#</th><th>Merk</th><th>Breedte</th><th>Hoogte</th><th>Aantal</th>' +
-          '<th>Glas</th><th>Opmerking</th></tr></thead><tbody>' + rijenHtml +
+          '<th>Glas</th>' + (metPakket ? '<th>Max pakket</th>' : '') + (metSoort ? '<th>Maatsoort</th>' : '') +
+          '<th>Opmerking</th></tr></thead><tbody>' + rijenHtml +
           '</tbody></table></div>'
         : '<div class="imp-geen">Er blijft geen enkele regel over om over te nemen.</div>') +
-      foutHtml +
-      (o.leeg ? '<div class="imp-ruw">' + o.leeg + ' regel(s) zonder maten overgeslagen ' +
+      letOpHtml + foutHtml +
+      (o.leeg ? '<div class="imp-ruw">' + o.leeg + (o.leeg === 1 ? ' regel' : ' regels') + ' zonder maten overgeslagen ' +
                 '(tussenkopjes of totaalregels).</div>' : '');
 
     document.getElementById('impToevoegen').disabled = o.goed.length === 0;
@@ -840,8 +934,7 @@
     var dubbel = Object.keys(merken).filter(function (k) { return merken[k] > 1; });
     var bestaat = Object.keys(merken).filter(function (k) {
       return rijen.some(function (r) {
-        var m = merkBasis(r.merk);
-        return m === k || (m.indexOf(k) === 0 && /^\d+$/.test(m.slice(k.length)));
+        return merkBasis(r.merk) === k || volgnummerVan(k, r.merk) > 0;
       });
     });
 
@@ -851,12 +944,13 @@
         ' kozijn' + (dubbel.length === 1 ? '' : 'en') + ' met meerdere maten (' +
         dubbel.slice(0, 6).map(esc2).join(', ') + (dubbel.length > 6 ? '…' : '') +
         ') ' + (dubbel.length === 1 ? 'krijgt' : 'krijgen') +
-        ' een nummer achter de letter.</span>');
+        ' per ruit een nummer erachter (A → A1, A2; 1 → 1a, 1b).</span>');
     }
     if (bestaat.length) {
       regels.push('<span class="imp-let-op">⚠ De merken ' + bestaat.slice(0, 6).map(esc2).join(', ') +
         (bestaat.length > 6 ? '…' : '') + ' komen al voor in dit project. ' +
-        'Bij toevoegen wordt doorgeteld; wil je ze vervangen, gebruik dan \u2039Alles vervangen\u203a.</span>');
+        'Bij toevoegen vraagt de app of alleen de nieuwe of ook de bestaande regels een nummer krijgen; ' +
+        'wil je ze vervangen, gebruik dan \u2039Alles vervangen\u203a.</span>');
     }
     info.innerHTML = regels.join('');
   }
@@ -868,7 +962,7 @@
                               : gemapteRijen();
     return bronLijst.map(function (o) {
       var r = nieuweRij();
-      r.maatsoort = document.getElementById('impMaatsoort').value;
+      r.maatsoort = o.maatsoort || document.getElementById('impMaatsoort').value;
       if (o.aantal)    r.aantal = o.aantal;
       if (o.merk)      r.merk = o.merk;
       if (o.breedte)   r.breedte = o.breedte;
@@ -913,20 +1007,49 @@
 
   function merkBasis(m) { return String(m || '').trim().toUpperCase(); }
 
-  // Bestaat A3 al in het project, dan begint een nieuwe import bij A4.
-  function hoogsteNummer(letter) {
-    var hoogste = 0;
-    rijen.forEach(function (r) {
-      var m = merkBasis(r.merk);
-      if (m.indexOf(letter) !== 0) return;
-      var rest = m.slice(letter.length);
-      if (!/^\d+$/.test(rest)) return;
-      hoogste = Math.max(hoogste, parseInt(rest, 10));
-    });
-    return hoogste;
+  // v120 (keuze Jan): eindigt een merk op een cijfer, dan krijgen de ruiten
+  // een letter erachter (1 → 1a, 1b), anders een cijfer (A → A1, A2). Tot
+  // v119 werd "1" twee keer "11" en "12", en die botsten met de echte
+  // merken 11 en 12.
+  function opCijfer(k) { return /\d$/.test(k); }
+  function achtervoegsel(k, n) {          // n = 1, 2, 3 …
+    if (!opCijfer(k)) return String(n);
+    var t = '';
+    while (n > 0) { n--; t = String.fromCharCode(97 + n % 26) + t; n = Math.floor(n / 26); }
+    return t;
+  }
+  // Het volgnummer van een merk binnen k ("A3" bij A = 3, "1c" bij 1 = 3),
+  // 0 als het merk geen genummerde versie van k is.
+  function volgnummerVan(k, merk) {
+    var m = merkBasis(merk);
+    if (m === k || m.indexOf(k) !== 0) return 0;
+    var rest = m.slice(k.length);
+    if (opCijfer(k)) {
+      if (!/^[A-Z]+$/.test(rest)) return 0;
+      var n = 0;
+      for (var i = 0; i < rest.length; i++) n = n * 26 + (rest.charCodeAt(i) - 64);
+      return n;
+    }
+    return /^\d+$/.test(rest) ? parseInt(rest, 10) : 0;
   }
 
-  function nummerMerken(nieuw) {
+  // Merken uit de import die al in het project staan (als zichzelf of
+  // genummerd). Daarover beslis je zelf (v120).
+  function botsingen(nieuw, bestaand) {
+    var ks = {};
+    nieuw.forEach(function (r) { var k = merkBasis(r.merk); if (k) ks[k] = true; });
+    return Object.keys(ks).filter(function (k) {
+      return bestaand.some(function (r) { return merkBasis(r.merk) === k || volgnummerVan(k, r.merk) > 0; });
+    });
+  }
+
+  // keus 'nieuw': alleen de ingelezen regels krijgen een nummer.
+  // keus 'bestaand': ook de regels in het project met precies dit merk; hun
+  // bolletjes op de foto's gaan vanzelf mee (een bolletje wijst naar de
+  // regel, niet naar de tekst van het merk).
+  // bestaand = de regels die blijven staan (bij "Alles vervangen": geen,
+  // dan wordt er ook niet doorgeteld; controle v119).
+  function nummerMerken(nieuw, bestaand, keus) {
     var perMerk = {};
     nieuw.forEach(function (r) {
       var k = merkBasis(r.merk);
@@ -936,20 +1059,36 @@
     var aangepast = [];
     Object.keys(perMerk).forEach(function (k) {
       var groep = perMerk[k];
-      // Nummeren is nodig bij meerdere maten in één kozijn, en ook als de
-      // letter al in het project voorkomt — anders levert een import
-      // alsnog twee ruiten met dezelfde letter op.
-      var bestaatAl = rijen.some(function (r) {
-        return merkBasis(r.merk) === k && groep.indexOf(r) < 0;
-      });
-      if (groep.length < 2 && !bestaatAl) return;
-      var start = hoogsteNummer(k);
-      groep.forEach(function (r, i) { r.merk = k + (start + i + 1); });
+      var oud = bestaand.filter(function (r) { return merkBasis(r.merk) === k; });
+      var hoogste = 0;
+      bestaand.forEach(function (r) { hoogste = Math.max(hoogste, volgnummerVan(k, r.merk)); });
+      if (groep.length < 2 && !oud.length && !hoogste) return;
+      var zet = function (r) {
+        hoogste++;
+        r.merk = String(r.merk).trim() + achtervoegsel(k, hoogste);
+      };
+      if (keus === 'bestaand' && oud.length) {
+        oud.forEach(zet);
+        aangepast.push('in het project ' + k + ' → ' + oud.map(function (r) { return r.merk; }).join(', '));
+      }
+      groep.forEach(zet);
       aangepast.push(groep.length > 1
         ? k + ' → ' + groep[0].merk + ' t/m ' + groep[groep.length - 1].merk
         : k + ' → ' + groep[0].merk);
     });
     return aangepast;
+  }
+
+  // Wat elk van de twee keuzes zou opleveren, voor de vraag (op kopieën).
+  function voorbeeldNummering(nieuw, bestaand, k, keus) {
+    var n2 = nieuw.filter(function (r) { return merkBasis(r.merk) === k; })
+      .map(function (r) { return { merk: r.merk }; });
+    var b2 = bestaand.map(function (r) { return { merk: r.merk, oud: merkBasis(r.merk) === k }; });
+    nummerMerken(n2, b2, keus);
+    var oudNu = b2.filter(function (r) { return r.oud; }).map(function (r) { return r.merk; });
+    var kort = function (l) { return l.length > 4 ? l.slice(0, 3).join(', ') + ' … ' + l[l.length - 1] : l.join(', '); };
+    return (oudNu.length ? 'bestaand: ' + kort(oudNu) + '; ' : '') +
+      'nieuw: ' + kort(n2.map(function (r) { return r.merk; }));
   }
 
   // Eén regel van vijf gelijke ruiten wordt vijf regels van één.
@@ -976,8 +1115,34 @@
            (!r.rooster || r.rooster === 'Nee');
   }
 
-  window.impToevoegen = function () {
-    var nieuw = verwerkMerken(bouwRijen());
+  window.impToevoegen = async function () {
+    var nieuw = bouwRijen();
+    var splitsen = document.getElementById('impSplits');
+    if (splitsen && splitsen.checked) nieuw = splitsAantallen(nieuw);
+    var bestaand = rijen.filter(function (r) { return !echtLeeg(r); });
+    // v120 (keuze Jan): staat een merk al in het project, dan eerst vragen
+    // hoe het moet heten, in plaats van stil door te nummeren.
+    var keus = 'nieuw';
+    var bots = botsingen(nieuw, bestaand);
+    if (bots.length && window.appKeuze) {
+      var k = bots[0];
+      var aantalOud = bestaand.filter(function (r) { return merkBasis(r.merk) === k || volgnummerVan(k, r.merk) > 0; }).length;
+      var besteld = typeof projectInfo !== 'undefined' && projectInfo && (projectInfo.bestellingen || []).some(function (b) { return !b.ingetrokken; });
+      keus = await appKeuze(
+        (bots.length === 1 ? 'Het merk ' + k + ' staat' : 'De merken ' + bots.slice(0, 6).join(', ') + (bots.length > 6 ? '…' : '') + ' staan') +
+        ' al in dit project' + (bots.length === 1 ? ' (' + aantalOud + ' regel' + (aantalOud === 1 ? '' : 's') + ')' : '') +
+        '. Twee ruiten met hetzelfde merk zijn op de bouw niet uit elkaar te houden. Hoe moeten ze heten?\n\n' +
+        '• Alleen de nieuwe nummeren — ' + voorbeeldNummering(nieuw, bestaand, k, 'nieuw') + '\n' +
+        '• Bestaande ook nummeren — ' + voorbeeldNummering(nieuw, bestaand, k, 'bestaand') +
+        '. De bolletjes op de foto\'s gaan mee.' +
+        (besteld ? '\n\nLet op: er is al besteld. Krijgt een bestelde ruit een ander merk, dan staat hij op de volgende aanvulling als gewijzigd.' : ''),
+        [{ tekst: 'Stoppen', waarde: null },
+         { tekst: 'Bestaande ook nummeren', waarde: 'bestaand' },
+         { tekst: 'Alleen de nieuwe nummeren', waarde: 'nieuw', primair: true }],
+        { kop: 'Merk bestaat al', soort: 'letop' });
+      if (!keus) return;
+    }
+    nieuw = verwerkMerken(nieuw, bestaand, keus);
     // Lege rijen aan het eind opruimen, anders staan er gaten in de lijst.
     // Alleen écht lege: tot v102 keek dit alleen naar maten, glas en merk,
     // en verdwenen een regel bij een foto of een regel met alleen een
@@ -993,7 +1158,11 @@
   window.impVervangen = async function () {
     if (!await appVraag('Alle huidige rijen vervangen door de geïmporteerde rijen?',
         { kop: 'Rijen vervangen', ja: 'Vervangen', gevaarlijk: true })) return;
-    var nieuw = verwerkMerken(bouwRijen());
+    var nieuw = bouwRijen();
+    var splitsen = document.getElementById('impSplits');
+    if (splitsen && splitsen.checked) nieuw = splitsAantallen(nieuw);
+    // v120: de oude regels gaan weg, dus niet tegen hen doornummeren.
+    nieuw = verwerkMerken(nieuw, [], 'nieuw');
     rijen = nieuw;
     geenLatten(nieuw);
     afronden(nieuw.length + ' regels ingelezen (lijst vervangen)');
@@ -1007,10 +1176,8 @@
     nieuw.forEach(function (r) { toebehorenZetRuit(r.id, 'latZijde', 'geen'); });
   }
 
-  function verwerkMerken(nieuw) {
-    var splitsen = document.getElementById('impSplits');
-    if (splitsen && splitsen.checked) nieuw = splitsAantallen(nieuw);
-    var gewijzigd = nummerMerken(nieuw);
+  function verwerkMerken(nieuw, bestaand, keus) {
+    var gewijzigd = nummerMerken(nieuw, bestaand, keus);
     if (gewijzigd.length) {
       window.__impMelding = 'Merken genummerd: ' + gewijzigd.join(', ');
     } else {
@@ -1049,5 +1216,15 @@
   document.addEventListener('DOMContentLoaded', function () {
     // De knop zit sinds v45 in het importmenu onder de tabbladen, dus hier
     // hoeft er geen meer bij.
+  });
+
+  // v120: Escape sluit het importvenster, net als het kruisje (niet als er
+  // een vraag boven open staat).
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var v = document.getElementById('impVenster');
+    if (!v || v.style.display !== 'flex') return;
+    if (window.appMeldingBezig && appMeldingBezig()) return;
+    window.impSluit();
   });
 })();

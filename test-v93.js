@@ -578,6 +578,10 @@ async function wachtOpOpslaan(page) {
         JSON.stringify(f6.origineel));
   await wachtTot(async () => S.opslag.has(f6.pad) && (await page.evaluate(() => glasWachtrij.lijst())).length === 1, 15000);
   check('de verkleinde foto gaat gewoon omhoog', S.opslag.has(f6.pad));
+  // v120: ook wachten tot de poging voor het origineel geweest is (die komt
+  // na de verkleinde foto); zonder dit was de test op een drukke machine
+  // soms te vroeg (wisselend rood, ook op v119).
+  await wachtTot(async () => { const l = await page.evaluate(() => glasWachtrij.lijst()); return l.length === 1 && !!l[0].fout; }, 15000);
   rijtje = await page.evaluate(() => glasWachtrij.lijst());
   check('het origineel blijft op het apparaat, met de reden', rijtje.length === 1 && /maximum allowed size|413/.test(rijtje[0].fout), rijtje[0] && rijtje[0].fout);
   check('de teller wordt rood', await page.locator('#wachtrijTeller.probleem').count() === 1);
@@ -622,10 +626,12 @@ async function wachtOpOpslaan(page) {
   await open(page, 3);
   await page.setInputFiles('#fotoBestand', JPG);
   await wachtTot(async () => (await page.evaluate(() => glasWachtrij.lijst())).length === 2, 10000);
+  // Even geen upload: de wachtrij mag niet vóór het verwijderen leeglopen.
+  // v120: dit vóór het bereik terugkomt; daarna kon een herhaalpoging van de
+  // wachtrij nog net uploaden (wisselend rood, ook op v119).
+  await page.evaluate(() => { window.__echtVerwerk = glasWachtrij.verwerk; glasWachtrij.verwerk = () => Promise.resolve(); });
   S.offline = false;
   check('voor het verwijderen: originelen in de cloud', [...S.opslag.keys()].some(k => k.indexOf(P(3) + '/origineel/') === 0));
-  // Even geen upload: de wachtrij mag niet vóór het verwijderen leeglopen.
-  await page.evaluate(() => { window.__echtVerwerk = glasWachtrij.verwerk; glasWachtrij.verwerk = () => Promise.resolve(); });
   await page.evaluate(id => { window.appVraag = () => Promise.resolve(true); return glasNuDefinitief(id, 'Fotoproject'); }, P(3));
   await wacht(800);
   const over = [...S.opslag.keys()].filter(k => k.indexOf(P(3)) === 0);

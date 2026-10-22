@@ -39,7 +39,8 @@ const { chromium, devices } = require('/home/claude/node_modules/playwright');
 
 /* ─── de reparaties terugdraaien (proef op de som) ─────────────── */
 const MUTATIES = {
-  zicht: ["latten.js", "      : !opdek ? (uit.zicht > 0 ? 'zicht' : 'past') : over", "      : !opdek ? 'past' : over"],
+  // v119: de statussen van een gewone lat staan nu op eigen regels (vlak, nood).
+  zicht: ["latten.js", "      : uit.zicht > 0 ? 'zicht'\n", "      : uit.zicht > 0 ? 'past'\n"],
   omgekeerd: ["latten.js", "    var extra = (opdek && !om ? c : 0) * keer;", "    var extra = (opdek ? c : 0) * keer;"],
   uitsteek: ["latten.js", "    return { lat: l, ventilatie: v, uitsteek: rond(v + l.neus), past: v >= NEUS_VRIJ_MM };", "    return { lat: l, ventilatie: v, uitsteek: rond(l.eigenSponning + l.neus), past: v >= NEUS_VRIJ_MM };"],
   neusAuto: ["latten.js", "    var keuze = gekozen ? neusMaten(gekozen, o.rest) : o.passend[0];", "    var keuze = gekozen ? neusMaten(gekozen, o.rest) : o.passend[o.passend.length - 1];"],
@@ -68,11 +69,11 @@ const MUTATIES = {
   bediening: ["index.html", "  const keuzes = [['', 'standaard'],", "  const keuzes = [['', '—'],"],
   glasaftrek: ["naslag.js", "        '<td>' + (aftrek != null ? aftrek + ' mm' : '\\u2014') + '</td>' +", "        '<td>\\u2014</td>' +"],
   naslagLatten: ["naslag.js", "    var lijst = G.LATTEN.filter(function (l) { return l.soort === s && getoond.indexOf(l) >= 0; });", "    var lijst = G.LATTEN.filter(function (l) { return l.soort === s && getoond.indexOf(l) >= 0; }).slice(1);"],
-  zichtControle: ["pdf.js", ".filter(function (x) { return x.u.status === 'past niet' || x.u.status === 'te ruim'; });", ".filter(function (x) { return x.u.status === 'past niet' || x.u.status === 'te ruim' || x.u.status === 'zicht'; });"],
+  zichtControle: ["pdf.js", ".filter(function (x) { return x.u.status === 'past niet' || x.u.status === 'te ruim' || x.nood; });", ".filter(function (x) { return x.u.status === 'past niet' || x.u.status === 'te ruim' || x.nood || x.u.status === 'zicht'; });"],
   gitignore: [".gitignore", "Claude outputs/\n", ""],
   // Toebehoren → Invoer: het vak op Invoer loopt mee (latten.js bijwerken).
   invoerMeeloop: ["latten.js", "        if (vak && document.activeElement !== vak && vak.value !== x[1]) vak.value = x[1];", ""],
-  ipad: ["index.html", "  @media (min-width: 641px) and (max-width: 1360px) {\n    .tb-wrap { display: block; }", "  @media (min-width: 9641px) and (max-width: 1360px) {\n    .tb-wrap { display: block; }"],
+  ipad: ["index.html", "  @media (min-width: 641px) and (max-width: 1260px) {\n    .tb-wrap { display: block; }", "  @media (min-width: 9641px) and (max-width: 1260px) {\n    .tb-wrap { display: block; }"],
   naslagZoek: ["naslag.js", "    if (naslagZoek && latGevonden) { naslagOpen['Glaslatten'] = true; gevonden += latGevonden; }\n    if (!naslagZoek || latGevonden) {", "    if (naslagZoek && latGevonden) { naslagOpen['Glaslatten'] = true; gevonden += latGevonden; }\n    if (!naslagZoek) {"],
   telefoonDicht: ["index.html", "    table.samenvatting.tb-tabel tr.tb-ruit.dicht td:not(.tb-merk):not(.tb-oordeel):not(.tb-kort) { display: none; }", ""],
 };
@@ -835,8 +836,9 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
       u[1].some(a => /^Band binnen 4 mm: ruim \+1/.test(a)), JSON.stringify(u));
     // A5 (sponninkje 3 mm over de kozijnrand): kan 3 mm verder in zonder zicht.
     u = await R(page, 'X', (r, G) => [44, 43, 45].map(d => G.kort(G.pakket(r, { lat: 'A5', sponningDiepte: d }))));
-    check('A5 (12 mm, sponninkje 3): 43 → past (sponninkje valt minder over), 44 → past · 0 … 45 → past · 1 mm in zicht',
-      u[1] === 'past' && u[2] === 'past · 1 mm in zicht', JSON.stringify(u));
+    // v119 (Jan): 43 = alleen dankzij het sponninkje (steekt 1 mm uit, noodmaatregel); 44 = vlak met het kozijn.
+    check('A5 (12 mm, sponninkje 3): 43 → nood: steekt 1 mm uit, 44 → vlak met kozijn, 45 → past · 1 mm in zicht',
+      u[0] === 'past · vlak met kozijn' && u[1] === 'nood: steekt 1 mm uit' && u[2] === 'past · 1 mm in zicht', JSON.stringify(u));
     // Onderin: een opdeklat zit zoals boven; het advies belooft geen andere montage.
     await zetPR(page, 'X', { latZijde: 'binnen', sponningDiepte: 35, diepteOnder: 41, glaslat: 'E22', latOmgekeerd: true });
     u = await R(page, 'X', (r, G) => [G.kortRuit(G.oordeelRuit(r)), G.adviezen(r, 'onder')]);
@@ -853,7 +855,7 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
     // Beide: onderin dezelfde lat (keuze Jan), geen neuslat.
     await zetPR(page, 'X', { latZijde: 'beide', sponningDiepte: 59, diepteOnder: null });
     m = await G(page, 'X');
-    check('beide: glas tussen twee latten (59 past), onderin dezelfde lat A4, geen neuslat', m.boven === 'past' && m.onder === 'A4' && !m.isNeus, JSON.stringify(m));
+    check('beide: glas tussen twee latten (59 past; v119: vlak met kozijn), onderin dezelfde lat A4, geen neuslat', m.boven === 'past · vlak met kozijn' && m.onder === 'A4' && !m.isNeus, JSON.stringify(m));
     // Een onderlat 'Glaslat' uit v111 = dezelfde als boven.
     await zetPR(page, 'X', { latZijde: 'buiten', glaslat: 'A10', onderlat: 'Glaslat' });
     m = await G(page, 'X');
@@ -923,10 +925,12 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
       marks: [...g.querySelectorAll('.fv-mark')].map(x => x.textContent).join('') })));
     check('per foto een kopje met de foto en de merkletters (A, B ×3, C, E ×2), daarna de losse regels',
       m.length === 2 && m[0].t === 'Voorgevel' && m[0].img && m[0].marks === 'ABBBCEE' && /Losse regels/.test(m[1].t), JSON.stringify(m));
-    m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel thead th')].map(th => th.textContent.trim()).filter(Boolean));
+    // v118: per foto een eigen tabel; de kop van de eerste.
+    m = await page.evaluate(() => [...document.querySelector('.tb-tabel').querySelectorAll('thead th')].map(th => th.textContent.trim()).filter(Boolean));
     // v117: kolom Pakket erbij (wens Jan).
-    check('kolommen: Merk, Glastype, Opbouw, Dikte, Pakket, Diepte, Onder, Latzijde, Glaslat, Onderlat, Band, Oordeel, Nodig',
-      JSON.stringify(m) === '["Merk","Glastype","Opbouw","Dikte","Pakket","Diepte","Onder","Latzijde","Glaslat","Onderlat","Band binnen","Oordeel","Nodig"]', JSON.stringify(m));
+    // v118 (Jan): duidelijkere kopteksten en een kolom Band dikte buiten.
+    check('kolommen: Merk, Glastype, Opbouw, Glas dikte, Pakket dikte, Sponning diepte (onder), Latzijde, Glaslat/Onderlat type, Band dikte binnen/buiten, Oordeel, Nodig',
+      JSON.stringify(m) === '["Merk","Glastype","Opbouw","Glas dikte","Pakket dikte","Sponning diepte","Sponning diepte onder","Latzijde","Glaslat type","Onderlat type","Band dikte binnen","Band dikte buiten","Oordeel","Nodig"]', JSON.stringify(m));
     id = await idOp(page, 'A');
     // Glastype en opbouw hier wijzigen: dezelfde gegevens als op Invoer.
     await page.selectOption('[data-sleutel="type-' + id + '"]', 'HR+ glas'); await wacht(400);
@@ -974,7 +978,7 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
     check('"latzijde hier" bij de foto: A B C E F binnen, D (los) niet', m === 'A:binnen B:binnen C:binnen D: E:binnen F:binnen', m);
     // Alle ruiten: E22 omgekeerd.
     await page.selectOption('#tbAlleLat', 'E22|om');
-    await page.click('button:has-text("Toepassen")'); await wacht(500);
+    await page.click('.tb-alles button:has-text("Toepassen")'); /* v120: eerst een vraag */ await page.click('.melding-laag button:has-text("Toepassen")'); await wacht(500);
     m = await page.evaluate(() => rijen.filter(r => r.merk).every(r => GlasLatten.ruit(r).glaslat === 'E22' && GlasLatten.omgekeerd(r)));
     check('"Alle ruiten": glaslat E22 omgekeerd voor elke ruit', m);
     await ongedaan(page);
@@ -1003,7 +1007,7 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
       return { rechts: Math.round(c.right), breed: window.innerWidth, schuif: w.scrollWidth - w.clientWidth, hoog: Math.round(tr.getBoundingClientRect().height),
                kop: getComputedStyle(document.querySelector('.tb-tabel thead')).display }; }, id);
     check('iPad (820): het oordeel staat in beeld, de tabel schuift niet opzij, per ruit twee regels zonder koprij', m.rechts <= m.breed && m.schuif <= 1 &&
-      m.kop === 'none' && m.hoog < 140, JSON.stringify(m));
+      m.kop === 'none' && m.hoog < 175, JSON.stringify(m));   // v118: langere koppen per vak
     await ctx.close();
   }
 
@@ -1118,7 +1122,9 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
     check('ruiten zonder merk: geen lege kolom "Merk" op de bestellijst', !/\bMerk\b/.test(t.split('\n').find(l => /Glasbreedte/.test(l)) || ''),
       (t.split('\n').find(l => /Glasbreedte/.test(l)) || '').slice(0, 120));
     // v117 (Jan): bij een rooster zonder extra bediening staat er "standaard", dus de kolom blijft.
-    check('geen lege kolom Glasbewerking; Bediening wel, met "standaard" (rooster)', !/Glasbewerking/.test(t) && /Bediening/.test(t) && /standaard/.test(t), '');
+    // v118 (Jan): "Helder (standaard)" staat er nu ook op; lege kolommen (Roedenverdeling, Opmerking) niet.
+    check('Glasbewerking met "Helder (standaard)"; Bediening met "standaard" (rooster); geen lege Roedenverdeling', /Glasbewerking/.test(t) && /Helder \(standaard\)/.test(t) &&
+      /Bediening/.test(t) && !/Roedenverdeling/.test(t), '');
     await vraagOpScherm(page); await sluitMeldingen(page); await wacht(300);
     const pi = await bestellijstPdf(page, ONVOLLEDIG, 'PDF invoer');
     t = plat(pdfTekst(pi));

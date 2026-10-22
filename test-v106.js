@@ -1717,7 +1717,8 @@ const doe = groep => !ALLEEN || ALLEEN.indexOf(groep) >= 0;
   const strook = await pf27.evaluate(() => { const c = document.getElementById('kijkChip'); const r = c.getBoundingClientRect();
     return { zicht: !c.hidden && r.height > 0, h: Math.round(r.height), b: Math.round(r.width), tekst: c.innerText.replace(/\s+/g, ' ') }; });
   check('iPhone, Project info: de strook "👁 Alleen kijken — julian ‹Toch bewerken›", op één regel over de breedte',
-    strook.zicht && strook.h <= 50 && strook.b >= 380 && /Alleen kijken — julian Toch bewerken/.test(strook.tekst), JSON.stringify(strook));
+    // v120 (Jan): knoppen op een aanraakscherm 44 px; één regel is dan tot ±60 px hoog.
+    strook.zicht && strook.h <= 62 && strook.b >= 380 && /Alleen kijken — julian Toch bewerken/.test(strook.tekst), JSON.stringify(strook));
   if (plaatjes) await pf27.screenshot({ path: path.join(plaatjes, 'v108-iphone-projectinfo-kijken.png') });
   await f27.close(); await m27.close();
   }

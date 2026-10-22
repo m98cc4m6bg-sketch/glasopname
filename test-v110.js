@@ -85,10 +85,11 @@ const MUTATIES = {
   stuks: ["index.html", "      return n + (o && o.extra ? (parseInt(r.aantal) || 1) - o.extra : (parseInt(r.aantal) || 1));", "      return n + (parseInt(r.aantal) || 1);"],
   kolomAantal: ["pdf.js", "    return v ? v.verschil : n;", "    return n;"],
   label: ["pdf.js", "    if (v) return 'EXTRA bij '", "    if (0) return 'EXTRA bij '"],
-  annMinder: ["pdf.js", "          .concat((t.minder || []).map(function (m) {", "          .concat([].map(function (m) {"],
+  // v118: deze stukken staan nu in gedeelde functies (pdf en tabblad), minder ver ingesprongen.
+  annMinder: ["pdf.js", "      .concat((t.minder || []).map(function (m) {", "      .concat([].map(function (m) {"],
   annExtra: ["pdf.js", "filter(function (g) { return g.oud && !(t.extra || {})[g.rij.id]; })", "filter(function (g) { return g.oud; })"],
-  kopExtra: ["pdf.js", "            (Object.keys(t.extra || {}).length ? ' EXTRA = maak er zoveel bij", "            (0 ? ' EXTRA = maak er zoveel bij"],
-  totaalAnn: ["pdf.js", "      var nAnnuleren = annuleren.length + (modus === 'aanvulling' ? (t.minder || []).length : 0);", "      var nAnnuleren = annuleren.length;"],
+  kopExtra: ["pdf.js", "        (Object.keys(t.extra || {}).length ? ' EXTRA = maak er zoveel bij", "        (0 ? ' EXTRA = maak er zoveel bij"],
+  totaalAnn: ["pdf.js", "    var nAnnuleren = annuleren.length + (modus === 'aanvulling' ? (t.minder || []).length : 0);", "    var nAnnuleren = annuleren.length;"],
   blokHint: ["index.html", "          esc(g.verschil.join('; ')) + (g.nr ? ' (besteld in de ' + esc(g.nrTekst || g.nr + 'e') + ')' : '') + esc(hoe) +", "          esc(g.verschil.join('; ')) + (g.nr ? ' (besteld in de ' + esc(g.nrTekst || g.nr + 'e') + ')' : '') +"],
   blokTelt: ["index.html", "          ((t.vervallen.length + t.minder.length) ? (t.vervallen.length + t.minder.length) + ' te annuleren' : '') +", "          (t.vervallen.length ? t.vervallen.length + ' te annuleren' : '') +"],
   blokMinder: ["index.html", "      ? ', ' + Object.keys(b.ruiten).filter(id => b.ruiten[id] && b.ruiten[id].minder).length + ' met een lager aantal' : '') +", "      ? '' : '') +"],
@@ -99,7 +100,8 @@ const MUTATIES = {
   nietsTeBestellen: ["pdf.js", "    if (!lijst.length && !annuleren.length && !minder.length) {", "    if (!lijst.length && !annuleren.length) {"],
   herkomst: ["index.html", "        herkomst[id] = herkomst[id].concat([{ nr: dezeNr, n: stuks != null ? stuks - o.extra : null }]);", "        herkomst[id] = [{ nr: dezeNr, n: stuks }];"],
   uitTekst: ["pdf.js", "    var uitTekst = (window.besteldInTekst ? besteldInTekst(r.id, st) : '') || nr + 'e';", "    var uitTekst = nr + 'e';"],
-  annNrTekst: ["pdf.js", "                r.nrTekst || ((r.nr || 1) + 'e'), r.reden].map(schoon);", "                ((r.nr || 1) + 'e'), r.reden].map(schoon);"],
+  // v118: annulerenLijst (gedeeld door pdf en tabblad), zonder .map(schoon).
+  annNrTekst: ["pdf.js", "                r.nrTekst || ((r.nr || 1) + 'e'), r.reden];", "                ((r.nr || 1) + 'e'), r.reden];"],
   vervangtUit: ["index.html", "      o.vervangtUit = besteldInTekst(r.id, st) || (o.vervangt + 'e');\n", ""],
   oudLos: ["index.html", "      Date.parse(rij.gewOp) >= Date.parse(oud.g)) return false;", "      false) return false;"],
   oudStempel: ["index.html", "      Date.parse(rij.gewOp) >= Date.parse(oud.g)) return false;", "      true) return false;"],
@@ -1358,8 +1360,9 @@ async function gevelOpen(extra, apparaat) {
     let t11 = plat(pdfTekst(await bestellijstPdf(page)));
     // (De kolom Opmerking maakt de kolom Wijz. smal: de tekst loopt door op
     // de volgende regel, vandaar de losse stukken.)
+    // v118: ook "(samen 3x)" kan nu afbreken (de kolom Glasbewerking staat er altijd).
     check('2e: K1 EXTRA +2 (samen 3x), aantal 2; K2 (aantal én opmerking) VERVANGT', /\d 2 K1 EXTRA bij K1 uit de 1e: \+2/.test(t11) &&
-      /\(samen 3x\)/.test(t11) && /\d 2 K2 VERVANGT K2 uit de 1e \(1x 792 x/.test(t11) && !/K2 EXTRA/.test(t11), (t11.match(/Pos Aantal.{0,300}/) || [''])[0]);
+      /\(samen\b.{0,80}?3x\)/.test(t11) && /\d 2 K2 VERVANGT K2 uit de 1e \(1x 792 x/.test(t11) && !/K2 EXTRA/.test(t11), (t11.match(/Pos Aantal.{0,300}/) || [''])[0]);
     await vraagOpScherm(page); await knop(page, 'Ja, verstuurd');
     await wachtTot(() => (info().bestellingen || []).length === 2, 10000);
     await ontgrendel(page);

@@ -5,3 +5,4 @@ uit-*.pdf
 # Wat npm achterlaat als iemand de testen lokaal draait.
 node_modules/
 package-lock.json
+Claude outputs/

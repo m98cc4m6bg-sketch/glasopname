@@ -287,7 +287,9 @@ Een neuslat 18x50 (Jongeneel N35) neemt **geen 50 mm** sponningruimte in.
 **tegen het glas** (met band) op de dorpel, op blokjes van ±5 mm. Het lijf
 met de uitsparing (S breed) ligt over de dorpel; de neus hangt vóór het
 kozijn. De ventilatieopening niet dichtkitten. **Lengte** (v121, Jan):
-**recht** afgekort (geen verstek), **20 mm langer dan de sponningbreedte**:
+**recht** afgekort (geen verstek), **20 mm langer dan de sponning breed is**
+(de sponningmaat in de breedte, glasbreedte + 2 × speling; niet de
+*sponningbreedte* uit §2, die de diepte is):
 hij loopt aan beide kanten door in de scharniersponning. In het zaagplan
 is dat de instelling "Neuslat (recht): langer dan sponning" (standaard
 20 mm), los van de toeslag voor het verstek; tot v120 kreeg hij die

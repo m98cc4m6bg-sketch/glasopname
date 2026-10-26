@@ -2,7 +2,7 @@
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
 Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 22 oktober 2026,
-bij v120.*
+bij v122 (automatische back-up, script 27).*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -22,9 +22,9 @@ app, meld het: dan is dat een fout, net als een fout in de app.
 
 ## ⚠️ Eerst dit: verwijder nooit een gebruiker
 
-**Een gebruiker wordt in Supabase NOOIT verwijderd, behalve als iemand
-definitief uit dienst gaat.** Ook niet om een wachtwoord te herstellen, en
-ook niet om "even opnieuw aan te maken".
+**Een gebruiker wordt in Supabase NOOIT verwijderd, ook niet bij vertrek.**
+Wie vertrekt, zet je op "niet actief" (§3.3). Ook niet verwijderen om een
+wachtwoord te herstellen, en ook niet om "even opnieuw aan te maken".
 
 Waarom: de app herkent iemand aan een interne code, niet aan zijn
 e-mailadres. Maak je iemand opnieuw aan met hetzelfde adres en wachtwoord,
@@ -57,7 +57,7 @@ dienst? Zie [§3.3](#33-iemand-gaat-uit-dienst).
 | de app (live) | https://m98cc4m6bg-sketch.github.io/glasopname/ |
 | de code | GitHub, repo `m98cc4m6bg-sketch/glasopname` (openbaar), op je Mac via **GitHub Desktop** |
 | gegevens, inloggen, foto's | **Supabase** (gratis plan): projecten, gebruikers, foto's |
-| het versienummer | op het startscherm ("Startscherm · v109"), het inlogscherm en de projectenlijst. In een project alleen op een breed scherm (onder "Glasopname"); op iPad en iPhone: even naar het startscherm |
+| het versienummer | op het startscherm ("Startscherm · v121"), het inlogscherm en de projectenlijst. In een project alleen op een breed scherm (onder "Glasopname"); op iPad en iPhone: even naar het startscherm |
 | uitleg per versie | `WIJZIGINGEN-vNN.md` in de zip "niet-in-repo" (map `archief-uit-repo/notas/` voor v63 t/m v110) en in de projectkennis; sinds v111 niet meer in de openbare repo |
 
 `config.js` bevat het adres van Supabase en de openbare sleutel. Die mag
@@ -70,18 +70,26 @@ repo zetten: daarmee kan iedereen alles.
    script plakken → Run. Pas daarna de bestanden.
 2. Pak de zip uit. Open de map `glasopname`, druk op **Cmd+Shift+.** (dan zie
    je ook de verborgen bestanden), selecteer alles (Cmd+A) en sleep het naar
-   je repomap. Kies overal **Vervang**.
+   je repomap. Kies overal **Vervang**. Let op: een **map** vervangen haalt
+   weg wat niet in de zip zit. Zette je zelf een foto in `latten/`,
+   `catalogus/` of `roosters/`, zeg dat dan vooraf tegen Claude, zodat hij
+   in de zip komt.
 3. Moeten er bestanden **uit** de repo (dat staat in `LEES-MIJ-EERST-vNN.md`),
    gooi die dan zelf weg in de repomap: slepen kan alleen toevoegen en
    vervangen, niet weghalen.
 4. Kijk in **GitHub Desktop** of de bestanden uit `LEES-MIJ-EERST-vNN.md`
    erbij staan (weggegooide staan er rood bij). Commit en push.
+   Staat `.gitignore` er niet bij en mist daarin de regel `Claude outputs/`
+   (verborgen bestanden komen bij slepen vaak niet mee): menubalk bovenaan
+   het scherm → **Repository → Repository Settings… → Ignored Files**, de
+   regel `Claude outputs/` onderaan, **Save**, en meecommitten.
 5. Zeg tegen Claude dat je gepusht hebt: die kijkt de repo na tegen het
    pakket. (Bij v106 ontbraken vier bestanden; daardoor deed een hele functie
    niets.)
 6. De apparaten krijgen de nieuwe versie vanzelf: de app zoekt ernaar en
    werkt eerst het open werk weg naar de server. Op een iPhone/iPad met de app
-   op het beginscherm kan dat even duren; de knop **↻ Bijwerken** versnelt het.
+   op het beginscherm kan dat even duren; de knop **↻** (startscherm) of
+   **↻ Bijwerken** (in een project) versnelt het.
 
 **Nooit** `config.js` vervangen, en **nooit** `test-sql.sql` in Supabase
 draaien (dat script begint met alles weggooien; het is alleen voor de tests).
@@ -95,10 +103,16 @@ projectkennis op claude.ai.
 
 ### Een vorige versie terugzetten
 
-GitHub Desktop → **History** → rechtsklik op de commit van de versie die
-problemen geeft → **Revert changes in commit** → push. De apparaten krijgen
-dan de vorige versie. Let op: een SQL-script wordt daarmee **niet**
-teruggedraaid. Vraag Claude eerst of dat nodig is.
+**Liever niet.** Een oudere versie van de app mag niet opslaan in een
+project dat een nieuwere versie al heeft opgeslagen (zo raakt er geen werk
+kwijt). Zet je een oude versie terug, dan loopt het opslaan in die
+projecten vast ("Verouderde app-versie"). Vraag Claude daarom liever om een
+herstelversie met een **hoger** nummer.
+
+Moet het toch meteen: GitHub Desktop → **History** → rechtsklik op de
+commit van de versie die problemen geeft → **Revert changes in commit** →
+push, en vraag Claude dezelfde dag om een nieuwe versie. Een SQL-script
+wordt met een revert **niet** teruggedraaid.
 
 ## 3. Gebruikers
 
@@ -111,6 +125,11 @@ blijven: anders kan iedereen met de openbare sleutel een account maken.
 
 Geef het wachtwoord persoonlijk door. Bij de eerste keer inloggen biedt de
 browser aan het te bewaren.
+
+Een nieuwe gebruiker staat vanzelf op **actief** en kan dus meteen bij de
+projecten. Laat hem op het startscherm één keer **📞 Telefoon toevoegen**
+invullen. Op de bestellijst staat "Besteld door: <het stuk vóór de @>,
+tel. …": dat ziet de leverancier, dus kies het e-mailadres met zorg.
 
 ### 3.2 Wachtwoord vergeten
 
@@ -163,49 +182,62 @@ En dus: **niet verwijderen en opnieuw aanmaken** (zie bovenaan).
 
 ### 3.3 Iemand gaat uit dienst
 
-**Sinds script 26 (v120): niet verwijderen, maar op "niet actief" zetten.**
-Supabase → SQL Editor:
-
-```sql
-update public.gebruikers set actief = false where email = 'naam@jelierbouw.nl';
-```
-
-Vanaf dat moment kan hij niets meer zien of wijzigen, ook niet op een
-apparaat waarop hij nog ingelogd is. Zijn naam blijft bij zijn werk en
-taken staan. Terug in dienst: hetzelfde met `true`. Doe eerst stap 1, 2 en
-4 hieronder (taken overzetten, uit de vaste geadresseerden, werk op zijn
-apparaat omhoog).
-
-Zonder script 26 (de oude manier, alleen als het echt moet) in deze volgorde:
+**Niet verwijderen, maar op "niet actief" zetten** (sinds script 26, v120).
+In deze volgorde:
 
 1. **Zijn open taken overzetten** op een collega: open het project, kies bij
    de taak een andere eigenaar. Doe je dit niet, dan ziet niemand die taken
-   nog als eigen taak (zie bovenaan).
-2. Staat hij bij de vaste geadresseerden voor de bestelmail (tabel
-   `mailadressen`)? Haal hem daar weg.
-3. Supabase → Authentication → Users → de gebruiker → **Delete user**.
-   Zijn projecten, maten, foto's en logboek blijven staan (script 16, v89).
-   Apparaten waarop hij nog ingelogd was, vragen binnen ongeveer een uur
-   opnieuw om in te loggen.
-4. Gebruikte hij een eigen apparaat dat nog werk had klaarstaan zonder
-   bereik? Laat hem de app eerst één keer met bereik openen, zodat alles
-   omhoog is, vóór je hem verwijdert.
+   nog als eigen taak.
+2. Staat hij bij de vaste geadresseerden voor de bestelmail? Supabase →
+   SQL Editor:
+   ```sql
+   update public.mailadressen set actief = false where adres = 'naam@jelierbouw.nl';
+   ```
+3. Gebruikte hij een eigen apparaat dat nog werk had klaarstaan zonder
+   bereik? Laat hem de app eerst één keer met bereik openen, tot er
+   "✓ Opgeslagen" staat.
+4. Dan pas, in de SQL Editor:
+   ```sql
+   update public.gebruikers set actief = false where email = 'naam@jelierbouw.nl';
+   ```
+
+Vanaf dat moment kan hij op de server niets meer zien of wijzigen. Wat al
+op zijn apparaat staat, blijft daar: vraag een werkapparaat terug. Zijn
+naam blijft bij zijn werk en taken staan. Terug in dienst: stap 4 met
+`true`.
 
 ## 4. De SQL-scripts
 
 Alle scripts staan genummerd in de repo (`09_…` t/m `26_…`; 01 t/m 08 alleen in
-de projectkennis). Voor zover bekend zijn 01 t/m 25 gedraaid (03 was optioneel); **26 hoort bij v120**
-(rechten en telefoon, zie hieronder).
+de projectkennis). **01 t/m 26 zijn gedraaid** (03 was optioneel; 26 op
+22-10-2026). **27 hoort bij v122** (alleen lezen en nummering, hieronder).
+
+Komt er een nieuw script bij, dan staat dat bovenaan de nota en in
+`LEES-MIJ-EERST-vNN.md`. **Draai een oud script niet opnieuw** zonder het
+Claude te vragen: een ouder script zet zijn eigen regels terug, en dan moet
+script 26 daarna opnieuw.
+
+Controle of script 26 gedraaid is (één regel = ja):
+
+```sql
+select column_name from information_schema.columns
+ where table_name = 'gebruikers' and column_name = 'telefoon';
+```
+
+### Script 27: alleen lezen en nummering (v122)
+
+Wat het doet staat bovenin het script. Kort: een account kan op **alleen
+lezen** staan (voor de automatische back-up, §8), en de database nummert de
+bestellingen na het samenvoegen net als de app (een ingetrokken lijst telt
+niet mee). Gewone collega's merken niets. Mag vaker gedraaid worden.
+Terugdraaien: `27_terug.sql` (zip "niet-in-repo" van v122 en de
+projectkennis).
 
 ### Script 26: rechten en telefoon (v120)
 
-Wat het doet staat bovenin het script, in gewone taal. Kort: alleen wie in
-`gebruikers` op **actief** staat, kan bij de projecten; wie iets wijzigde
-zet de database zelf; het logboek schrijft alleen de database; definitief
-verwijderen kan alleen vanuit de prullenbak; foto's worden niet
-overschreven; je wijzigt in de app alleen je eigen naam en telefoon; de
-nummers in een project worden gecontroleerd. Het voegt de kolom
-`gebruikers.telefoon` toe (📞 op het startscherm).
+Wat het doet staat bovenin het script, in gewone taal. Kort: strengere
+rechten in de database (alleen collega's die op **actief** staan), en de
+kolom `gebruikers.telefoon` (📞 op het startscherm).
 
 **Vooraf** (de controlevraag): kijk of iedereen die met de app werkt op
 actief staat:
@@ -220,11 +252,9 @@ toegang heeft.
 
 **Script 26 terugdraaien** (alleen als iemand er na het script niet meer
 in kan en het niet aan "actief" ligt): `26_terug.sql` (in de zip
-"niet-in-repo" van v120 en in de projectkennis) in de SQL Editor draaien.
-Het zet de regels terug zoals ze na script 25 waren. De kolom telefoon
-blijft staan (die doet geen kwaad). Een nieuwe versie zegt het
-als er een bij komt. Draai een oud script niet opnieuw zonder het eerst aan
-Claude te vragen.
+"niet-in-repo" van v120 en v121) in de SQL Editor draaien. Het zet de
+regels terug zoals ze na script 25 waren. De kolom telefoon blijft staan
+(die doet geen kwaad).
 
 Een wijziging aan de database gebeurt **altijd** met zo'n genummerd script,
 nooit door in het dashboard te klikken: dan weet niemand later meer wat er is
@@ -239,8 +269,9 @@ beheerscherm hiervoor staat op de lijst (handover §11c).
 
 ### 5a. Rekenwaarden van Toebehoren (v111)
 
-Kitvoeg, zaagverlies, zaagsnede, lengte van een glaslat, meters op een rol
-glasband of tape, inhoud van een koker: dat zijn **geen** keuzelijsten uit
+Lengte van een glaslat, zaagsnede, toeslag verstek, neuslat (recht): langer
+dan sponning, reserve per lattype, meters op een rol glasband of tape,
+kitvoeg, inhoud van een koker: dat zijn **geen** keuzelijsten uit
 de database. Ze staan bovenin `toebehoren.js` (blok `INSTELLINGEN`, met
 uitleg bij elke waarde) en zijn zonder SQL aan te passen:
 
@@ -278,8 +309,9 @@ alleen een controlepagina ("Challenge Validation"). Daarom is
    browser waarin de site gewoon laadt): "haal de foto en tekening van lat
    X van jongeneel.nl". Claude zet ze in `latten/` en in de offline-lijst.
 2. **Of zelf**: open de pagina in Safari, sla de foto op als
-   `latten/<id>.jpg` (bijv. `latten/A4.jpg`, ±600 px breed), en laat de
-   offline-lijst (`LAT_FOTOS` in `sw.js`) bijwerken.
+   `latten/<id>.jpg` (bijv. `latten/A4.jpg`, ±600 px breed), en vraag
+   Claude de foto bij de volgende versie in de offline-lijst te zetten
+   (`LAT_FOTOS` in `sw.js`).
 3. **Commit `latten/` mee** in GitHub Desktop. Zonder versie omhoog vraagt
    de app een ontbrekende foto vanzelf opnieuw; offline zie je hem pas na
    de volgende versie.
@@ -298,6 +330,9 @@ maandag en donderdag een kleine opvraging.
 is veranderd. Kijk na een lange stille periode op GitHub → **Actions** of hij
 nog loopt. Daar staat ook een knop **Run workflow** om hem met de hand te
 starten.
+
+Een groen vinkje en "HTTP-status: 200" = goed. Dat er `[]` (een lege
+lijst) onder staat, hoort zo sinds script 26.
 
 Staat Supabase toch op pauze, dan kan niemand inloggen of opslaan. Werk
 blijft dan op de apparaten staan. Supabase → het project → **Restore**; daarna
@@ -334,25 +369,54 @@ wifi). Je krijgt één zip-bestand, bijvoorbeeld
 | `fotos/<project>/…` | (met foto's) alle foto's en originelen, zoals ze in de opslag staan |
 | `LEESMIJ.txt` | wat erin zit, en welke foto's niet lukten |
 
+**Niet** in de zip: het logboek per project en de vaste mailadressen voor
+de bestelmail.
+
 Zet de zip in **OneDrive** (bijvoorbeeld een map *Glasopname back-ups*).
 Advies: **elke week** alleen gegevens, **elke maand** met foto's, en altijd
 vóór je iets groots doet (een SQL-script, een nieuwe versie). De knop zegt
-"💾 Back-up maken" zolang er op dat apparaat nog geen back-up van de
-laatste 30 dagen is; daarna alleen 💾.
+"💾 Back-up maken" zolang er op **dat apparaat** nog geen back-up van de
+laatste 30 dagen is; daarna alleen 💾. *Met foto's* liefst op de Mac (de
+hele zip wordt in het geheugen gemaakt; op een iPhone kan dat vastlopen).
+Op een iPad: in het deelvenster "Bewaar in Bestanden" → OneDrive.
 
-**Terugzetten** (alleen samen met Claude; nooit zelf over bestaande
-projecten heen): één project zit in `projecten.json` als één regel, met de
-kolom `data` als het hele project. Claude maakt daar een SQL-opdracht van
-om dat project (of alles) terug te zetten in de tabel `projecten`; foto's
-gaan terug in Storage, map `projectfotos`, onder dezelfde naam.
+### Back-up terugzetten
 
-**Automatisch naar OneDrive (voorbereid, nog niet gebouwd).** Een back-up
-die vanzelf draait, moet bij álle gegevens kunnen, en dus een sleutel
-hebben die alles mag. Die sleutel hoort **nooit** in de openbare repo of in
-een GitHub-workflow (afspraak). De veilige route, als Jan dat wil: een
-geplande taak in Microsoft (Power Automate) of een kleine functie in
-Supabase zelf die met een eigen, beperkte sleutel een export maakt en naar
-OneDrive zet. Dat is een apart project; vraag Claude ernaar (handover §9).
+Alleen samen met Claude; nooit zelf over bestaande projecten heen. Eén
+project zit in `projecten.json` als één regel, met de kolom `data` als het
+hele project. Claude maakt daar een SQL-opdracht van om dat project (of
+alles) terug te zetten in de tabel `projecten`; foto's gaan terug in
+Storage, map `projectfotos`, onder dezelfde naam. Is de database helemaal
+weg, dan eerst samen met Claude alle scripts opnieuw draaien (01–08 staan
+in de projectkennis) en de gebruikers opnieuw aanmaken, en pas daarna de
+zip terugzetten.
+
+### Automatische back-up naar Dropbox (v122, keuze Jan)
+
+Elke nacht maakt een GitHub-taak in een **aparte, privé repository**
+(`glasopname-backup`, niet deze openbare) een back-up in een eigen,
+gratis **Dropbox**-account:
+- `gegevens/JJJJ-MM-DD_gegevens.zip`: dezelfde bestanden als de knop 💾,
+  plus `logboek.json` en `mailadressen.json`. Bewaard: 30 dagen elke dag,
+  tot ±3 maanden één per week, daarna één per maand;
+- `fotos/`: elke nacht alleen de nieuwe foto's; daar wordt nooit iets
+  weggegooid (ook niet als een foto in de app verdwijnt);
+- `LAATSTE-BACKUP.txt`: wanneer, en wat erin zat.
+
+De taak logt in met een **back-upaccount dat alleen kan lezen** (script 27;
+in Supabase `backup@jelierbouw.nl`, `alleen_lezen = true`). Het staat niet
+in de keuzelijsten van de app; log er nooit mee in de app in. De
+Dropbox-koppeling kan alleen in zijn eigen app-map. De sleutels staan als
+*secrets* in de privé-repository, niet in bestanden en niet versleuteld
+(keuze Jan: de zips zelf zijn niet versleuteld).
+
+Mislukt een nacht, dan mailt GitHub je. **Eén keer per maand**: kijk in
+Dropbox naar de datum in `LAATSTE-BACKUP.txt`. Log minstens één keer per
+jaar in op het gratis Dropbox-account. Instellen, onderhoud en stoppen:
+`INSTELLEN.md` in de repository `glasopname-backup`.
+
+De knop 💾 in de app blijft, voor een extra kopie in OneDrive of vóór iets
+groots.
 
 Wat er wél is, en wat het níet is:
 
@@ -361,12 +425,13 @@ Wat er wél is, en wat het níet is:
 | **prullenbak** (30 dagen) | een project per ongeluk weggegooid | een verloren database |
 | **logboek** (momentopnames per project) | een verkeerde wijziging terugzoeken | foto's; een verloren database |
 | **apart bewaard** (zie §9) | werk dat niet over een ander heen mocht | — |
-| **de pdf's** (bestellijst, overzicht) | wat je zelf bewaart, op papier of in OneDrive | alles daarna |
+| **automatische back-up** (Dropbox, elke nacht) | een verloren database of opslag; ook oudere standen (bewaarschema) | wat er sinds vannacht veranderde |
+| **💾 back-up** (zip) | een verloren database, als de zip recent is | wat er na de laatste back-up veranderde; het logboek |
+| **de pdf's** (bestellijst, PDF invoer, PDF werkvloer) | wat je zelf bewaart, op papier of in OneDrive | alles daarna |
 
-Tot er een echte back-up is: **bewaar van elk afgerond project het
-overzicht als pdf** (⬇ Exporteren → *PDF invoer*: de projectgegevens en per
-foto een pagina met de maten) (en eventueel de originele foto's als zip, ⬇
-Exporteren) op een eigen plek, zoals OneDrive.
+Bewaar daarnaast van elk afgerond project de **PDF invoer** (⬇ Exporteren
+→ *PDF invoer*: de projectgegevens en per foto een pagina met de maten) en
+eventueel de originele foto's (⬇ Exporteren) in OneDrive.
 
 ## 9. Ruimte en "apart bewaard"
 
@@ -374,9 +439,12 @@ Exporteren) op een eigen plek, zoals OneDrive.
 foto's samen. Het startscherm waarschuwt vanaf 80% (oranje) en 95% (rood).
 De foto's (met de originelen sinds v93) zijn het eerste wat vol raakt. Dan is
 er een keuze: Supabase Pro (ongeveer $25 per maand; prijs nakijken) of
-originelen na export opruimen (nog niet gebouwd). Let op: stap je over op Pro,
-dan blijven de waarschuwingen op het startscherm rekenen met de grenzen van
-het gratis plan, tot Claude dat aanpast.
+originelen na export opruimen (nog niet gebouwd). Ruimte maken kan ook
+door de prullenbak definitief te legen: startscherm → prullenbak → per
+project ‹Nu definitief verwijderen› (ook de foto's; niet terug te draaien,
+maak eerst een 💾 back-up met foto's). Stap je over op Pro, vraag Claude
+dan de grenzen in `config.js` aan te passen; anders blijven de
+waarschuwingen rekenen met 500 MB en 1 GB.
 
 **Apart bewaard.** Werkte iemand verder terwijl een ander het project had
 (bijvoorbeeld een iPad zonder bereik), dan komt dat werk als apart project in
@@ -388,7 +456,7 @@ overnemen, en het daarna weggooien (🗑 in de projectenlijst).
 
 Vraag eerst:
 
-1. **welke versie** (op het startscherm, bijv. *v110*);
+1. **welke versie** (op het startscherm, bijv. *v121*);
 2. **welk apparaat en welke browser** (iPad, iPhone, Mac, Android, Windows;
    Safari of Chrome; als app op het beginscherm of niet);
 3. **wanneer**, en of er **bereik** was;
@@ -396,64 +464,31 @@ Vraag eerst:
 
 Daarna:
 
-- Oudere versie? Eerst **↻ Bijwerken**.
+- Oudere versie? Eerst **↻** (startscherm) of **↻ Bijwerken** (in een
+  project).
+- *"Ik zie geen projecten meer"* of *"Project bestaat niet meer"*, terwijl
+  een collega het wel ziet: kijk of hij op actief staat
+  (`select email, actief from public.gebruikers;`). Het werk op zijn
+  apparaat blijft bewaard.
 - **Nooit** "websitegegevens wissen" of de app van het beginscherm
   verwijderen als er misschien nog werk zonder bereik klaarstaat: dat werk
   staat dan alleen op dat apparaat, en is daarna weg. Eerst met bereik openen
   en wachten tot er "Opgeslagen" staat.
 - Geef de antwoorden aan Claude, met de versie erbij.
 
-**Vragen die je kunt verwachten na v110**
+**Vragen die je kunt verwachten na v122**
 
-- *"Ik kan het aantal niet meer typen."* Klopt, bewust: zodra een regel een
-  bolletje op de foto heeft, gaat het aantal samen met de bolletjes. Een
-  ruit erbij: tik op een bolletje van die letter → ‹＋ Nog een ruit met deze
-  letter› en tik waar hij zit. Eraf: tik op het bolletje → ‹Één ruit minder›.
-  Tikken op het grijze vak geeft dezelfde uitleg. Een regel zonder bolletje
-  (los, of uit een ingelezen maatstaat) is gewoon te typen.
-- *"Onder de foto staat een gele strook 'aantal 2, maar 3 bolletjes'."* Dat
-  is een project van vóór v110 (of een ruit die nog half is aangewezen). De
-  app verandert daar zelf niets aan; kies per regel wat klopt.
-- *"De bestellijst vraagt 'Klopt het aantal?'."* Zelfde oorzaak. Stoppen,
-  onder de foto rechtzetten, en de lijst opnieuw maken. Of ‹Toch bestellen
-  zoals de aantallen› als het aantal klopt en alleen de foto niet af is.
+- *"Mail van GitHub: Back-up naar Dropbox failed."* Open de mail →
+  de run → *Back-up maken*: daar staat in gewone woorden wat er misging
+  (bijv. "Inloggen bij Supabase mislukt"). Één foto die niet lukte, komt de
+  nacht erna vanzelf. Blijft het mislukken: stuur het Claude.
+- *"Wie is 'backup' in Supabase?"* Het back-upaccount (alleen lezen, §8).
+  Niet verwijderen; uitzetten = de workflow uitzetten (`INSTELLEN.md`).
+- *"De lijst van leverancier heette '2e', in de app nu ook."* Klopt sinds
+  script 27: ook na het samenvoegen in de database telt een ingetrokken
+  lijst niet meer mee.
 
-**Vragen die je kunt verwachten na v111**
-
-- *"Waar vul ik een bedieningsstang in?"* Op Invoer, kolom **Bediening**
-  (naast RAL kleur). Die kolom is er alleen als minstens één ruit een
-  rooster heeft. Kies 1× of 2× stang of koord; de lengte in mm, of leeg
-  voor de standaardlengte. Het gewone knopje op het rooster hoef je niet in
-  te vullen.
-- *"Na de bestelling heb ik een stang toegevoegd; waar staat die op de
-  aanvulling?"* Sinds v112 niet in de glastabel, maar onder de tabel in het
-  blok **ALLEEN BEDIENING – glas NIET opnieuw maken en NIET annuleren**, met
-  het totaal aantal stangen of koorden. Is er tegelijk iets aan het glas of
-  het glas veranderd (maat, glastype), dan blijft het VERVANGT. Alleen het
-  rooster anders: zie hieronder (v114).
-- *"Ik kan op Toebehoren niets kiezen."* Dan kijk je mee (een collega
-  bewerkt het project), of het project is besteld: sinds v114 gaan de
-  latkeuzes (zijde, onderlat, standaardlat) dan op slot, net als de maten.
-  Ontgrendelen via de balk bovenaan Invoer. Band, kit en verlies blijven
-  vrij.
-- *"Waar vul ik de sponningdiepte in?"* Op Invoer, groep Sponning: kolom
-  **Diepte** (zij en boven: de bruikbare maat loodrecht op het glas, van de
-  aanslag tot de buitenkant van het kozijn) en **Onder** (de onderdorpel;
-  leeg = gelijk, het grijze getal). Sinds v115 kies je **de latten op
-  Toebehoren**: per foto, met de foto en de merkletters erbij. Daar zie je
-  ook of het past (kolom Oordeel; tik erop voor de tekening en wat wel
-  past). Na een bestelling op slot (v114).
-- *"Er staat 'krap −1'. Is dat erg?"* Nee: tot 1 mm te krap vangt het band
-  op. Bij "past niet" (of bij een opdeklat "te ruim") vraagt de app bij de
-  bestellijst of je door wilt.
-- *"Er staat 'maat nog niet nagemeten'."* Sinds v114 zijn alle latten
-  nagekeken op de tekeningen van Jongeneel, behalve de **C1** (v120:
-  Jongeneel noemt 26 én 23; meet er één na). Zie je het bij een andere lat,
-  dan is er een lat bijgekomen met `zeker: false` (`GLASLATTEN.md` §8).
-- *"Waarom staat er een neuslat maat N30?"* De app kiest de kleinste
-  neuslat die past bij de sponningdiepte (`GLASLATTEN.md` §6). Zonder
-  diepte staat er "maat nog onbekend".
-**Vragen die je kunt verwachten na v120**
+**Vragen die je kunt verwachten na v120 en v121**
 
 - *"Ik typte 1212,5 en er staat 1212."* Een halve mm gaat naar beneden (het
   glas wordt nooit te groot); de app zegt het onderin. Tot v119 liet Chrome
@@ -461,12 +496,17 @@ Daarna:
 - *"Het aantal 0 (of −2, of 2,5) wil niet."* Het aantal is een heel getal
   van 1 tot 999.
 - *"Klopt dit? Het lijkt op een tikfout."* Vóór de bestellijst: glas kleiner
-  dan 100 mm, groter dan de grootste plaat (3210 × 6000), of meer dan 99
-  stuks. Stoppen en aanpassen, of *Toch doorgaan* als het echt zo moet.
+  dan 100 mm, groter dan de grootste plaat (3210 × 6000), meer dan 99
+  stuks, of een rooster dat niet bij de glasdikte past. Stoppen en
+  aanpassen, of *Toch doorgaan* als het echt zo moet.
 - *"DUBBEL BESTELD."* Twee apparaten bestelden vanaf dezelfde stand (meestal
   een iPad zonder bereik en een collega die het project overnam). Bel de
-  leverancier en laat de dubbele annuleren; trek daarna de verkeerde in
-  (Bestellijst → Intrekken…). Op Bestellijst staat een rode balk tot dan.
+  leverancier en laat één van de twee annuleren. Trek daarna in de app de
+  **laatste** in: tabblad Bestellijst → blok Bestellingen → ‹Intrekken…›,
+  met je eigen wachtwoord. De app vraagt dan of hij níet verstuurd is: hier
+  klopt dat niet helemaal (hij is net geannuleerd), ga gewoon door. Liet de
+  leverancier juist de andere vervallen, vraag dan Claude. Op Bestellijst
+  staat een rode balk tot het opgelost is.
 - *"Dit project staat ook open in een ander tabblad."* Werk in één tabblad;
   sluit het andere.
 - *"Merk bestaat al"* bij importeren: kies of alleen de nieuwe regels een
@@ -475,21 +515,23 @@ Daarna:
 - *"Waarom zoveel lengtes glaslat?"* Het zaagplan + 1 reserve per lattype.
   De reserve staat bij de instellingen op Toebehoren.
 - *"De neuslat is te lang/te kort in het zaagplan."* Hij is recht afgekort,
-  20 mm langer dan de sponningbreedte (de scharniersponning). Aan te passen
+  20 mm langer dan de sponning breed is (de scharniersponning). Aan te passen
   bij de instellingen op Toebehoren: "Neuslat (recht): langer dan sponning"
   (v121).
 - *"Onderin het scherm staat een balk met 'gekozen'."* Je hebt ruiten
   aangevinkt (☐ bij het merk). Kies in de balk wat er moet veranderen; je
   ziet per ruit wat het wordt, en pas bij Toepassen gebeurt het. ✕ =
   niets meer gekozen (v121).
-- *"Rode regel onderaan de werkvloer-pdf: na de laatste bestelling
-  gewijzigd."* Er is iets veranderd dat nog niet besteld is: eerst de
-  aanvulling bestellen, of weten dat de werkplaats met de nieuwe maat werkt.
+- *"Rode regel onderaan de werkvloer-pdf (en de PDF invoer): LET OP: na de
+  laatste bestelling gewijzigd, nog niet besteld."* Er is iets veranderd
+  dat nog niet besteld is: eerst de aanvulling bestellen, of weten dat de
+  werkplaats met de nieuwe maat werkt.
 - *"Ik zie ✕ … verwijderd, ↶ Terugzetten."* Binnen 12 seconden zet
   Terugzetten de regel terug, met zijn bolletjes.
-- *"📞 Telefoon toevoegen?"* Je eigen nummer, voor op de bestellijst (de
-  leverancier belt je bij vragen). Zonder script 26 blijft het alleen op
-  dat apparaat.
+- *"📞 Telefoon toevoegen"* (daarna alleen 📞). Je eigen nummer, voor op
+  de bestellijst (de leverancier belt je bij vragen).
+- *"Wat is 'Contact op het werk' en 'Ons ref.' op de bestellijst?"* Die
+  komen uit de projectgegevens (tabblad Project info).
 
 **Vragen die je kunt verwachten na v119**
 
@@ -501,9 +543,9 @@ Daarna:
   sponninkje over de rand van het kozijn valt; hij steekt dan uit. Dat is
   een noodmaatregel. Liever een andere lat, dunner band of uitfrezen. Vóór
   de bestellijst vraagt de app ernaar; op de werkvloer-pdf staat "NOOD".
-- *"Een gele strook over latzijde 'beide'."* Onderin zit dan aan beide
-  kanten dezelfde lat als boven. Wil je buiten een neuslat, kies die als
-  onderlat; anders op **Begrepen**.
+- *"Latzijde beide: onderin aan beide kanten dezelfde lat als boven."*
+  Een rustige grijze melding (sinds v121; daarvoor geel). Wil je buiten
+  een neuslat, kies die als onderlat; anders op **Begrepen**.
 - *"Alles exporteren geeft drie bestanden."* Klopt: bestellijst, PDF invoer
   en PDF werkvloer.
 
@@ -622,16 +664,66 @@ Daarna:
   icoon een nieuwe bestandsnaam. Eén keer herladen (↻ Bijwerken) is genoeg;
   helpt dat niet, Safari afsluiten en opnieuw openen.
 
+**Vragen die je kunt verwachten na v111**
+
+- *"Waar vul ik een bedieningsstang in?"* Op Invoer, kolom **Bediening**
+  (naast RAL kleur). Die kolom is er alleen als minstens één ruit een
+  rooster heeft. Kies 1× of 2× stang of koord; de lengte in mm, of leeg
+  voor de standaardlengte. Het gewone knopje op het rooster hoef je niet in
+  te vullen.
+- *"Na de bestelling heb ik een stang toegevoegd; waar staat die op de
+  aanvulling?"* Sinds v112 niet in de glastabel, maar onder de tabel in het
+  blok **ALLEEN BEDIENING – glas NIET opnieuw maken en NIET annuleren**, met
+  het totaal aantal stangen of koorden. Is er tegelijk iets aan het glas of
+  het glas veranderd (maat, glastype), dan blijft het VERVANGT. Alleen het
+  rooster anders: zie hieronder (v114).
+- *"Ik kan op Toebehoren niets kiezen."* Dan kijk je mee (een collega
+  bewerkt het project), of het project is besteld: sinds v114 gaan de
+  latkeuzes (zijde, onderlat, standaardlat) dan op slot, net als de maten.
+  Ontgrendelen via de balk bovenaan Invoer. De instellingen van het
+  project (band, kit, reserve) blijven vrij.
+- *"Waar vul ik de sponningdiepte in?"* Op Invoer, groep Sponning: kolom
+  **Diepte** (zij en boven: de bruikbare maat loodrecht op het glas, van de
+  aanslag tot de buitenkant van het kozijn) en **Onder** (de onderdorpel;
+  leeg = gelijk, het grijze getal). Sinds v115 kies je **de latten op
+  Toebehoren**: per foto, met de foto en de merkletters erbij. Daar zie je
+  ook of het past (kolom Oordeel; tik erop voor de tekening en wat wel
+  past). Na een bestelling op slot (v114).
+- *"Er staat 'krap −1'. Is dat erg?"* Nee: tot 1 mm te krap vangt het band
+  op. Bij "past niet" (of bij een opdeklat "te ruim") vraagt de app bij de
+  bestellijst of je door wilt.
+- *"Er staat 'maat nog niet nagemeten'."* Sinds v114 zijn alle latten
+  nagekeken op de tekeningen van Jongeneel, behalve de **C1** (v120:
+  Jongeneel noemt 26 én 23; meet er één na). Zie je het bij een andere lat,
+  dan is er een lat bijgekomen met `zeker: false` (`GLASLATTEN.md` §8).
+- *"Waarom staat er een neuslat maat N30?"* De app kiest de kleinste
+  neuslat die past bij de sponningdiepte (`GLASLATTEN.md` §6). Zonder
+  diepte staat er "maat nog onbekend".
+
+**Vragen die je kunt verwachten na v110**
+
+- *"Ik kan het aantal niet meer typen."* Klopt, bewust: zodra een regel een
+  bolletje op de foto heeft, gaat het aantal samen met de bolletjes. Een
+  ruit erbij: tik op een bolletje van die letter → ‹＋ Nog een ruit met deze
+  letter› en tik waar hij zit. Eraf: tik op het bolletje → ‹Één ruit minder›.
+  Tikken op het grijze vak geeft dezelfde uitleg. Een regel zonder bolletje
+  (los, of uit een ingelezen maatstaat) is gewoon te typen.
+- *"Onder de foto staat een gele strook 'aantal 2, maar 3 bolletjes'."* Dat
+  is een project van vóór v110 (of een ruit die nog half is aangewezen). De
+  app verandert daar zelf niets aan; kies per regel wat klopt.
+- *"De bestellijst vraagt 'Klopt het aantal?'."* Zelfde oorzaak. Stoppen,
+  onder de foto rechtzetten, en de lijst opnieuw maken. Of ‹Toch bestellen
+  zoals de aantallen› als het aantal klopt en alleen de foto niet af is.
+
 ## 11. Beveiliging in het kort
 
 - Zelf aanmelden staat **uit** (Authentication → Sign In / Providers). Zo
   laten.
-- RLS staat op alle tabellen aan. Na script 26 (v120): alleen wie in
-  `gebruikers` op actief staat, kan de projecten zien en wijzigen; iedereen
-  die actief is, mag alles (geen rollen). Komen er onderaannemers bij, dan
-  is een rolmodel nodig.
-- Geen tweestapsverificatie: één gelekt wachtwoord geeft toegang tot alles.
-  Zorg dat ieder een eigen, sterk wachtwoord heeft.
+- Alleen wie in `gebruikers` op actief staat, kan bij de projecten
+  (script 26). Iedereen die actief is, heeft dezelfde rechten. Komen er
+  ooit onderaannemers bij: eerst Claude vragen.
+- Ieder een eigen, sterk wachtwoord; deel nooit een wachtwoord. Wie
+  vertrekt, meteen op niet actief (§3.3).
 - Een eigen domein voor de app (in plaats van `github.io`)? Dan eerst Claude
   vragen: daar horen voorzorgen bij tegen domeinovername, en de Site URL in
   Supabase moet mee.

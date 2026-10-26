@@ -154,7 +154,7 @@
           (fotoMis.length ? '; NIET gelukt: ' + fotoMis.length + ' (' + fotoMis.slice(0, 20).join(', ') + (fotoMis.length > 20 ? ' …' : '') + ')' : '')
           : 'fotos/           niet meegenomen (gekozen: alleen gegevens)',
         '',
-        'Terugzetten: zie BEHEER.md in de app, "Back-up terugzetten". Kort: een project staat in',
+        'Terugzetten: zie BEHEER.md in de repo, "Back-up terugzetten". Kort: een project staat in',
         'projecten.json als één regel; de kolom data is het hele project. Die gaat met de SQL Editor',
         'van Supabase terug in de tabel projecten. Foto\'s gaan terug in Storage, map projectfotos,',
         'onder dezelfde naam.'

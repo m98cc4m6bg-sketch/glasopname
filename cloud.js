@@ -1692,7 +1692,9 @@
   window.glasGebruikers = function (opnieuw) {
     if (!sb || !gebruikersTabel) return Promise.resolve([]);
     if (gebruikersCache && !opnieuw) return Promise.resolve(gebruikersCache);
-    return sb.from('gebruikers').select('id,naam,email,actief')
+    // v122: '*' (niet een vaste lijst kolommen), zodat het ook werkt
+    // vóór script 27 (kolom alleen_lezen) zonder foutmelding.
+    return sb.from('gebruikers').select('*')
       .order('naam', { ascending: true })
       .then(function (res) {
         if (res && res.error) {
@@ -1703,7 +1705,9 @@
           }
           return [];
         }
-        gebruikersCache = ((res && res.data) || []).filter(function (g) { return g.actief !== false; });
+        // v122 (script 27): een account op "alleen lezen" (de automatische
+        // back-up) is geen collega: niet in de keuzelijsten voor taken e.d.
+        gebruikersCache = ((res && res.data) || []).filter(function (g) { return g.actief !== false && g.alleen_lezen !== true; });
         return gebruikersCache;
       }, function () { return []; });
   };

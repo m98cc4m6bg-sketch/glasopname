@@ -1,8 +1,8 @@
 # Glasopname — stand van zaken
 
 *Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens één
-pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 22 oktober 2026,
-bij v121.*
+pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 24 oktober 2026,
+bij v122.*
 
 ## Live
 
@@ -17,9 +17,15 @@ bij v121.*
   26** (rechten en telefoon), eerst de controlevraag. Nieuw: `backup.js`,
   `26_rechten_en_telefoon.sql`, `test-v118.js`, `test-v119.js`,
   `test-v120.js`; niets weggooien.
-- **v121 opgeleverd** (22-10), **bevat v120**: Jans antwoorden na v120
+- **`.gitignore` staat goed** (commit `1ecf1fb`, 23/24-10: `Claude outputs/`). De herinnering is niet meer nodig.
+- **v121 staat live** (commit `97aa1d4`, 22-10, rechtstreeks vanaf v117; nagekeken: alle 39 bestanden gelijk aan het pakket; `.gitignore` met `Claude outputs/` stond toen nog klaar om te committen). **Bevat v120**: Jans antwoorden na v120
   (neuslat recht + 20 mm, rustige melding bij "beide", P3 de actiebalk
   met voorbeeld op Toebehoren). Geen nieuwe SQL. Nieuw: `test-v121.js`.
+- **v122 opgeleverd** (24-10, nog niet gepusht): **script 27** (alleen
+  lezen + nummering, 🔴 akkoord Jan), het back-upaccount niet in de
+  keuzelijsten, kleine tekstfixes. Plus **los**: de privé repository
+  `glasopname-backup` (automatische back-up naar Dropbox, keuze Jan 24-10:
+  Dropbox, niet versleuteld), met `INSTELLEN.md`.
 - Alle SQL-scripts t/m **25** horen gedraaid te zijn; **26** hoort bij v120
   (en dus ook bij v121).
 - De bestelmail (Edge Function `mail` + Resend) is **niet ingesteld**.
@@ -67,11 +73,11 @@ bij v121.*
 
 ## Wacht op Jan
 
-1. **v120 of v121 pushen** (v121 bevat v120; `LEES-MIJ-EERST-v121.md`):
-   eerst de controlevraag en **script 26** in de SQL Editor, dan de
-   bestanden; de **`.gitignore`** via Repository Settings → Ignored Files;
-   alle apparaten bijwerken (↻); daarna iedereen 📞 laten invullen en één
-   keer **💾 Back-up maken** (met foto's) in OneDrive zetten.
+1. **v122 pushen** (`LEES-MIJ-EERST-v122.md`): eerst **script 27** in de
+   SQL Editor, dan de bestanden. Daarna de **automatische back-up**
+   instellen volgens `INSTELLEN.md` (privé repo `glasopname-backup`,
+   back-upaccount, Dropbox-app, 7 secrets, proefrun). Na de proefrun de
+   Dropbox-map laten zien / navragen of het groen was.
 2. **Vragen**:
    (a) **P3 herbeoordelen** (Jan vroeg erom, 22-10): na een tijdje werken
    met de actiebalk vragen of het bevalt, en of P3b (zelfde probleem bij
@@ -86,7 +92,7 @@ bij v121.*
    het bevestigt: uitgaan van "nog niet gedaan"**. Steeds navragen.
 5. **De herstellink proberen** (na 4): stap 4 in `WIJZIGINGEN-v109.md`.
 6. **De wachtwoordproef in Safari** (v109, stap 2 in `WIJZIGINGEN-v109.md`).
-7. **Nalezen** van `OVERZICHT.md` §8 en `DATAMODEL.md` (Jan gaat dit doen).
+7. **Handleidingen**: op 22-10 door Claude nagelezen tegen de code van v121 (BEHEER, OVERZICHT, DATAMODEL, ±90 punten verbeterd; Jan koos dit als stap). Jan mag ze nog zelf lezen; vragen welke onduidelijk zijn.
 8. **Instructievideo**: h03, h04, h05, h07 kloppen niet meer met v110;
    Toebehoren, bediening, latten en bi-color zitten er nog niet in
    (`claude/INSTRUCTIEVIDEO.md`).
@@ -94,8 +100,16 @@ bij v121.*
 ## Volgende ronde (keuze van Jan, 20-10)
 
 - **De rest van de controles** (v90 en v103; handover §11d punt 15 en 16).
-- **Gekozen (22-10), na de push**: **tests bij elke push** · **handleidingen
-  nalezen** · **automatische back-up** (naar OneDrive). Het beheerscherm
+- **Jans antwoorden 22-10 (na het nalezen)**: **script 27 (🔴) akkoord**
+  voor (a) de nummering na samenvoegen gelijk aan de app en (b) een
+  **alleen-lezen** back-upaccount. Back-up: Jan wil eerst weten hoe de
+  Mac-route (of een andere pc) precies werkt; Mac staat vaak in slaap,
+  bijna nooit uit, meestal met wifi.
+- **Gekozen (22-10), na de push**: handleidingen nalezen (gedaan 22-10) ·
+  **automatische back-up** (gebouwd in v122: Dropbox via een privé repo). **Tests bij elke push (GitHub
+  Actions): bewust nog niet** (Jan, 22-10): de app verandert nog veel en
+  pushen moet snel blijven; testen gebeurt bij Claude. Opnieuw voorstellen
+  als de app stabiel is (dan alleen af en toe onderhoud of een bugfix). Het beheerscherm
   keuzelijsten blijft op de lijst. Elke ronde noemen, met de stand.
 - **Bestelmail: de vraag over de adressen** komt terug zodra de mail
   ingesteld wordt (handover §0 en §11e).

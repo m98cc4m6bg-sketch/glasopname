@@ -13,7 +13,8 @@
  *   telt alles dubbel.
  * - Het aantal lengtes komt uit een zaagplan: de latten worden echt over
  *   lengtes van 4 m verdeeld (langste eerst, met een zaagsnede per lat).
- *   Ernaast als controle: de totale lengte + 10 %, gedeeld door 4 m.
+ *   Besteld = de lengtes van het zaagplan + RESERVE_LENGTES per lattype
+ *   (v120; tot v119 de totale lengte + 10 %, gedeeld door 4 m).
  * - Glasband (9 mm): aan beide kanten van het glas één keer de omtrek
  *   (binnen: in de sponning of op de lat; buiten: idem). Kleur en dikte per
  *   kant, per project. Bij een rooster extra 4 × de breedte (2 binnen, 2
@@ -237,7 +238,7 @@
 
   // v117 (wens Jan): het zaagplan als tekening: per lengte een balk, met de
   // stukken (in mm) en wat er overblijft. Zelfde plan als de rekenregel
-  // (zaagplan hierboven); extra lengtes voor zaagverlies staan eronder.
+  // (zaagplan hierboven); de reserve (v120) staat eronder.
   var zaagOpen = {};
   window.toebehorenZaagKlap = function (type, open) { if (open) zaagOpen[type] = true; else delete zaagOpen[type]; };
   // HTML-balken (geen SVG): dan blijven de maten leesbaar op een telefoon.

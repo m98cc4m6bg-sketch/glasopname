@@ -690,6 +690,21 @@ harde eis wint.
   - niet getest: echte Safari (de balk met `env(safe-area-inset-bottom)`
     boven de thuisbalk van de iPhone; `:has()` voor het berichtje boven de
     balk werkt vanaf iOS 15.4), Android, Windows.
+- `test-v122.js` (24-10): het back-upaccount (`alleen_lezen`) en een
+  oud-collega staan niet in `glasGebruikers`; vóór script 27 (geen kolom)
+  werkt het ook (de namaak weigert een vraag naar een onbekende kolom, zoals
+  de echte database: `S.zonderKolom`); LEESMIJ van 💾 verwijst naar
+  "Back-up terugzetten" in BEHEER; 3 mutaties.
+  - Script 27 zelf: proef tegen PostgreSQL 16 met de Supabase-namaak
+    (`proef27.sh`: 42 controles, o.a. het back-upaccount kan alles lezen en
+    niets schrijven, ook niet via `glas_bewerken`/`glas_bestellingen_erbij`;
+    nummering 1, 2 (ingetrokken), 2; terugdraaien), 8 mutaties; in de zip
+    "niet-in-repo".
+  - De back-uptaak (`backup.py`, privé repo): `test_backup.py` met een
+    nagebootste Supabase én Dropbox (inloggen, bladzijden, ook als Supabase
+    minder per keer geeft; opslag-lijst met mappen; Dropbox list/continue,
+    409 not_found, 150 MB-grens en uploaden in delen): 31 controles, 10
+    mutaties. Niet getest: de echte Supabase, Dropbox en GitHub Actions.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

@@ -1,7 +1,7 @@
 # Glasopname — overzicht: hoe de app in elkaar zit
 
 *Voor wie wil begrijpen hoe de app werkt, en hem zonder AI wil kunnen
-onderhouden. Bijgewerkt op 22 oktober 2026, bij v120.*
+onderhouden. Bijgewerkt op 24 oktober 2026, bij v122 (automatische back-up).*
 
 Wordt bij elke nieuwe versie bijgewerkt, net als `BEHEER.md` en
 `DATAMODEL.md` (zie "Handleidingen" in de nota per versie, `WIJZIGINGEN-vNN.md`; die staat sinds v111 in de zip "niet-in-repo" en in de projectkennis, niet in de openbare repo).
@@ -28,7 +28,10 @@ iPhone, Mac, Android, Windows), ook zonder bereik. Uit de opname komen:
 - een **bestellijst als pdf** voor de glasleverancier (Van Noordenne);
 - een **overzicht als pdf** voor het archief (⬇ Exporteren → *PDF invoer*,
   bestand `Inmeting_….pdf`): de projectgegevens en per foto een pagina met de
-  merkletters erop en de maten eronder.
+  merkletters erop en de maten eronder;
+- een **pdf voor de werkvloer** (⬇ Exporteren → *🔨 PDF werkvloer*, v118):
+  per foto de ruiten met latten en stuklengtes, plus het zaagplan; geen
+  prijzen, niet voor de leverancier.
 
 | | |
 |---|---|
@@ -62,7 +65,7 @@ iPhone, Mac, Android, Windows), ook zonder bereik. Uit de opname komen:
   de browser inleest. Wat je in de repo ziet, draait.
 - **Eén project = één JSON-blok** in de database (`projecten.data`). Opslaan
   stuurt het hele project. Simpel en robuust, met één nadeel: zonder
-  afspraken overschrijven twee apparaten elkaar. Daarom het bewerkslot (§5).
+  afspraken overschrijven twee apparaten elkaar. Daarom het bewerkslot (§4 en §6).
 - **Offline eerst.** Alles wat je doet, staat eerst op het apparaat en gaat
   daarna naar de server. Zonder bereik werk je gewoon door.
 
@@ -83,6 +86,11 @@ offline doorwerkte terwijl een ander het project had), wordt nooit
 weggegooid. Het gaat als **apart project** naar de server: *Klaver (apart
 bewaard 16-10 15:56 - julian, iPhone)*.
 
+Twee tabbladen op één apparaat delen één kopie. Werk van een ander project
+dat nog omhoog moet, gaat eerst als apart project naar de server. Staat
+hetzelfde project in twee tabbladen open, dan zegt de app dat onderin
+(BroadcastChannel; v120).
+
 ## 4. Hoe het werkt, per handeling
 
 Van wat je ziet naar wat de code doet. Bestand en functienaam, zodat je het
@@ -93,9 +101,12 @@ terugvindt (Cmd+F).
 | **Inloggen** | inlogscherm (`index.html`, `#cloudLoginForm`) → `cloud.js` `cloudLoginVerstuur` → `login()` → Supabase. Pas na een geslaagde inlog biedt de app het wachtwoord aan de browser aan (`wachtwoordAanbieden`): Chrome/Edge/Android via `PasswordCredential`; Safari/Firefox doordat het formulier "verstuurt" naar `leeg.html` in een verborgen, afgeschermd kader. De velden hebben geen `name`, dus er gaat niets mee (v109) |
 | **Wachtwoord vergeten?** | knop op het inlogscherm → `cloud.js` `cloudWachtwoordVergeten` → alleen een melding: bewust geen herstelfunctie in de app (v109) |
 | **Nieuw wachtwoord via een herstellink** | Jan stuurt vanuit Supabase een herstelmail → de link opent de app met `#access_token=…&type=recovery` → `cloud.js` `init` → `leesHerstelLink()` leest het adres en haalt het meteen leeg (vóór de verbinding; de bibliotheek leest het adres bewust niet zelf: `detectSessionInUrl: false`) → `herstelSessie()` zet de sessie (`setSession`, met ‹Opnieuw proberen› zonder bereik) → venster `#cloudHerstel` (`toonHerstel`) → `herstelOpslaan()` → Supabase `updateUser` → `wachtwoordAanbieden` met het nieuwe wachtwoord → startscherm. Verlopen link: `herstelLinkFout`. Herladen of nieuw tabblad: vlag `glasopname_herstel` (id van de gebruiker) in localStorage (v109) |
-| **Startscherm, projectenlijst** | `start.js` → eerst `prullenbak_opruimbaar` (wat er langer dan 30 dagen in de prullenbak staat), dan `cloud.js` `glasProjecten()` → tabel `projecten` (alleen de samenvattingskolommen, niet de hele inhoud) |
+| **Startscherm, projectenlijst** | `start.js` → `cloud.js` `glasProjecten()` → tabel `projecten` (alleen de samenvattingskolommen, niet de hele inhoud); tegelijk eerst opruimen (`prullenbak_opruimbaar`: wat langer dan 30 dagen in de prullenbak staat), dan prullenbak en taken. Knoppen 📞 (telefoon) en 💾 (back-up) |
+| **Mijn telefoonnummer** (v120) | startscherm 📞 → `cloud.js` `glasMijnTelefoon` → tabel `gebruikers`, kolom `telefoon` (script 26); op de bestellijst bij "Besteld door" |
+| **Back-up** (v120) | startscherm 💾 → `backup.js` `glasBackup` → één zip met projecten, taken, gebruikers, app_data (en desgewenst alle foto's); geen logboek. De knop valt op als er op dít apparaat 30 dagen geen back-up is gemaakt (`BEHEER.md` §8) |
+| **Automatische back-up** (v122) | **buiten deze repo**: de privé repository `glasopname-backup` (`backup.py`, GitHub Actions, elke nacht) → Supabase met een account op alleen lezen (script 27) → Dropbox (eigen app-map): `gegevens/…zip`, `fotos/` (alleen nieuwe), `LAATSTE-BACKUP.txt`. Een nieuwe tabel in de database: ook daar in `TABELLEN`/`EXTRA` zetten. Het back-upaccount staat niet in de keuzelijsten (`glasGebruikers` filtert `alleen_lezen`) |
 | **Project openen** | `cloud.js` `cloudOpen(id)` → `zetStaat()` → `index.html` `renderTabel()`. Tegelijk `bewerkslot.js` `glasBewerkslotStart()`: mag ik bewerken, of kijk ik mee? (tabel `bewerkslot`, functie `glas_bewerken`) |
-| **Maat invullen** | invoerveld → `index.html` `herbereken()` / `berekenGlasMaat()` → `opslaan()` (in `cloud.js`; die in `index.html` is alleen de terugval zonder cloud): eerst op het apparaat (`glasopname_v2`) met de vlag "moet nog omhoog" (`glasopname_pending`), dan `synchroniseer()` → `projecten.data`. De database controleert (versieslot, bewerkslot, bestellingen) en schrijft het logboek |
+| **Maat invullen** | tekstvak → `leesMaat` (komma mag, een halve mm naar beneden; v120) → `setVal` → `index.html` `herbereken()` / `berekenGlasMaat()` → `opslaan()`; na het typen `maatNaTypen` (melding bij afronden); het aantal via `zetAantal` (heel getal 1–999). Opslaan: (in `cloud.js`; die in `index.html` is alleen de terugval zonder cloud): eerst op het apparaat (`glasopname_v2`) met de vlag "moet nog omhoog" (`glasopname_pending`), dan `synchroniseer()` → `projecten.data`. De database controleert (versieslot, bewerkslot, bestellingen, sinds script 26 ook geldige nummers) en schrijft het logboek |
 | **Geen bereik** | `synchroniseer()` ziet dat er geen verbinding is → het werk blijft met de vlag op het apparaat, status "⚠ Offline — lokaal". Bereik terug: eerst status en bestellingen van de server lezen en samenvoegen (`voorlezenEnVersturen`), dan versturen |
 | **Een collega wijzigt** | Supabase stuurt de nieuwe rij live → `cloud.js` `vanElders()` → scherm bijgewerkt ("↻ Bijgewerkt door collega") |
 | **Meekijken / overnemen** | `bewerkslot.js`: balk "… heeft dit project open" met ‹Toch bewerken› → vraag aan de bewerker (10 s aftellen) → `geefVrij()`; reageert die niet: ‹Overnemen› |
@@ -104,24 +115,25 @@ terugvindt (Cmd+F).
 | **Ruit op de foto aanwijzen** | tik op de foto → `fotos.js` `fotoTik`: een nieuwe ruit met de volgende letter, of (na ‹🎯 Ruiten aanwijzen›, `fotoAanwijzen`) een bolletje voor een bestaande regel die er nog niet genoeg heeft. Het aanwijzen verandert nooit het aantal: een ingelezen maatstaat is de waarheid |
 | **Het aantal in een fotoblok** (v110, keuze Jan) | heeft een regel minstens één bolletje, dan staat het aantal-vak vast (`index.html` `aantalCel`, `aantalVolgtBolletjes`; `setVal` weigert). Een ruit erbij: tik op een bolletje → ‹＋ Nog een ruit met deze letter› (`markErbij`) → de volgende tik op de foto zet het bolletje én het aantal +1, in één stap (één Cmd+Z). Eraf: ‹Één ruit minder› (`markEenMinder`). Doorvoeren (⤓, `bulk.js`) en gelijktrekken (`kopie.js`) slaan het aantal van zulke regels over en zeggen dat. Een regel zonder bolletjes houdt een vrij aantal |
 | **Aantal en bolletjes kloppen niet** (oud project, of half aangewezen) | strook onder de foto (`fotos.js` `scheefHTML`), per regel een keuze: ‹Er zijn er N› (`markAantalNaarBollen`), ‹… het gestreepte bolletje weg› (`markTeveelWeg`), ‹Aanwijzen› (`markAanwijzenRij`). Niets gaat vanzelf; een lager aantal vraagt eerst even (het kan uit een maatstaat komen); tijdens het aanwijzen blijven de regels die nog aangewezen worden uit de strook. Een bolletje te veel (rode stippelrand) heeft in zijn menu alleen "weghalen" |
-| **Bestellijst** | ⬇ Exporteren → `pdf.js` `exportBestellijstPdf()` → `voorControles()` (oudere stand? annuleren? en sinds v110 als laatste `aantalControle`: "Klopt het aantal?" als aantal en bolletjes niet gelijk zijn) → pdf → `afleveren()` (opslaan/delen) → vraag "Naar de leverancier?" (`vraagVerstuurd`) → Ja: bestelling vastgelegd in `info.bestellingen`, status besteld, invoer op slot |
+| **Bestellijst** | ⬇ Exporteren → `pdf.js` `exportBestellijstPdf()` → levergegevens (`exportMetControle`) → `voorControles()`: oudere stand? annuleren?, `aantalControle` ("Klopt het aantal?", v110), `pakketControle` (ook A5-nood, v119), `kleurControle`, `vreemdeControle` ("Klopt dit?", v120: glas < 100 mm, > 3210 × 6000, aantal > 99, rooster/glasdikte) → pdf → `afleveren()` (opslaan/delen) → vraag "Naar de leverancier?" (`vraagVerstuurd`) → Ja: bestelling vastgelegd in `info.bestellingen`, status besteld, invoer op slot |
 | **Volgende bestellijst** | altijd een **aanvulling**: alleen nieuw en gewijzigd, VERVANGT, ANNULEREN (`teBestellen()` in index.html, `bestelModus()` in pdf.js). Alleen een ander aantal (v110, `aantalVerschil()`): meer = **EXTRA** in de tabel met alleen het verschil als aantal; minder = niet in de tabel, wel onder ANNULEREN ("1 annuleren, de andere 2 blijven"). Alleen de bediening anders (v112, `bedieningVerschil()`): niet in de tabel, maar in een eigen blok **ALLEEN BEDIENING – glas NIET opnieuw maken en NIET annuleren** (`bedieningTabel` in pdf.js), ook naast een EXTRA of "N annuleren". Alleen het rooster anders (v114, keuze Jan: RAL, bi-color, of een Duco type met dezelfde glasaftrek, `ducoWisselMag`): idem, blok **ALLEEN ROOSTER – glas NIET opnieuw maken** (`roosterTabel`, `teBestellen().rooster`, `roosterInTekst`). Verandert er ook iets aan het glas (maat, glas, opmerking, rooster aan/uit, Duco type met een andere aftrek), dan blijft het VERVANGT. Bovenaan elke aanvulling staat (v114, keuze Jan) "Graag bevestigen dat u deze aanvulling verwerkt, met name VERVANGT en ANNULEREN." Na een EXTRA noemt de app bij elke ruit alle lijsten waar hij in zit ("uit de 1e en 2e", `besteldInTekst()`) |
+| **Dubbel besteld / intrekken** (v120) | elke bestelling heeft `basis`; twee geldige met dezelfde basis → venster + rode balk op Bestellijst (`dubbelBestelMelding`, `.bestel-dubbel`) → ‹Intrekken…› bij de laatste (`bestellingIntrekken`, eigen wachtwoord). Het nummer voor de leverancier telt ingetrokken lijsten niet mee (`volgendBestelNr`) |
 | **Ontgrendelen na bestellen** | `index.html` `slotOntgrendel()` → eigen wachtwoord (`melding.js` `appWachtwoord`) → `cloud.js` `glasWachtwoordKlopt()` → logboek |
 | **Bediening bij een rooster** (v111) | kolom Bediening op Invoer (alleen zichtbaar als er een rooster is): `index.html` `bedieningCel` → `setBediening` (1× of 2× stang of koord) en `setBedieningLengte` (mm; leeg = standaardlengte). Bewaard op de ruit als `bediening`, `bedieningAantal`, `bedieningLengte`. Gaat mee naar de leverancier: kolom op de bestellijst, en een regel "Extra bediening: …" in het LET OP-kader. Rooster op Nee (ook via ⤓ doorvoeren) haalt de bediening weg. Het gewone knopje op het rooster zit er altijd; dit is een aanvulling |
-| **Toebehoren** (v111) | tabblad 🧰 Toebehoren → `toebehoren.js` `renderToebehoren()` → `bereken()`: glaslatten per type (A4, B5, N30 …; v113), in lengtes van 4 m, glasband, glaskit, wienersprossen-tape. Aantal lengtes (v113, Jan: "één waarheid"): totale lengte + 10 % ÷ 4 m, of meer als het zaagplan meer nodig heeft. Onderlat per ruit volgens de latzijde (`onderlatVoorRuit`: buiten = passende neuslat, binnen en beide = dezelfde lat (v115), geen = geen latten), per ruit aan te passen. Melding bij ruiten zonder zijde. **Sinds v115 kies je hier de latten** (wens Jan): per foto een kopje met de foto en de merkletters (`fotoVoorbeeldHTML` in fotos.js, `inktSVGHTML` in teken.js) en "latzijde hier"; per ruit glastype, opbouw (via `wijzigGlasType`/`wijzigOpbouw`, gelijk met Invoer), dikte, diepte, onder, latzijde, glaslat (`latKiezen`), onderlat (`latOnderKiezen`), band, oordeel (`latPakket`) en wat er nodig is; bovenaan "Alle ruiten" (`toebehorenAlles`). Opnieuw tekenen via `later()` en `zetInhoud` (alleen wat anders is; de focus blijft). Op de telefoon per ruit één regel, tik = open (v114); op een iPad of laptop (641–1360 px; v117 met de kolom Pakket) per ruit twee regels (v115, CSS). **v117:** kolom Pakket (`pakketDikte`: glas + band; met lat; max uit de maatstaat), een voorbeeld van de glaslat bij "Alle ruiten" (`alleVoorbeeldHTML`, keuzes onthouden in `alleKeuze`), "Alle ruiten" slaat een neus/ventilatielat over bij binnen en zegt welke (`onderMagBij`), en per lattype een uitklapbaar zaagplan (`zaagHTML`, HTML-balken; open/dicht onthouden in `zaagOpen`). **v121:** ruiten aanvinken → een actiebalk onderin (`balkHTML`: diepte, latzijde, glaslat, onderlat, band binnen) met vóór het toepassen per ruit nu → na (`balkVoorbeeld`, rekent via `proef` in `perRuitVan`; `keuzeOp` past een keuze toe), dan `toebehorenBalkToepassen` + ↶ Terugzetten; het blok bovenin is dan één regel en werkt anders op alle ruiten. De neuslat in het zaagplan recht, sponningbreedte + `NEUSLAT_TOESLAG_MM`. Latzijde beide: een rustige melding (`tb-zacht`) en "beide kanten" in de onderlatknop. Instellingen per project (inklapbaar blok) in `info.toebehoren`. De latkeuzes (zijde, onderlat, standaardlat) gaan na een bestelling op slot (v114, `latSlot`); band, kit en verlies blijven vrij; niets bij alleen kijken |
-| **Sponning en glaslat** (v113, v115) | Invoer, groep Sponning: alleen **Diepte** (zij en boven) en **Onder** (`latten.js` `sponCellenHTML`; v115, wens Jan). Vak → `latDiepte` / `latOnderDiepte`. Op Toebehoren: oordeel → `latPakket` (`pakketVenster`: boven en onderin met tekening (`pakketSVG`, `neusSVG`), diepten, latzijde, glaslat, montage normaal/omgekeerd, onderlat, band binnen, uitfrezen, advies per plek om aan te tikken → `pasAdviesToe`); latknop → `latKiezen` (`kiezer`, met foto en montage-tekening (`montageSVG`); opdeklatten normaal en omgekeerd); onderlatknop → `latOnderKiezen` (`onderKiezer`: automatisch, zelfde, alleen de neuslatten die passen met ventilatie en uitsteek, ventilatielatten, andere). Bovenin elk venster de ruit met de foto (`ruitKop`). Rekenen: `pakket()`, `oordeelRuit()` (het slechtste van boven, onder en sinds v117 het max glaspakket `maxOordeel`), `adviezenMet()`, `neuslatVoor()`. v117: bij latzijde binnen geen neus- of ventilatielat (`onderMagBij`; een oude keuze wordt rood via `alleenBuiten`, niet stil veranderd); de opbouw-keuzelijst (`opbouwKeuzeHTML` in naslag.js) zet te dikke opbouwen apart (`opbouwTeDik`). Bewaard in `info.toebehoren.perRuit` (`toebehorenZetRuit`), niet op de ruit. Na een bestelling op slot (v114, `magKiezen` + `SLOT_FUNCTIES`). Kennis en bronnen: `GLASLATTEN.md` |
+| **Toebehoren** (v111) | tabblad 🧰 Toebehoren → `toebehoren.js` `renderToebehoren()` → `bereken()`: glaslatten per type (A4, B5, N30 …; v113), in de lengte waarin de lat verkocht wordt (meestal 4 m, grenen 2,7 m), glasband, glaskit, wienersprossen-tape. Aantal lengtes (v120, keuze Jan): het zaagplan + `RESERVE_LENGTES` (standaard 1) per lattype; een lat langer dan de lengte gaat apart. Onderlat per ruit volgens de latzijde (`onderlatVoorRuit`: buiten = passende neuslat, binnen en beide = dezelfde lat (v115), geen = geen latten), per ruit aan te passen. Melding bij ruiten zonder zijde. **Sinds v115 kies je hier de latten** (wens Jan): per foto een kopje met de foto en de merkletters (`fotoVoorbeeldHTML` in fotos.js, `inktSVGHTML` in teken.js) en "latzijde hier"; per ruit glastype, opbouw (via `wijzigGlasType`/`wijzigOpbouw`, gelijk met Invoer), dikte, diepte, onder, latzijde, glaslat (`latKiezen`), onderlat (`latOnderKiezen`), band, oordeel (`latPakket`) en wat er nodig is; bovenaan "Alle ruiten" (`toebehorenAlles`). Opnieuw tekenen via `later()` en `zetInhoud` (alleen wat anders is; de focus blijft). Schermbreedte (v118): ≤ 640 px per ruit een kaartje (dicht één regel, tik = open); 641–1260 px twee regels per ruit; vanaf 1261 px een tabel met vaste kolommen, per foto een eigen tabel. **v117:** kolom Pakket (`pakketDikte`: glas + band; met lat; max uit de maatstaat), een voorbeeld van de glaslat bij "Alle ruiten" (`alleVoorbeeldHTML`, keuzes onthouden in `alleKeuze`), "Alle ruiten" slaat een neus/ventilatielat over bij binnen en zegt welke (`onderMagBij`), en per lattype een uitklapbaar zaagplan (`zaagHTML`, HTML-balken; open/dicht onthouden in `zaagOpen`). **v120:** ruiten aanvinken (`gekozen`). **v121:** bij aangevinkte ruiten een actiebalk onderin (`balkHTML`: diepte, latzijde, glaslat, onderlat, band binnen) met vóór het toepassen per ruit nu → na (`balkVoorbeeld`, rekent via `proef` in `perRuitVan`; `keuzeOp` past een keuze toe), dan `toebehorenBalkToepassen` + ↶ Terugzetten; het blok bovenin is dan één regel en werkt anders op alle ruiten. De neuslat in het zaagplan recht: de sponningmaat in de breedte (glasbreedte + 2 × speling) + `NEUSLAT_TOESLAG_MM`. Latzijde beide: een rustige melding (`tb-zacht`) en "beide kanten" in de onderlatknop. Instellingen per project (inklapbaar blok) in `info.toebehoren`. Na een bestelling gaan alle keuzes per ruit op slot (zijde, diepte, glaslat, onderlat, band per ruit, montage, de actiebalk; v114, `latSlot`); de instellingen van het project (band, kit, reserve) blijven vrij; niets bij alleen kijken |
+| **Sponning en glaslat** (v113, v115) | Invoer, groep Sponning: alleen **Diepte** (zij en boven) en **Onder** (`latten.js` `sponCellenHTML`; v115, wens Jan). Vak → `latDiepte` / `latOnderDiepte`. Op Toebehoren: oordeel → `latPakket` (`pakketVenster`: boven en onderin met tekening (`pakketSVG`, `neusSVG`), diepten, latzijde, glaslat, montage normaal/omgekeerd, onderlat, band binnen en (v118) band buiten, uitfrezen, advies per plek om aan te tikken → `pasAdviesToe`); latknop → `latKiezen` (`kiezer`, met foto en montage-tekening (`montageSVG`); opdeklatten normaal en omgekeerd); onderlatknop → `latOnderKiezen` (`onderKiezer`: automatisch, zelfde, alleen de neuslatten die passen met ventilatie en uitsteek, ventilatielatten, andere). Bovenin elk venster de ruit met de foto (`ruitKop`). Rekenen: `pakket()`, `oordeelRuit()` (het slechtste van boven, onder en sinds v117 het max glaspakket `maxOordeel`), `adviezenMet()`, `neuslatVoor()`. v117: bij latzijde binnen geen neus- of ventilatielat (`onderMagBij`; een oude keuze wordt rood via `alleenBuiten`, niet stil veranderd); de opbouw-keuzelijst (`opbouwKeuzeHTML` in naslag.js) zet te dikke opbouwen apart (`opbouwTeDik`). Bewaard in `info.toebehoren.perRuit` (`toebehorenZetRuit`), niet op de ruit. Na een bestelling op slot (v114, `magKiezen` + `SLOT_FUNCTIES`). Kennis en bronnen: `GLASLATTEN.md` |
 | **Merk in beeld bij zijwaarts vegen** (v114) | het merk staat ook in de vaste eerste kolom (`.rijnr-merk`, `merkInRijnr`). Die kolom blijft staan doordat `table.invoer` géén `overflow: hidden` heeft (dat brak `position: sticky`) |
 | **Bi-color rooster** (v114) | kolommen **Bi-color** (Nee/Ja, `zetBiColor`) en **RAL binnen** (`zetRalBinnen`, `ralBinnenCel`) naast RAL; de kop RAL heet "RAL buiten" zodra er in die tabel een bi-color is (`roosterKolommen`). Op ruit: `biColor` ('Ja' of afwezig), `ralBinnen`. Op papier `ralTekst()`: "Bi-color buiten: … / binnen: …". Vóór de bestellijst `kleurControle` ("Bi-color zonder kleur"). Rooster op Nee haalt bi-color weg |
-| **Past het in de sponning? bij de bestellijst** (v113) | `pdf.js` `voorControles()` → `pakketControle()`: "Past het in de sponning?" bij "past niet" of "te ruim" (sinds v115 alleen nog bij een opdeklat; sponning in zicht is goed), en (v114) de ruiten zonder latzijde ("Latzijde nog niet gekozen" als alleen dat ontbreekt). Daarna `kleurControle()` (v114). Stoppen / Toch doorgaan. De leverancier ziet geen latten |
+| **Past het in de sponning? bij de bestellijst** (v113) | `pdf.js` `voorControles()` → `pakketControle()`: "Past het in de sponning?" bij "past niet" of "te ruim" (sinds v115 alleen nog bij een opdeklat; sponning in zicht is goed), bij een A5 die alleen in nood past (v119), en (v114) de ruiten zonder latzijde ("Latzijde nog niet gekozen" als alleen dat ontbreekt). Daarna `kleurControle()` (v114). Stoppen / Toch doorgaan. De leverancier ziet geen latten |
 | **Overzicht (PDF invoer)** | `pdf.js` `exportFotoPdf()`; sinds v111 achteraan een pagina "Toebehoren - intern" (`toebehorenPagina`, v115 met diepte, montage, "geen (meegeleverd)" en oordeel), sinds v113 in de tabel per foto de kolommen Spon. ("40/48" als onder anders is) en Lat/pakket; sinds v117 het zaagplan als tekening (balken per lengte). Ook bij "Alles exporteren"; **nooit** op de bestellijst |
 | **Tabblad Bestellijst = de pdf** (v118, wens Jan) | `index.html` `renderBestellijst()` tekent `bestellijstModel()` uit pdf.js: dezelfde kolommen (lege weg), regels, kader (aanvulling/overzicht), blokken (ANNULEREN, ALLEEN BEDIENING, ALLEEN ROOSTER), rooster-noot en totaal als de pdf (`kopTeksten`, `annulerenLijst`, `totaalTekst`, `bedieningRegel`). Glasbewerking staat er altijd, ook "Helder (standaard)" |
-| **Alles exporteren** (v119, Jan) | `pdf.js` `exportVerderNu('alles')`: bestellijst, PDF invoer en PDF werkvloer, als losse bestanden (`leverMeerdere`), daarna "Naar de leverancier?" |
-| **PDF werkvloer** (v118, wens Jan) | ⬇ Exporteren → 🔨 PDF werkvloer → `pdf.js` `exportWerkvloerPdf()` → `startExport('werkvloer')` (geen levercontrole, legt niets vast) → `bouwWerkvloerPdf()`: per foto of tekening `tekenFoto` (bolletjes) + tabel (`werkvloerRegels`: glasmaat, opbouw, latzijde, glaslat, onderlat, band, latten met stuklengtes uit `toebehorenBerekenen().perRuit[].stukken`, kolom "Let op"); losse regels onder de laatste foto als ze passen; dan `toebehorenPagina(doc, 'Werkvloer - benodigdheden en zaagplan')`. Geen prijzen |
+| **Alles exporteren** (sinds v119 met de PDF werkvloer) | `pdf.js` `exportVerderNu('alles')`: bestellijst, PDF invoer en PDF werkvloer, als losse bestanden (`leverMeerdere`), daarna "Naar de leverancier?" |
+| **PDF werkvloer** (v118, wens Jan) | ⬇ Exporteren → 🔨 PDF werkvloer → `pdf.js` `exportWerkvloerPdf()` → `startExport('werkvloer')` (geen levercontrole, legt niets vast) → `bouwWerkvloerPdf()`: per foto of tekening `tekenFoto` (bolletjes) + tabel (`werkvloerRegels`: glasmaat, opbouw, latzijde, glaslat, onderlat, band, latten met stuklengtes uit `toebehorenBerekenen().perRuit[].stukken` (een neuslat als "N30 recht", v121), kolom "Let op": latzijde ontbreekt, past niet/te ruim/krap, NOOD (A5), vlak met kozijn, plus de opmerking van de ruit (v119/v120)); losse regels onder de laatste foto als ze passen; dan `toebehorenPagina(doc, 'Werkvloer - benodigdheden en zaagplan')`. Geen prijzen |
 | **Kruisje op alles wat openklapt** (v118, wens Jan) | `index.html` `sluitKruis(el, sluit, label)` (ook Escape) voor menu's (Exporteren, datum, uitleg (i), adres, leverkalender, bolletje, doorvoeren ⤓); `button.sluit-x` in `<details>` (zaagplan, lattengroep), instellingen, Naslag-onderdeel, foto en lat groot |
-| **Lege kolommen** (v115, Jan) | op de bestellijst en de PDF invoer komt een kolom alleen als er iets in staat (`leegWaarde` in pdf.js; een streepje telt als leeg). Altijd: positie, aantal en de glasmaat |
+| **Lege kolommen** (v115, Jan) | op de bestellijst en de PDF invoer komt een kolom alleen als er iets in staat (`leegWaarde` in pdf.js; een streepje telt als leeg). Bestellijst altijd: positie, aantal, glasmaat en (v118) glasbewerking. PDF invoer altijd: merk, aantal, maatsoort, maten, correctie, glasmaat |
 | **Naslag: glaslatten en glasaftrek** (v115) | `naslag.js` `lattenTabel()` leest `GlasLatten.LATTEN` (één bron); de rooster-tabel heeft een kolom Glasaftrek uit `ducoAftrek()` |
-| **Csv-import: latten meegeleverd** (v115, keuze Jan) | `import.js` `geenLatten()`: ingelezen ruiten krijgen latzijde "geen (meegeleverd)" |
-| **Importeren (maten uit pdf, Excel, csv)** | `import.js`, ⬆ Importeren |
+| **Import: latten meegeleverd** (v115, keuze Jan) | `import.js` `geenLatten()`: ingelezen ruiten (elke import van een maatstaat) krijgen latzijde "geen (meegeleverd)" |
+| **Importeren (maten uit pdf, Excel, csv)** | `import.js`, ⬆ Importeren. Kolomkoppen herkennen (`kopScore`, `raadMapping`); max glaspakket met `pakketLees`; staat een merk al in het project, dan eerst kiezen (‹Merk bestaat al›; 1 → 1a, A → A1; bolletjes gaan mee; v120) |
 | **Naslag (catalogus, roosters)** | `naslag.js`; foto's in `catalogus/` en `roosters/` |
 | **Taken, logboek, klant, levering** | `project.js` (klantblok en levering staan op Invoer; Project info toont ze) → tabellen `taken`, `projectgeschiedenis` |
 | **Prullenbak** | `cloud.js` `cloudVerwijder()` → `verwijderd_op` gevuld; terugzetten of na 30 dagen definitief (`definitiefVerwijderen`, ook de foto's) |
@@ -133,18 +145,18 @@ terugvindt (Cmd+F).
 
 | bestand | regels | wat erin staat |
 |---|---|---|
-| `index.html` | 6.919 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), het slot na bestellen |
-| `cloud.js` | 4.113 | inloggen, nieuw wachtwoord via een herstellink, projecten openen/opslaan/synchroniseren, live bijwerken, nieuwe versies, prullenbak, apart bewaren, taken en logboek ophalen |
-| `pdf.js` | 3.076 | de bestellijst en het overzicht (PDF invoer), bestellingen vastleggen, de bestelmail |
+| `index.html` | 6.969 | de schermen, alle opmaak (CSS), de keuzelijsten (`DATA`, één regel van ±80.000 tekens), de invoertabel, het rekenwerk (glasmaat, dikte, gewicht), maten als tekst (`leesMaat`), het slot na bestellen, dubbel besteld, `kortBericht`, twee tabbladen |
+| `cloud.js` | 4.113 | inloggen, nieuw wachtwoord via een herstellink, projecten openen/opslaan/synchroniseren, live bijwerken, nieuwe versies, prullenbak, apart bewaren, taken en logboek ophalen, eigen telefoonnummer |
+| `pdf.js` | 3.077 | de bestellijst (`bestellijstModel`, ook voor het tabblad), de PDF invoer en de PDF werkvloer, de vragen vooraf, bestellingen vastleggen, de bestelmail |
 | `teken.js` | 1.798 | tekenlaag op foto's |
-| `toebehoren.js` | 1.431 | tabblad Toebehoren (v111): de rekenwaarden bovenin (`INSTELLINGEN`), het rekenen, het tabblad; sinds v113 ook de opslag van de keuzes per ruit voor `latten.js` |
+| `toebehoren.js` | 1.431 | tabblad Toebehoren (v111): de rekenwaarden bovenin (`INSTELLINGEN`), het rekenen, zaagplan + reserve, het tabblad, de actiebalk (v121); sinds v113 ook de opslag van de keuzes per ruit voor `latten.js` |
 | `latten.js` | 1.438 | glaslatten (v113): de lijst van Jongeneel bovenin (`LATTEN`, ook de bron van de Naslag), "past het in de sponning?", neuslat (ventilatie en uitsteek), opdeklat omgekeerd, latzijde en onderdorpel, de vensters en kiezers, en de twee vakken op Invoer (v115). Uitleg: `GLASLATTEN.md` |
 | `fotos.js` | 1.869 | foto's en tekeningen, merkbolletjes, tabel per foto, het aantal samen met de bolletjes (v110) |
 | `project.js` | 1.168 | klant, werkadres, levering, taken, logboek, Opgenomen door |
-| `naslag.js` | 1.127 | glascatalogus, leverbaarheid, roeden, roosters |
+| `naslag.js` | 1.162 | glascatalogus, leverbaarheid, roeden, roosters, glaslatten (v115) |
 | `import.js` | 1.230 | maten inlezen uit pdf, Excel, csv, geplakte tekst |
 | `bewerkslot.js` | 755 | wie bewerkt, meekijken, overnemen |
-| `start.js` | 501 | het startscherm |
+| `start.js` | 501 | het startscherm (met 📞 en 💾) |
 | `wachtrij.js` | 530 | foto's eerst op het apparaat, dan naar de server |
 | `bulk.js` | 437 | waarden doorvoeren, selecteren |
 | `sw.js` | 321 | service worker: offline, nieuwe versies (lijst `SHELL`) |
@@ -154,14 +166,18 @@ terugvindt (Cmd+F).
 | `backup.js` | 196 | 💾 Back-up maken (v120): alle projecten, taken en gebruikers (en desgewenst alle foto's) in één zip |
 | `merken.js` | 208 | merkletters uniek houden |
 | `blokbalk.js` | 244 | per tabel: ongedaan, leegmaken, speling |
-| `kopie.js` | 220 | regels kopiëren |
+| `kopie.js` | 220 | regels kopiëren (⧉, sinds v120 met de keuzes van Toebehoren), gelijktrekken |
 | `config.js` | — | adres van Supabase + openbare sleutel. **Niet wijzigen** |
 | `leeg.html` | — | bewust leeg pagina'tje: de inlogformulieren "versturen" hierheen, zodat Safari en Firefox meteen vragen het wachtwoord te bewaren (v109). Niet weghalen; hoeft niet offline (inloggen kan toch alleen met bereik) |
 | `lib/` | — | de bibliotheken (Supabase, pdf, Excel, zip), met versienummer in de mapnaam |
 | `catalogus/`, `roosters/` | — | foto's voor de naslag |
 | `latten/` | — | foto's (`<id>.jpg`) en maattekeningen (`<id>-tek.jpg`) van de glaslatten, 51 bestanden (v114; bronpagina's in `latfotos.txt`). Opgehaald door Claude via de browser in de Claude-app: Jongeneel blokkeert scripts, daarom is `latfotos-ophalen.sh` weg. Mag ontbreken: dan tekent de app de doorsnede |
 | `NN_*.sql` | — | de databasewijzigingen, genummerd (zie `DATAMODEL.md`) |
-| `test-*.js`, `test-*.py` | — | de automatische tests (zie §9) |
+| `test-*.js`, `test-*.py`, `test-mailfunctie.ts`, `test-gevel.jpg` | — | de automatische tests en een testfoto (zie §9) |
+| `test-sql.sql` | — | alleen voor de tests tegen een lokale database; begint met alles weggooien: **nooit in Supabase draaien** |
+| `manifest.webmanifest`, `favicon-v3.*`, `icon-*.png`, `apple-touch-icon.png`, `icoon-bron.svg` | — | de app op het beginscherm en het icoon (met versie in de naam, ook in `SHELL`) |
+| `catalogus-fotos.txt`, `roosterfotos.txt`, `latfotos.txt`, `fotos-ophalen.sh`, `roosterfotos-ophalen.sh` | — | waar de foto's van de naslag vandaan komen (`BEHEER.md` §6) |
+| `supabase/functions/mail/` | — | de bestelmail (Edge Function); **nog niet uitgerold** |
 | `.github/workflows/` | — | Supabase wakker houden |
 
 **De volgorde van de scripts onderaan `index.html` doet ertoe**: melding →
@@ -187,9 +203,9 @@ backup → undo. Niet omgooien.
 | Bediening telt pas mee in het kenmerk als hij gekozen is (v111) | een nieuw veld in het kenmerk zou na een bestelling álle ruiten "gewijzigd" maken | |
 | Alleen een andere bediening na een bestelling = eigen blok, nooit VERVANGT (v112, keuze Jan) | Jan: "nooit glas vervangen alleen om de bediening toe te voegen; dat levert zeker fouten op met dubbele leveringen en onduidelijkheid" | een extra blok op de aanvulling; de app houdt bij in welke lijst het glas en in welke de bediening besteld is (`bedieningInTekst`) |
 | Toebehoren is alleen voor onszelf (v111, keuze Jan) | de leverancier hoeft het niet te zien; het mag dus ook na een bestelling veranderen | staat in de PDF invoer, niet op de bestellijst |
-| Toebehoren per ruit bij het project, niet op de ruit (v111) | een wijziging op de ruit geeft hem een nieuw stempel; dan werkte de vraag "Oudere stand?" na een bestelling niet meer | kopieer je een ruit, dan gaat zijn onderlat niet mee |
+| Toebehoren per ruit bij het project, niet op de ruit (v111) | een wijziging op de ruit geeft hem een nieuw stempel; dan werkte de vraag "Oudere stand?" na een bestelling niet meer | ⧉ dupliceren kopieert de keuzes sinds v120 wel mee, met "Controleer …" |
 | Lengtes latten: het zaagplan + 1 reserve per lattype (v120, keuze Jan; v113–v119: totaal + 10 %) | het zaagplan is de echte waarheid; één reserve vangt een zaagfout op. Een lat langer dan de lengte gaat apart en telt niet dubbel | de reserve staat bij de instellingen op Toebehoren |
-| Neuslat recht, sponningbreedte + 20 mm (v121, Jan) | hij loopt aan beide kanten door in de scharniersponning; geen verstek | eigen instelling "Neuslat (recht): langer dan sponning", los van de verstektoeslag |
+| Neuslat recht, 20 mm langer dan de sponning breed is (v121, Jan) | hij loopt aan beide kanten door in de scharniersponning; geen verstek | eigen instelling "Neuslat (recht): langer dan sponning", los van de verstektoeslag |
 | Aangevinkte ruiten: een actiebalk met voorbeeld (v121, P3, keuze Jan) | eerst zien wat het wordt, dan pas toepassen; geen extra vraag (het voorbeeld is de controle), wel ↶ Terugzetten | Jan wil deze keuze later nog eens herbeoordelen |
 | Sponningdiepte en glaslat bij het project, niet op de ruit (v113) | zelfde reden als de onderlat (v111): geen nieuw stempel | ⧉ dupliceren kopieert ze sinds v120 wel mee (met "Controleer …") |
 | Geen standaard latzijde (v114, keuze Jan) | "dit wisselt continu, en binnen een project, of zelfs binnen een kozijn" | een nieuwe ruit staat op "?"; meldingen op Toebehoren en vóór de bestellijst; de oude projectinstellingen "glaslatten zitten" en "standaard onderlat" gelden niet meer |
@@ -203,8 +219,9 @@ backup → undo. Niet omgooien.
 | Ingetrokken lijst telt niet mee in de nummering (v120, keuze Jan) | de leverancier kent alleen de lijsten die hij kreeg | |
 | Import: bestaat een merk al, dan zelf kiezen (v120, keuze Jan) | stil doornummeren gaf "11" en "12" die botsten met echte merken | merk op een cijfer → letter erachter (1a), anders een cijfer (A1) |
 | Rood alleen voor de hoofdknop en fouten; 44 px op een aanraakscherm (v120, keuze Jan) | rood betekent "fout"; op de bouw met handschoenen | de tabellen blijven compact |
-| Alleen actieve collega's (script 26, v120, akkoord Jan) | wie uit dienst gaat of anoniem binnenkomt, mag niets zien; iemand weghalen = actief op false, nooit verwijderen | iedereen die actief is mag nog steeds alles (geen rollen) |
-| Handmatige back-up in de app (v120, keuze Jan, tijdelijk) | het grootste risico; een automatische back-up heeft een sleutel nodig die niet in de openbare repo mag | iemand moet eraan denken (de knop herinnert na 30 dagen) |
+| Alleen actieve collega's (script 26, v120, akkoord Jan) | wie uit dienst gaat, mag niets meer zien; iemand weghalen = actief op false, nooit verwijderen | iedereen die actief is, heeft dezelfde rechten |
+| Handmatige back-up in de app (v120, keuze Jan) | het grootste risico | iemand moet eraan denken (de knop herinnert na 30 dagen); sinds v122 naast de automatische |
+| Automatische back-up via een privé GitHub-repo naar een eigen Dropbox, niet versleuteld (v122, keuze Jan) | Jan wilde zijn Mac en zijn zakelijke OneDrive er niet bij betrekken; geen geheime hoofdsleutel nodig (account op alleen lezen); de Dropbox-sleutel kan alleen in zijn eigen map | de back-up staat bij Dropbox; zonder versleuteling is terugzetten eenvoudiger, maar wie het Dropbox-account heeft, kan de gegevens lezen |
 | "Beide" in oude projecten: een strook, niets stil veranderd (v119, keuze Jan) | tot v114 kwam er buiten onderin een neuslat | Begrepen per ruit bewaard (`toebehoren.beideGezien`); sinds v121 rustig grijs (Jan: "duidelijk, subtiel") en "beide kanten" in de onderlatknop |
 | Max glaspakket ook op Invoer rood, maar kiesbaar (v118, keuze Jan) | op Invoer kies je het glas; daar moet je het zien | gerekend met band binnen + buiten (standaard 3 + 3, per ruit op Toebehoren) |
 | Band van 5 mm = een rol 2 mm en een rol 3 mm (v118, keuze Jan) | er bestaat geen rol van 5 mm | telt op twee rollen en dubbel in "m band" |
@@ -225,7 +242,8 @@ backup → undo. Niet omgooien.
 | begrip | uitleg |
 |---|---|
 | **Supabase** | de online dienst met de database, het inloggen en de foto-opslag |
-| **RLS** (Row Level Security) | regels in de database over wie welke rij mag zien of wijzigen. Hier, kort: wie ingelogd is, mag vrijwel alles; niet ingelogd niets. Uitzonderingen (logboek niet wijzigen, keuzelijsten alleen lezen): `DATAMODEL.md` |
+| **RLS** (Row Level Security) | regels in de database over wie welke rij mag zien of wijzigen. Kort: alleen collega's die actief zijn (script 26). Details: `DATAMODEL.md` |
+| **kortBericht** (v120) | berichtje onderin met hoogstens één knop (bijv. ↶ Terugzetten), verdwijnt vanzelf. Voor wat alleen informeert; een venster (`appMelding`) houdt het bewerkslot op |
 | **trigger** | een stukje code in de database dat vanzelf draait bij een wijziging, bijvoorbeeld het logboek schrijven |
 | **migratie / SQL-script** | een genummerd bestand (`NN_….sql`) dat de database verandert; je draait het in Supabase → SQL Editor |
 | **service worker** | een onzichtbaar hulpje in de browser dat de app bewaart voor gebruik zonder bereik, en nieuwe versies ophaalt |
@@ -245,9 +263,9 @@ backup → undo. Niet omgooien.
 | **ALLEEN BEDIENING** (v112) | op een aanvulling: bij een ruit die al besteld is verandert alleen de stang of het koord. Het glas wordt niet opnieuw gemaakt en niet geannuleerd |
 | **bediening** (v111) | een extra bedieningsstang of -koord bij een ventilatierooster, 1 of 2 per rooster, met een lengte (leeg = standaard). Het gewone knopje zit er altijd |
 | **Toebehoren** (v111) | wat er naast het glas nodig is: glaslatten, glasband, glaskit, wienersprossen-tape. Een schatting voor onszelf |
-| **zaagplan** | de latten echt verdeeld over lengtes van 4 m (langste eerst, met een zaagsnede per lat). Sinds v113 is het aantal lengtes: totale lengte + 10 %, gedeeld door 4 m; alleen als het zaagplan er meer nodig heeft (lange latten), het zaagplan |
+| **zaagplan** | de latten echt verdeeld over lengtes (meestal 4 m; langste eerst, met een zaagsnede per lat). Het aantal lengtes = het zaagplan + 1 reserve per lattype (v120; v113–v119: totale lengte + 10 %) |
 | **sponningdiepte** (v113) | de ruimte loodrecht op het glas, van de aanslag tot de buitenkant van het kozijn. In NPR 3577 heet dat sponningbreedte |
-| **pakket** (v113) | wat er in de sponning moet: band binnen + glas + band buiten + glaslat. Oordeel: past, past · N mm in zicht (v115), krap, ruim/te ruim (alleen opdeklat), past niet, meegeleverd |
+| **pakket** (v113) | wat er in de sponning moet: band binnen + glas + band buiten + glaslat. Oordeel: past, past · N mm in zicht (v115), krap, vlak met kozijn (oranje, v119), nood (A5 steekt uit, v119), ruim/te ruim (alleen opdeklat), past niet, meegeleverd |
 | **sponning in zicht** (v115) | een gewone glaslat met ruimte over schuift verder in; er blijft een randje sponning zichtbaar. Normaal, geen fout |
 | **omgekeerd** (v115) | een opdeklat met eigen sponning andersom gemonteerd: het dikke deel steekt de sponning in, hij neemt zijn eigen sponning in in plaats van ruimte te geven |
 | **ventilatie / uitsteek** (v115) | bij een neuslat: de ruimte tussen kozijn en neus (min. 5 mm), en hoe ver de lat in totaal voor het kozijn uitsteekt (ventilatie + 9) |
@@ -279,11 +297,11 @@ backup → undo. Niet omgooien.
 1. **Bij elke wijziging aan de code: de drie versienummers ophogen**, alle
    drie hetzelfde. Anders krijgen de apparaten de wijziging niet (de service
    worker denkt dat er niets nieuws is):
-   - `index.html`: `const APP_VERSIE = 'v115';`
-   - `pdf.js`: `var PDF_VERSIE = 'v115';`
-   - `sw.js`: `const VERSIE = 'v115';`
+   - `index.html`: `const APP_VERSIE = 'v121';`
+   - `pdf.js`: `var PDF_VERSIE = 'v121';`
+   - `sw.js`: `const VERSIE = 'v121';`
    (Bij een wijziging maak je er alle drie het volgende nummer van, bijvoorbeeld
-   `v116`.)
+   `v122`.)
 2. **Eén kleine wijziging per keer**, dan publiceren en op een apparaat
    controleren.
 3. **Nooit `config.js`** wijzigen.
@@ -313,8 +331,9 @@ backup → undo. Niet omgooien.
 4. Controleer op een apparaat: ↻ Bijwerken, en kijk op het startscherm of
    het versienummer klopt.
 
-**De rekenwaarden van Toebehoren aanpassen** (v111; kitvoeg, zaagverlies,
-lengte van een lat, meters op een rol, …)
+**De rekenwaarden van Toebehoren aanpassen** (v111; kitvoeg, reserve per
+lattype, toeslag verstek, toeslag neuslat, lengte van een lat, meters op een
+rol, …)
 - *Eerst proberen, voor één project*: tabblad Toebehoren → ▸ "instellingen
   voor dit project" → waarde typen (een komma mag: `4,5`). Een afwijkende
   waarde wordt oranje; ↺ zet hem terug. Geen code, geen nieuwe versie. Het
@@ -393,26 +412,27 @@ reeks één keer bij een functie, de mutatieproef bij database, opslag op het
 apparaat en dergelijke). Ze bootsen de echte situatie na: meerdere apparaten, geen bereik,
 een oude versie naast een nieuwe. Van elke nieuwe test wordt bewezen dat hij
 rood wordt als je de reparatie terugdraait (`--mutaties` in test-v103 t/m
-test-v106, test-v109, test-v110, test-v111, test-v112, test-v113, test-v114, test-v115, test-v116, test-v117, test-v118, test-v119, test-v120 en test-v121).
+test-v106, test-v109, test-v110, test-v111, test-v112, test-v113, test-v114, test-v115, test-v116, test-v117, test-v118, test-v119, test-v120 en test-v121; die van v104 en v105 werken nu niet, en van v110 passen er 9 niet meer: zie `TESTEN.md`, "Onderhoud van de batterij").
 
 **Zelf draaien kan nu nog niet zomaar**: de tests verwachten de hulpmiddelen
 op een vaste plek in de werkomgeving van Claude (`/home/claude/node_modules`)
 en Chromium in `/opt/pw-browsers`. Op je Mac vraagt dat Node.js, het
 installeren van een paar pakketten en het aanpassen van die paden. Dat is
-een verbeterpunt (handover §11d: "tests automatisch bij elke push").
+een verbeterpunt. Tests automatisch bij elke push (GitHub): bewust nog niet
+(Jan, 22-10-2026), zolang de app nog veel verandert.
 
 ## 10. Risico's en kwetsbare plekken
 
 | risico | wat je dan doet |
 |---|---|
-| **Geen automatische back-up** van de database (gratis plan) | 💾 Back-up maken op het startscherm, de zip in OneDrive (`BEHEER.md` §8); elke week gegevens, elke maand met foto's |
-| **Foto-opslag vol** (1 GB, met originelen snel) | startscherm waarschuwt bij 80/95%; dan Supabase Pro of originelen opruimen (`BEHEER.md` §9). Na een overstap op Pro rekent de waarschuwing nog met de gratis grenzen, tot de app is aangepast |
+| **Geen back-up van Supabase zelf** (gratis plan) | de automatische back-up naar Dropbox (v122) en 💾 (`BEHEER.md` §8); maandelijks `LAATSTE-BACKUP.txt` nakijken |
+| **Foto-opslag vol** (1 GB, met originelen snel) | startscherm waarschuwt bij 80/95%; dan Supabase Pro, de prullenbak legen of originelen opruimen (`BEHEER.md` §9). Na een overstap op Pro de grenzen in `config.js` aanpassen (`limieten`) |
 | **Supabase op pauze** (na 7 dagen zonder gebruik) | GitHub-taak houdt hem wakker; die gaat uit na 60 dagen zonder commit (`BEHEER.md` §7) |
 | **Werk alleen op een apparaat** (geen bereik, iPad stuk of gewist) | zo snel mogelijk met bereik openen; nooit websitegegevens wissen met werk erop |
-| **Eén gelekt wachtwoord = toegang tot alles** | sterke eigen wachtwoorden; bij vertrek meteen op niet-actief (`BEHEER.md` §3.3) |
+| **Wachtwoorden** | sterke eigen wachtwoorden; bij vertrek meteen op niet-actief (`BEHEER.md` §3.3) |
 | **Herstellink al "gebruikt"** voordat de collega erop tikt (mailbeveiliging zoals Safe Links opent links vooraf) | nieuwe sturen; gebeurt het steeds, dan aan Claude melden (`BEHEER.md` §3.2) |
 | **Toebehoren is een schatting** (v111) | de uitkomst hangt af van de instellingen; eerst in de praktijk vergelijken en bijstellen (§8) |
-| **Maten van de latten** (v113; v114 nagekeken op de tekeningen van Jongeneel) | wijkt een lat in de praktijk af (bijv. de neuslat, `GLASLATTEN.md` §11): in `latten.js` aanpassen |
+| **Maten van de latten** (v113; v114 nagekeken op de tekeningen van Jongeneel; neuslat bevestigd v121) | wijkt een lat in de praktijk af (bijv. de C1, `GLASLATTEN.md` §11): in `latten.js` aanpassen |
 | **Toebehoren tekent de hele tabel opnieuw na een wijziging** (v115) | alleen wat anders is wordt vervangen en de focus blijft staan; op een echte iPad nog niet door Claude nagekeken (toetsenbord na Tab). Merk je dat het toetsenbord wegvalt, meld het met versie en apparaat |
 | **Nooit getest in echte Safari** door Claude | Jan test elke versie op iPad/iPhone/Mac; meld afwijkingen met versie en apparaat. Voorbeeld (v116): Safari stuurde originele foto's leeg mee, Chrome niet; de tests (Chromium) zagen het niet. Jans console-melding ("No content provided") wees het aan |
 

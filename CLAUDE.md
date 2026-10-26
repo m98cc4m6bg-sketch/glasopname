@@ -62,7 +62,8 @@ Een feit staat op één plek; elders verwijs je ernaar.
   komt bij slepen vaak niet mee (verborgen bestand). Staat `Claude outputs/`
   er niet in: Jan eraan herinneren bij elke oplevering (zijn verzoek, 21-10):
   GitHub Desktop → Repository → Repository Settings → Ignored Files, de regel
-  `Claude outputs/` onderaan, Save, meecommitten.
+  `Claude outputs/` onderaan, Save, meecommitten. (Sinds 24-10-2026 staat
+  hij goed, commit `1ecf1fb`; alleen weer herinneren als hij verdwijnt.)
 * **Het webadres en het GitHub-account** (handover §9, met de uitleg): Jan
   herinneren (met uitleg) zodra er een site of app bijkomt op het account
   `m98cc4m6bg-sketch`, bij een eigen domein of het klantportaal, en als het
@@ -134,7 +135,7 @@ Een feit staat op één plek; elders verwijs je ernaar.
 * Elke opslag draagt `data._versieNr` (versieslot, script 21),
   `glasBewerkslotVelden()` en `_basis` (bewerkslot, script 24). Een nieuwe
   manier van opslaan moet ze allemaal meesturen: zonder `_versieNr` weigert de
-  database, zonder `_apparaat` slaat hij de slotcontrole over (gat), zonder
+  database, zonder `_apparaat` werkt de slotcontrole niet, zonder
   `_basis` weigert hij zodra een ander intussen opsloeg. Alleen
   `synchroniseer` doet een `update` van `data`; apart gaat via `insert`.
 * Nieuw veld bovenin `data`: neem het mee in `inhoudVan` (cloud.js).
@@ -260,11 +261,11 @@ Een feit staat op één plek; elders verwijs je ernaar.
     netjes in valt (zicht, of een opdeklat 'past'). Strook "vlak" op
     Toebehoren (v120).
   - **Binnen (v117, Jan): nooit een neus- of ventilatielat** (`onderMagBij`).
-  - **Neuslat in het zaagplan** (v121, Jan): recht, sponningbreedte +
-    `NEUSLAT_TOESLAG_MM` (20; de scharniersponning), los van
+    Een oude keuze: `alleenBuiten` → rood, niet stil veranderd.
+  - **Neuslat in het zaagplan** (v121, Jan): recht, `sp.b` (sponningmaat in
+    de breedte) + `NEUSLAT_TOESLAG_MM` (20; de scharniersponning), los van
     `VERSTEK_TOESLAG_MM`. Stukken hebben `recht: true` (`isNeuslat`); de
     werkvloer zegt "N30 recht". De maat S + 9 is bevestigd (Jan, v121).
-    Een oude keuze: `alleenBuiten` → rood, niet stil veranderd.
   - **Max glaspakket** (v117): `r.maxPakket` (op de ruit, uit de import);
     `maxOordeel` telt mee in `oordeelRuit` (`waar: 'max'`), ook bij 'geen';
     `opbouwTeDik` voor de keuzelijst. Niet in de opmerking.
@@ -288,7 +289,7 @@ Een feit staat op één plek; elders verwijs je ernaar.
     '', wat bij buiten een neuslat werd), niet A4.
   - **Foto's van Jongeneel**: geen script (de site blokkeert dat). Via de
     browser in de Claude-desktopapp (handover §6).
-  - **Eén getal voor de lengtes**: max(totaal + 10 %, zaagplan). Het grote
+  - **Eén getal voor de lengtes** (v120): het zaagplan + `RESERVE_LENGTES` per lattype. Het grote
     getal en de rekenregel moeten altijd hetzelfde zeggen.
   - **Kleuren.** Gebruik de namen in `:root` (`--accent`, `--ink`, `--ok`,
     `--warn`, `--err`); het pdf-rood is 193, 18, 28.
@@ -403,6 +404,15 @@ Een feit staat op één plek; elders verwijs je ernaar.
 * Opruimen van foto's neemt de submap `origineel/` mee (`fotosOpruimen`).
 
 **Omgeving**
+* **De automatische back-up** (v122) staat in een **aparte privé repository**
+  `glasopname-backup` (`backup.py`, `test_backup.py`, workflow), niet in
+  deze. Komt er een tabel bij in de database, of een nieuwe opslagmap:
+  ook `TABELLEN`/`EXTRA` in `backup.py` bijwerken en `test_backup.py`
+  draaien; lever die repo dan apart aan (zip `glasopname-backup.zip`). Het
+  back-upaccount staat op `alleen_lezen` (script 27): nooit in de app
+  gebruiken; `glasGebruikers` laat het weg.
+* **Nummering van bestellingen** op twee plekken: `bestellingenSamenvoegen`
+  (index.html) en `bestellingen_samenvoegen` (script 27). Verander ze samen.
 * De Edge Function `mail` is **niet uitgerold** (geen functie, geen Resend,
   geen geheimen). Schrijf niets alsof hij bestaat.
 * Toets de belofte op de gegevens, **én** klik één keer echt in Chromium op
@@ -455,6 +465,7 @@ node test-v118.js                       #  ±3 min; werkvloer-pdf, tabblad = pdf
 node test-v119.js                       #  ±70 s; vlak met kozijn, A5 nood, strook beide, Alles exporteren + werkvloer
 node test-v120.js                       #  ±6 min; grote proef: komma, aantallen, twee tabbladen, dubbel besteld, import, latten, pdf-kop, ✕ terug, ids, telefoon, back-up
 node test-v121.js                       #  ±2 min; neuslat recht + 20, melding beide, actiebalk (P3) op pc, iPad, iPhone; PLAATJES=map
+node test-v122.js                       #  ±40 s; back-upaccount (alleen lezen) niet in de keuzelijsten, LEESMIJ van 💾
 ```
 
 **Mutatieproef** (`--mutaties`): alleen bij 🔴, en alleen voor de reeks
@@ -463,7 +474,8 @@ terugdraaien, rood, terugzetten), dat kost minuten. Duur per reeks:
 v106 48 mutaties ±25–40 min, v109 22 ±25 min, v110 61 ±45+ min,
 v111 51 ±40 min, v112 21 ±15 min, v113 40 ±30 min, v114 34 ±40 min,
 v115 37 ±45 min, v116 9 ±4 min, v117 17 ±10 min, v118 18 ±25 min, v119 11 ±10 min,
-v120 33 ±40 min, v121 17 ±20 min. Script 26 (rechten): een eigen proef tegen een lokale
+v120 33 ±40 min, v121 17 ±20 min, v122 3 ±2 min. Script 27: proef
+tegen PostgreSQL, 42 controles en 8 mutaties (zip "niet-in-repo"). Script 26 (rechten): een eigen proef tegen een lokale
 PostgreSQL met 14 mutaties (staat in de zip "niet-in-repo", niet in de repo).
 Die van v104 en v105 werken nu niet, en van v110 passen 9 mutaties niet
 meer (gezien 21-10-2026; zie TESTEN.md, "Onderhoud van de batterij"). Een oudere reeks opnieuw alleen gericht (`ALLEEN=`), zie

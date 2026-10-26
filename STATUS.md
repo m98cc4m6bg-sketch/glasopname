@@ -21,11 +21,17 @@ bij v122.*
 - **v121 staat live** (commit `97aa1d4`, 22-10, rechtstreeks vanaf v117; nagekeken: alle 39 bestanden gelijk aan het pakket; `.gitignore` met `Claude outputs/` stond toen nog klaar om te committen). **Bevat v120**: Jans antwoorden na v120
   (neuslat recht + 20 mm, rustige melding bij "beide", P3 de actiebalk
   met voorbeeld op Toebehoren). Geen nieuwe SQL. Nieuw: `test-v121.js`.
-- **v122 opgeleverd** (24-10, nog niet gepusht): **script 27** (alleen
-  lezen + nummering, 🔴 akkoord Jan), het back-upaccount niet in de
-  keuzelijsten, kleine tekstfixes. Plus **los**: de privé repository
-  `glasopname-backup` (automatische back-up naar Dropbox, keuze Jan 24-10:
-  Dropbox, niet versleuteld), met `INSTELLEN.md`.
+- **v122 staat live** (commit `e5ac52e`, 26-10; nagekeken: gelijk aan het
+  pakket): **script 27** (alleen lezen + nummering, 🔴 akkoord Jan), het
+  back-upaccount niet in de keuzelijsten, kleine tekstfixes. Plus **los**:
+  de privé repository `glasopname-backup` (automatische back-up, niet
+  versleuteld), met `INSTELLEN.md`. **26-10: van Dropbox naar OneDrive**
+  (keuze Jan): de map `Glasopname-backup` in zijn zakelijke OneDrive, via
+  een Microsoft-app met alleen `Files.SelectedOperations.Selected`. Of Jan
+  beheerder is, blijkt bij stap 2.5 (knop "Beheerderstoestemming").
+- In de repo staat nog een oud **`.DS_Store`** (al vóór de `.gitignore`
+  meegecommit; alleen mapnamen). Weghalen staat in het docs-pakket van
+  26-10.
 - Alle SQL-scripts t/m **25** horen gedraaid te zijn; **26** hoort bij v120
   (en dus ook bij v121).
 - De bestelmail (Edge Function `mail` + Resend) is **niet ingesteld**.
@@ -76,8 +82,12 @@ bij v122.*
 1. **v122 pushen** (`LEES-MIJ-EERST-v122.md`): eerst **script 27** in de
    SQL Editor, dan de bestanden. Daarna de **automatische back-up**
    instellen volgens `INSTELLEN.md` (privé repo `glasopname-backup`,
-   back-upaccount, Dropbox-app, 7 secrets, proefrun). Na de proefrun de
-   Dropbox-map laten zien / navragen of het groen was.
+   back-upaccount, Microsoft-app + beheerderstoestemming, map delen via
+   de Graph Explorer, 9 secrets, proefrun). Na de proefrun navragen of
+   het groen was en wat er in de map staat. **Nooit getest tegen de echte
+   Microsoft**: het delen van één map met een app
+   (`Files.SelectedOperations.Selected`) is gedocumenteerd, maar de
+   proefrun is de eerste echte keer.
 2. **Vragen**:
    (a) **P3 herbeoordelen** (Jan vroeg erom, 22-10): na een tijdje werken
    met de actiebalk vragen of het bevalt, en of P3b (zelfde probleem bij
@@ -106,7 +116,8 @@ bij v122.*
   Mac-route (of een andere pc) precies werkt; Mac staat vaak in slaap,
   bijna nooit uit, meestal met wifi.
 - **Gekozen (22-10), na de push**: handleidingen nalezen (gedaan 22-10) ·
-  **automatische back-up** (gebouwd in v122: Dropbox via een privé repo). **Tests bij elke push (GitHub
+  **automatische back-up** (gebouwd in v122 via een privé repo; 26-10
+  omgezet naar OneDrive). **Tests bij elke push (GitHub
   Actions): bewust nog niet** (Jan, 22-10): de app verandert nog veel en
   pushen moet snel blijven; testen gebeurt bij Claude. Opnieuw voorstellen
   als de app stabiel is (dan alleen af en toe onderhoud of een bugfix). Het beheerscherm

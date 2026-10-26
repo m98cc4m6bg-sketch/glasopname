@@ -410,7 +410,11 @@ Een feit staat op één plek; elders verwijs je ernaar.
   ook `TABELLEN`/`EXTRA` in `backup.py` bijwerken en `test_backup.py`
   draaien; lever die repo dan apart aan (zip `glasopname-backup.zip`). Het
   back-upaccount staat op `alleen_lezen` (script 27): nooit in de app
-  gebruiken; `glasGebruikers` laat het weg.
+  gebruiken; `glasGebruikers` laat het weg. Doel (sinds 26-10, keuze Jan):
+  de map `Glasopname-backup` in Jans zakelijke OneDrive, via de
+  Microsoft-app `Glasopname-backup` met **alleen**
+  `Files.SelectedOperations.Selected` (nooit `Files.ReadWrite.All` of
+  `Sites.*` voorstellen: dan kan de sleutel in heel OneDrive/SharePoint).
 * **Nummering van bestellingen** op twee plekken: `bestellingenSamenvoegen`
   (index.html) en `bestellingen_samenvoegen` (script 27). Verander ze samen.
 * De Edge Function `mail` is **niet uitgerold** (geen functie, geen Resend,

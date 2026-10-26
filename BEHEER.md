@@ -391,11 +391,13 @@ weg, dan eerst samen met Claude alle scripts opnieuw draaien (01–08 staan
 in de projectkennis) en de gebruikers opnieuw aanmaken, en pas daarna de
 zip terugzetten.
 
-### Automatische back-up naar Dropbox (v122, keuze Jan)
+### Automatische back-up naar OneDrive (v122, keuze Jan)
 
 Elke nacht maakt een GitHub-taak in een **aparte, privé repository**
-(`glasopname-backup`, niet deze openbare) een back-up in een eigen,
-gratis **Dropbox**-account:
+(`glasopname-backup`, niet deze openbare) een back-up in de map
+**`Glasopname-backup`** in Jans zakelijke **OneDrive** (@jelierbouw.nl; op
+26-10 gekozen in plaats van een los gratis Dropbox-account: meer ruimte, en
+de gegevens blijven binnen de eigen Microsoft 365-omgeving):
 - `gegevens/JJJJ-MM-DD_gegevens.zip`: dezelfde bestanden als de knop 💾,
   plus `logboek.json` en `mailadressen.json`. Bewaard: 30 dagen elke dag,
   tot ±3 maanden één per week, daarna één per maand;
@@ -405,15 +407,20 @@ gratis **Dropbox**-account:
 
 De taak logt in met een **back-upaccount dat alleen kan lezen** (script 27;
 in Supabase `backup@jelierbouw.nl`, `alleen_lezen = true`). Het staat niet
-in de keuzelijsten van de app; log er nooit mee in de app in. De
-Dropbox-koppeling kan alleen in zijn eigen app-map. De sleutels staan als
-*secrets* in de privé-repository, niet in bestanden en niet versleuteld
-(keuze Jan: de zips zelf zijn niet versleuteld).
+in de keuzelijsten van de app; log er nooit mee in de app in. Bij
+Microsoft schrijft de taak als een eigen **app** (`Glasopname-backup` in
+entra.microsoft.com) met alleen de toestemming
+`Files.SelectedOperations.Selected`: die kan alleen in de ene map die Jan
+met de app heeft gedeeld, nergens anders. De sleutels staan als *secrets*
+in de privé-repository, niet in bestanden (keuze Jan: de zips zelf zijn
+niet versleuteld).
 
 Mislukt een nacht, dan mailt GitHub je. **Eén keer per maand**: kijk in
-Dropbox naar de datum in `LAATSTE-BACKUP.txt`. Log minstens één keer per
-jaar in op het gratis Dropbox-account. Instellen, onderhoud en stoppen:
-`INSTELLEN.md` in de repository `glasopname-backup`.
+OneDrive naar de datum in `LAATSTE-BACKUP.txt`. **De app-sleutel verloopt
+na 24 maanden**: een maand ervoor vernieuwen (staat in je agenda; uitleg in
+`INSTELLEN.md`, Onderhoud). De map `Glasopname-backup` niet verplaatsen,
+hernoemen of weggooien. Instellen, onderhoud en stoppen: `INSTELLEN.md` in
+de repository `glasopname-backup`.
 
 De knop 💾 in de app blijft, voor een extra kopie in OneDrive of vóór iets
 groots.
@@ -425,7 +432,7 @@ Wat er wél is, en wat het níet is:
 | **prullenbak** (30 dagen) | een project per ongeluk weggegooid | een verloren database |
 | **logboek** (momentopnames per project) | een verkeerde wijziging terugzoeken | foto's; een verloren database |
 | **apart bewaard** (zie §9) | werk dat niet over een ander heen mocht | — |
-| **automatische back-up** (Dropbox, elke nacht) | een verloren database of opslag; ook oudere standen (bewaarschema) | wat er sinds vannacht veranderde |
+| **automatische back-up** (OneDrive, elke nacht) | een verloren database of opslag; ook oudere standen (bewaarschema) | wat er sinds vannacht veranderde |
 | **💾 back-up** (zip) | een verloren database, als de zip recent is | wat er na de laatste back-up veranderde; het logboek |
 | **de pdf's** (bestellijst, PDF invoer, PDF werkvloer) | wat je zelf bewaart, op papier of in OneDrive | alles daarna |
 
@@ -478,10 +485,11 @@ Daarna:
 
 **Vragen die je kunt verwachten na v122**
 
-- *"Mail van GitHub: Back-up naar Dropbox failed."* Open de mail →
+- *"Mail van GitHub: Back-up naar OneDrive failed."* Open de mail →
   de run → *Back-up maken*: daar staat in gewone woorden wat er misging
   (bijv. "Inloggen bij Supabase mislukt"). Één foto die niet lukte, komt de
-  nacht erna vanzelf. Blijft het mislukken: stuur het Claude.
+  nacht erna vanzelf. Staat er "VERLOPEN": de app-sleutel vernieuwen
+  (`INSTELLEN.md`, Onderhoud). Blijft het mislukken: stuur het Claude.
 - *"Wie is 'backup' in Supabase?"* Het back-upaccount (alleen lezen, §8).
   Niet verwijderen; uitzetten = de workflow uitzetten (`INSTELLEN.md`).
 - *"De lijst van leverancier heette '2e', in de app nu ook."* Klopt sinds

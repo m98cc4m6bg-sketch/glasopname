@@ -1,151 +1,79 @@
 # Glasopname — stand van zaken
 
-*Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens één
-pagina. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 24 oktober 2026,
-bij v122.*
+*Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens twee
+pagina's. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 26 oktober
+2026, na v122 (alles live en nagekeken).*
 
-## Live
+## Live (26-10-2026)
 
-- **v117** staat live (met v116 erin): commit `fdd003e` (21-10). Nagekeken:
-  gelijk aan het pakket, behalve **`.gitignore`**: weer niet mee (de repo
-  heeft nog de oude, zonder `Claude outputs/`). Jan herinneren bij elke
-  oplevering zolang hij er niet in staat: in GitHub Desktop Repository →
-  Repository Settings → Ignored Files, de regel `Claude outputs/`, Save,
-  meecommitten (Jans verzoek, 21-10).
-- **v120 opgeleverd** (22-10), nog niet gepusht; **v118 en v119 zitten
-  erin** (Jan: v119 niet pushen, alles herstellen in v120). **SQL: script
-  26** (rechten en telefoon), eerst de controlevraag. Nieuw: `backup.js`,
-  `26_rechten_en_telefoon.sql`, `test-v118.js`, `test-v119.js`,
-  `test-v120.js`; niets weggooien.
-- **`.gitignore` staat goed** (commit `1ecf1fb`, 23/24-10: `Claude outputs/`). De herinnering is niet meer nodig.
-- **v121 staat live** (commit `97aa1d4`, 22-10, rechtstreeks vanaf v117; nagekeken: alle 39 bestanden gelijk aan het pakket; `.gitignore` met `Claude outputs/` stond toen nog klaar om te committen). **Bevat v120**: Jans antwoorden na v120
-  (neuslat recht + 20 mm, rustige melding bij "beide", P3 de actiebalk
-  met voorbeeld op Toebehoren). Geen nieuwe SQL. Nieuw: `test-v121.js`.
-- **v122 staat live** (`e5ac52e`, 26-10; docs `7784ad3`; nagekeken):
-  **script 27** (alleen lezen + nummering, 🔴 akkoord Jan), het
-  back-upaccount niet in de keuzelijsten, kleine tekstfixes. Plus **los**:
-  de privé repository `glasopname-backup` (automatische back-up naar
-  Dropbox, niet versleuteld; taak **v3** van 26-10), met `INSTELLEN.md`.
-  26-10 even OneDrive geprobeerd: Jan is geen beheerder in Microsoft 365
-  (knop "Beheerderstoestemming" grijs), dus terug naar Dropbox. Back-upaccount:
-  `backup@glasopname.invalid` (bewust een adres dat nooit bestaat).
-- **De automatische back-up draait** (26-10, proefrun groen; Jan zag de
-  zip in Dropbox). Onderweg: eerst status 400 bij het koppelen (verkeerde
-  refresh_token), daarna "not permitted to access this endpoint" (de
-  rechten stonden er nog niet bij Allow; opnieuw gekoppeld). Volgende
-  versie van de taak: de foutmelding van Dropbox tonen bij een geweigerde
-  koppeling, en `actions/checkout@v5` (melding Node 20).
-- **Herinneren (Jan vroeg erom, 26-10)**: tweestapsverificatie op Dropbox
-  is **aan** (26-10), de **mail bij mislukken** ook (26-10). Nog:
-  tweestapsverificatie op **GitHub** ook **aan**, met passkey (26-10). Alles
-  rond de back-up is ingesteld; niets meer navragen. Was: de mail bij
-  mislukken instellen
-  (github.com/settings/notifications → System → Actions → Only notify for
-  failed workflows, e-mail). Elke ronde navragen tot het gedaan is.
-- In de repo staat nog een oud **`.DS_Store`** (al vóór de `.gitignore`
-  meegecommit; alleen mapnamen). Weghalen: `LEES-MIJ-EERST-v122-docs2.md`.
-- Alle SQL-scripts t/m **25** horen gedraaid te zijn; **26** hoort bij v120
-  (en dus ook bij v121).
-- De bestelmail (Edge Function `mail` + Resend) is **niet ingesteld**.
+- **v122 staat live** en is nagekeken (repo gelijk aan het pakket):
+  app `e5ac52e`, handleidingen `7784ad3` en `03376f4`. Alle SQL-scripts
+  **t/m 27** zijn gedraaid (26 en 27 bevestigd door Jan).
+- **De automatische back-up draait** sinds 26-10 (privé repo
+  `glasopname-backup`, taak v3, elke nacht 01:17 UTC naar de app-map in Jans
+  Dropbox; mail bij mislukken staat aan). Back-upaccount in Supabase:
+  `backup@glasopname.invalid` (alleen lezen; bewust een adres dat niet
+  bestaat). Wachtwoord wijzigen: `BEHEER.md` §8.
+- **Ingesteld door Jan (26-10)**: Site URL in Supabase (de herstellink
+  werkt), tweestapsverificatie op Dropbox en GitHub (met passkey),
+  `.gitignore` met `Claude outputs/` (sinds 24-10).
+- **Niet ingesteld**: de bestelmail (Edge Function `mail` + Resend). De
+  knop meldt dat de mailfunctie niet bereikbaar is; ‹Ja, verstuurd› legt
+  de bestelling wel vast.
+- Klein restje in de repo: een oud **`.DS_Store`** (alleen mapnamen, al vóór
+  de `.gitignore` gecommit). Jan mag hem weghalen (github.com → `.DS_Store` →
+  ⋯ → Delete file); geen haast.
 
-## Vorige sessie (20–22 oktober 2026)
+## Wacht op Jan / navragen
 
-- **Na v120 (22-10)**: Jan koos P3 (actiebalk; **later nog eens laten
-  herbeoordelen**), C1 blijft onzeker tot hij nameet, de neuslat: tekening
-  klopt (S + 9), kleinste met ≥ 5 mm ventilatie, in het zaagplan recht +
-  20 mm (scharniersponning), bij "beide" zo laten met een subtiele melding.
-  Alles in **v121**. Volgende grote stappen (Jan): tests bij elke push,
-  handleidingen nalezen, automatische back-up.
+1. **De wachtwoordproef in Safari** (v109): logt Jan op de Mac in, vraagt
+   Safari dan meteen "Wachtwoord bewaren?", zonder waarschuwing over een
+   onveilig formulier en met het e-mailadres al ingevuld? (Stap 2 in
+   `WIJZIGINGEN-v109.md`.) Ook op de iPhone.
+2. **P3 herbeoordelen** (Jan vroeg erom, 22-10): na een tijdje werken met
+   de actiebalk op Toebehoren vragen of die bevalt, en of P3b (hetzelfde bij
+   andere ruiten) of P1/P2/P4/P5 alsnog moet.
+3. **C1** (een glaslat): Jan meet na; dan `zeker: true` en de maat in
+   `latten.js`.
+4. **Op de iPad proberen**: "Hoe je het zelf controleert" in de nota's van
+   v120 en v121 (komma, 44 px, Terugzetten, back-up delen, de actiebalk).
+5. **Handleidingen**: op 22-10 door Claude nagelezen; Jan mag ze zelf
+   lezen en zeggen wat onduidelijk is.
+6. **Het webadres en het GitHub-account** (handover §9): herinneren zodra er
+   een site bijkomt op het account, bij een eigen domein of het
+   klantportaal, en als het lang blijft liggen.
 
-- **Grote proef van v119** (22-10): zeven agents (gebruikers op Mac en
-  iPad/iPhone, twee storingzoekers, UI, Toebehoren, beveiliging). Verslag:
-  `claude/REVIEW-v119.md` (projectkennis, niet openbaar). Jan koos per punt
-  (6 vragenrondes); alles is in **v120** verwerkt:
-  - invoer: komma in een maat → naar beneden + melding; aantal alleen 1–999;
-    vóór de bestellijst "Klopt dit?" bij glas < 100 mm, > 3210 × 6000,
-    aantal > 99, rooster/glasdikte;
-  - werk zonder bereik met twee tabbladen bleef niet altijd bewaard →
-    hersteld (🔴, akkoord Jan); dubbel besteld (twee apparaten vanaf
-    dezelfde stand) → luid gemeld + rode balk (🔴, akkoord Jan);
-    ingetrokken lijst telt niet mee in de nummering;
-  - import: kolomkoppen beter herkend, merk bestaat al → zelf kiezen
-    (1a/1b, bolletjes mee), Alles vervangen telt niet door, max pakket met
-    halve mm of tekst, lege cellen aan het eind, ✕;
-  - latten: vlak ook onderin buiten oranje (met neuslat-advies), A5 1 mm
-    te krap = nood, strook "vlak", **zaagplan + 1 reserve**, ⧉ neemt de
-    keuzes mee, ruiten aanvinken + vraag + Terugzetten, Enter, lengte < 1 m;
-  - pdf: kop met besteller + telefoon, contact op het werk, referentie;
-    opmerking en "na de laatste bestelling gewijzigd" op werkvloer/PDF invoer;
-  - scherm: 📷 Foto toevoegen, rood alleen hoofdknop/fouten, 44 px op een
-    aanraakscherm, ✕ met Terugzetten, selectie alleen op Invoer, en meer;
-  - beveiliging in de app en **script 26** (7 punten, akkoord Jan, met
-    controlevraag); **💾 Back-up maken** (handmatig, tijdelijk) en een
-    plan voor OneDrive (`BEHEER.md` §8).
-- v119 (Jans antwoorden, 22-10): vlak met kozijn (oranje), A5 = nood,
-  strook "beide", Alles exporteren met werkvloer-pdf.
-- v118 (Jans lijst na v117): PDF werkvloer, Bestellijst = de pdf, max
-  glaspakket ook op Invoer rood, Toebehoren per foto, ✕ op alles, band
-  buiten per ruit, 5 mm = 2 + 3.
-- v116/v117: originele foto's in Safari (🔴), max glaspakket, zaagplan als
-  tekening, bediening "standaard".
+## Volgende ronde (keuzes van Jan)
 
-## Wacht op Jan
-
-1. **v122 pushen** (`LEES-MIJ-EERST-v122.md`): eerst **script 27** in de
-   SQL Editor, dan de bestanden. Daarna de **automatische back-up**
-   instellen volgens `INSTELLEN.md` (privé repo `glasopname-backup`,
-   back-upaccount, Dropbox-app, 7 secrets, proefrun). Na de proefrun de
-   Dropbox-map laten zien / navragen of het groen was. Jan verwijdert de
-   half ingestelde app `Glasopname-backup` in Entra (advies 26-10).
-2. **Vragen**:
-   (a) **P3 herbeoordelen** (Jan vroeg erom, 22-10): na een tijdje werken
-   met de actiebalk vragen of het bevalt, en of P3b (zelfde probleem bij
-   andere ruiten) of P1/P2/P4/P5 alsnog moet;
-   (b) **C1**: Jan meet na; dan `zeker` en de maat in `latten.js`;
-   (c) het **webadres/account** (handover §9): herinneren bij een nieuwe
-   site op het account, een eigen domein of het klantportaal, en als het
-   lang blijft liggen.
-3. **Op de iPad proberen**: "Hoe je het zelf controleert" in de nota's van
-   v120 en v121 (komma, 44 px, Terugzetten, back-up delen, de balk).
-4. **Site URL in Supabase**: **gedaan** (Jan, 26-10).
-5. **De herstellink**: **werkt** (Jan, 26-10: "kreeg een link die werkt").
-   Het back-upaccount heeft geen mailbox: wachtwoord wijzigen met SQL
-   (`BEHEER.md` §8, "Wachtwoord van het back-upaccount wijzigen"; Jan wil
-   dat dit duidelijk vindbaar blijft).
-6. **De wachtwoordproef in Safari** (v109, stap 2 in `WIJZIGINGEN-v109.md`).
-7. **Handleidingen**: op 22-10 door Claude nagelezen tegen de code van v121 (BEHEER, OVERZICHT, DATAMODEL, ±90 punten verbeterd; Jan koos dit als stap). Jan mag ze nog zelf lezen; vragen welke onduidelijk zijn.
-8. **Instructievideo**: h03, h04, h05, h07 kloppen niet meer met v110;
-   Toebehoren, bediening, latten en bi-color zitten er nog niet in
-   (`claude/INSTRUCTIEVIDEO.md`).
-
-## Volgende ronde (keuze van Jan, 20-10)
-
-- **De rest van de controles** (v90 en v103; handover §11d punt 15 en 16).
-- **Jans antwoorden 22-10 (na het nalezen)**: **script 27 (🔴) akkoord**
-  voor (a) de nummering na samenvoegen gelijk aan de app en (b) een
-  **alleen-lezen** back-upaccount. Back-up: Jan wil eerst weten hoe de
-  Mac-route (of een andere pc) precies werkt; Mac staat vaak in slaap,
-  bijna nooit uit, meestal met wifi.
-- **Gekozen (22-10), na de push**: handleidingen nalezen (gedaan 22-10) ·
-  **automatische back-up** (gebouwd in v122: Dropbox via een privé repo). **Tests bij elke push (GitHub
-  Actions): bewust nog niet** (Jan, 22-10): de app verandert nog veel en
-  pushen moet snel blijven; testen gebeurt bij Claude. Opnieuw voorstellen
-  als de app stabiel is (dan alleen af en toe onderhoud of een bugfix). Het beheerscherm
-  keuzelijsten blijft op de lijst. Elke ronde noemen, met de stand.
-- **Bestelmail: de vraag over de adressen** komt terug zodra de mail
-  ingesteld wordt (handover §0 en §11e).
-- **Navragen**: wachtwoordproef (6: Safari "Wachtwoord bewaren?" zonder waarschuwing), nalezen (7).
-
-## Klein, kan mee in de volgende versie
-
-- (niets openstaand)
+- **De rest van de controles** van v90 en v103 (handover §11d punt 15 en 16).
+- **Kleine verbeteringen aan de back-uptaak** (bij de eerstvolgende keer dat
+  die repo toch open gaat): bij een geweigerde Dropbox-koppeling de uitleg
+  van Dropbox tonen (`error_description`), `actions/checkout@v5` (melding
+  over Node 20), en in `INSTELLEN.md` stap 3 nadrukkelijker "eerst Submit,
+  dan Allow". Komt er een tabel bij in de database: ook `backup.py`.
+- **Tests bij elke push (GitHub Actions): bewust nog niet** (Jan, 22-10):
+  pushen moet snel blijven zolang de app veel verandert. Opnieuw voorstellen
+  als de app stabiel is.
+- **Instructievideo** bijwerken: h03, h04, h05, h07 kloppen niet meer met
+  v110; Toebehoren, bediening, latten en bi-color ontbreken
+  (`claude/INSTRUCTIEVIDEO.md`).
 
 ## Groter, op de lijst (handover §11)
 
-Beheerscherm keuzelijsten (geparkeerd) ·
-tests draaibaar buiten Claudes omgeving / bij elke push · bestelmail
-instellen (Jan, later; dan eerst de vraag over de adressen) · rest van de
-controles van v90 en v103.
+Beheerscherm keuzelijsten (geparkeerd; herinneren als Jan een keuzelijst wil
+wijzigen) · bestelmail instellen (Jan, later; dan éérst de vraag over de
+adressen, handover §0 en §11e) · tests draaibaar buiten Claudes omgeving.
+
+## Vorige sessie (24–26 oktober 2026)
+
+- v121 en v122 gepusht en nagekeken; script 26 en 27 gedraaid.
+- Handleidingen nagelezen (22-10) en meegenomen in v122.
+- **Automatische back-up** gebouwd en ingericht. Eerst Dropbox (24-10), op
+  26-10 OneDrive geprobeerd (Jan is geen beheerder in Microsoft 365; de
+  knop "Beheerderstoestemming verlenen" was grijs), terug naar Dropbox
+  (taak v3, met de verbeteringen uit de OneDrive-versie). Bij het instellen
+  twee hobbels (verkeerde refresh_token; rechten nog niet gezet bij Allow),
+  opgelost. Details: handover §2 en §9.
 
 ## Waar staat wat
 
@@ -154,8 +82,11 @@ controles van v90 en v103.
 | regels voor Claude | `CLAUDE.md` |
 | hoe de app werkt | `OVERZICHT.md` |
 | database en rechten | `DATAMODEL.md` |
-| wat Jan doet | `BEHEER.md` |
+| wat Jan doet (ook de back-up) | `BEHEER.md` |
 | hoe we testen | `TESTEN.md` |
-| wat er per versie veranderde | `WIJZIGINGEN-vNN.md` (zip "niet-in-repo" en projectkennis, niet in de repo) |
+| glaslatten en sponning | `GLASLATTEN.md` |
+| wat er per versie veranderde | `WIJZIGINGEN-vNN.md` (projectkennis en zip "niet-in-repo", niet in de repo) |
 | waar we nu staan | dit bestand |
-| volledige geschiedenis, beslissingen, bugboek, beveiliging | `HANDOVER.md` in de projectkennis op claude.ai, en in de zip "niet-in-repo" (bewust **niet** in de openbare repo) |
+| snel weer op gang in een nieuwe sessie | `START-HIER.md` (projectkennis, niet in de repo) |
+| volledige geschiedenis, beslissingen, bugboek, beveiliging | `HANDOVER.md` (projectkennis en zip "niet-in-repo", bewust **niet** in de openbare repo) |
+| de automatische back-up | privé repo `glasopname-backup` (`INSTELLEN.md`), bronkopie in de projectkennis `claude/backup/` |

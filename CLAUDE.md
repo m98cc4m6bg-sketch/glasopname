@@ -9,6 +9,9 @@ Dit bestand bevat de **regels**. De uitleg staat elders; zie "Waar staat wat".
 
 ## Begin van een sessie
 
+0. Lees in de projectkennis op claude.ai **`claude/START-HIER.md`**: de
+   korte weg naar binnen (stand, werkwijze, testomgeving klaarzetten,
+   herinneringen). Daarna:
 1. Lees `STATUS.md`: wat er live staat, wat er wacht op Jan, wat er openstaat.
 2. Lees in de projectkennis op claude.ai `claude/HANDOVER.md` (de volledige
    geschiedenis, beslissingen, bugboek en beveiliging). Niet in de repo: die
@@ -410,7 +413,9 @@ Een feit staat op één plek; elders verwijs je ernaar.
   ook `TABELLEN`/`EXTRA` in `backup.py` bijwerken en `test_backup.py`
   draaien; lever die repo dan apart aan (zip `glasopname-backup.zip`). Het
   back-upaccount staat op `alleen_lezen` (script 27): nooit in de app
-  gebruiken; `glasGebruikers` laat het weg. Doel: Dropbox (app-map). Een
+  gebruiken; `glasGebruikers` laat het weg. Wachtwoord van dat account
+  wijzigen: SQL (`BEHEER.md` §8), **nooit** het account verwijderen. Doel:
+  Dropbox (app-map in Jans bestaande account; draait sinds 26-10-2026). Een
   OneDrive-versie bestaat (v2, in het archief van de handover), maar vraagt
   een Microsoft 365-beheerder; daar kan Jan zelf niet bij (26-10).
 * **Nummering van bestellingen** op twee plekken: `bestellingenSamenvoegen`
@@ -433,7 +438,7 @@ node test-index.js && node test-naslag.js && node test-cloudguard.js
 node test-herstel.js && node test-start.js && node test-import.js
 node test-slot.js && node test-offline.js && node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
-OUD=/tmp/live node test-overgang.js   # OUD = kopie van wat live staat (20-10-2026: v115, d0e094a); ook vanaf v98
+OUD=/tmp/live node test-overgang.js   # OUD = kopie van wat live staat (26-10-2026: v122, e5ac52e); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 

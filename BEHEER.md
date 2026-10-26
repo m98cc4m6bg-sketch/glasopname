@@ -1,8 +1,9 @@
 # Glasopname — beheerhandleiding
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
-Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 22 oktober 2026,
-bij v122 (automatische back-up, script 27).*
+Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 26 oktober 2026,
+bij v122 (automatische back-up, script 27; wachtwoord van het
+back-upaccount wijzigen, §8).*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -139,8 +140,11 @@ De knop **Wachtwoord vergeten?** op het inlogscherm zegt alleen: "Deze
 functie zit bewust niet in de app, vraag julian om een herstel link!"
 (sinds v109).
 
-**Eén keer instellen, anders werkt de link niet** — *stand 17-10-2026: nog
-niet gedaan; Claude vraagt ernaar tot je het bevestigt*:
+Het **back-upaccount** heeft geen echte mailbox: zijn wachtwoord wijzig je
+met één SQL-regel, zie §8, "Wachtwoord van het back-upaccount wijzigen".
+
+**Eén keer instellen, anders werkt de link niet** — *ingesteld op
+26-10-2026 (Jan); de herstellink werkt*:
 Supabase → **Authentication → URL Configuration**:
 - *Site URL*: `https://m98cc4m6bg-sketch.github.io/glasopname/`
 - *Redirect URLs*: hetzelfde adres. Geen `*` erin.
@@ -391,13 +395,14 @@ weg, dan eerst samen met Claude alle scripts opnieuw draaien (01–08 staan
 in de projectkennis) en de gebruikers opnieuw aanmaken, en pas daarna de
 zip terugzetten.
 
-### Automatische back-up naar OneDrive (v122, keuze Jan)
+### Automatische back-up naar Dropbox (v122, keuze Jan)
 
 Elke nacht maakt een GitHub-taak in een **aparte, privé repository**
-(`glasopname-backup`, niet deze openbare) een back-up in de map
-**`Glasopname-backup`** in Jans zakelijke **OneDrive** (@jelierbouw.nl; op
-26-10 gekozen in plaats van een los gratis Dropbox-account: meer ruimte, en
-de gegevens blijven binnen de eigen Microsoft 365-omgeving):
+(`glasopname-backup`, niet deze openbare) een back-up in Jans
+**Dropbox** (een bestaand account, 11 GB; de back-up staat in de app-map
+**Apps → <naam van de app>**). Draait sinds 26-10-2026. (Op 26-10 is
+OneDrive geprobeerd; daar moest een beheerder van Microsoft 365 toestemming
+geven. Jan koos daarna weer voor Dropbox.)
 - `gegevens/JJJJ-MM-DD_gegevens.zip`: dezelfde bestanden als de knop 💾,
   plus `logboek.json` en `mailadressen.json`. Bewaard: 30 dagen elke dag,
   tot ±3 maanden één per week, daarna één per maand;
@@ -406,21 +411,53 @@ de gegevens blijven binnen de eigen Microsoft 365-omgeving):
 - `LAATSTE-BACKUP.txt`: wanneer, en wat erin zat.
 
 De taak logt in met een **back-upaccount dat alleen kan lezen** (script 27;
-in Supabase `backup@jelierbouw.nl`, `alleen_lezen = true`). Het staat niet
-in de keuzelijsten van de app; log er nooit mee in de app in. Bij
-Microsoft schrijft de taak als een eigen **app** (`Glasopname-backup` in
-entra.microsoft.com) met alleen de toestemming
-`Files.SelectedOperations.Selected`: die kan alleen in de ene map die Jan
-met de app heeft gedeeld, nergens anders. De sleutels staan als *secrets*
-in de privé-repository, niet in bestanden (keuze Jan: de zips zelf zijn
-niet versleuteld).
+in Supabase `backup@glasopname.invalid`, `alleen_lezen = true`; bewust
+een adres dat nooit bestaat, zodat niemand via "wachtwoord vergeten" het
+account kan overnemen). Het staat niet
+in de keuzelijsten van de app; log er nooit mee in de app in. De
+Dropbox-koppeling kan alleen in zijn eigen app-map. De sleutels staan als
+*secrets* in de privé-repository, niet in bestanden en niet versleuteld
+(keuze Jan: de zips zelf zijn niet versleuteld).
 
-Mislukt een nacht, dan mailt GitHub je. **Eén keer per maand**: kijk in
-OneDrive naar de datum in `LAATSTE-BACKUP.txt`. **De app-sleutel verloopt
-na 24 maanden**: een maand ervoor vernieuwen (staat in je agenda; uitleg in
-`INSTELLEN.md`, Onderhoud). De map `Glasopname-backup` niet verplaatsen,
-hernoemen of weggooien. Instellen, onderhoud en stoppen: `INSTELLEN.md` in
-de repository `glasopname-backup`.
+Mislukt een nacht, dan mailt GitHub je (github.com → je foto → Settings →
+Notifications → System → Actions → "Only notify for failed workflows",
+e-mail). **Eén keer per maand**: kijk in Dropbox naar de datum in
+`LAATSTE-BACKUP.txt`. **Eén keer per jaar**: kijk naar de ruimte in
+Dropbox (foto's worden in de back-up nooit weggegooid, dus het groeit).
+Zet **tweestapsverificatie** aan op Dropbox én GitHub: wie daar binnenkomt,
+kan de klantgegevens in de back-up lezen. Instellen, onderhoud en stoppen:
+`INSTELLEN.md` in de repository `glasopname-backup`.
+
+#### Wachtwoord van het back-upaccount wijzigen
+
+Het back-upaccount (`backup@glasopname.invalid`) heeft bewust een adres dat
+niet bestaat. Een herstelmail ("Send password recovery") komt dus nergens
+aan. **Niet het account verwijderen en opnieuw aanmaken**: dan krijgt het
+een nieuw nummer, is "alleen lezen" weg en blijft de oude regel in de
+gebruikerslijst hangen. Doe het zo:
+
+1. Supabase → **SQL Editor** → **New query**. Plak dit, met je nieuwe
+   wachtwoord op de plek van `NIEUW-WACHTWOORD` (lang en willekeurig, uit
+   je wachtwoordbeheer):
+   ```sql
+   update auth.users
+      set encrypted_password = extensions.crypt('NIEUW-WACHTWOORD', extensions.gen_salt('bf', 10))
+    where email = 'backup@glasopname.invalid';
+   ```
+   **Run**. Goed is: "Success … 1 row affected". Staat er 0 rows: het
+   adres is verkeerd getypt; er is dan niets veranderd.
+2. github.com → `glasopname-backup` → **Settings → Secrets and variables →
+   Actions** → `BACKUP_WACHTWOORD` → potloodje → het nieuwe wachtwoord →
+   **Update secret**.
+3. **Actions → Back-up naar Dropbox → Run workflow**. Groen = het nieuwe
+   wachtwoord werkt. Rood met "Inloggen bij Supabase mislukt": stap 1 en 2
+   hebben niet hetzelfde wachtwoord; doe ze opnieuw.
+4. Gooi de query weg in de SQL Editor (in de lijst links: **⋯ → Delete**),
+   anders blijft het wachtwoord in je geschiedenis staan.
+
+Dezelfde regel werkt ook voor een collega zonder werkende mailbox (met
+zijn adres in plaats van `backup@glasopname.invalid`); voor wie wél mail
+krijgt, is de herstellink (§3.2) beter: dan kiest hij zelf zijn wachtwoord.
 
 De knop 💾 in de app blijft, voor een extra kopie in OneDrive of vóór iets
 groots.
@@ -432,7 +469,7 @@ Wat er wél is, en wat het níet is:
 | **prullenbak** (30 dagen) | een project per ongeluk weggegooid | een verloren database |
 | **logboek** (momentopnames per project) | een verkeerde wijziging terugzoeken | foto's; een verloren database |
 | **apart bewaard** (zie §9) | werk dat niet over een ander heen mocht | — |
-| **automatische back-up** (OneDrive, elke nacht) | een verloren database of opslag; ook oudere standen (bewaarschema) | wat er sinds vannacht veranderde |
+| **automatische back-up** (Dropbox, elke nacht) | een verloren database of opslag; ook oudere standen (bewaarschema) | wat er sinds vannacht veranderde |
 | **💾 back-up** (zip) | een verloren database, als de zip recent is | wat er na de laatste back-up veranderde; het logboek |
 | **de pdf's** (bestellijst, PDF invoer, PDF werkvloer) | wat je zelf bewaart, op papier of in OneDrive | alles daarna |
 
@@ -485,11 +522,12 @@ Daarna:
 
 **Vragen die je kunt verwachten na v122**
 
-- *"Mail van GitHub: Back-up naar OneDrive failed."* Open de mail →
+- *"Mail van GitHub: Back-up naar Dropbox failed."* Open de mail →
   de run → *Back-up maken*: daar staat in gewone woorden wat er misging
   (bijv. "Inloggen bij Supabase mislukt"). Één foto die niet lukte, komt de
-  nacht erna vanzelf. Staat er "VERLOPEN": de app-sleutel vernieuwen
-  (`INSTELLEN.md`, Onderhoud). Blijft het mislukken: stuur het Claude.
+  nacht erna vanzelf. Staat er "Dropbox is VOL": Dropbox Plus nemen of
+  Claude vragen de back-up te verhuizen (`INSTELLEN.md`, Onderhoud). Blijft
+  het mislukken: stuur het Claude.
 - *"Wie is 'backup' in Supabase?"* Het back-upaccount (alleen lezen, §8).
   Niet verwijderen; uitzetten = de workflow uitzetten (`INSTELLEN.md`).
 - *"De lijst van leverancier heette '2e', in de app nu ook."* Klopt sinds

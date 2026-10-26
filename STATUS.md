@@ -21,17 +21,29 @@ bij v122.*
 - **v121 staat live** (commit `97aa1d4`, 22-10, rechtstreeks vanaf v117; nagekeken: alle 39 bestanden gelijk aan het pakket; `.gitignore` met `Claude outputs/` stond toen nog klaar om te committen). **Bevat v120**: Jans antwoorden na v120
   (neuslat recht + 20 mm, rustige melding bij "beide", P3 de actiebalk
   met voorbeeld op Toebehoren). Geen nieuwe SQL. Nieuw: `test-v121.js`.
-- **v122 staat live** (commit `e5ac52e`, 26-10; nagekeken: gelijk aan het
-  pakket): **script 27** (alleen lezen + nummering, 🔴 akkoord Jan), het
+- **v122 staat live** (`e5ac52e`, 26-10; docs `7784ad3`; nagekeken):
+  **script 27** (alleen lezen + nummering, 🔴 akkoord Jan), het
   back-upaccount niet in de keuzelijsten, kleine tekstfixes. Plus **los**:
-  de privé repository `glasopname-backup` (automatische back-up, niet
-  versleuteld), met `INSTELLEN.md`. **26-10: van Dropbox naar OneDrive**
-  (keuze Jan): de map `Glasopname-backup` in zijn zakelijke OneDrive, via
-  een Microsoft-app met alleen `Files.SelectedOperations.Selected`. Of Jan
-  beheerder is, blijkt bij stap 2.5 (knop "Beheerderstoestemming").
+  de privé repository `glasopname-backup` (automatische back-up naar
+  Dropbox, niet versleuteld; taak **v3** van 26-10), met `INSTELLEN.md`.
+  26-10 even OneDrive geprobeerd: Jan is geen beheerder in Microsoft 365
+  (knop "Beheerderstoestemming" grijs), dus terug naar Dropbox. Back-upaccount:
+  `backup@glasopname.invalid` (bewust een adres dat nooit bestaat).
+- **De automatische back-up draait** (26-10, proefrun groen; Jan zag de
+  zip in Dropbox). Onderweg: eerst status 400 bij het koppelen (verkeerde
+  refresh_token), daarna "not permitted to access this endpoint" (de
+  rechten stonden er nog niet bij Allow; opnieuw gekoppeld). Volgende
+  versie van de taak: de foutmelding van Dropbox tonen bij een geweigerde
+  koppeling, en `actions/checkout@v5` (melding Node 20).
+- **Herinneren (Jan vroeg erom, 26-10)**: tweestapsverificatie op Dropbox
+  is **aan** (26-10), de **mail bij mislukken** ook (26-10). Nog:
+  tweestapsverificatie op **GitHub** ook **aan**, met passkey (26-10). Alles
+  rond de back-up is ingesteld; niets meer navragen. Was: de mail bij
+  mislukken instellen
+  (github.com/settings/notifications → System → Actions → Only notify for
+  failed workflows, e-mail). Elke ronde navragen tot het gedaan is.
 - In de repo staat nog een oud **`.DS_Store`** (al vóór de `.gitignore`
-  meegecommit; alleen mapnamen). Weghalen staat in het docs-pakket van
-  26-10.
+  meegecommit; alleen mapnamen). Weghalen: `LEES-MIJ-EERST-v122-docs2.md`.
 - Alle SQL-scripts t/m **25** horen gedraaid te zijn; **26** hoort bij v120
   (en dus ook bij v121).
 - De bestelmail (Edge Function `mail` + Resend) is **niet ingesteld**.
@@ -82,12 +94,9 @@ bij v122.*
 1. **v122 pushen** (`LEES-MIJ-EERST-v122.md`): eerst **script 27** in de
    SQL Editor, dan de bestanden. Daarna de **automatische back-up**
    instellen volgens `INSTELLEN.md` (privé repo `glasopname-backup`,
-   back-upaccount, Microsoft-app + beheerderstoestemming, map delen via
-   de Graph Explorer, 9 secrets, proefrun). Na de proefrun navragen of
-   het groen was en wat er in de map staat. **Nooit getest tegen de echte
-   Microsoft**: het delen van één map met een app
-   (`Files.SelectedOperations.Selected`) is gedocumenteerd, maar de
-   proefrun is de eerste echte keer.
+   back-upaccount, Dropbox-app, 7 secrets, proefrun). Na de proefrun de
+   Dropbox-map laten zien / navragen of het groen was. Jan verwijdert de
+   half ingestelde app `Glasopname-backup` in Entra (advies 26-10).
 2. **Vragen**:
    (a) **P3 herbeoordelen** (Jan vroeg erom, 22-10): na een tijdje werken
    met de actiebalk vragen of het bevalt, en of P3b (zelfde probleem bij
@@ -98,9 +107,11 @@ bij v122.*
    lang blijft liggen.
 3. **Op de iPad proberen**: "Hoe je het zelf controleert" in de nota's van
    v120 en v121 (komma, 44 px, Terugzetten, back-up delen, de balk).
-4. **Site URL in Supabase** (Authentication → URL Configuration). **Tot Jan
-   het bevestigt: uitgaan van "nog niet gedaan"**. Steeds navragen.
-5. **De herstellink proberen** (na 4): stap 4 in `WIJZIGINGEN-v109.md`.
+4. **Site URL in Supabase**: **gedaan** (Jan, 26-10).
+5. **De herstellink**: **werkt** (Jan, 26-10: "kreeg een link die werkt").
+   Het back-upaccount heeft geen mailbox: wachtwoord wijzigen met SQL
+   (`BEHEER.md` §8, "Wachtwoord van het back-upaccount wijzigen"; Jan wil
+   dat dit duidelijk vindbaar blijft).
 6. **De wachtwoordproef in Safari** (v109, stap 2 in `WIJZIGINGEN-v109.md`).
 7. **Handleidingen**: op 22-10 door Claude nagelezen tegen de code van v121 (BEHEER, OVERZICHT, DATAMODEL, ±90 punten verbeterd; Jan koos dit als stap). Jan mag ze nog zelf lezen; vragen welke onduidelijk zijn.
 8. **Instructievideo**: h03, h04, h05, h07 kloppen niet meer met v110;
@@ -116,15 +127,14 @@ bij v122.*
   Mac-route (of een andere pc) precies werkt; Mac staat vaak in slaap,
   bijna nooit uit, meestal met wifi.
 - **Gekozen (22-10), na de push**: handleidingen nalezen (gedaan 22-10) ·
-  **automatische back-up** (gebouwd in v122 via een privé repo; 26-10
-  omgezet naar OneDrive). **Tests bij elke push (GitHub
+  **automatische back-up** (gebouwd in v122: Dropbox via een privé repo). **Tests bij elke push (GitHub
   Actions): bewust nog niet** (Jan, 22-10): de app verandert nog veel en
   pushen moet snel blijven; testen gebeurt bij Claude. Opnieuw voorstellen
   als de app stabiel is (dan alleen af en toe onderhoud of een bugfix). Het beheerscherm
   keuzelijsten blijft op de lijst. Elke ronde noemen, met de stand.
 - **Bestelmail: de vraag over de adressen** komt terug zodra de mail
   ingesteld wordt (handover §0 en §11e).
-- **Navragen**: Site URL (punt 4), wachtwoordproef (6), nalezen (7).
+- **Navragen**: wachtwoordproef (6: Safari "Wachtwoord bewaren?" zonder waarschuwing), nalezen (7).
 
 ## Klein, kan mee in de volgende versie
 
@@ -132,7 +142,7 @@ bij v122.*
 
 ## Groter, op de lijst (handover §11)
 
-Automatische back-up naar OneDrive (handmatig 💾 is er sinds v120) · beheerscherm keuzelijsten (geparkeerd) ·
+Beheerscherm keuzelijsten (geparkeerd) ·
 tests draaibaar buiten Claudes omgeving / bij elke push · bestelmail
 instellen (Jan, later; dan eerst de vraag over de adressen) · rest van de
 controles van v90 en v103.

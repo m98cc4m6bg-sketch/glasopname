@@ -700,16 +700,13 @@ harde eis wint.
     niets schrijven, ook niet via `glas_bewerken`/`glas_bestellingen_erbij`;
     nummering 1, 2 (ingetrokken), 2; terugdraaien), 8 mutaties; in de zip
     "niet-in-repo".
-  - De back-uptaak (`backup.py`, privé repo; 26-10 van Dropbox naar
-    OneDrive): `test_backup.py` met een nagebootste Supabase én Microsoft
-    (inloggen als app met AADSTS-foutcodes, Graph met paden binnen één
-    map, children met @odata.nextLink, mappen maken met 409, upload-sessie
-    in delen van een veelvoud van 320 KiB zonder sleutel naar het
-    upload-adres, toegang die halverwege verloopt bij Supabase én
-    Microsoft, opruimen dat niet mag): 38 controles, 17 mutaties. De
-    namaak is strenger dan Microsoft: zetten in een map die er nog niet
-    is, mag niet. Niet getest: de echte Supabase, Microsoft en GitHub
-    Actions, en of het delen van één map met een app precies zo werkt.
+  - De back-uptaak (`backup.py` v3, privé repo): `test_backup.py` met een
+    nagebootste Supabase én Dropbox (inloggen, bladzijden, ook als Supabase
+    minder per keer geeft; opslag-lijst met mappen; Supabase-toegang die
+    halverwege verloopt; Dropbox list/continue, 409 not_found, 150 MB-grens
+    en uploaden in delen, Dropbox vol, opruimen dat niet mag): 34
+    controles, 13 mutaties. Niet getest: de echte Supabase, Dropbox en
+    GitHub Actions.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

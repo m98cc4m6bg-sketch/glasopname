@@ -1012,10 +1012,10 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await naarToebehoren(page);
     m = await page.evaluate(() => [...document.querySelectorAll('.tb-tabel [data-sleutel^="olat-"], .tb-tabel select.tb-zijde-sel, #tbAlleOnderlat')].map(s => s.disabled));
     check('Toebehoren: onderlat en zijde per ruit staan uit', m.length >= 7 && m.every(Boolean), JSON.stringify(m));
-    await page.evaluate(() => { toebehorenOnderlat(rijen[1].id, 'C1'); });
+    await page.evaluate(() => { latOnderKies(rijen[1].id, 'C1'); });   // v123: was toebehorenOnderlat (weg)
     await wacht(500);
     m = await page.evaluate(() => JSON.parse(JSON.stringify(GlasLatten.ruit(rijen[1]))));
-    check('toebehorenOnderlat weigert', m.onderlat === undefined, JSON.stringify(m));
+    check('latOnderKies weigert', m.onderlat === undefined, JSON.stringify(m));
     await sluitMeldingen(page);
     await page.click('.tb-inst-kop'); await wacht(200);   // de instellingen open
     m = await page.evaluate(() => { toebehorenKeuze('standaardLat', 'B13');

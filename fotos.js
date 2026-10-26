@@ -212,6 +212,39 @@
            Math.random().toString(36).slice(2, 8) + '.' + (extensie || 'jpg');
   }
 
+  /* ─── een foto die nog verwerkt wordt (v123) ─────────────────
+     Uit de controle van v90: verkleinen kan op een iPad een paar seconden
+     duren. Opende je intussen een ander project, dan kwam de foto in dát
+     project terecht. Nu:
+      - telt de app hoeveel foto's er nog verwerkt worden (glasFotoBezig);
+        cloud.js wacht daarop vóór er een ander project opent;
+      - kijkt elke stap of het project nog hetzelfde is (zelfdeProject); zo
+        niet, dan stopt hij met een melding en komt de foto nergens anders
+        in (het bestand zelf staat dan nog in je fotobibliotheek). */
+  var bezigTeller = 0;
+  window.glasFotoBezig = function () { return bezigTeller > 0; };
+  // Hoogstens 2 minuten "bezig" per foto: hangt er iets (bijv. de opslag
+  // van Safari na het hervatten van de app), dan houdt dat het wisselen van
+  // project niet voor altijd op. Komt hij daarna nog, dan houdt bijProject
+  // hem uit een ander project (controle v123).
+  var BEZIG_MAX_MS = 120000;
+  function metBezig(belofte) {
+    bezigTeller++;
+    var klaar = false;
+    var af = function () { if (klaar) return; klaar = true; bezigTeller--; };
+    var klok = setTimeout(af, BEZIG_MAX_MS);
+    return Promise.resolve(belofte).then(function (x) { clearTimeout(klok); af(); return x; },
+                                         function (e) { clearTimeout(klok); af(); throw e; });
+  }
+  function zelfdeProject(pid) { return (window.glasProjectId || null) === (pid || null); }
+  function bijProject(pid) {
+    if (zelfdeProject(pid)) return;
+    var e = new Error('er is intussen een ander project geopend, dus de foto is niet toegevoegd. ' +
+                      'Open het project opnieuw en voeg hem nog een keer toe.');
+    e.anderProject = true;
+    throw e;
+  }
+
   function rechtstreeks(pad, blob, type) {
     var sb = sbClient();
     if (!sb) return Promise.reject(new Error('geen verbinding met de cloud'));
@@ -299,8 +332,12 @@
   // (rechtstreeks uploaden) kan een groot origineel even duren, en daar
   // hoeft niemand op te wachten. Is de foto intussen vervangen, dan hoort
   // dit origineel er niet meer bij.
-  function origineelErbij(file, fotoId, pad, opnieuwTonen) {
+  function origineelErbij(file, fotoId, pad, opnieuwTonen, pid) {
+    // v123: niet meer bezig met dit project? Dan het origineel niet onder
+    // het nieuwe project bewaren (nieuwPad gebruikt het open project).
+    if (pid !== undefined && !zelfdeProject(pid)) return Promise.resolve();
     return bewaarOrigineel(file).then(function (o) {
+      if (pid !== undefined && !zelfdeProject(pid)) return;
       var f = fotos.find(function (x) { return x.id === fotoId; });
       if (!f || f.pad !== pad) return;
       if (!o) {
@@ -434,8 +471,9 @@
     var groep = tekeningGroep;
     tekeningGroep = null;
     var meer = pdf.numPages > 1;
+    var pid = window.glasProjectId;     // v123
 
-    return nummers.reduce(function (rij, nr, i) {
+    return metBezig(nummers.reduce(function (rij, nr, i) {
       return rij.then(function () {
         melding('Pagina ' + nr + ' omzetten… (' + (i + 1) + ' van ' + nummers.length + ')');
         return pdf.getPage(nr).then(function (p) {
@@ -460,10 +498,10 @@
           });
         }).then(function (res) {
           // Alleen de eerste pagina mag in een bestaande groep landen.
-          return zetWeg(res, i === 0 ? groep : null, res.titel, 'tekening');
+          return zetWeg(res, i === 0 ? groep : null, res.titel, 'tekening', null, pid);
         });
       });
-    }, Promise.resolve()).then(function () {
+    }, Promise.resolve())).then(function () {
       melding('');
       tekeningPdf = null;
     }).catch(function (e) {
@@ -474,7 +512,8 @@
 
   function verwerkAfbeelding(file, groep, titel) {
     melding('Afbeelding verkleinen…');
-    verklein(file).then(function (res) { return zetWeg(res, groep, titel, 'tekening'); })
+    var pid = window.glasProjectId;
+    metBezig(verklein(file).then(function (res) { return zetWeg(res, groep, titel, 'tekening', null, pid); }))
       .catch(function (e) { melding('Mislukt: ' + e.message, true); });
   }
 
@@ -487,11 +526,14 @@
   }
   window.soortNaam = soortNaam;
 
-  function zetWeg(res, groep, titel, bron, origineel) {
+  // pid (v123): het project waarvoor de afbeelding gekozen werd.
+  function zetWeg(res, groep, titel, bron, origineel, pid) {
+    if (pid !== undefined) bijProject(pid);
     var pad = nieuwPad('', 'jpg');
     melding('Opslaan… (' + Math.round(res.blob.size / 1024) + ' kB)');
     return bewaarBestand(pad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
       .then(function () {
+        if (pid !== undefined) bijProject(pid);
         var bestaand = groep ? fotoVan(groep) : null;
         if (bestaand) {
           bestaand.pad = pad;
@@ -534,11 +576,14 @@
     var nietKlaar = kanBewaren();
     if (nietKlaar) { leverMelding(nietKlaar, true); return; }
     leverMelding('Foto verkleinen…');
-    verklein(file).then(function (res) {
+    var pid = window.glasProjectId;     // v123
+    metBezig(verklein(file).then(function (res) {
+      bijProject(pid);
       var pad = nieuwPad('lever-', 'jpg');
       leverMelding('Opslaan…');
       return bewaarBestand(pad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
         .then(function () {
+          bijProject(pid);
           var bestaand = window.leverFoto();
           if (bestaand) {
             bestaand.pad = pad; bestaand.breedte = res.breedte; bestaand.hoogte = res.hoogte;
@@ -555,10 +600,10 @@
           opslaan();
           renderLeverFoto();
           leverMelding('');
-          return origineelErbij(file, bestaand.id, pad, renderLeverFoto);
+          return origineelErbij(file, bestaand.id, pad, renderLeverFoto, pid);
         });
-    }).catch(function (e) {
-      (e && e.heic ? console.warn : console.error)('[leverfoto]', e);
+    })).catch(function (e) {
+      (e && (e.heic || e.anderProject) ? console.warn : console.error)('[leverfoto]', e);
       leverMelding('Mislukt: ' + e.message, true);
     });
   };
@@ -633,11 +678,14 @@
     var nietKlaar = kanBewaren();
     if (nietKlaar) { melding(nietKlaar, true); return; }
     melding('Foto verkleinen…');
-    verklein(file).then(function (res) {
+    var pid = window.glasProjectId;     // v123
+    metBezig(verklein(file).then(function (res) {
+      bijProject(pid);
       var pad = nieuwPad('', 'jpg');
       melding('Opslaan… (' + Math.round(res.blob.size / 1024) + ' kB)');
       return bewaarBestand(pad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
         .then(function () {
+          bijProject(pid);
           var bestaand = groep ? fotoVan(groep) : null;
           if (bestaand) {
             // Nieuwe foto in een groep die zijn foto kwijt was: de ruiten
@@ -660,10 +708,10 @@
           if (bestaand && rijenVan(bestaand.id).length) {
             setTimeout(function () { fotoAanwijzen(bestaand.id); }, 300);
           }
-          return origineelErbij(file, doel.id, pad, renderFotos);
+          return origineelErbij(file, doel.id, pad, renderFotos, pid);
         });
-    }).catch(function (e) {
-      (e && e.heic ? console.warn : console.error)('[foto] niet toegevoegd', e);
+    })).catch(function (e) {
+      (e && (e.heic || e.anderProject) ? console.warn : console.error)('[foto] niet toegevoegd', e);
       melding('Mislukt: ' + e.message, true);
     });
   };
@@ -1154,16 +1202,27 @@
   // het slepen van bolletjes, het tekenen en de pdf nergens rekening te
   // houden met een draaistand — alles blijft gewoon rechtop rekenen.
 
+  // v123 (controle v90): twee keer snel op ↻ startte twee keer draaien
+  // vanaf dezelfde foto: de foto draaide een kwartslag, de bolletjes een
+  // halve slag. Nu wacht een tweede tik tot de eerste klaar is.
+  var draaitNu = {};
   window.fotoDraaien = function (fotoId) {
     var foto = fotoVan(fotoId);
     if (!foto || !foto.pad) return;
+    if (draaitNu[fotoId]) { melding('Even geduld: de foto wordt nog gedraaid.'); return; }
     if (!window.glasWachtrij && !sbClient()) { melding('Draaien kan alleen met internet.', true); return; }
 
     melding('Foto draaien…');
+    var mijnBeurt = {};
+    draaitNu[fotoId] = mijnBeurt;
+    var vrij = function () { if (draaitNu[fotoId] === mijnBeurt) delete draaitNu[fotoId]; };
+    setTimeout(vrij, BEZIG_MAX_MS);   // nooit voor altijd vast
+    var pid = window.glasProjectId;
+    var vanPad = foto.pad;
     // Uit de wachtrij of uit de cloud: ook een foto die nog niet geüpload
     // is, kan nu gedraaid worden (v93). Het origineel draait niet mee; dat
     // blijft zoals het van de camera kwam.
-    window.fotoBlob(foto.pad).then(function (blob) {
+    metBezig(window.fotoBlob(foto.pad).then(function (blob) {
       if (!blob) throw new Error('foto niet beschikbaar');
       return new Promise(function (ok, fout) {
         var img = new Image();
@@ -1187,11 +1246,17 @@
         img.src = tijdelijk;
       });
     }).then(function (res) {
+      bijProject(pid);
       var oudPad = foto.pad;
       var draaiPad = nieuwPad('', 'jpg');
       melding('Opslaan…');
       return bewaarBestand(draaiPad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
         .then(function () {
+          bijProject(pid);
+          // De foto is intussen vervangen (of een collega's stand kwam
+          // binnen): dan niet draaien op iets anders dan wat we lazen.
+          foto = fotoVan(fotoId);
+          if (!foto || foto.pad !== vanPad) { melding('De foto is intussen veranderd; niet gedraaid.', true); return; }
           if (window.bewaarStap) bewaarStap('Foto gedraaid');
           draaiCoordinaten(foto);
           foto.pad = draaiPad;
@@ -1209,10 +1274,10 @@
           if (foto.soort === 'lever' && window.renderLeverFoto) renderLeverFoto();
           melding('');
         });
-    }).catch(function (e) {
+    })).catch(function (e) {
       console.error('[foto] draaien mislukt', e);
       melding('Draaien mislukt: ' + e.message, true);
-    });
+    }).then(vrij);
   };
 
   // Een punt (x, y) op de oude foto komt na een kwartslag met de klok mee
@@ -1227,12 +1292,22 @@
     if (!Array.isArray(foto.inkt) || !foto.inkt.length) return;
     var vbOud = Math.round(1000 * (foto.hoogte || 3) / (foto.breedte || 4)) || 750;
     var vbNieuw = Math.round(1000 * (foto.breedte || 4) / (foto.hoogte || 3)) || 750;
+    var draai = function (p) {
+      var nx = p[0] / 1000, ny = p[1] / vbOud;
+      return [Math.round((1 - ny) * 1000 * 10) / 10,
+              Math.round(nx * vbNieuw * 10) / 10];
+    };
     foto.inkt.forEach(function (s) {
-      s.p = s.p.map(function (p) {
-        var nx = p[0] / 1000, ny = p[1] / vbOud;
-        return [Math.round((1 - ny) * 1000 * 10) / 10,
-                Math.round(nx * vbNieuw * 10) / 10];
-      });
+      // v123 (controle v90): een tekstvak blijft rechtop staan; p[0] is zijn
+      // linkerbovenhoek. Die hoek draaien zette het vak naast de plek waar de
+      // tekst hoorde. Nu draait het midden van het vak mee, en komt het vak
+      // daar met dezelfde maat omheen.
+      if (s.t === 'tekst' && s.p && s.p[0] && s.w && s.h) {
+        var m = draai([s.p[0][0] + s.w / 2, s.p[0][1] + s.h / 2]);
+        s.p = [[Math.round((m[0] - s.w / 2) * 10) / 10, Math.round((m[1] - s.h / 2) * 10) / 10]].concat(s.p.slice(1).map(draai));
+        return;
+      }
+      s.p = s.p.map(draai);
     });
   }
 

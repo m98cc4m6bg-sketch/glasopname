@@ -2,8 +2,9 @@
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
 Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 26 oktober 2026,
-bij v122 (automatische back-up, script 27; wachtwoord van het
-back-upaccount wijzigen, §8).*
+bij v123 (script 28 en 29, §4; "Apart bewaren en doorgaan" en uitloggen,
+§9; taken van een oud-collega, §3.3). Daarvoor v122: automatische back-up,
+script 27, wachtwoord van het back-upaccount wijzigen (§8).*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -210,16 +211,52 @@ op zijn apparaat staat, blijft daar: vraag een werkapparaat terug. Zijn
 naam blijft bij zijn werk en taken staan. Terug in dienst: stap 4 met
 `true`.
 
+Stap 1 vergeten? Sinds v123 staat bij elke open taak van een oud-collega in
+het project (Project info → Taken) het label **oud-collega**, en bij een taak
+zonder eigenaar **zonder eigenaar**. Kies dan in de keuzelijst een collega.
+Op het startscherm staan zulke taken niet (keuze Jan, 26-10-2026).
+
 ## 4. De SQL-scripts
 
-Alle scripts staan genummerd in de repo (`09_…` t/m `26_…`; 01 t/m 08 alleen in
-de projectkennis). **01 t/m 26 zijn gedraaid** (03 was optioneel; 26 op
-22-10-2026). **27 hoort bij v122** (alleen lezen en nummering, hieronder).
+Alle scripts staan genummerd in de repo (`09_…` t/m `29_…`; 01 t/m 08 alleen in
+de projectkennis). **01 t/m 27 zijn gedraaid** (03 was optioneel; 26 op
+22-10-2026, 27 bij v122). **28 en 29 horen bij v123** (hieronder):
+eerst 28, dan 29, dan pas de bestanden van v123 in GitHub zetten.
 
 Komt er een nieuw script bij, dan staat dat bovenaan de nota en in
 `LEES-MIJ-EERST-vNN.md`. **Draai een oud script niet opnieuw** zonder het
-Claude te vragen: een ouder script zet zijn eigen regels terug, en dan moet
-script 26 daarna opnieuw.
+Claude te vragen: een ouder script zet zijn eigen regels terug, en dan moeten
+de scripts 26, 27 en 28 daarna opnieuw (in die volgorde).
+
+### Script 28: controles op nummers en versie (v123)
+
+Wat het doet staat bovenin het script. Kort: de database controleert de
+nummers van ruiten, foto's en bolletjes nu volledig (de app zet ze bij het
+openen al recht), het versienummer van de app heeft ook bij een nieuw
+project een grens, en de ruimtemeter op het startscherm antwoordt alleen
+aan collega's op actief. Gewone collega's merken niets. Mag vaker gedraaid
+worden.
+
+**Stopt het script** met *"Script gestopt; er is niets veranderd. … project(en)
+hebben nummers die de nieuwe controle niet haalt: …"*: dan staat er een oud
+project in de database met een vreemd nummer. Open de genoemde projecten
+één keer in de app (v123 zet het recht en slaat op) en draai het script
+opnieuw. Het script is één geheel: bij die stop is er echt niets veranderd.
+Zegt de SQL Editor daarna "current transaction is aborted", draai dan eerst
+alleen `rollback;` en daarna het script opnieuw.
+
+Controle na het draaien: onderaan staan drie regels met **ja**.
+Terugdraaien (alleen als er na het script iets niet meer werkt):
+`28_terug.sql` (zip "niet-in-repo" van v123 en de projectkennis).
+
+### Script 29: zoeken (v123)
+
+Zoeken op het startscherm vindt dan ook de **klantnaam**, werkt **zonder
+accenten** ("eenhoorn" vindt "Éénhoorn") en met **meer woorden** in
+willekeurige volgorde ("verhoef dordrecht"). Het script zet de standaard
+uitbreiding `unaccent` van Supabase aan en maakt een zoekfunctie; aan de
+gegevens verandert niets. Zonder script 29 zoekt de app zoals eerst, plus de
+klantnaam. Terugdraaien staat bovenin het script (één regel).
 
 Controle of script 26 gedraaid is (één regel = ja):
 
@@ -496,6 +533,18 @@ de lijst: *Klaver (apart bewaard 16-10 15:56 - julian, iPhone)*. De app voegt
 het niet zelf samen. Iemand moet het openen, vergelijken, wat nodig is
 overnemen, en het daarna weggooien (🗑 in de projectenlijst).
 
+Sinds v123 gebeurt dat ook als iemand werk heeft dat nog niet op de server
+staat (geen bereik) en toch een ander project opent, teruggaat naar het
+startscherm of uitlogt: het venster *Nog niet opgeslagen* heeft de knop
+**‹Apart bewaren en doorgaan›** (tot v122: ‹Toch doorgaan›, en dan was het
+werk weg). Het werk gaat dan als apart project naar de server zodra er
+bereik is en iemand op dat apparaat is ingelogd.
+
+**Uitloggen** (v123): daarna staat er van het laatste project niets meer op
+het apparaat (geen klantnaam, adres of telefoon), behalve werk dat nog
+omhoog moet (apart bewaard) en foto's die nog in de wachtrij staan. Die
+gaan omhoog zodra iemand op dat apparaat weer inlogt.
+
 ## 10. Bij een klacht of storing
 
 Vraag eerst:
@@ -519,6 +568,23 @@ Daarna:
   staat dan alleen op dat apparaat, en is daarna weg. Eerst met bereik openen
   en wachten tot er "Opgeslagen" staat.
 - Geef de antwoorden aan Claude, met de versie erbij.
+
+**Vragen die je kunt verwachten na v123**
+
+- *"Zoeken vindt de klant niet, of niet zonder é."* Is script 29 gedraaid?
+  (`select count(*) from pg_proc where proname = 'glas_zoek_projecten';`
+  geeft 1.) Zonder script 29 zoekt de app op naam, klantnaam, adres en
+  datum, maar wel mét accenten.
+- *"Mislukt: er is intussen een ander project geopend, dus de foto is niet
+  toegevoegd."* Iemand opende een ander project terwijl een foto nog
+  verwerkt werd (normaal wacht de app daar even op). De foto staat nog in de
+  fotobibliotheek van het apparaat: open het project weer en voeg hem
+  opnieuw toe.
+- *"Na het tikken op het ruitnummer komt er onderin een berichtje."* Dat is
+  de bedoeling (iPad, telefoon): wie de ruit het laatst wijzigde, en of hij
+  anders is dan besteld. Met een muis staat het in de tip.
+- *"Bij dubbele merkletters staat nu wat er wordt."* Ook de bedoeling: een
+  al bestelde ruit houdt altijd zijn letter.
 
 **Vragen die je kunt verwachten na v122**
 

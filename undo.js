@@ -74,6 +74,17 @@
   }
   window.bewaarStap = bewaar;
 
+  // v123: een stap die bewaard is vóór een handeling die uiteindelijk niets
+  // deed (een tik zonder streek op een foto), weer weghalen. Alleen als hij
+  // bovenop ligt, dat label heeft én de stand nog precies zo is: dan kan het
+  // nooit een echte stap kosten.
+  window.stapTerugnemen = function (label) {
+    var b = terug[terug.length - 1];
+    if (!b || b.label !== label || b.staat !== staat()) return;
+    terug.pop();
+    tekenKnoppen();
+  };
+
   // Alles vergeten. Aangeroepen door cloud.js zodra er een andere inhoud
   // binnenkomt: een ander project, een nieuw project, terug naar het
   // startscherm, of de versie van een collega (v91).

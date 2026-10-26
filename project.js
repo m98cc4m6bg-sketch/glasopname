@@ -586,9 +586,12 @@
       }
       var wk = weekNummer(loop);
       var weekEind = new Date(loop); weekEind.setDate(weekEind.getDate() + 6);
+      // v123: met het jaartal. Rond de jaarwisseling was "week 2 (05-01 t/m
+      // 11-01)" voor de leverancier dubbelzinnig (dit jaar of volgend jaar?).
       var weekTekst = 'week ' + wk + ' (' +
         String(loop.getDate()).padStart(2, '0') + '-' + String(loop.getMonth() + 1).padStart(2, '0') + ' t/m ' +
-        String(weekEind.getDate()).padStart(2, '0') + '-' + String(weekEind.getMonth() + 1).padStart(2, '0') + ')';
+        String(weekEind.getDate()).padStart(2, '0') + '-' + String(weekEind.getMonth() + 1).padStart(2, '0') +
+        '-' + weekEind.getFullYear() + ')';
       var weekVoorbij = weekEind < vandaag;
 
       html += '<div class="kalender-week' + (perWeek ? ' kiesbaar' : '') + '"' +
@@ -777,10 +780,24 @@
     return collegas.find(function (g) { return g.id === id; }) || null;
   }
 
+  // v123 (controle v103, keuze Jan "alleen in het project"): een open taak
+  // zonder eigenaar, of op naam van een oud-collega (niet meer actief, dus
+  // niet in de lijst collega's), staat in niemands "Mijn taken". Hier in het
+  // project krijgt hij daarom een label; de keuzelijst toont de oud-collega
+  // nog bij naam (eerder stond er dan "— niemand —", wat niet klopte).
+  function weesTaak(t) {
+    if (!t || t.klaar || !cloudTaken() || !collegas.length) return '';
+    if (!t.eigenaar) return 'zonder eigenaar';
+    return collegaVan(t.eigenaar) ? '' : 'oud-collega';
+  }
+
   function eigenaarKeuzeHTML(huidigId, huidigeNaam, sleutel) {
     if (!collegas.length) return '';
     var ik = (window.glasGebruiker ? glasGebruiker().id : null);
-    var opties = ['<option value="">— niemand —</option>'].concat(collegas.map(function (g) {
+    var weg = huidigId && !collegaVan(huidigId)
+      ? '<option value="' + esc(huidigId) + '" selected>' + esc(huidigeNaam || 'onbekend') + ' (niet meer actief)</option>'
+      : '';
+    var opties = ['<option value="">— niemand —</option>', weg].concat(collegas.map(function (g) {
       var gekozen = g.id === huidigId ||
         (!huidigId && huidigeNaam && g.naam === huidigeNaam);
       return '<option value="' + esc(g.id) + '"' + (gekozen ? ' selected' : '') + '>' +
@@ -854,7 +871,8 @@
       var sleutel = t.id != null ? "'" + String(t.id).replace(/'/g, '') + "'" : i;
       var eigenaar = t.eigenaar_naam || '';
       var keuze = cloudTaken() ? eigenaarKeuzeHTML(t.eigenaar, eigenaar, sleutel) : '';
-      return '<div class="taak' + (t.klaar ? ' klaar' : '') + '">' +
+      var wees = weesTaak(t);
+      return '<div class="taak' + (t.klaar ? ' klaar' : '') + (wees ? ' wees' : '') + '">' +
         '<input type="checkbox"' + (t.klaar ? ' checked' : '') +
           ' onchange="taakKlaar(' + sleutel + ', this.checked)">' +
         '<input type="text" class="taak-tekst" value="' + esc(t.tekst) + '" ' +
@@ -865,6 +883,8 @@
               esc(eigenaar) + '</span>'
             : (cloudTaken() ? '<button class="taak-eigenaar leeg" title="Deze taak op mijn naam zetten" ' +
                 'onclick="taakVoorMij(' + sleutel + ')">+ mij</button>' : ''))) +
+        (wees ? '<span class="taak-wees" title="Deze taak staat in niemands lijst Mijn taken. Kies een eigenaar.">' +
+          esc(wees) + '</span>' : '') +
         '<button class="taak-weg" onclick="taakWeg(' + sleutel + ')" title="Taak verwijderen">✕</button>' +
       '</div>';
     }).join('');
@@ -890,6 +910,9 @@
     var t = vindTaak(sleutel);
     if (!t) return;
     var g = collegaVan(id);
+    // v123: de oud-collega opnieuw kiezen verandert niets (anders werd de
+    // taak stil "van niemand" en verdween zijn naam).
+    if (id && !g && id === t.eigenaar) { renderTaken(); return; }
     if (!cloudTaken()) {
       t.eigenaar_naam = g ? (g.naam || '') : '';
       renderTaken();

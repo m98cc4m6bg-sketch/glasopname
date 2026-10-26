@@ -565,16 +565,8 @@
   }
   // v114: na een bestelling op slot (slotWeigert zegt waarom).
   function latSlot() { return window.slotWeigert ? slotWeigert() : magNiet(); }
-  window.toebehorenOnderlat = function (id, waarde) {
-    if (magNiet() || latSlot()) { renderToebehoren(); return; }
-    var r = typeof getRij === 'function' ? getRij(id) : null; if (!r) return;
-    var p = deelVoorWijzigen(); if (!p) return;
-    if (window.bewaarStap) bewaarStap('Onderlat ' + (r.merk || ''));
-    // Een oude naam (Neuslat, Ventilatielat van v111) wordt het id van nu.
-    var w = onderNaam(waarde);
-    zetPerRuit(p, r.id, 'onderlat', geldigeLat(w, 'onder') ? w : '');
-    bewaarEnTeken();
-  };
+  // v123: toebehorenOnderlat (één ruit) is weg; het scherm kiest de onderlat
+  // via latOnderKies in latten.js (sinds v115), met het slot erbij.
   // Sinds v114 is "latten twee kanten" de latzijde "beide" (Invoer, kolom
   // Latten; op slot na een bestelling). Deze functie blijft voor oude code en
   // tests en doet hetzelfde als die keuze.
@@ -584,17 +576,8 @@
     if (window.latZijde) latZijde(id, aan ? 'beide' : (nu === 'beide' ? '' : nu), true);
     if (document.getElementById('panel-toebehoren') && document.getElementById('panel-toebehoren').classList.contains('active')) renderToebehoren();
   };
-  // Alle ruiten in één keer dezelfde onderlat (of terug naar de standaard).
-  window.toebehorenAlleOnderlat = function () {
-    if (magNiet() || latSlot()) { renderToebehoren(); return; }
-    var keuze = el('tbAlleOnderlat'); if (!keuze || keuze.value === '-') return;   // v115: "niet wijzigen"
-    var p = deelVoorWijzigen(); if (!p) return;
-    if (window.bewaarStap) bewaarStap('Onderlat alle ruiten');
-    var gekozen = onderNaam(keuze.value);
-    var w = geldigeLat(gekozen, 'onder') ? gekozen : '';
-    (rijen || []).filter(heeftInhoud).forEach(function (r) { zetPerRuit(p, r.id, 'onderlat', w); });
-    bewaarEnTeken();
-  };
+  // v123: toebehorenAlleOnderlat is weg; het blok "Alle ruiten" werkt via
+  // toebehorenAlleKies / toebehorenAlles (sinds v115).
 
   // v115: alles voor de ruiten op Toebehoren. De latkeuzes zelf doet
   // latten.js (met het slot, een stap voor ongedaan maken en het opslaan);

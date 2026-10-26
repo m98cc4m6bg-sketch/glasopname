@@ -463,6 +463,9 @@
         delete d._projectId;
         delete d._sessie;
         d._versieNr = VERSIE_NR;
+        // v123: dezelfde nummercontrole als bij het laden (de database weigert
+        // anders ook dit aparte project, en dan blijft het hier hangen).
+        if (window.glasVeiligeIdsVan) { try { glasVeiligeIdsVan(d); } catch (e) {} }
         var t = new Date(r.op || Date.now());
         var naam = (d.project || '(naamloos)') + ' (apart bewaard ' + tweeCijfers(t.getDate()) + '-' +
                    tweeCijfers(t.getMonth() + 1) + ' ' + tweeCijfers(t.getHours()) + ':' +
@@ -1540,16 +1543,17 @@
     return new Promise(function (klaar) {
       var metFilter = prullenbakKolom;
       metHerkansing(function () {
-        var q = sb.from('projecten')
-          .select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at,created_at,gewijzigd_naam',
-                  { count: 'exact' });
-        // Wat in de prullenbak staat hoort niet in de lijst (v91).
-        if (metFilter) q = q.is('verwijderd_op', null);
+        var basis = function () {
+          var b = sb.from('projecten')
+            .select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at,created_at,gewijzigd_naam',
+                    { count: 'exact' });
+          // Wat in de prullenbak staat hoort niet in de lijst (v91).
+          return metFilter ? b.is('verwijderd_op', null) : b;
+        };
+        var q = basis();
         var t = zoekTekst(zoek);
-        if (t) {
-          var z = '%' + t + '%';
-          q = q.or('naam.ilike.' + z + ',datum.ilike.' + z + ',adres.ilike.' + z);
-        }
+        // v123: zoeken gaat via zoekVerzoek (klantnaam, zonder accenten).
+        if (t) return zoekVerzoek(t, sortering, basis);
         if (sortering === 'alfabet') q = q.order('naam', { ascending: true });
         else if (sortering === 'aangemaakt') q = q.order('created_at', { ascending: false });
         else q = q.order('updated_at', { ascending: false });
@@ -1571,6 +1575,55 @@
       });
     });
   };
+
+  /* ─── zoeken (v123) ──────────────────────────────────────────
+     Uit de controle van v103: zoeken vond niet op de klantnaam, en niet
+     zonder accent ("Eenhoorn" vond "Éénhoorn" niet). Met script 29 doet de
+     database het zoeken (glas_zoek_projecten): naam, datum, adres en
+     klantnaam, zonder accenten en hoofdletters, elk woord los. Zonder
+     script 29 zoals in v122 (naam, datum, adres), met de klantnaam erbij.
+     `basis()` maakt de vraag zoals de lijst hem opbouwt (kolommen,
+     prullenbak); die wordt gebruikt als de zoekfunctie er niet is. Een
+     functie en geen kant-en-klare vraag: or() plakt zijn filter aan de vraag
+     vast, dus een tweede poging moet met een verse vraag (controle v123).
+     Geeft een belofte met { data, error, count } (zoals een gewone vraag). */
+  var zoekFunctie = null;     // null = nog niet geprobeerd, false = script 29 niet gedraaid
+  function zoekVerzoek(t, sortering, basis) {
+    function zonderFunctie() {
+      var z = '%' + t + '%';
+      var velden = 'naam.ilike.' + z + ',datum.ilike.' + z + ',adres.ilike.' + z;
+      var met = basis().or(velden + ',data->info->>klant.ilike.' + z);
+      var volgorde = function (v) {
+        if (sortering === 'alfabet') return v.order('naam', { ascending: true });
+        if (sortering === 'aangemaakt') return v.order('created_at', { ascending: false });
+        return v.order('updated_at', { ascending: false });
+      };
+      return Promise.resolve(volgorde(met).limit(1000)).then(function (res) {
+        // Mocht een oudere PostgREST de klantnaam in or() niet lezen
+        // (PGRST100), dan zoals in v122. (PostgREST 12.2 kan het; getest.)
+        if (res && res.error && res.error.code === 'PGRST100') {
+          return volgorde(basis().or(velden)).limit(1000);
+        }
+        return res;
+      });
+    }
+    if (zoekFunctie === false || !sb.rpc) return zonderFunctie();
+    var vraag;
+    try { vraag = sb.rpc('glas_zoek_projecten', { zoek: t, sortering: sortering || 'gewijzigd' }); }
+    catch (e) { return zonderFunctie(); }
+    return Promise.resolve(vraag)
+      .then(function (res) {
+        if (res && !res.error && Array.isArray(res.data)) {
+          zoekFunctie = true;
+          var totaal = res.data.length ? Number(res.data[0].totaal) || res.data.length : 0;
+          return { data: res.data.map(function (p) { var k = Object.assign({}, p); delete k.totaal; return k; }),
+                   error: null, count: totaal };
+        }
+        // Script 29 niet gedraaid: niet bij elke zoekvraag opnieuw proberen.
+        if (res && res.error && (res.error.code === 'PGRST202' || res.error.code === '42883')) zoekFunctie = false;
+        return zonderFunctie();
+      }, function () { return zonderFunctie(); });
+  }
 
   // Zoektekst geschikt maken voor het or()-filter van de database. Een
   // komma of haakje breekt dat filter (de komma scheidt de voorwaarden),
@@ -2747,14 +2800,40 @@
         'Ze blijven bewaard en gaan vanzelf mee zodra er weer iemand op dit apparaat inlogt ' +
         'en er bereik is. Wis de websitegegevens dus niet.',
         { kop: 'Uitloggen', ja: 'Toch uitloggen' })) return;
+    // magVerlaten zorgde ervoor dat het werk op de server staat of apart
+    // bewaard is (v123); daarom mogen deze vlaggen weg.
+    vuil = false;
     localStorage.removeItem(LS_PENDING);
     if (window.glasBewerkslotStop) glasBewerkslotStop();
     sb.auth.signOut().then(function () {
       gebruiker = null;
       projectId = null;
+      window.glasProjectId = null;
       localStorage.removeItem(LS_PROJECT);
+      wisKopieNaUitloggen();
       toonLogin('Je bent uitgelogd.');
     });
+  }
+
+  // v123 (controle v90, keuze Jan): na uitloggen bleef de kopie van het
+  // laatste project op het apparaat staan, met klantnaam, adres en telefoon
+  // (een gedeeld apparaat!). Nu weg, maar alleen wat al veilig op de server
+  // staat: magVerlaten heeft hiervoor gezorgd dat er niets meer omhoog moet
+  // (opgeslagen, of apart bewaard). Wat blijft: werk dat apart bewaard is
+  // (glasopname_redding) en foto's in de wachtrij; die gaan omhoog zodra
+  // iemand op dit apparaat inlogt. De keuzelijsten blijven ook (geen
+  // klantgegevens).
+  function wisKopieNaUitloggen() {
+    if (openstaandWerk()) return;          // voor de zekerheid: nooit werk weggooien
+    geladen = false;
+    laatsteJson = null;
+    try { zetStaat({}); } catch (e) {}
+    vuil = false;
+    try {
+      localStorage.removeItem(LS_STATE);
+      localStorage.removeItem(LS_LAATST);
+      localStorage.removeItem(LS_PENDING);
+    } catch (e) {}
   }
 
   /* ─── naamcontrole ─────────────────────────────────────────── */
@@ -2844,13 +2923,14 @@
     // overgaat wordt het een paar keer opnieuw geprobeerd (v86).
     var metFilter = prullenbakKolom;
     metHerkansing(function () {
-      var q = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at',
-                                          { count: 'exact' });
-      if (metFilter) q = q.is('verwijderd_op', null);     // niet de prullenbak (v91)
-      if (zoekTekst(zoekTerm)) {
-        var z = '%' + zoekTekst(zoekTerm) + '%';
-        q = q.or('naam.ilike.' + z + ',datum.ilike.' + z + ',adres.ilike.' + z);
-      }
+      var basis = function () {
+        var b = sb.from('projecten').select('id,naam,datum,status,aantal_ruiten,adres,open_taken,updated_at',
+                                            { count: 'exact' });
+        return metFilter ? b.is('verwijderd_op', null) : b;     // niet de prullenbak (v91)
+      };
+      var q = basis();
+      // v123: zoeken via zoekVerzoek (klantnaam, zonder accenten).
+      if (zoekTekst(zoekTerm)) return zoekVerzoek(zoekTekst(zoekTerm), 'gewijzigd', basis);
       // Tot v102: 200, zonder dat iemand zag dat er meer waren (v103).
       return q.order('updated_at', { ascending: false }).limit(1000);
     }, function (res) {
@@ -2913,7 +2993,27 @@
 
   function wacht(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+  // v123: wordt er nog een foto verwerkt (verkleinen en bewaren duurt op een
+  // iPad soms een paar seconden), dan eerst daarop wachten. Anders kwam de
+  // foto in het project dat daarna openging (controle v90).
+  async function fotoKlaar(wat) {
+    if (!(window.glasFotoBezig && glasFotoBezig())) return true;
+    status('Even wachten: er wordt nog een foto bewaard…', '#8a5a00');
+    for (var i = 0; i < 60 && glasFotoBezig(); i++) await wacht(500);
+    if (!glasFotoBezig()) return true;
+    var keus = await appKeuze('Er wordt nog een foto bewaard voor dit project. Wacht nog even; ' +
+      'ga je nu ' + wat + ', dan kan die foto (of zijn origineel) in dit project ontbreken. ' +
+      'Kijk dan later in het project, en voeg hem zo nodig opnieuw toe.',
+      [{ tekst: 'Annuleren', waarde: null },
+       { tekst: 'Nog even wachten', waarde: 'wacht' },
+       { tekst: 'Toch doorgaan', waarde: 'door', soort: 'btn-danger' }],
+      { kop: 'Foto nog niet klaar' });
+    if (keus === 'wacht') return fotoKlaar(wat);
+    return keus === 'door';
+  }
+
   async function magVerlaten(wat) {
+    if (!await fotoKlaar(wat)) return false;
     if (!openstaandWerk()) return true;
     // Eerst gewoon proberen alsnog op te slaan.
     if (navigator.onLine) {
@@ -2921,14 +3021,28 @@
       for (var i = 0; i < 12 && openstaandWerk(); i++) await wacht(500);
       if (!openstaandWerk()) return true;
     }
+    // v123 (keuze Jan, 26-10-2026): ‹Toch doorgaan› gooit het werk niet meer
+    // weg. Het gaat apart naar de server ("… (apart bewaard …)" in de
+    // projectenlijst), net als werk dat de database weigerde: liever twee
+    // kopieën dan nul. Lukt zelfs dat bewaren niet, dan niet doorgaan.
     var keus = await appKeuze('Er staat werk in dit project dat nog niet op de server is opgeslagen. ' +
-      'Ga je nu ' + wat + ', dan is dat werk weg.',
+      'Ga je nu ' + wat + ', dan komt dat werk niet in dit project, maar als apart project in de ' +
+      'projectenlijst ("… (apart bewaard …)"), zodra er weer bereik is' +
+      (wat === 'uitloggen' ? ' en er weer iemand op dit apparaat inlogt' : '') +
+      '. Daar kun je het later bekijken en overnemen.',
       [{ tekst: 'Annuleren', waarde: null },
        { tekst: 'Opnieuw proberen', waarde: 'opnieuw' },
-       { tekst: 'Toch doorgaan', waarde: 'door', soort: 'btn-danger' }],
+       { tekst: 'Apart bewaren en doorgaan', waarde: 'door', soort: 'btn-danger' }],
       { kop: 'Nog niet opgeslagen' });
     if (keus === 'opnieuw') return magVerlaten(wat);
-    return keus === 'door';
+    if (keus !== 'door') return false;
+    if (!reddingBewaar(huidigeStaat(), 'niet opgeslagen bij ' + wat)) {
+      appFout('Het werk kon ook niet apart bewaard worden (het geheugen van dit apparaat zit vol?). ' +
+              'Er is niets gewijzigd: zoek eerst bereik, zodat het werk naar de server kan.', { kop: 'Niet doorgegaan' });
+      return false;
+    }
+    setTimeout(reddingenUploaden, 500);
+    return true;
   }
 
   window.cloudOpen = async function (id) {

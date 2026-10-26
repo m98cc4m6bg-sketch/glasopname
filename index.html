@@ -188,8 +188,8 @@
     transition: opacity .15s, background .15s;
   }
   .btn:hover { opacity: .88; }
-  .btn-primary { background: var(--geel); color: var(--blauw); }
   .btn-secondary { background: var(--blauw-mid); color: white; }
+  /* v123: de oude gele regel (eerder in dit blok) is weg; deze won altijd al. */
   .btn-primary { background: var(--merk); color: white; }
   .btn-primary:hover:not(:disabled) { background: var(--merk-donker); }
   .btn-danger { background: var(--rood); color: white; }
@@ -772,6 +772,9 @@
   .rijnr-merk { display: block; font-size: 11px; font-weight: 700; color: var(--ink); max-width: 52px; margin: 1px auto 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   .rijnr-merk:empty { display: none; }
+  /* v123: Safari op de iPad geeft een tik alleen door aan iets wat er
+     aanklikbaar uitziet; zo komt een tik op het ruitnummer aan (spoor). */
+  @media (pointer: coarse) { table.invoer td.rijnr { cursor: pointer; } }
   .bulk-balk {
     display: none; align-items: center; gap: 8px 12px;
     background: var(--geel); color: #3a2a00; padding: 7px 20px;
@@ -1513,6 +1516,9 @@
     flex: 1; padding: 7px 9px; font-size: 13px; font-family: inherit;
     border: 1px solid var(--grijs-rand); border-radius: var(--radius);
   }
+  /* v123: een open taak die in niemands "Mijn taken" staat. */
+  .taak-wees { font-size: 11px; font-weight: 600; color: var(--warn); background: var(--warn-licht);
+    border: 1px solid var(--warn); border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
   .taak-nieuw select, .taak-eigenaar-keuze {
     padding: 6px 7px; font-size: 12px; font-family: inherit; max-width: 120px;
     border: 1px solid var(--grijs-rand); border-radius: var(--radius); background: var(--wit);
@@ -1704,6 +1710,10 @@
     padding: 18px 20px 16px;
   }
   .bew-vraag-venster h3 { font-size: 15px; color: var(--rood); margin-bottom: 8px; }
+  /* v123: ook dit venster heeft het ✕ rechtsboven (afspraak v118). */
+  .bew-vraag-venster { position: relative; }
+  .bew-vraag-venster.met-kruis { padding-top: 18px !important; }
+  .bew-vraag-venster.met-kruis h3 { padding-right: 44px; }
   .bew-vraag-venster p { font-size: 13px; color: var(--blauw); line-height: 1.55; }
   .bew-vraag-knoppen {
     display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 16px;
@@ -2720,7 +2730,7 @@
       </div>
       <div class="cloud-zoek">
         <span class="cloud-zoek-icoon">🔎</span>
-        <input type="search" id="startZoek" placeholder="Zoek op projectnaam, adres of datum…"
+        <input type="search" id="startZoek" placeholder="Zoek op projectnaam, klant, adres of datum…"
                autocomplete="off" oninput="startZoeken(this.value)">
         <button class="cloud-zoek-wis" onclick="startZoekWissen()" title="Zoekterm wissen">✕</button>
       </div>
@@ -3282,7 +3292,7 @@
     </header>
     <div class="cloud-zoek">
       <span class="cloud-zoek-icoon">🔎</span>
-      <input type="search" id="cloudZoekVeld" placeholder="Zoek op projectnaam of datum…"
+      <input type="search" id="cloudZoekVeld" placeholder="Zoek op projectnaam, klant, adres of datum…"
              autocomplete="off" oninput="cloudZoek(this.value)"
              onkeydown="if(event.key==='Escape'){event.stopPropagation();cloudZoekWissen();}">
       <button class="cloud-zoek-wis" onclick="cloudZoekWissen()" title="Zoekterm wissen">✕</button>
@@ -3628,7 +3638,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v122';
+const APP_VERSIE = 'v123';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -3752,16 +3762,28 @@ function toon(tabNaam) {
 // ruit of foto blijft, met zijn bolletjes; alleen een bolletje dat nergens
 // naar wijst vervalt). Geeft terug hoeveel er veranderd is.
 const FOTO_ID_GOED = /^[A-Za-z0-9_-]{1,64}$/;
-function veiligeIds() {
+// v123: precies zo streng als de database (script 28, glas_ids_fout): een
+// nummer is een heel getal van hoogstens 9 cijfers. Wat de database weigert,
+// moet de app hier eerst rechtzetten, anders blijft het werk op het apparaat
+// hangen (gevonden bij de controle van v123). Verander ze samen.
+const MAX_NR = 999999999;
+const goedNr = v => Number.isSafeInteger(v) && v >= 0 && v <= MAX_NR;
+// Werkt op een stand { rijen, fotos, volgendId } (de inhoud van een project).
+// Gebruikt bij het laden (veiligeIds, hieronder) en vóór het versturen van
+// werk dat apart bewaard is (cloud.js reddingenUploaden, v123).
+function veiligeIdsVan(d) {
   let n = 0;
+  let rijen = d.rijen, fotos = d.fotos, volgendId = d.volgendId;
   if (!Array.isArray(rijen)) { rijen = []; n++; }
   rijen = rijen.filter(r => { if (r && typeof r === 'object') return true; n++; return false; });
-  const hoogste = () => rijen.reduce((m, r) => Number.isSafeInteger(r.id) ? Math.max(m, r.id) : m, 0);
-  if (!Number.isSafeInteger(volgendId) || volgendId < 1 || volgendId > 1e9) { volgendId = hoogste() + 1; n++; }
+  // Alleen geldige nummers tellen (v123): een te groot nummer als "hoogste"
+  // gaf het volgende nummer óók te groot (1000000000 → 1000000001).
+  const hoogste = () => rijen.reduce((m, r) => (goedNr(r.id) ? Math.max(m, r.id) : m), 0);
+  if (!Number.isSafeInteger(volgendId) || volgendId < 1 || volgendId > MAX_NR) { volgendId = hoogste() + 1; n++; }
   const gezien = {}, nieuwNr = {};
   rijen.forEach(r => {
     if (typeof r.id === 'string' && /^\d{1,9}$/.test(r.id)) { r.id = parseInt(r.id, 10); n++; }
-    if (!Number.isSafeInteger(r.id) || r.id < 1 || r.id > 1e9 || gezien[r.id]) {
+    if (!Number.isSafeInteger(r.id) || r.id < 1 || r.id > MAX_NR || gezien[r.id]) {
       const oud = r.id;
       r.id = Math.max(volgendId, hoogste() + 1); volgendId = r.id + 1; n++;
       // Het bolletje dat naar het oude nummer wees, gaat mee (niet bij een dubbel nummer).
@@ -3778,16 +3800,27 @@ function veiligeIds() {
       rijen.forEach(r => { if (r.fotoId === oud) r.fotoId = nieuw; });
       f.id = nieuw; n++;
     }
+    // v123: bolletjes die geen lijst zijn, kan niemand gebruiken.
+    if (f.markeringen != null && !Array.isArray(f.markeringen)) { f.markeringen = []; n++; }
     if (Array.isArray(f.markeringen)) {
       f.markeringen = f.markeringen.filter(m => {
-        if (m && !Number.isSafeInteger(m.rijId) && nieuwNr[String(m.rijId)] !== undefined) { m.rijId = nieuwNr[String(m.rijId)]; n++; }
+        if (m && !goedNr(m.rijId) && nieuwNr[String(m.rijId)] !== undefined) { m.rijId = nieuwNr[String(m.rijId)]; n++; }
         if (m && typeof m.rijId === 'string' && /^\d{1,9}$/.test(m.rijId)) { m.rijId = parseInt(m.rijId, 10); n++; }
-        if (m && Number.isSafeInteger(m.rijId)) return true;
+        if (m && typeof m === 'object' && goedNr(m.rijId)) return true;
         n++; return false;
       });
     }
   });
   rijen.forEach(r => { if (r.fotoId != null && r.fotoId !== '' && !FOTO_ID_GOED.test(String(r.fotoId))) { delete r.fotoId; n++; } });
+  d.rijen = rijen; d.fotos = fotos; d.volgendId = volgendId;
+  return n;
+}
+window.glasVeiligeIdsVan = veiligeIdsVan;
+
+function veiligeIds() {
+  const d = { rijen: rijen, fotos: fotos, volgendId: volgendId };
+  const n = veiligeIdsVan(d);
+  rijen = d.rijen; fotos = d.fotos; volgendId = d.volgendId;
   if (n && window.glasSpoorNotitie) { try { glasSpoorNotitie('nummers van ruiten of foto\'s hersteld bij het laden (' + n + ')'); } catch (e) {} }
   return n;
 }
@@ -4288,6 +4321,12 @@ function bewerkingVraag(tekst, knoppen) {
     vak.remove();
     if (knoppen[0]) knoppen[0].doe();
   });
+  // v123: het ✕ (en Escape) doet hetzelfde als ernaast tikken.
+  sluitKruis(vak.querySelector('.bew-vraag-venster'), function () {
+    if (!vak.isConnected) return;
+    vak.remove();
+    if (knoppen[0]) knoppen[0].doe();
+  }, 'Sluiten');
   document.body.appendChild(vak);
 }
 
@@ -4822,6 +4861,29 @@ function kortBericht(tekst, opties) {
   kortBerichtKlok = setTimeout(() => { b.hidden = true; }, opties.ms || 8000);
 }
 window.kortBericht = kortBericht;
+
+// v123: "Laatst gewijzigd door …" en "Anders dan besteld …" staan in de tip
+// (title) van het ruitnummer. Met een muis lees je die door erop te wijzen;
+// met een vinger of pen (iPad, telefoon, Windows met aanraakscherm) kon dat
+// niet. Nu toont een tik in dat vakje dezelfde tekst onderin. Een tik daar
+// raakt vaak het vinkje (de browser trekt een tik naar het dichtstbijzijnde
+// knopje); dan bij het aanvinken. Met een muis verandert er niets.
+let laatsteAanwijzer = 'mouse';
+document.addEventListener('pointerdown', function (e) { laatsteAanwijzer = e.pointerType || 'mouse'; }, true);
+function spoorBijTik(e) {
+  const doel = e.target;
+  const td = doel && doel.closest ? doel.closest('table.invoer td.rijnr') : null;
+  if (!td || laatsteAanwijzer === 'mouse') return;
+  const vinkje = doel.matches && doel.matches('input[type=checkbox]');
+  if (e.type === 'click' && (vinkje || doel.closest('input, button, select, a, label'))) return;
+  if (e.type === 'change' && (!vinkje || !doel.checked)) return;
+  const t = td.getAttribute('title');
+  // Bij het aanvinken korter: wie veel regels aanvinkt, krijgt anders steeds
+  // een berichtje van 10 s (het volgende vervangt het vorige wel).
+  if (t) kortBericht(t, { soort: 'info', ms: e.type === 'change' ? 5000 : 10000 });
+}
+document.addEventListener('click', spoorBijTik);
+document.addEventListener('change', spoorBijTik);
 
 // v120 (Jan, 22-10): een maat met een komma. In Chrome liet het getalvak de
 // komma stil weg (1212,5 werd 12125: tien keer te groot op de bestellijst).

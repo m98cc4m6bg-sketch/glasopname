@@ -1,7 +1,9 @@
 # Glasopname — datamodel
 
 *Wat er in Supabase staat, wie wat mag, en welk script wat deed. Bijgewerkt
-op 24 oktober 2026, bij v122 (script 27: alleen lezen en nummering). Bron: de SQL-scripts 01 t/m 26 zelf.*
+op 26 oktober 2026, bij v123 (script 28: controles op nummers en versie;
+script 29: zoeken). Daarvoor v122: script 27, alleen lezen en nummering.
+Bron: de SQL-scripts 01 t/m 29 zelf.*
 
 Zie ook `OVERZICHT.md` (hoe de app werkt) en `BEHEER.md` (wat je doet).
 Wordt bij elke nieuwe versie bijgewerkt; elk nieuw SQL-script komt in de lijst
@@ -199,8 +201,8 @@ Zelf een account aanmaken staat **uit**; accounts maakt Jan in Supabase.
 | logboek | 13/14/18 | elke wijziging van inhoud of status komt in `projectgeschiedenis`, per werkgang één regel (dezelfde persoon, korter dan 30 minuten: de laatste regel wordt bijgewerkt); ook naar en uit de prullenbak (18) |
 | prullenbak op serverklok | 22 | het moment van weggooien kan niet verschoven worden |
 | wie wijzigde | 26 | `gewijzigd_door`/`_naam` en `verwijderd_door`/`_naam` zet de database; een nieuw project begint nooit in de prullenbak |
-| nummers | 26 | ruit-nummers hele getallen, foto-nummers letters/cijfers/-/_, bolletjes wijzen naar een getal |
-| versie niet absurd | 26 | bij het bijwerken van een project wordt een versienummer van 5 cijfers of meer geweigerd |
+| nummers | 26, volledig sinds 28 | ruit-nummers hele getallen (een ruit zonder nummer telt ook als fout, 28), foto-nummers letters/cijfers/-/_, het fotonummer bij een ruit leeg of zo'n nummer (28), elk bolletje wijst naar een getal (een bolletje zonder ruitnummer telt ook als fout, 28). Eén plek: `glas_ids_fout(data)` (28); de app zet hetzelfde bij het laden recht (`veiligeIds` in index.html) |
+| versie niet absurd | 26, ook bij een nieuw project sinds 28 | een versienummer van 5 cijfers of meer wordt geweigerd, sinds 28 ook bij het aanmaken; een getal van 5 of meer cijfers dat al in een project staat, telt als 0 (28; in 26 pas vanaf 7 cijfers) |
 
 ## Functies in de database
 
@@ -208,12 +210,14 @@ Zelf een account aanmaken staat **uit**; accounts maakt Jan in Supabase.
 |---|---|
 | `glas_bewerken(project, apparaat, naam, omschrijving, actie)` | het bewerkslot: nemen, hartslag, vragen, overnemen, vrijgeven, intrekken |
 | `glas_bestellingen_erbij(…)` | een bestelling alsnog in het project zetten, buiten het bewerkslot om |
-| `glas_gebruik()` | hoeveel ruimte database en foto's innemen (voor de waarschuwing op het startscherm) |
+| `glas_gebruik()` | hoeveel ruimte database en foto's innemen (voor de waarschuwing op het startscherm). Sinds 28 alleen voor een collega (`is_lid()`); anders leeg |
+| `glas_ids_fout(data)` (28) | controleert de nummers in een project; leeg = in orde, anders kort wat er niet klopt ("ruit", "foto"). Gebruikt door `ids_controleren` en de veiligheidsstop van 28 |
+| `glas_zoek_projecten(zoek, sortering)` (29) | zoeken voor het startscherm: naam, klantnaam (`data.info.klant`), adres en datum, zonder accenten (`unaccent`) en hoofdletters, elk woord los; niet de prullenbak; hoogstens 1000, met `totaal`. Draait met de rechten van wie zoekt (geen `security definer`), dus dezelfde regels als de lijst |
 | `prullenbak_opruimbaar(dagen)` | welke projecten langer dan 30 dagen in de prullenbak staan |
 | `glas_status_rang(status)` | volgorde van de statussen (besteld < geleverd < gemonteerd < afgerond) |
 | `is_lid()` (26) | is wie nu vraagt een actieve, niet-anonieme collega? Alle regels (policies) gebruiken hem |
-| `wie_is_het()`, `ids_controleren()` (26) | triggers: wie wijzigde, en de nummers in een project |
-| `versie_niet_terug()` (21, vervangen in 26) | het versieslot |
+| `wie_is_het()`, `ids_controleren()` (26; `ids_controleren` vervangen in 28) | triggers: wie wijzigde, en de nummers in een project |
+| `versie_niet_terug()` (21, vervangen in 26 en 28) | het versieslot |
 | `mag_schrijven()` (27) | staat wie nu vraagt níet op alleen lezen? De restrictive regels gebruiken hem |
 
 **Triggers** (op dezelfde tabel lopen ze op alfabetische naam):
@@ -223,12 +227,12 @@ Zelf een account aanmaken staat **uit**; accounts maakt Jan in Supabase.
 | `projecten_a_wie` | projecten | `wie_is_het` | 26 |
 | `projecten_bestellingen_samenvoegen` | projecten | `bestellingen_samenvoegen` | 23 (nummering 27) |
 | `projecten_bewerkslot` | projecten | `bewerkslot_bewaken` | 24 |
-| `projecten_ids` | projecten | `ids_controleren` | 26 |
+| `projecten_ids` | projecten | `ids_controleren` | 26/28 |
 | `projecten_logboek` | projecten | `log_project` | 13/14 |
 | `projecten_prullenbak` | projecten | `log_prullenbak` | 18 |
 | `projecten_prullenbak_servertijd` | projecten | `prullenbak_servertijd` | 22 |
 | `projecten_updated_at` | projecten | `set_updated_at` | 01 |
-| `projecten_versie_niet_terug` | projecten | `versie_niet_terug` | 21/26 |
+| `projecten_versie_niet_terug` | projecten (sinds 28 ook bij een nieuw project) | `versie_niet_terug` | 21/26/28 |
 | `taken_tellen` | taken | `tel_open_taken` | 13 |
 | `taken_updated_at`, `gebruikers_updated_at` | taken, gebruikers | `set_updated_at` | 13/14 |
 | `gebruikers_bijschrijven` | auth.users | `gebruiker_bijschrijven` | 14 |
@@ -242,15 +246,16 @@ Realtime (live bijwerken) staat aan voor `projecten` (script 07) en
 
 ## Migraties (de SQL-scripts)
 
-01 t/m 26 zijn gedraaid (03 was optioneel; 26 op 22-10-2026); 27 hoort bij v122.
-01 t/m 08 staan alleen in de projectkennis op claude.ai; 09 t/m 26 ook in de
+01 t/m 27 zijn gedraaid (03 was optioneel; 26 op 22-10-2026, 27 bij v122);
+28 en 29 horen bij v123 (eerst 28, dan 29).
+01 t/m 08 staan alleen in de projectkennis op claude.ai; 09 t/m 29 ook in de
 repo. **`test-sql.sql` nooit in Supabase
 draaien**: dat is voor de tests en begint met alles weggooien.
 
 **Na script 26 geen ouder script opnieuw draaien.** Moet het toch, draai
 daarna script 26 opnieuw: oudere scripts zetten hun eigen regels terug,
-zonder de controle op actieve collega's (en na 27: draai dan ook 27
-opnieuw).
+zonder de controle op actieve collega's (en na 27 en 28: draai dan ook 27 en
+28 opnieuw, in die volgorde).
 
 | nr | versie | wat |
 |---|---|---|
@@ -281,6 +286,8 @@ opnieuw).
 | 25 | v109 | "Figuurglas — Canale mat blank" alsnog in de lijst Glasbewerking (script 12 vergat hem); daarna gebruikt de app de lijst uit de database weer. Mag vaker gedraaid worden |
 | 26 | v120 | rechten: alleen actieve collega's (`is_lid()`); wie wijzigde zet de database; logboek alleen door de database; definitief verwijderen alleen uit de prullenbak; foto's niet overschrijven; in `gebruikers` alleen je eigen naam en telefoon; nummers en versienummer gecontroleerd; kolom `gebruikers.telefoon`. Stopt zelf als niemand actief is. Mag vaker gedraaid worden. Terugdraaien: `26_terug.sql` (niet in de repo) |
 | 27 | v122 | alleen lezen: kolom `gebruikers.alleen_lezen`, `mag_schrijven()`, restrictive regels op alle tabellen en de foto's; nummering na samenvoegen gelijk aan de app (ingetrokken telt niet mee). Mag vaker gedraaid worden. Terugdraaien: `27_terug.sql` (niet in de repo) |
+| 28 | v123 | controles: `glas_ids_fout()` (één plek voor de nummers; ook een ruit zonder nummer, een bolletje zonder ruitnummer en het fotonummer bij een ruit), `ids_controleren` gebruikt hem; versiegrens ook bij een nieuw project en 5+ cijfers telt als 0; `glas_gebruik()` alleen voor collega's. Eén geheel (`begin … commit`), met een veiligheidsstop als er nu al een project (buiten de prullenbak) met vreemde nummers staat. Mag vaker gedraaid worden. Terugdraaien: `28_terug.sql` (niet in de repo) |
+| 29 | v123 | zoeken: uitbreiding `unaccent` (schema `extensions`) en de functie `glas_zoek_projecten()`. Verandert geen gegevens; niet verplicht (zonder: de app zoekt zoals in v122, plus de klantnaam). Terugdraaien: `drop function if exists public.glas_zoek_projecten(text, text);` |
 
 **Twee kleine onjuistheden in oude scripts** (gevonden bij het schrijven van
 dit document; voor de gebruiker zonder gevolgen):

@@ -1124,7 +1124,7 @@ async function naarToebehoren(page) {
     // v114 (keuze Jan: "Mee op slot"): onderlat en latzijde staan na de bestelling vast, net als de maten.
     check('op slot (v114): de keuzes onderlat en latzijde staan uit', await tbRij(page, 'Y').locator('[data-sleutel^="olat-"]').isDisabled() &&
       await tbRij(page, 'X').locator('select.tb-zijde-sel').isDisabled());
-    await page.evaluate(() => { toebehorenOnderlat(rijen[1].id, 'C1'); latZijde(rijen[0].id, 'beide'); });
+    await page.evaluate(() => { latOnderKies(rijen[1].id, 'C1'); latZijde(rijen[0].id, 'beide'); });   // v123: toebehorenOnderlat is weg
     await wacht(600);
     await sluitMeldingen(page);
     m = await page.evaluate(() => [GlasLatten.ruit(rijen[1]).onderlat, GlasLatten.ruit(rijen[0]).latZijde]);   // in de app zelf (de database loopt achter)
@@ -1176,7 +1176,7 @@ async function naarToebehoren(page) {
     await page.evaluate(() => { window._echtKijken = window.glasAlleenKijken; window.glasAlleenKijken = () => true; renderToebehoren(); });
     check('alleen kijken: de keuzes op Toebehoren staan uit', await page.$$eval('#toebehorenInhoud select, #toebehorenInhoud input',
       l => l.length > 0 && l.every(e => e.disabled)));
-    await page.evaluate(() => { toebehorenOnderlat(rijen[1].id, 'Ventilatielat'); toebehorenGetal('STAAF_MM', '3000');
+    await page.evaluate(() => { toebehorenGetal('STAAF_MM', '3000');   // v123: toebehorenOnderlat is weg
       toebehorenKeuze('binnen.kleur', 'grijs'); toebehorenTweeKanten(rijen[0].id, true); toebehorenStandaard(); });
     await wacht(600);
     await sluitMeldingen(page);

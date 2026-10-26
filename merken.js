@@ -73,11 +73,18 @@
     var c = merkConflicten();
     if (!c.length) { merkBalkBijwerken(); return; }
     var lijst = document.getElementById('merkLijst');
+    // v123: het venster toont precies wat ‹Automatisch hernummeren› doet
+    // (zelfde berekening, merkPlan). Tot v122 stond er bij de eerste ruit
+    // "(behoudt de letter)", terwijl een kale letter (A, A) A1 en A2 werd.
+    var plan = merkPlan();
+    var naar = function (r) { var p = plan.filter(function (x) { return x.rij === r; })[0]; return p ? p.naar : null; };
     lijst.innerHTML = c.map(function (x) {
       return '<div class="merk-groep"><div class="merk-letter">' + esc(x.letter) + '</div><div>' +
-        x.rijen.map(function (r, i) {
-          return '<div class="merk-regel' + (i === 0 ? ' behoudt' : '') + '">' +
-            esc(omschrijf(r)) + (i === 0 ? ' <em>(behoudt de letter)</em>' : '') + '</div>';
+        x.rijen.map(function (r) {
+          var n = naar(r);
+          return '<div class="merk-regel' + (n ? '' : ' behoudt') + '">' + esc(omschrijf(r)) +
+            (n ? ' <em>→ wordt ' + esc(n) + '</em>'
+               : ' <em>(behoudt de letter' + (besteld(r) ? ', al besteld' : '') + ')</em>') + '</div>';
         }).join('') + '</div></div>';
     }).join('');
 
@@ -102,37 +109,66 @@
     return hoogste;
   }
 
+  // Is deze ruit al besteld (in een geldige bestellijst)? Dan houdt hij zijn
+  // merk: een ander merk maakt er op de volgende lijst een VERVANGT van, en
+  // de leverancier kent hem onder het oude merk (v123).
+  function besteld(r) {
+    try {
+      var st = window.besteldeStand ? besteldeStand() : null;
+      return !!(st && st.nr && st.nr[r.id]);
+    } catch (e) { return false; }
+  }
+
   // Dezelfde regel als bij het importeren: dragen alle botsende ruiten een
   // kale kozijnletter, dan worden het A1, A2, A3 — dat zegt de buitenman
   // meteen bij welk kozijn een ruit hoort. Alleen wanneer de letter al een
   // nummer heeft houdt de eerste hem en tellen de andere door.
-  window.merkAutoOplossen = function () {
-    if (window.bewaarStap) bewaarStap('Dubbele merken hernoemd');
-    var c = merkConflicten();
-    var gewijzigd = [];
-    c.forEach(function (x) {
+  // v123: een al bestelde ruit houdt altijd zijn merk; de andere tellen door
+  // (A blijft A, de nieuwe wordt A1). pasRegelToe verandert de merken echt;
+  // merkPlan rekent hetzelfde uit en zet alles daarna terug (voor het venster).
+  function pasRegelToe() {
+    merkConflicten().forEach(function (x) {
+      var vast = x.rijen.filter(besteld);
       var kaal = sleutel(x.letter).match(/^[A-Z]+$/);
-      if (kaal) {
+      if (kaal && !vast.length) {
         var basis = sleutel(x.letter);
         var start = hoogsteNummerVoor(basis, x.rijen);
         x.rijen.forEach(function (r, i) { r.merk = basis + (start + i + 1); });
-        gewijzigd.push(x.letter + ' → ' + x.rijen[0].merk + ' t/m ' + x.rijen[x.rijen.length - 1].merk);
         return;
       }
-      x.rijen.slice(1).forEach(function (r) {
-        var oud = r.merk;
-        var d = sleutel(oud).match(/^([A-Z]+)(\d+)$/);
+      var houdt = vast.length ? vast : [x.rijen[0]];
+      x.rijen.forEach(function (r) {
+        if (houdt.indexOf(r) >= 0) return;
+        var d = sleutel(r.merk).match(/^([A-Z]+)(\d*)$/);
         r.merk = d ? d[1] + (hoogsteNummerVoor(d[1], []) + 1) : volgendMerk();
-        gewijzigd.push(oud + ' → ' + r.merk);
       });
     });
+  }
+
+  window.merkPlan = function () {
+    var oud = rijen.map(function (r) { return r.merk; });
+    var plan = [];
+    try {
+      pasRegelToe();
+      rijen.forEach(function (r, i) { if (r.merk !== oud[i]) plan.push({ rij: r, van: oud[i], naar: r.merk }); });
+    } finally {
+      rijen.forEach(function (r, i) { r.merk = oud[i]; });
+    }
+    return plan;
+  };
+
+  window.merkAutoOplossen = function () {
+    if (window.bewaarStap) bewaarStap('Dubbele merken hernoemd');
+    var plan = merkPlan();
+    plan.forEach(function (p) { p.rij.merk = p.naar; });
+    var gewijzigd = plan.map(function (p) { return p.van + ' → ' + p.naar; });
     document.getElementById('merkVenster').style.display = 'none';
     renderTabel();
     herbereken();
     opslaan();
     merkBalkBijwerken();
     var s = document.getElementById('statusBar');
-    if (s) s.textContent = 'Hernoemd: ' + gewijzigd.join(', ');
+    if (s) s.textContent = gewijzigd.length ? 'Hernoemd: ' + gewijzigd.join(', ') : 'Niets hernoemd';
   };
 
   window.merkTerugdraaien = function () {

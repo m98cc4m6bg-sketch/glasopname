@@ -879,9 +879,15 @@
         }
         return;
       }
-      if (stuk === 'gum') { gum(e, fotoId); bezig = { gum: true }; return; }
+      if (stuk === 'gum') { bezig = { gum: true }; gum(e, fotoId); return; }
       if (stuk === 'tekst') { zetTekst(fotoId, punt); return; }
       var foto = fotoVan(fotoId);
+      // v123: een streek is met ↶ terug te draaien. De stap vóór het tekenen;
+      // een tik zonder beweging (die weer weggaat) neemt hem terug. Eerst
+      // inkt(foto): die maakt bij een foto zonder tekening de lege lijst, en
+      // dan is de stand na een tik precies die van de stap (controle v123).
+      inkt(foto);
+      if (window.bewaarStap) bewaarStap('Getekend');
       bezig = { t: stuk, k: kleur, d: dikte, p: [punt] };
       if (stuk !== 'pen') bezig.p.push(punt.slice());
       inkt(foto).push(bezig);
@@ -993,6 +999,7 @@
         if (s.t !== 'pen' && Math.abs(s.p[0][0] - s.p[1][0]) + Math.abs(s.p[0][1] - s.p[1][1]) < 8) {
           inkt(foto).pop();
           weggegooid = true;
+          if (window.stapTerugnemen) stapTerugnemen('Getekend');
         }
       }
       bezig = null;
@@ -1556,10 +1563,19 @@
 
   function gum(e, fotoId) {
     var doel = document.elementFromPoint(e.clientX, e.clientY);
+    // v123 (controle v90): onder je vinger ligt bij tekst een <tspan> (een
+    // regel ín de tekst), niet het element met data-streek. Daarom het
+    // dichtstbijzijnde element mét data-streek zoeken.
+    if (doel && doel.closest) doel = doel.closest('[data-streek]');
     if (!doel || !doel.hasAttribute || !doel.hasAttribute('data-streek')) return;
     var i = parseInt(doel.getAttribute('data-streek'), 10);
     var foto = fotoVan(fotoId);
     if (isNaN(i) || !foto.inkt[i]) return;
+    // v123: gummen is met ↶ terug te draaien (één stap per veeg).
+    if (bezig && bezig.gum && !bezig.gestapt) {
+      if (window.bewaarStap) bewaarStap('Gegumd');
+      bezig.gestapt = true;
+    }
     foto.inkt.splice(i, 1);
     tekenStreken(fotoId);
   }
@@ -1619,6 +1635,11 @@
     if (wat === 'vinger') { vingerTekent = !vingerTekent; zetModus(fotoId); tekenBalk(fotoId); return; }
 
     function opAlle(doe) { leden.forEach(doe); }
+    // v123 (controle v90): de stap vóór de wijziging bewaren. Tot v122 kwam
+    // hij erna, en dan deed ↶ niets (hij zette de nieuwe kleur "terug").
+    if (leden.length && window.bewaarStap && ['kleur', 'dikte', 'grootte', 'vet', 'schuin'].indexOf(wat) >= 0) {
+      bewaarStap(leden.length > 1 ? leden.length + ' onderdelen gewijzigd' : 'Onderdeel gewijzigd');
+    }
     if (wat === 'kleur') { kleur = waarde; opAlle(function (x) { x.k = waarde; }); }
     if (wat === 'dikte') {
       dikte = parseFloat(waarde);
@@ -1637,9 +1658,6 @@
       // — daar breekt de tekst dan binnen af.
       opAlle(function (x) { if (x.t === 'tekst') tekstPas(x); });
       if (bewerk) plaatsVak();
-      if (window.bewaarStap) {
-        bewaarStap(leden.length > 1 ? leden.length + ' onderdelen gewijzigd' : 'Onderdeel gewijzigd');
-      }
       tekenStreken(fotoId);
       if (bewerk) {
         var node2 = elementVan(fotoId, bewerk.index);
@@ -1657,6 +1675,8 @@
     stopTekst();
     var foto = fotoVan(fotoId);
     if (!foto || !inkt(foto).length) return;
+    // v123: ook deze knop is met de gewone ↶ (Cmd+Z) terug te draaien.
+    if (window.bewaarStap) bewaarStap('Laatste onderdeel weggehaald');
     foto.inkt.pop();
     tekenStreken(fotoId);
     tekenBalk(fotoId);

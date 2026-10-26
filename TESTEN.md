@@ -707,6 +707,56 @@ harde eis wint.
     en uploaden in delen, Dropbox vol, opruimen dat niet mag): 34
     controles, 13 mutaties. Niet getest: de echte Supabase, Dropbox en
     GitHub Actions.
+- `test-v123.js` (26-10, de bekende punten uit de controles van v90 en
+  v103): 1 zoeken (klantnaam zonder script 29; met script 29 zonder accent
+  en meer woorden; de zoekfunctie maar één keer proberen), 2 taken zonder
+  eigenaar of van een oud-collega (label, keuzelijst bij naam), 3 import:
+  regels met alleen tekst genoemd, 4 import uit een **echte pdf** (jsPDF,
+  gelezen door pdf.js uit `lib/`) met een lege cel, 5 dubbele merkletters
+  (venster = uitkomst; bestelde ruit houdt zijn letter), 6 foto draaien
+  (dubbel tikken, tekstvak), 7 tekenen (gum op tekst, ↶ na kleur, streek,
+  tik), 8 ↶ per tabel (speling, heen en weer, dubbele ruit), 9 een foto die
+  nog verwerkt wordt bij het wisselen van project, 10 ‹Apart bewaren en
+  doorgaan› zonder bereik, 11 uitloggen wist de kopie, 12 PDF invoer
+  (roedenopmerking, foto niet op te halen), 13 leverweek met jaartal, 14 ✕
+  op de laatste twee vensters, 15 het spoor met een tik (iPad), 16 versie,
+  17 nummers die de database (script 28) zou weigeren: de app zet ze bij het
+  openen recht, ook in apart bewaard werk; 34 mutaties.
+  - les (onafhankelijke controle, 26-10): **samenvoegen is ook wijzigen.**
+    De eerste bouw voegde twee pdf-cellen onder één kop samen ("2 1000") in
+    de veronderstelling dat stap 3 dat weigert; maar spaties in een maat
+    tellen niet, dus het werd 21000. Nu: niet samenvoegen, weigeren. En: een
+    nummer "corrigeren" moet tegen dezelfde grens als de database (de app
+    maakte van 1000000000 een 1000000001);
+  - les: **traag maken waar het in het echt traag is**: verkleinen en
+    draaien gaan in Chromium binnen een paar milliseconden; de proef maakt
+    `canvas.toBlob` 1,2–1,8 s trager (zoals een iPad), anders komt de
+    tweede tik of het wisselen van project nooit tíjdens het werk;
+  - les: **twee beveiligingen op één plek: test ze elk apart.** De mutatie
+    die het slot bij draaien weghaalde, werd eerst niet gevangen: de tweede
+    controle (is de foto intussen veranderd?) hield het ook tegen. Nu kijkt
+    de test ook naar de melding "Even geduld";
+  - les: **"heen en weer" bij ↶ per tabel ontstaat pas na een wijziging in
+    een ándere tabel** (dan ligt er een stap bovenop die deze tabel nog in
+    de nieuwe stand heeft). Een test met twee wijzigingen in dezelfde tabel
+    ziet het niet;
+  - les: Chromium trekt een tik met de vinger naar het dichtstbijzijnde
+    knopje (het vinkje in het ruitnummer); Safari doet iets vergelijkbaars.
+    Daarom toont de app het spoor ook bij het aanvinken met de vinger;
+  - les: punten buiten het scherm (`page.mouse`) komen nergens aan: een
+    grote foto is hoger dan het venster;
+  - Script 28 en 29: proef tegen PostgreSQL 16 met de Supabase-namaak
+    (`proef28.sh`: 57 controles: veiligheidsstop + alles of niets,
+    prullenbak telt niet mee, gewoon werk gaat door, wat niet klopt wordt
+    geweigerd, versie bij nieuw project en 5+ cijfers = 0, ruimtemeter
+    alleen voor collega's, zoeken (accent, klant, woorden, prullenbak, oud-
+    collega ziet niets), terugdraaien en de volgorde 26 → 27 → 28),
+    18 mutaties; daarnaast de vragen van de app (`or()` met
+    `data->info->>klant`, de `rpc`, een ontbrekende functie = PGRST202)
+    tegen een **echte PostgREST 12.2** met de echte `supabase-js` uit
+    `lib/`. In de zip "niet-in-repo". Niet getest: de echte Supabase.
+  - De back-uptaak v4: `test_backup.py` 35 controles, 14 mutaties (nieuw:
+    de uitleg van Dropbox bij een geweigerde koppeling).
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

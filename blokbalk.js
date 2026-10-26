@@ -120,7 +120,6 @@
   // Leeg bij het wisselen van project, samen met de stapels in undo.js
   // (v91). Anders zette ↷ in de tabel 'Zonder foto' regels van het vorige
   // project terug in het project dat nu openstaat.
-  window.blokVooruitLeeg = function () { vooruitPerBlok = {}; };
 
   function zelfdeRegels(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
@@ -152,8 +151,52 @@
     });
   }
 
+  // v123: speling en bijtelling van deze tabel (bij een foto op het blok,
+  // bij de losse maten de algemene bovenaan). ↶ zag een gewijzigde speling
+  // niet en draaide dan een oudere wijziging terug (controle v103).
+  function maatVan(fotoId, staat, alsNu) {
+    if (fotoId) {
+      var f = alsNu ? fotos.find(function (x) { return x.id === fotoId; })
+                    : (staat.fotos || []).find(function (x) { return x.id === fotoId; });
+      return f ? [f.speling == null ? '' : String(f.speling), f.bijtelling == null ? '' : String(f.bijtelling)] : ['', ''];
+    }
+    if (alsNu) {
+      return [(document.getElementById('spelingGlobal') || {}).value || '4',
+              (document.getElementById('bijtelling') || {}).value || '11'];
+    }
+    return [String(staat.speling || '4'), String(staat.bijtelling || '11')];
+  }
+  function zetMaat(fotoId, m) {
+    if (!m) return;
+    if (fotoId) {
+      var f = fotos.find(function (x) { return x.id === fotoId; });
+      if (!f) return;
+      if (m[0] === '') delete f.speling; else f.speling = parseInt(m[0], 10);
+      if (m[1] === '') delete f.bijtelling; else f.bijtelling = parseInt(m[1], 10);
+      return;
+    }
+    var s = document.getElementById('spelingGlobal'), b = document.getElementById('bijtelling');
+    if (s) s.value = m[0];
+    if (b) b.value = m[1];
+  }
+  // Alles wat ↶ per tabel bekijkt, in één tekst: zo is "is deze tabel nog
+  // zoals ik hem achterliet?" één vergelijking.
+  function blokKenmerk(fotoId) {
+    var nuFoto = fotos.find(function (f) { return f.id === fotoId; });
+    var nu = rijenInBlok(fotoId);
+    return JSON.stringify([nu, nuFoto ? nuFoto.markeringen || [] : null,
+      dieptenVan(idsVan(nu), projectInfo), maatVan(fotoId, null, true)]);
+  }
+
   function zetRegelsTerug(fotoId, nieuweRegels, markeringen) {
     var anders = rijen.filter(function (r) { return (r.fotoId || null) !== (fotoId || null); });
+    // v123 (controle v103): een ruit die intussen naar een andere foto
+    // verhuisde, stond in de oude stand nog in deze tabel. Terugzetten gaf
+    // dan twee ruiten met hetzelfde nummer. Nu blijft hij waar hij nu staat.
+    var elders = {};
+    anders.forEach(function (r) { elders[r.id] = true; });
+    var overgeslagen = nieuweRegels.filter(function (r) { return elders[r.id]; });
+    nieuweRegels = nieuweRegels.filter(function (r) { return !elders[r.id]; });
     var eerste = rijen.findIndex(function (r) { return (r.fotoId || null) === (fotoId || null); });
     if (eerste < 0) eerste = rijen.length;
     var ervoor = rijen.slice(0, eerste).filter(function (r) {
@@ -172,7 +215,10 @@
     // ruiten er weer, maar is niet meer te zien welke maat waar zit (v83).
     if (fotoId && Array.isArray(markeringen)) {
       var doelFoto = fotos.find(function (f) { return f.id === fotoId; });
-      if (doelFoto) doelFoto.markeringen = JSON.parse(JSON.stringify(markeringen));
+      // v123 (controle): ook de bolletjes van een ruit die nu elders staat
+      // niet terugzetten; anders had die ruit bolletjes op twee foto's.
+      if (doelFoto) doelFoto.markeringen = JSON.parse(JSON.stringify(markeringen))
+        .filter(function (m) { return !elders[m.rijId]; });
     }
     fotos.forEach(function (f) {
       f.markeringen = (f.markeringen || []).filter(function (m) { return bestaat[m.rijId]; });
@@ -188,15 +234,28 @@
     renderTabel();
     if (window.renderFotos) renderFotos();
     opslaan();
+    return overgeslagen.length;
   }
+
+  // v123 (controle v103): waar ↶ in deze tabel gebleven was. Zonder dit
+  // pendelde herhaald tikken: de tweede tik vond de stand van vóór de eerste
+  // weer als "anders" en zette die terug. Nu zoekt de volgende tik verder
+  // terug, zolang de tabel nog is zoals ↶ hem achterliet.
+  var waarGebleven = {};
+  window.blokVooruitLeeg = function () { vooruitPerBlok = {}; waarGebleven = {}; };
 
   window.blokOngedaan = function (id) {
     var fotoId = id === 'los' ? null : id;
     var stapels = window.undoStapels && undoStapels();
     if (!stapels) return;
     var nu = rijenInBlok(fotoId);
+    var van = stapels.terug.length - 1;
+    var w = waarGebleven[id];
+    if (w && w.kenmerk === blokKenmerk(fotoId) && stapels.terug.indexOf(w.stap) >= 0) {
+      van = stapels.terug.indexOf(w.stap) - 1;
+    }
 
-    for (var i = stapels.terug.length - 1; i >= 0; i--) {
+    for (var i = van; i >= 0; i--) {
       var toen, toenStaat;
       try { toenStaat = JSON.parse(stapels.terug[i].staat); } catch (e) { continue; }
       toen = toenStaat.rijen || [];
@@ -210,16 +269,23 @@
                          JSON.stringify((nuFoto && nuFoto.markeringen) || []);
       var ids = idsVan(nu, toenBlok);
       var toenDiepte = dieptenVan(ids, toenStaat.info), nuDiepte = dieptenVan(ids, projectInfo);
-      if (zelfdeRegels(toenBlok, nu) && zelfdeBollen && JSON.stringify(toenDiepte) === JSON.stringify(nuDiepte)) continue;
+      var toenMaat = maatVan(fotoId, toenStaat, false), nuMaat = maatVan(fotoId, null, true);
+      if (zelfdeRegels(toenBlok, nu) && zelfdeBollen && JSON.stringify(toenDiepte) === JSON.stringify(nuDiepte) &&
+          JSON.stringify(toenMaat) === JSON.stringify(nuMaat)) continue;
 
       (vooruitPerBlok[id] = vooruitPerBlok[id] || []).push({
         regels: JSON.parse(JSON.stringify(nu)),
         markeringen: nuFoto ? JSON.parse(JSON.stringify(nuFoto.markeringen || [])) : null,
-        diepten: nuDiepte
+        diepten: nuDiepte,
+        maat: nuMaat
       });
       zetDieptenTerug(toenDiepte);
-      zetRegelsTerug(fotoId, toenBlok, toenFoto ? toenFoto.markeringen : null);
-      melding('Laatste wijziging in deze tabel teruggedraaid');
+      zetMaat(fotoId, toenMaat);
+      var weg = zetRegelsTerug(fotoId, toenBlok, toenFoto ? toenFoto.markeringen : null);
+      waarGebleven[id] = { stap: stapels.terug[i], kenmerk: blokKenmerk(fotoId) };
+      melding(weg ? 'Teruggedraaid; ' + weg + (weg === 1 ? ' ruit staat' : ' ruiten staan') +
+                    ' intussen bij een andere foto en ' + (weg === 1 ? 'is' : 'zijn') + ' daar gebleven'
+                  : 'Laatste wijziging in deze tabel teruggedraaid');
       return;
     }
     melding('Niets meer om terug te draaien in deze tabel');
@@ -233,7 +299,9 @@
     var terug = lijst.pop();
     if (window.bewaarStap) bewaarStap('Opnieuw gedaan');
     zetDieptenTerug(terug.diepten);
+    zetMaat(fotoId, terug.maat);
     zetRegelsTerug(fotoId, terug.regels || terug, terug.markeringen);
+    delete waarGebleven[id];
     melding('Opnieuw gedaan');
   };
 

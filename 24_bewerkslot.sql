@@ -31,10 +31,10 @@
 --    app bewaart het werk dan apart. Voorbeeld: de iPad werkte offline,
 --    Julian nam het over, werkte en sloot het project (vrij). Zonder deze
 --    controle zette de iPad bij terugkomst zijn oude stand over Julians werk.
---  - Apparaten op een versie van vóór v106 sturen geen apparaatcode mee.
---    Die laat deze trigger door; ze worden al tegengehouden door het
---    versieslot (21_versieslot.sql) zodra er met v106 is opgeslagen, en
---    werken binnen een paar minuten zelf bij.
+--  - Apparaten op een versie van vóór v106 kennen het bewerkslot nog niet.
+--    Daarvoor zorgen het versieslot (21_versieslot.sql) en het verplicht
+--    bijwerken van de app. (Tekst bijgewerkt in v123; aan de werking van
+--    dit script is niets veranderd, opnieuw draaien is niet nodig.)
 --
 --  Een aparte tabel, en niet een paar kolommen in projecten: het bijhouden
 --  van "laatst actief" mag de wijzigingsdatum van het project niet

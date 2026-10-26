@@ -119,6 +119,15 @@ Een feit staat op één plek; elders verwijs je ernaar.
 **Gegevens**
 * Nooit gegevens kwijt. Na elke stap staat het werk op de server, óf op het
   apparaat met de vlag "moet nog omhoog" (`glasopname_pending`).
+* **`magVerlaten` gooit nooit werk weg** (v123, keuze Jan): ‹Apart bewaren en
+  doorgaan› = `reddingBewaar` + `reddingenUploaden`; lukt dat bewaren niet,
+  dan niet doorgaan. Een nieuwe weg uit een project (zoals een nieuwe knop
+  "sluiten") loopt via `magVerlaten`. Uitloggen wist daarna de kopie
+  (`wisKopieNaUitloggen`), nooit de redding of de fotowachtrij.
+* **Een foto die nog verwerkt wordt** (v123): elke route die een foto
+  verkleint of bewaart, loopt via `metBezig(...)` en kijkt met
+  `bijProject(pid)` of het project nog hetzelfde is (`nieuwPad` gebruikt
+  het open project!). `magVerlaten` wacht op `glasFotoBezig()`.
 * **Van wie is de inhoud?** `basisVan` / `_projectId` (v103). Werk dat niet bij
   het open project hoort, gaat als apart project naar de server
   (`reddingBewaar` → `reddingenUploaden`), nooit weg, nooit over een ander
@@ -129,6 +138,13 @@ Een feit staat op één plek; elders verwijs je ernaar.
 * Iets weggooien op tijd: met de klok van de server (`prullenbak_opruimbaar`).
 * `zetStaat()` ruimt undo en selectie op; elke nieuwe weg waarlangs andere
   inhoud binnenkomt, loopt via `zetStaat`.
+* **Een stap voor ↶ bewaar je vóór de wijziging** (`bewaarStap` legt de stand
+  van nú vast). Erna = ↶ doet niets (de fout van `tekenKies` tot v122). Een
+  handeling die achteraf niets deed: `stapTerugnemen(label)` (undo.js).
+* **↶ per tabel** (`blokbalk.js`) vergelijkt regels, bolletjes, diepten én
+  (v123) speling/bijtelling (`maatVan`), onthoudt waar hij was
+  (`waarGebleven`) en zet nooit een ruit terug die elders staat. Iets nieuws
+  dat per tabel geldt: ook in `blokKenmerk` en de vergelijking.
 * Alles wat `projectInfo` vervangt (zetStaat, undo, samenvoegen) behoudt
   `bestellingen` (undo.js, `bestellingenErbij`, script 23).
 * **Gebruikers nooit verwijderen**, behalve bij vertrek: verwijzingen worden
@@ -420,6 +436,15 @@ Een feit staat op één plek; elders verwijs je ernaar.
   een Microsoft 365-beheerder; daar kan Jan zelf niet bij (26-10).
 * **Nummering van bestellingen** op twee plekken: `bestellingenSamenvoegen`
   (index.html) en `bestellingen_samenvoegen` (script 27). Verander ze samen.
+* **Nummers van ruiten en foto's** op twee plekken: `veiligeIds` (index.html,
+  zet recht bij het laden) en `glas_ids_fout` (script 28, weigert). Wat de
+  database weigert, moet de app eerst rechtzetten: verander ze samen (v123).
+* **Een oud script opnieuw draaien** zet zijn eigen regels terug: daarna 26,
+  27 en 28 opnieuw, in die volgorde (proef28 §7 laat zien dat dat klopt).
+* **Zoeken** (v123): `zoekVerzoek` in cloud.js, met script 29 via
+  `glas_zoek_projecten` (rpc), anders `or()` met `data->info->>klant`. Een
+  nieuw zoekveld: in beide. De namaak in de tests kent sinds test-v123 het
+  JSON-pad in `or()` en de rpc (`S.zoek29`).
 * De Edge Function `mail` is **niet uitgerold** (geen functie, geen Resend,
   geen geheimen). Schrijf niets alsof hij bestaat.
 * Toets de belofte op de gegevens, **én** klik één keer echt in Chromium op
@@ -473,6 +498,7 @@ node test-v119.js                       #  ±70 s; vlak met kozijn, A5 nood, str
 node test-v120.js                       #  ±6 min; grote proef: komma, aantallen, twee tabbladen, dubbel besteld, import, latten, pdf-kop, ✕ terug, ids, telefoon, back-up
 node test-v121.js                       #  ±2 min; neuslat recht + 20, melding beide, actiebalk (P3) op pc, iPad, iPhone; PLAATJES=map
 node test-v122.js                       #  ±40 s; back-upaccount (alleen lezen) niet in de keuzelijsten, LEESMIJ van 💾
+node test-v123.js                       #  ±3 min; bekende punten v90/v103: zoeken, weestaken, import (tekst, pdf), merken, draaien, tekenen, ↶ per tabel, foto + project wisselen, apart bewaren, uitloggen, pdf invoer, leverweek, ✕, spoor; PLAATJES=map
 ```
 
 **Mutatieproef** (`--mutaties`): alleen bij 🔴, en alleen voor de reeks
@@ -481,7 +507,9 @@ terugdraaien, rood, terugzetten), dat kost minuten. Duur per reeks:
 v106 48 mutaties ±25–40 min, v109 22 ±25 min, v110 61 ±45+ min,
 v111 51 ±40 min, v112 21 ±15 min, v113 40 ±30 min, v114 34 ±40 min,
 v115 37 ±45 min, v116 9 ±4 min, v117 17 ±10 min, v118 18 ±25 min, v119 11 ±10 min,
-v120 33 ±40 min, v121 17 ±20 min, v122 3 ±2 min. Script 27: proef
+v120 33 ±40 min, v121 17 ±20 min, v122 3 ±2 min, v123 34 ±18 min. Script 28 en 29:
+proef tegen PostgreSQL, 57 controles en 18 mutaties (zip "niet-in-repo",
+`proef-script-28/`). Script 27: proef
 tegen PostgreSQL, 42 controles en 8 mutaties (zip "niet-in-repo"). Script 26 (rechten): een eigen proef tegen een lokale
 PostgreSQL met 14 mutaties (staat in de zip "niet-in-repo", niet in de repo).
 Die van v104 en v105 werken nu niet, en van v110 passen 9 mutaties niet

@@ -277,13 +277,20 @@
           .forEach(function (y) {
             var stukken = perRegel[y].sort(function (a, b) { return a.x - b.x; });
             var cellen = [], huidig = stukken[0].t, vorig = stukken[0];
+            // v123: per cel ook waar hij op de pagina staat (van–tot in x),
+            // zodat naarStap2 hem onder de goede kolomkop kan zetten.
+            var plekken = [], van = stukken[0].x;
             for (var i = 1; i < stukken.length; i++) {
               var gat = stukken[i].x - (vorig.x + vorig.w);
-              if (gat > 6) { cellen.push(huidig); huidig = stukken[i].t; }
+              if (gat > 6) {
+                cellen.push(huidig); plekken.push([van, vorig.x + vorig.w]);
+                huidig = stukken[i].t; van = stukken[i].x;
+              }
               else { huidig += ' ' + stukken[i].t; }
               vorig = stukken[i];
             }
-            cellen.push(huidig);
+            cellen.push(huidig); plekken.push([van, vorig.x + vorig.w]);
+            cellen.plek = plekken;
             if (cellen.join('').trim() !== '') rijen.push(cellen);
           });
       });
@@ -496,6 +503,40 @@
     naarStap2(blad.rijen);
   };
 
+  // v123 (controle v90): in een pdf is een lege cel gewoon niets op de
+  // pagina. Tot v122 schoof de rest van de regel dan naar links, en kwam
+  // bijvoorbeeld de hoogte onder "Breedte" te staan. Nu gaat elke cel naar
+  // de kolomkop waar hij onder staat: de grens tussen twee kolommen ligt
+  // midden tussen hun koppen.
+  // Komen twee cellen onder dezelfde kop (twee koppen die in de pdf aan
+  // elkaar vastzitten, of een kolom zonder kop), dan is niet zeker wat waar
+  // hoort. Samenvoegen mag dan niet: "2 1000" leest als 21000 (spaties in een
+  // maat tellen niet; gevonden bij de controle van v123). Zo'n regel blijft
+  // zoals hij was en krijgt het merkteken `verschoven`: stap 3 weigert hem
+  // dan, met de tekst uit het bestand erbij. Zo komt een maat nooit stil in
+  // de verkeerde kolom.
+  function opKolom(rij, kopPlek) {
+    if (!rij.plek || !kopPlek || !kopPlek.length) return rij;
+    var grenzen = [];
+    for (var j = 0; j < kopPlek.length - 1; j++) grenzen.push((kopPlek[j][1] + kopPlek[j + 1][0]) / 2);
+    var uit = kopPlek.map(function () { return ''; });
+    var dubbel = false;
+    rij.forEach(function (cel, i) {
+      var p = rij.plek[i];
+      if (!p) { dubbel = true; return; }
+      var midden = (p[0] + p[1]) / 2, k = 0;
+      while (k < grenzen.length && midden >= grenzen[k]) k++;
+      if (uit[k] !== '') dubbel = true;
+      uit[k] = cel;
+    });
+    if (dubbel) {
+      var zelfde = rij.slice();
+      zelfde.verschoven = true;
+      return zelfde;
+    }
+    return uit;
+  }
+
   function naarStap2(rijen) {
     var kopIndex = bepaalKop(rijen);
     var kop, data;
@@ -508,11 +549,27 @@
       for (var i = 0; i < breedte; i++) kop.push('Kolom ' + (i + 1));
       data = rijen;
     }
-    // rijen zonder enig getal zijn kopteksten of witregels
+    if (kop.plek) data = data.map(function (r) { return opKolom(r, kop.plek); });
+    // Rijen zonder enig getal zijn meestal kopteksten of witregels. v123
+    // (controle v90): een regel met tekst maar zonder getal ("A; n.t.b.;
+    // n.t.b.") verdween stil. Een maatstaat is de waarheid: zo'n regel gaat
+    // nog steeds niet mee (er is geen maat), maar stap 3 noemt hem nu.
+    // Een kopregel die op elke pagina van een pdf terugkomt, is geen ruit.
+    var kopTekst = kop.map(function (c) { return String(c == null ? '' : c).trim().toLowerCase(); }).join('|');
+    var zonderGetal = data.filter(function (r) {
+      return !r.some(function (c) { return /\d/.test(c); }) &&
+              r.some(function (c) { return String(c == null ? '' : c).trim() !== ''; }) &&
+              r.map(function (c) { return String(c == null ? '' : c).trim().toLowerCase(); }).join('|') !== kopTekst;
+    });
     data = data.filter(function (r) { return r.some(function (c) { return /\d/.test(c); }); });
-    if (!data.length) { melding('Kolommen gevonden, maar geen rijen met maten.', true); return; }
+    if (!data.length) {
+      melding('Kolommen gevonden, maar geen rijen met maten' +
+        (zonderGetal.length ? ' (' + zonderGetal.length + ' regel' + (zonderGetal.length === 1 ? '' : 's') +
+          ' met alleen tekst, bijv. «' + zonderGetal[0].join(' | ').slice(0, 60) + '»)' : '') + '.', true);
+      return;
+    }
 
-    tabel = { kop: kop, rijen: data };
+    tabel = { kop: kop, rijen: data, zonderGetal: zonderGetal };
     mapping = kopIndex >= 0 ? raadMapping(kop) : kop.map(function () { return ''; });
     tekenStap2();
     document.getElementById('impStap1').style.display = 'none';
@@ -614,6 +671,9 @@
       if (gevuld > tabel.kop.length) {
         regel.redenen.push('deze regel heeft ' + gevuld + ' cellen, de kop ' +
                            tabel.kop.length + ' — mogelijk verschoven');
+      } else if (r.verschoven) {
+        // v123: uit een pdf, en twee waarden staan onder dezelfde kolomkop.
+        regel.redenen.push('in de pdf staan twee waarden onder dezelfde kolomkop — mogelijk verschoven');
       }
 
       var breedteTekst = cel(r, iB), hoogteTekst = cel(r, iH);
@@ -886,7 +946,17 @@
     // verdwijnt (v120).
     var pakketMis = o.goed.filter(function (r) { return r.tekst.maxPakketOnbekend; });
     var soortMis = o.goed.filter(function (r) { return r.tekst.maatsoortOnbekend; });
-    var letOpHtml = (pakketMis.length
+    // v123: regels met alleen tekst (geen enkel getal) gaan niet mee, maar
+    // worden wel genoemd (zie naarStap2).
+    var zg = (tabel && tabel.zonderGetal) || [];
+    var zonderGetalHtml = zg.length
+      ? '<div class="imp-waarsch">⚠ ' + zg.length + ' regel' + (zg.length === 1 ? '' : 's') +
+        ' zonder enig getal ' + (zg.length === 1 ? 'wordt' : 'worden') + ' niet overgenomen ' +
+        '(tussenkopje, of een ruit waarvan de maat nog ontbreekt?): ' +
+        zg.slice(0, 5).map(function (r) { return '«' + esc2(r.filter(function (c) { return String(c || '').trim(); }).join(' | ').slice(0, 60)) + '»'; }).join(', ') +
+        (zg.length > 5 ? ' …' : '') + '. Staat daar een ruit tussen, vul hem dan met de hand in.</div>'
+      : '';
+    var letOpHtml = zonderGetalHtml + (pakketMis.length
         ? '<div class="imp-waarsch">⚠ Bij ' + pakketMis.length + ' regel' + (pakketMis.length === 1 ? '' : 's') +
           ' is het max glaspakket niet te lezen (bijv. «' + esc2(pakketMis[0].tekst.maxPakketOnbekend) +
           '»): niet overgenomen. Vul het zo nodig zelf in op Toebehoren.</div>' : '') +

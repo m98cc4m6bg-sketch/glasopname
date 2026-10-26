@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v122';
+  var PDF_VERSIE = 'v123';
   // v114 (keuze van Jan): vaste zin bovenaan elke aanvulling (pdf en mail).
   var BEVESTIG_AANVULLING = 'Graag bevestigen dat u deze aanvulling verwerkt, met name VERVANGT en ANNULEREN.';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
@@ -85,7 +85,10 @@
       { kop: 'Bewerking', w: 24, haal: function (r) { return kort(r.glasbewerking); } },
       { kop: 'Roeden',    w: 22, haal: function (r) { return kort(r.roedenverdeling); } },
       { kop: 'Roede br',  w: 16, haal: function (r) { return r.roedenbreedte; } },
-      { kop: 'Opmerking', w: 34, haal: function (r) { return r.opmerking; } }
+      // v123: ook de roedenopmerking, net als op de bestellijst (stond er
+      // niet in: uit de controle van v103).
+      { kop: 'Opmerking', w: 34, haal: function (r) {
+          return [r.opmerking, r.roedenopmerking ? 'roeden: ' + r.roedenopmerking : ''].filter(Boolean).join(' \u00b7 '); } }
     ];
   }
 
@@ -517,6 +520,7 @@
 
       return Promise.all([Promise.all(taken), extra]).then(function (alles) {
         var plaatjes = alles[0];
+        var mislukt = 0;        // v123: foto's die er wel horen, maar niet op te halen waren
         // De projectgegevens als eerste pagina (v98, gevraagd door Jan): alles
         // wat op Project info staat, zodat de pdf als archief op zichzelf
         // te lezen is.
@@ -537,6 +541,18 @@
 
           if (plaatjes[i]) {
             y = tekenFoto(doc, plaatjes[i], f, eigen, y);
+          } else if (f.pad) {
+            // v123: er hoort wél een foto bij, maar ophalen lukte niet (geen
+            // bereik, of de foto staat nog op een ander apparaat). Tot v122
+            // stond hier "(geen foto bij deze groep)": dan leek het archief
+            // compleet terwijl de foto ontbrak. Nu in rood, en een melding.
+            mislukt++;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(193, 18, 28);
+            doc.text('De foto kon niet worden opgehaald; maak deze pdf opnieuw met verbinding.', MARGE, y + 3);
+            doc.setTextColor(29, 29, 27);
+            y += 8;
           } else {
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(8.5);
@@ -572,7 +588,7 @@
         spoorregel(doc);
         voetteksten(doc, project, datum, nietBesteldTekst());
 
-        return { doc: doc, naam: naam };
+        return { doc: doc, naam: naam, mislukt: mislukt };
       });
     }).then(function (res) {
       if (knop) knop.disabled = false;
@@ -668,6 +684,7 @@
       var kozijnFotos = fotos.filter(function (f) { return f.soort !== 'lever'; });
       return Promise.all(kozijnFotos.map(function (f) { return f.pad ? fotoData(f.pad) : Promise.resolve(null); })).then(function (plaatjes) {
         var eerste = true;
+        var mislukt = 0;        // v123: voor de melding na het opslaan
         // v118 (controle): groter dan de andere pdf's, hij wordt geprint en
         // in de werkplaats gelezen; de glasmaat vet. "Let op" in rood.
         var kop = ['Merk', 'Aant', 'Glasmaat b x h', 'Opbouw (mm)', 'Latzijde', 'Glaslat', 'Onderlat', 'Band bi/bu', 'Latten: stuks x mm (incl. toeslag)', 'Let op'];
@@ -702,6 +719,7 @@
             // Niet stil weglaten: zonder foto weet de werkplaats niet welke ruit waar zit.
             doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(192, 18, 39);
             doc.text('De foto kon niet worden opgehaald; maak deze pdf opnieuw met verbinding.', MARGE, y + 4);
+            mislukt++;
             doc.setTextColor(29, 29, 27);
             y += 9;
           }
@@ -726,7 +744,7 @@
         // Daarna: benodigdheden en het zaagplan (zelfde als in de PDF invoer).
         toebehorenPagina(doc, 'Werkvloer - benodigdheden en zaagplan');
         voetteksten(doc, project, datum, nietBesteldTekst());
-        return { doc: doc, naam: naam };
+        return { doc: doc, naam: naam, mislukt: mislukt };
       });
     });
   }
@@ -2779,7 +2797,10 @@
     vak.style.display = 'flex';
     vak.innerHTML =
       '<div class="cloud-paneel">' +
-        '<header><h2>Nog niet alles is ingevuld</h2>' +
+        // v123: ✕ rechtsboven (afspraak v118), zelfde als Annuleren.
+        '<header style="position:relative;padding-right:56px;">' +
+        '<button type="button" class="sluit-x" aria-label="Sluiten" data-actie="sluit" style="top:8px;right:10px;">\u2715</button>' +
+        '<h2>Nog niet alles is ingevuld</h2>' +
         '<div class="sub">De leverpagina gaat wel mee met de bestellijst</div></header>' +
         '<div class="cloud-body">' +
           '<p style="font-size:13px;line-height:1.6;margin-bottom:8px;">' +
@@ -2802,6 +2823,13 @@
       '</div>';
     document.body.appendChild(vak);
     meldVenster = vak;
+    // v123: Escape = Annuleren (zoals de andere vensters).
+    var toets = function (e) {
+      if (e.key !== 'Escape') return;
+      document.removeEventListener('keydown', toets, true);
+      if (meldVenster === vak) { meldSluit(); bezig(''); }
+    };
+    document.addEventListener('keydown', toets, true);
 
     vak.addEventListener('click', function (e) {
       var knop = e.target && e.target.closest ? e.target.closest('[data-actie]') : null;
@@ -2883,7 +2911,11 @@
             var stukken = [a].concat(bc).filter(Boolean);
             if (!stukken.length) { bezig(''); return; }
             return leverMeerdere(stukken, keuze && keuze.map).then(function (uit) {
-              if (uit !== 'afgebroken' && a) return vraagVerstuurd(a.lijst, a.moment);
+              if (uit === 'afgebroken') return;
+              // Eerst "Naar de leverancier?", dan pas de melding over een
+              // ontbrekende foto (anders lag die eronder; controle v123).
+              return Promise.resolve(a ? vraagVerstuurd(a.lijst, a.moment) : null)
+                .then(function (v) { fotosMisluktMelding(bc); return v; });
             });
           });
         });
@@ -2914,7 +2946,10 @@
       var bestandW = bestandVragen(maakNaam('Werkvloer', project, datum));
       return bouwWerkvloerPdf().then(function (res) {
         if (!res) { bezig(''); return; }
-        return afleveren(res.doc, res.naam, bestandW);
+        return afleveren(res.doc, res.naam, bestandW).then(function (uit) {
+          if (uit !== 'afgebroken') fotosMisluktMelding([res]);
+          return uit;
+        });
       }).catch(mislukt);
     }
 
@@ -2923,8 +2958,24 @@
     var bestand = bestandVragen(naam);
     return bouwFotoPdf().then(function (res) {
       if (!res) { bezig(''); return; }
-      return afleveren(res.doc, res.naam, bestand);
+      return afleveren(res.doc, res.naam, bestand).then(function (uit) {
+        if (uit !== 'afgebroken') fotosMisluktMelding([res]);
+        return uit;
+      });
     }).catch(mislukt);
+  }
+
+  // v123: foto's die er wel horen maar niet opgehaald konden worden (geen
+  // bereik, of de foto staat nog op een ander apparaat). In de pdf staat
+  // het in rood bij die foto; dit venster zorgt dat je het ook ziet vóór je
+  // de pdf archiveert of print.
+  function fotosMisluktMelding(stukken) {
+    var n = (stukken || []).reduce(function (som, s) { return som + ((s && s.mislukt) || 0); }, 0);
+    if (!n || !window.appMelding) return;
+    appMelding((n === 1 ? '1 foto kon' : n + ' foto\'s konden') + ' niet opgehaald worden en ' +
+      (n === 1 ? 'staat' : 'staan') + ' daarom niet in de pdf (er staat een rode regel op die plek). ' +
+      'Waarschijnlijk was er even geen bereik, of staat de foto nog op een ander apparaat. ' +
+      'Maak de pdf opnieuw zodra er verbinding is.', { kop: 'Foto ontbreekt in de pdf', soort: 'letop' });
   }
 
   function mislukt(e) {

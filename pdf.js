@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v124';
+  var PDF_VERSIE = 'v125';
   // v114 (keuze van Jan): vaste zin bovenaan elke aanvulling (pdf en mail).
   var BEVESTIG_AANVULLING = 'Graag bevestigen dat u deze aanvulling verwerkt, met name VERVANGT en ANNULEREN.';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
@@ -700,7 +700,8 @@
       } else if (z === 'geen') stukTekst = 'meegeleverd';
       return [r.merk || '', String(n),
               maat ? r.glasBreedte + ' x ' + r.glasHoogte + (r.rooster === 'Ja' ? ' ^' : '') : '? x ?',
-              (r.opbouw || '') + (r.totaalDikte ? ' (' + String(r.totaalDikte).replace('.', ',') + ')' : ''),
+              (r.opbouw || '') + (r.totaalDikte ? ' (' + String(r.totaalDikte).replace('.', ',') + ')' : '') +
+                (window.spacerZwart && spacerZwart(r) ? ', spacer zwart' : ''),   // v125 (keuze Jan)
               G ? (z ? G.ZIJDE_NAAM[z] || z : '?') : '',
               lat ? G.latLabel(lat, G.omgekeerd(r)) : (z === 'geen' || !maat ? '-' : ''),
               G && z !== 'geen' && maat ? G.keuzeNaam(r) : '-',

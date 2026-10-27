@@ -1127,7 +1127,8 @@
       // (die gaat naar de leverancier).
       if (o.maxPakket) r.maxPakket = o.maxPakket;
       // v124: spacer zwart (alleen zwart; ontbreekt = standaard zilver).
-      if (o.spacer === 'zwart') r.spacer = 'zwart';
+      // v125: niet bij glas zonder spouw (dan is er geen spacer).
+      if (o.spacer === 'zwart' && (!window.heeftSpouw || heeftSpouw(r))) r.spacer = 'zwart';
       if (onbekend.length) {
         r.opmerking = (r.opmerking ? r.opmerking + ' — ' : '') + onbekend.join(', ');
       }

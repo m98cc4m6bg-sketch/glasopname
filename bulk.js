@@ -145,7 +145,7 @@
       { kop: 'Corr.', titel: 'Speling / bijtelling', leegMag: true, html: function () {
           return '<select id="bulkVeld"><option value="">— volg algemeen —</option>' +
                  opts(DATA.speling_opties.map(function (s) { return parseInt(s, 10); })) + '</select>'; },
-        zet: function (r, v) { if (v === '') delete r.correctie; else r.correctie = +v; },
+        zet: function (r, v) { if (v === '') delete r.correctie; else r.correctie = +v; delete r.correctieMee; },   // v125
         leeg: function (r) { return r.correctie == null; } },
 
       { kop: 'Glas Type', titel: 'Glas type en opbouw', glas: true,
@@ -397,6 +397,8 @@
         r.opbouw = opb;
         gewijzigd++;
       });
+      // v125: zwarte spacer weg bij glas zonder spouw (met een kort bericht).
+      if (window.spacerNaWissel) spacerNaWissel(doel);
     } else {
       var el = document.getElementById('bulkVeld');
       var waarde = el.value;

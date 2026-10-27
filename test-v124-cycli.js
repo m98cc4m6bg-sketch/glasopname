@@ -2185,6 +2185,9 @@ function letop(naam, ok, extra) {
   if (doe('6')) {
     console.log('\n6. Update van v123 naar v124 met openstaand werk (script 30 staat al op de server)');
     const OUD = process.env.OUD123 || '/tmp/live123';
+    // v125: de nieuwe versie is wat er nu in index.html staat (eerst stond hier 124 vast).
+    const NU = (fs.readFileSync(path.join(map, 'index.html'), 'utf8').match(/APP_VERSIE = '(v\d+)'/) || [])[1];
+    const NUNR = parseInt(String(NU).slice(1), 10);
     const oudMap = fs.mkdtempSync(path.join(os.tmpdir(), 'v124c-oud-'));
     fs.cpSync(OUD, oudMap, { recursive: true });
     fs.writeFileSync(path.join(oudMap, 'config.js'), 'window.GLASOPNAME_CONFIG = { url: "https://test.supabase.co", anonKey: "sb_publishable_test" };\n');
@@ -2211,14 +2214,14 @@ function letop(naam, ok, extra) {
     const jan = await als('jan', PC, 'pc-jan', 1);
     if (await jan.page.evaluate(() => glasAlleenKijken())) await tochBewerken(jan.page);
     await vul(jan.page, 'B', 'opm-input', 'Jan op v124');
-    check('Jan (v124) slaat op: het project heeft nu versie 124', await wachtTot(() => ruitIn(P(1), 'B').opmerking === 'Jan op v124' && +rijVan(1).data._versieNr === 124, 8000),
+    check('Jan (' + NU + ') slaat op: het project heeft nu versie ' + NUNR, await wachtTot(() => ruitIn(P(1), 'B').opmerking === 'Jan op v124' && +rijVan(1).data._versieNr === NUNR, 8000),
       String(rijVan(1).data._versieNr));
     // Bart krijgt weer bereik, nog op v123.
     await zonderBereikVan(bart.page, 'pc-bart', false);
     await bart.page.evaluate(() => window.opslaan && opslaan()).catch(() => {});
     await wacht(6000);
     const sync123 = await syncTekst(bart.page) + ' ' + await meldTekst(bart.page);
-    check('v123 met bereik: zijn werk overschrijft dat van Jan niet', ruitIn(P(1), 'B').opmerking === 'Jan op v124' && +rijVan(1).data._versieNr === 124);
+    check('v123 met bereik: zijn werk overschrijft dat van Jan niet', ruitIn(P(1), 'B').opmerking === 'Jan op v124' && +rijVan(1).data._versieNr === NUNR);
     check('… en is niet weg (in een apart project, of nog op het apparaat)', ergens('v123 zonder bereik').length > 0 ||
       /v123 zonder bereik/.test(await ls(bart.page, 'glasopname_v2') || '') || /v123 zonder bereik/.test(await ls(bart.page, 'glasopname_redding') || ''),
       JSON.stringify(ergens('v123 zonder bereik')) + ' | ' + sync123.slice(0, 160));
@@ -2229,7 +2232,7 @@ function letop(naam, ok, extra) {
     await bart.page.reload();
     await wacht(5000);
     await sluitMeldingen(bart.page);
-    check('na de update draait Bart v124', await bart.page.evaluate(() => APP_VERSIE) === 'v124');
+    check('na de update draait Bart ' + NU, await bart.page.evaluate(() => APP_VERSIE) === NU);
     check('… zijn werk van v123 staat op de server (apart of in het project), niets weg', await wachtTot(() => ergens('v123 zonder bereik').length > 0, 12000),
       JSON.stringify(S.db.projecten.map(p => p.naam)));
     check('… de maat 905 van Bart ook', S.db.projecten.some(p => (p.data.rijen || []).some(r => r.merk === 'A' && String(r.breedte) === '905')));
@@ -2275,7 +2278,7 @@ function letop(naam, ok, extra) {
     await wim.page.reload();
     await wacht(6000);
     await sluitMeldingen(wim.page);
-    check('na de update draait Wim v124, als werkvloer', await wim.page.evaluate(() => APP_VERSIE) === 'v124' && /rol-werkvloer/.test(await lichaam(wim.page)));
+    check('na de update draait Wim ' + NU + ', als werkvloer', await wim.page.evaluate(() => APP_VERSIE) === NU && /rol-werkvloer/.test(await lichaam(wim.page)));
     check('… zijn opmerking van v123 is niet weg (apart op de server)', await wachtTot(() => ergens('wim op v123').length > 0, 12000), JSON.stringify(S.db.projecten.map(p => p.naam)));
     check('… zijn foto ook: het bestand in de opslag', await wachtTot(() => S.opslag.has(wimPad), 12000), wimPad);
     check('… het project zelf is niet door de werkvloer veranderd', ruitIn(P(1), 'L1').opmerking !== 'wim op v123' && dbStand(1).bollen === 'f1:6');

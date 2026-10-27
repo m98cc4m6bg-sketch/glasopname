@@ -902,18 +902,18 @@ async function naarToebehoren(page) {
       (u.latten.find(l => l.type === 'A4') || {}).totaalMm === 20080 && !u.latten.find(l => l.type === 'NEUS'),
       JSON.stringify(u.latten.map(l => l.type + ':' + l.totaalMm)));
     // Alle ruiten in één keer terug naar de standaard.
-    await page.selectOption('#tbAlleOnderlat', '');
+    await page.click('#tbAlleOnderlat'); await page.click('.tb-lk-optie[data-waarde=""]');   // v125: latkiezer
     await page.click('.tb-alles button:has-text("Toepassen")'); /* v120: eerst een vraag */ await page.click('.melding-laag button:has-text("Toepassen")');
     check('"Onderlat voor alle ruiten: standaard" → Y weer neuslat', await opgeslagenAls(() => perRuitDb('Y').onderlat === undefined &&
       perRuitDb('X').latZijde === 'beide'), JSON.stringify(info().toebehoren));
-    await page.selectOption('#tbAlleOnderlat', 'A4');
+    await page.click('#tbAlleOnderlat'); await page.click('.tb-lk-optie[data-waarde="A4"]');   // v125: latkiezer
     await page.click('.tb-alles button:has-text("Toepassen")'); /* v120: eerst een vraag */ await page.click('.melding-laag button:has-text("Toepassen")');
     await wacht(300);
     t = await tbTekst(page);
     m = await page.evaluate(() => toebehorenBerekenen().latten.map(l => l.type));
     check('alle onderlatten = glaslat: één soort, "A4 glaslat schuin 17x15 (rondom)"', /A4 glaslat schuin 17x15 \(rondom\)/.test(t) && JSON.stringify(m) === '["A4"]',
       JSON.stringify(m) + ' ' + t.slice(0, 100));
-    await page.selectOption('#tbAlleOnderlat', '');
+    await page.click('#tbAlleOnderlat'); await page.click('.tb-lk-optie[data-waarde=""]');   // v125: latkiezer
     await page.click('.tb-alles button:has-text("Toepassen")'); /* v120: eerst een vraag */ await page.click('.melding-laag button:has-text("Toepassen")');
     await wacht(300);
     // Een komma (zoals op een Nederlands toetsenbord) en iets wat geen getal is.

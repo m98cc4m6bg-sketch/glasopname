@@ -1598,6 +1598,15 @@
   window.glasLaatsteProject = function () {
     try { return JSON.parse(localStorage.getItem(LS_LAATST) || 'null'); } catch (e) { return null; }
   };
+  // v125 (gevonden door Jan): "↩ Verder met …" hoort niet bij een project
+  // dat weg is (prullenbak, of definitief). Alleen dit wijzertje; de kopie
+  // en werk dat nog omhoog moet blijven zoals ze zijn.
+  window.glasVergeetLaatste = function (id) {
+    try {
+      var l = JSON.parse(localStorage.getItem(LS_LAATST) || 'null');
+      if (l && (!id || l.id === id)) localStorage.removeItem(LS_LAATST);
+    } catch (e) {}
+  };
 
   // Na twee uur stilstand terug naar het startscherm, zodat niemand
   // 's middags verder typt in de opname van vanochtend (v87).
@@ -2956,6 +2965,55 @@
 
   // Ook de prullenbak telt mee: die naam is nog in gebruik, en het project
   // kan teruggezet worden (v91).
+  // v125 (keuze Jan): met script 31 houdt een project in de prullenbak zijn
+  // naam niet meer bezet (de unieke index geldt alleen buiten de
+  // prullenbak). Eén keer per sessie nagaan of het script er is; zonder
+  // script 31 blijft het zoals het was.
+  // v125: bij het terugzetten uit de prullenbak kan de database de naam
+  // veranderd hebben ("Klaver (2)", script 31), omdat die naam intussen door
+  // een ander project gebruikt werd. De naam in het project zelf
+  // (data.project) is dan nog de oude; zonder dit zou de volgende opslag de
+  // oude naam terugzetten en weigert de database ("naam al in gebruik").
+  // Alleen als op het scherm nog die oude naam staat (zelf hernoemd wint).
+  // Voor elke route die een project van de server laadt (cloudOpen, start).
+  function naamNaTerugzetten(rij) {
+    var veld = el('projectNaam');
+    if (!rij || !veld || !rij.naam) return;
+    var oud = String((rij.data && rij.data.project) || '');
+    if (!oud || naamVergelijk(rij.naam) === naamVergelijk(oud)) return;
+    if (naamVergelijk(veld.value) !== naamVergelijk(oud)) return;
+    // Wie alleen kijkt (werkvloer, of een collega heeft het slot), slaat
+    // niets op; dat doet wie het project bewerkt.
+    if ((window.glasWerkvloer && glasWerkvloer()) || (window.glasAlleenKijken && glasAlleenKijken())) return;
+    veld.value = String(rij.naam);
+    if (window.zetProjectKop) zetProjectKop();
+    vuil = true;
+    window.opslaan();
+    if (window.kortBericht) kortBericht('Dit project heet nu \u2039' + rij.naam + '\u203a: bij het terugzetten ' +
+      'uit de prullenbak was de naam \u2039' + oud + '\u203a al in gebruik.', { ms: 12000 });
+  }
+
+  var naamVrijPrul = null;
+  // Wat dit apparaat de vorige keer hoorde: zonder bereik (werkvloer op de
+  // bouw) weet de app het dan toch (knop 📍 Leverfoto). De database beslist.
+  try { if (localStorage.getItem('glasopname_script31') === '1') window.glasScript31 = true; } catch (e) {}
+  function naamVrijInPrullenbak() {
+    if (naamVrijPrul !== null) return Promise.resolve(naamVrijPrul);
+    if (!sb || !sb.rpc) return Promise.resolve(false);
+    return Promise.resolve(sb.rpc('glas_naam_vrij_in_prullenbak')).then(function (res) {
+      if (res && !res.error && res.data === true) naamVrijPrul = true;
+      else if (res && res.error && (res.error.code === 'PGRST202' || res.error.code === '42883')) naamVrijPrul = false;
+      // Zelfde vraag = is script 31 er (ook: werkvloer leverfoto en taken
+      // zonder eigenaar, rechten.js/project.js).
+      if (naamVrijPrul !== null) {
+        window.glasScript31 = naamVrijPrul === true;
+        try { if (naamVrijPrul) localStorage.setItem('glasopname_script31', '1'); else localStorage.removeItem('glasopname_script31'); } catch (e) {}
+      }
+      return naamVrijPrul === true;
+    }, function () { return false; });
+  }
+  window.glasNaamVrijInPrullenbak = naamVrijInPrullenbak;
+
   function zoekNaam(naam, behalveId) {
     if (!sb || !gebruiker) return Promise.resolve(null);
     var metKolom = prullenbakKolom;
@@ -2981,7 +3039,9 @@
   function controleerNaam() {
     var naam = waarde('projectNaam');
     if (!naam.trim() || !projectId) { toonNaamWaarschuwing(''); return; }
-    zoekNaam(naam, projectId).then(function (bestaand) {
+    Promise.all([zoekNaam(naam, projectId), naamVrijInPrullenbak()]).then(function (uit) {
+      var bestaand = uit[0];
+      if (bestaand && bestaand.verwijderd_op && uit[1]) bestaand = null;   // v125
       toonNaamWaarschuwing(bestaand
         ? '⚠ Er bestaat al een ander project met de naam ‹' + bestaand.naam + '›' +
           (bestaand.verwijderd_op ? ' (in de prullenbak)' : '') +
@@ -3195,7 +3255,7 @@
     localStorage.removeItem(LS_PENDING);
     vuil = false;
     metHerkansing(function () {
-      return sb.from('projecten').select('id,data,status' + (prullenbakKolom ? ',verwijderd_op,verwijderd_naam' : ''))
+      return sb.from('projecten').select('id,naam,data,status' + (prullenbakKolom ? ',verwijderd_op,verwijderd_naam' : ''))
         .eq('id', id).single();
     }, function (res) {
       if (res.error && geenPrullenbak(res.error)) { window.cloudOpen(id); return; }
@@ -3218,6 +3278,7 @@
       laatsteJson = JSON.stringify(huidigeStaat());
       vuil = false;
       geladen = true;
+      naamNaTerugzetten(res.data);   // v125
       migreerTaken(projectId);
       if (window.takenLaden) takenLaden();
       if (window.logboekLaden) logboekLaden();
@@ -3240,6 +3301,8 @@
       return;
     }
     var bestaand = await zoekNaam(naam, null);
+    // v125: in de prullenbak telt de naam niet meer (script 31).
+    if (bestaand && bestaand.verwijderd_op && await naamVrijInPrullenbak()) bestaand = null;
     if (bestaand) {
       window.cloudNieuw(naam, 'Er bestaat al een project met de naam \u2039' + bestaand.naam + '\u203a' +
         (bestaand.verwijderd_op
@@ -3266,6 +3329,13 @@
       aantal_ruiten: 0, adres: '', open_taken: 0,
       gewijzigd_door: gebruiker.id
     }).select('id').single().then(function (res) {
+      // v125: twee mensen tegelijk dezelfde naam, of de naam zit nog in de
+      // prullenbak zonder script 31: gewoon opnieuw vragen, met uitleg.
+      if (res.error && res.error.code === '23505') {
+        window.cloudNieuw(naam, 'De naam \u2039' + naam + '\u203a is al in gebruik (misschien door een project in de ' +
+          'prullenbak). Kies een andere naam.');
+        return;
+      }
       if (res.error || !res.data || !res.data.id) {
         appFout('Aanmaken mislukt: ' + ((res.error && res.error.message) ||
                 'de database gaf geen nieuw project terug'), { kop: 'Niet aangemaakt' });
@@ -3446,6 +3516,7 @@
     // project alsnog verwijderd; de bestanden blijven dan achter, maar
     // niemand kan er nog bij.
     if (gelukt) {
+      window.glasVergeetLaatste(id);   // v125
       try { await fotosOpruimen(id); } catch (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); }
       try { await fotosElders(elders); } catch (e) {}
       // Wat van dit project nog op dit apparaat wachtte, hoeft niet meer
@@ -3565,6 +3636,7 @@
               '.', { kop: 'Niet verwijderd' });
       return false;
     }
+    window.glasVergeetLaatste(id);   // v125
     if (id === projectId) loslatenNaPrullenbak();
     else lijstenVernieuwen();
     return true;
@@ -3591,7 +3663,7 @@
       res = await sb.from('projecten').update({
         verwijderd_op: null, verwijderd_door: null, verwijderd_naam: null,
         gewijzigd_door: gebruiker.id, gewijzigd_naam: gebruikersNaam()
-      }).eq('id', id).select('id');
+      }).eq('id', id).select('id,naam,data');
     } catch (e) {
       res = { error: { message: (e && e.message) || 'geen verbinding' } };
     }
@@ -3599,6 +3671,14 @@
       appFout('Terugzetten mislukt: ' + ((res && res.error && res.error.message) || 'het project is er niet meer') +
               '.', { kop: 'Prullenbak' });
       return false;
+    }
+    // v125 (keuze Jan): was de naam intussen in gebruik, dan gaf de database
+    // het teruggezette project "(2)" erachter (script 31). Dat zeggen.
+    var r0 = res.data[0] || {};
+    var oud = String((r0.data && r0.data.project) || '');
+    if (r0.naam && oud && naamVergelijk(r0.naam) !== naamVergelijk(oud)) {
+      appMelding('Teruggezet als \u2039' + r0.naam + '\u203a: de naam \u2039' + oud + '\u203a was intussen in gebruik ' +
+        'door een ander project. Je kunt de naam in het project zelf veranderen.', { kop: 'Teruggezet' });
     }
     lijstenVernieuwen();
     return true;
@@ -4002,7 +4082,7 @@
       if (geladen) { if (window.glasToonApp) glasToonApp(); return; }
       metHerkansing(function () {
         return sb.from('projecten')
-          .select('id,data,updated_at,status' + (prullenbakKolom ? ',verwijderd_op,verwijderd_naam' : ''))
+          .select('id,naam,data,updated_at,status' + (prullenbakKolom ? ',verwijderd_op,verwijderd_naam' : ''))
           .eq('id', projectId).maybeSingle();
       }, (function (res) {
           if (res.error && geenPrullenbak(res.error)) { start(); return; }
@@ -4070,6 +4150,7 @@
             status('⚠ Nog niet opgeslagen', '#8a5a00');
             laatsteJson = JSON.stringify(huidigeStaat());
             luisterOpProject();
+            naamNaTerugzetten(res.data);   // v125: het open werk krijgt de nieuwe naam mee
             synchroniseer();
           } else {
             zetStaat(res.data.data || {});
@@ -4078,6 +4159,7 @@
             laatsteJson = JSON.stringify(huidigeStaat());
             if (window.glasToonApp) glasToonApp();
             statusOpgeslagen();
+            naamNaTerugzetten(res.data);   // v125
             migreerTaken(projectId);
             if (window.takenLaden) takenLaden();
             if (window.logboekLaden) logboekLaden();

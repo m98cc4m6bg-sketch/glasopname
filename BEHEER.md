@@ -2,7 +2,9 @@
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
 Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 27 oktober 2026,
-bij v124 (rollen en het tabblad Beheer, script 30: §3, §4, §8, §9; "Onlangs
+bij v125 (script 31: de naam van een project in de prullenbak is vrij, de
+werkvloer zet de leverfoto en vinkt taken zonder eigenaar af: §3, §4, §10).
+Daarvoor v124 (rollen en het tabblad Beheer, script 30: §3, §4, §8, §9; "Onlangs
 verwijderd": §9). Daarvoor v123: script 28 en 29, "Apart bewaren en
 doorgaan" en uitloggen, taken van een oud-collega.*
 
@@ -234,7 +236,9 @@ Alleen een **beheerder** ziet op het startscherm het tabblad **Beheer**. Daar:
     **bestellen** (en de bestelmail), **ontgrendelen**, **nieuw project**
     (ook importeren als nieuw project) en **project weggooien**.
   - *werkvloer*: alleen kijken, plus foto's toevoegen en eigen taken
-    afvinken. Een nieuw account begint zo.
+    afvinken; sinds script 31 (v125) ook de leverfoto zetten (knop 📍
+    Leverfoto) en taken zonder eigenaar afvinken. Niet: ruiten aanwijzen of
+    de taak van een ander afvinken. Een nieuw account begint zo.
 - **Blokkeren / vrijgeven** (§3.3).
 - **💾 Back-up** (§8), **prullenbak nu legen** en **opslag nakijken** (§9).
 
@@ -248,15 +252,42 @@ raakt er nooit werk kwijt.
 
 ## 4. De SQL-scripts
 
-Alle scripts staan genummerd in de repo (`09_…` t/m `30_…`; 01 t/m 08 alleen in
-de projectkennis). **01 t/m 29 zijn gedraaid** (03 was optioneel; 26 op
-22-10-2026, 27 bij v122, 28 en 29 bij v123). **30 hoort bij v124**
-(hieronder): eerst 30, dan pas de bestanden van v124 in GitHub zetten.
+Alle scripts staan genummerd in de repo (`09_…` t/m `31_…`; 01 t/m 08 alleen in
+de projectkennis). **01 t/m 30 zijn gedraaid** (03 was optioneel, maar is
+gedraaid; 26 op 22-10-2026, 27 bij v122, 28 en 29 bij v123, 30 op
+27-10-2026). **31 hoort bij v125** (hieronder): eerst 31, dan pas de
+bestanden van v125 in GitHub zetten.
 
 Komt er een nieuw script bij, dan staat dat bovenaan de nota en in
 `LEES-MIJ-EERST-vNN.md`. **Draai een oud script niet opnieuw** zonder het
 Claude te vragen: een ouder script zet zijn eigen regels terug, en dan moeten
-de scripts 26, 27, 28 en 30 daarna opnieuw (in die volgorde).
+de scripts 26, 27, 28, 30 en 31 daarna opnieuw (in die volgorde).
+
+### Script 31: naam vrij in de prullenbak, werkvloer (v125)
+
+Supabase → SQL Editor → New query → `31_naam_en_werkvloer.sql` plakken →
+**Run**. **Niets in te vullen**, en geen waarschuwing over "RLS" (er is geen
+tijdelijke tabel). Onderaan drie regels met **ja**.
+
+Wat het doet: een project in de prullenbak houdt zijn naam niet meer bezet
+(een nieuw project mag die naam meteen krijgen). Zet iemand het oude project
+later terug terwijl de naam in gebruik is, dan heet het teruggezette project
+"Naam (2)"; de app zegt dat, en je kunt de naam in het project zelf
+veranderen. En de werkvloer mag de leverfoto zetten en taken zonder eigenaar
+afvinken.
+
+- Stopt hij met "Script gestopt; er is niets veranderd. …": lees de zin
+  (script 30 ontbreekt, of er zijn nu al twee projecten buiten de prullenbak
+  met dezelfde naam; die zin noemt ze). Zegt de editor daarna "current
+  transaction is aborted": eerst alleen `rollback;`.
+- Nog een keer draaien kan geen kwaad.
+- Zonder script 31 werkt v125 gewoon, zoals v124 (dan zegt de app nog "staat
+  in de prullenbak" bij een bezette naam, en heeft de werkvloer geen knop
+  📍 Leverfoto).
+- Terugdraaien (alleen in nood, na overleg): `31_terug.sql` (zip
+  "niet-in-repo"). Dat stopt als er intussen een project in de prullenbak
+  staat met dezelfde naam als een ander project; dan eerst één van de twee
+  hernoemen of definitief verwijderen.
 
 ### Script 30: rollen en beheer (v124)
 
@@ -648,6 +679,19 @@ Daarna:
   project.
 - *"Ik zie het tabblad Beheer niet."* Alleen een beheerder ziet het; is
   script 30 gedraaid, en staat jouw account op beheerder?
+
+**Vragen die je kunt verwachten na v125**
+
+- *"Mijn project heet ineens 'Kerkstraat 12 (2)'."* Het stond in de
+  prullenbak, en intussen kreeg een nieuw project die naam; bij het
+  terugzetten maakte de database er "(2)" van. Verander de naam in het
+  project als je wilt (een naam die al bestaat, weigert hij).
+- *"De werkvloer kan de leverfoto niet zetten."* Is script 31 gedraaid? Dan
+  staat er in de balk bovenaan Invoer een knop 📍 Leverfoto.
+- *"Een ruit staat geel in de kolom Corr. en ik heb niets gedaan."* Hij
+  verhuisde naar een blok met een andere speling (bijvoorbeeld een bolletje
+  weggehaald) en houdt zijn eigen speling, zodat de glasmaat gelijk blijft.
+  Wil je de speling van het blok: kies in die kolom "alg.".
 - *"Triple kan ik niet kiezen."* Staat er een max glaspakket bij de ruit (uit
   de maatstaat)? Dan past triple met band niet: dat is de bedoeling.
 

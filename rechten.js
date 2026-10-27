@@ -81,7 +81,16 @@
   window.glasMijnLaden = function () {
     var p = origMijn ? origMijn.apply(this, arguments) : Promise.resolve(null);
     return Promise.resolve(p).then(function (r) {
-      if (r) { zetGeblokkeerd(false); zet(r); return r; }
+      if (r) {
+        zetGeblokkeerd(false); zet(r);
+        // v125: weet de app of script 31 er is? (werkvloer: leverfoto, taken
+        // zonder eigenaar). Eén vraag per sessie (cloud.js onthoudt het
+        // antwoord, ook op het apparaat voor zonder bereik).
+        if (window.glasNaamVrijInPrullenbak) {
+          glasNaamVrijInPrullenbak().then(function () { pasToe(); }, function () {});
+        }
+        return r;
+      }
       uitGeheugen(); pasToe();    // geen bereik: wat dit apparaat al wist
       // Geen eigen regel terug: geen bereik, of geen toegang meer
       // (geblokkeerd). Dat vraagt glas_mijn_status (werkt ook zonder toegang).
@@ -298,6 +307,7 @@
     var project = pid || window.glasProjectId;
     if (!project) return false;
     var kort = { id: foto.id, pad: foto.pad, titel: foto.titel || '', breedte: foto.breedte, hoogte: foto.hoogte };
+    if (foto.soort === 'lever') kort.soort = 'lever';   // v125: de leverfoto (script 31)
     if (foto.origineel) kort.origineel = foto.origineel;
     var l = erbijLijst().filter(function (x) { return !(x.project === project && x.foto && x.foto.id === foto.id); });
     l.push({ wie: mijnId(), project: project, foto: kort, op: Date.now() });
@@ -371,11 +381,16 @@
     data.fotos.forEach(function (f) {
       if (!f || !f.id || !f._erbij) return;
       var h = heb[f.id];
-      if (!h) { fotos.push(JSON.parse(JSON.stringify(f))); bij++; return; }
+      if (!h) {
+        // v125: een nieuwe leverfoto van de werkvloer vervangt de oude.
+        if (f.soort === 'lever') fotos = fotos.filter(function (x) { return x.soort !== 'lever'; });
+        fotos.push(JSON.parse(JSON.stringify(f))); bij++; return;
+      }
       if (f.origineel && !h.origineel && h.pad === f.pad) { h.origineel = JSON.parse(JSON.stringify(f.origineel)); bij++; }
       if (!h._erbij) h._erbij = JSON.parse(JSON.stringify(f._erbij));
     });
     if (bij && window.renderFotos) try { renderFotos(); } catch (e) {}
+    if (bij && window.renderLeverFoto) try { renderLeverFoto(); } catch (e) {}
     return bij;
   };
   window.addEventListener('online', function () { setTimeout(erbijVersturen, 1500); });
@@ -386,10 +401,13 @@
   // Invoer staat uit zolang je alleen kijkt.
   window.glasWerkvloerTekst = function () {
     var n = window.glasErbijWachtend(window.glasProjectId);
-    return '<strong>Werkvloer: je kunt dit project bekijken.</strong> Foto\'s toevoegen en je eigen taken ' +
-      'afvinken kan wel.' + (n ? ' <span class="wv-wacht">' + n + (n === 1 ? ' foto wacht' : ' foto\'s wachten') +
+    return '<strong>Werkvloer: je kunt dit project bekijken.</strong> Foto\'s toevoegen' +
+      (window.glasScript31 ? ', de leverfoto zetten' : '') + ' en je eigen taken' +
+      (window.glasScript31 ? ' (en taken zonder eigenaar)' : '') + ' afvinken kan wel.' + (n ? ' <span class="wv-wacht">' + n + (n === 1 ? ' foto wacht' : ' foto\'s wachten') +
       ' op bereik.</span>' : '') +
-      ' <button type="button" class="btn btn-primary btn-sm vrij-bij-slot wv-foto-knop" onclick="glasWerkvloerFotoKies()">📷 Foto toevoegen</button>';
+      ' <button type="button" class="btn btn-primary btn-sm vrij-bij-slot wv-foto-knop" onclick="glasWerkvloerFotoKies()">📷 Foto toevoegen</button>' +
+      (window.glasScript31 ? ' <button type="button" class="btn btn-secondary btn-sm vrij-bij-slot wv-lever-knop" ' +
+        'onclick="glasWerkvloerLeverKies()">📍 Leverfoto</button>' : '');
   };
   // De vaste knop "📷 Foto toevoegen" bovenaan Invoer doet voor de werkvloer
   // hetzelfde (anders zei hij "alleen kijken").
@@ -405,6 +423,18 @@
     };
   })();
 
+  // v125 (keuze Jan): de werkvloer mag ook de leverfoto zetten (script 31).
+  window.glasWerkvloerLeverKies = function () {
+    if (!window.glasWerkvloer() || !window.leverFotoWerkvloer) return;
+    var v = el('wvLeverBestand');
+    if (!v) {
+      v = document.createElement('input');
+      v.type = 'file'; v.accept = 'image/*'; v.id = 'wvLeverBestand'; v.hidden = true;
+      v.addEventListener('change', function () { leverFotoWerkvloer(v); });
+      document.body.appendChild(v);
+    }
+    v.click();
+  };
   window.glasWerkvloerFotoKies = function () {
     if (!window.glasWerkvloer() || !window.fotoGekozen) return;
     var v = el('wvFotoBestand');

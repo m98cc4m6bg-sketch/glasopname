@@ -889,7 +889,7 @@ const tbCel = (page, merk, kl) => tbR(page, merk).locator('td.' + kl).innerText(
     check('het voorbeeld blijft na opnieuw tekenen', /E22/.test(await page.locator('#tbAlleVoorbeeld').innerText().catch(() => '')));
     await page.click('#tbAlleLat'); await page.click('.tb-lk-optie[data-waarde="-"]'); await wacht(200);   // v124: latkiezer
     // Alle ruiten → onderlat N30: niet bij binnen, en zeggen welke.
-    await page.selectOption('#tbAlleOnderlat', 'N30');
+    await page.click('#tbAlleOnderlat'); await page.click('.tb-lk-optie[data-waarde="N30"]');   // v125: latkiezer
     await page.click('.tb-alles button:has-text("Toepassen")'); /* v120: eerst een vraag */ await page.click('.melding-laag button:has-text("Toepassen")'); await wacht(500);
     t = (await meldingen(page)).join(' | ');
     check('melding: niet gewijzigd bij 2 ruiten met latzijde binnen (A, C)', /niet gewijzigd bij 2 ruiten met latzijde binnen \(A, C\)/.test(t), t.slice(0, 200));

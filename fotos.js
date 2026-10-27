@@ -32,7 +32,12 @@
   // thuis in de rij kozijnen op het invoertabblad.
   function werkFotos() { return fotos.filter(function (f) { return f.soort !== 'lever'; }); }
   window.werkFotos = werkFotos;
-  window.leverFoto = function () { return fotos.find(function (f) { return f.soort === 'lever'; }); };
+  // v125: de laatste leverfoto telt. Zet de werkvloer een nieuwe (script 31),
+  // dan kan een apparaat dat hem nog niet kende er kort twee hebben.
+  window.leverFoto = function () {
+    var l = fotos.filter(function (f) { return f.soort === 'lever'; });
+    return l.length ? l[l.length - 1] : undefined;
+  };
   function rijenVan(fotoId) { return rijen.filter(function (r) { return r.fotoId === fotoId; }); }
 
   /* ─── merkletters ──────────────────────────────────────────── */
@@ -143,7 +148,9 @@
     if (!rij) return false;
     var thuis = thuisVan(rij.id);
     if (!thuis || rij.fotoId === thuis) return false;
-    rij.fotoId = thuis;
+    // v125 (keuze Jan): de ruit houdt zijn glasmaat (eigen speling, geel).
+    if (window.verhuisRuit) verhuisMelding([verhuisRuit(rij, thuis)]);
+    else rij.fotoId = thuis;
     return true;
   }
 
@@ -674,7 +681,15 @@
 
   /* ─── foto van de leverlocatie ─────────────────────────────── */
 
-  window.leverFotoGekozen = function (input) {
+  window.leverFotoGekozen = function (input) { return leverFotoBewaar(input, false); };
+  // v125 (keuze Jan): de werkvloer mag de leverfoto zetten. Niet via het
+  // slot (hij kijkt alleen): de foto gaat via rechten.js (glas_foto_erbij,
+  // script 31) het project in, zoals zijn andere foto's.
+  window.leverFotoWerkvloer = function (input) {
+    if (!(window.glasWerkvloer && glasWerkvloer())) { input.value = ''; return; }
+    return leverFotoBewaar(input, true);
+  };
+  function leverFotoBewaar(input, wv) {
     var file = input.files && input.files[0];
     input.value = '';
     if (!file) return;
@@ -689,7 +704,7 @@
       return bewaarBestand(pad, res.blob, { soort: 'beeld', type: 'image/jpeg' })
         .then(function () {
           bijProject(pid);
-          var bestaand = window.leverFoto();
+          var bestaand = wv ? null : window.leverFoto();
           if (bestaand) {
             bestaand.pad = pad; bestaand.breedte = res.breedte; bestaand.hoogte = res.hoogte;
             bestaand.markeringen = []; bestaand.inkt = [];
@@ -700,9 +715,11 @@
               soort: 'lever', pad: pad, titel: 'Leverlocatie',
               breedte: res.breedte, hoogte: res.hoogte, markeringen: [], inkt: []
             };
+            // v125: de werkvloer vervangt de leverfoto (de database doet hetzelfde).
+            if (wv) fotos = fotos.filter(function (x) { return x.soort !== 'lever'; });
             fotos.push(bestaand);
           }
-          opslaan();
+          if (!(wv && window.glasWerkvloerFoto && glasWerkvloerFoto(bestaand, pid))) opslaan();
           renderLeverFoto();
           leverMelding('');
           return origineelErbij(file, bestaand.id, pad, renderLeverFoto, pid);
@@ -711,7 +728,7 @@
       (e && (e.heic || e.anderProject) ? console.warn : console.error)('[leverfoto]', e);
       leverMelding('Mislukt: ' + e.message, true);
     });
-  };
+  }
 
   function leverMelding(tekst, fout) {
     var m = el('leverMelding');
@@ -1555,7 +1572,13 @@
         if (x.id !== id) x.markeringen = (x.markeringen || []).filter(function (m) { return !weg[m.rijId]; });
       });
     } else {
-      rijen.forEach(function (r) { if (r.fotoId === id) delete r.fotoId; });
+      // v125 (keuze Jan): naar de losse maten, met hun eigen glasmaat.
+      var anders = [];
+      rijen.forEach(function (r) {
+        if (r.fotoId !== id) return;
+        if (window.verhuisRuit) anders.push(verhuisRuit(r, null)); else delete r.fotoId;
+      });
+      if (window.verhuisMelding) verhuisMelding(anders);
     }
     fotos = fotos.filter(function (x) { return x.id !== id; });
     aanwijzen = null;

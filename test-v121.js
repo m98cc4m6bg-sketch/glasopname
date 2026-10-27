@@ -1230,7 +1230,7 @@ const vink = async (page, mk) => { await tbR(page, mk).locator('label.tb-kies in
     check('Terugzetten: X en D weer binnen, diepte terug (ook in de database)', JSON.stringify(await zijden(page)) === JSON.stringify(['binnen', 'binnen', 'binnen']) &&
       perRuitDb('X').sponningDiepte === 41 && perRuitDb('D').sponningDiepte === 50, JSON.stringify([perRuitDb('X'), perRuitDb('D')]));
     // Latzijde binnen en een neuslat onderin: overgeslagen, en gezegd.
-    await page.selectOption('#tbActiebalk select[data-sleutel="balk-onder"]', 'N30'); await wacht(300);
+    await page.click('#tbActiebalk [data-sleutel="balk-onder"]'); await page.click('.tb-lk-optie[data-waarde="N30"]'); await wacht(300);   // v125: latkiezer
     t = await balkTekst(page);
     check('binnen + neuslat: het voorbeeld zegt "onderlat niet (latzijde binnen)"', /onderlat niet \(latzijde binnen\)/.test(t), t.slice(0, 300));
     await page.click('#tbActiebalk .btn-primary'); await wacht(600);

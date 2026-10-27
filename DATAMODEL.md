@@ -1,9 +1,10 @@
 # Glasopname — datamodel
 
 *Wat er in Supabase staat, wie wat mag, en welk script wat deed. Bijgewerkt
-op 27 oktober 2026, bij v124 (script 30: rollen, rechten en beheer).
-Daarvoor v123: script 28 (controles op nummers en versie) en 29 (zoeken).
-Bron: de SQL-scripts 01 t/m 30 zelf.*
+op 27 oktober 2026, bij v125 (script 31: de naam van een project in de
+prullenbak is vrij; de werkvloer zet de leverfoto en vinkt taken zonder
+eigenaar af). Daarvoor v124: script 30 (rollen, rechten en beheer).
+Bron: de SQL-scripts 01 t/m 31 zelf.*
 
 Zie ook `OVERZICHT.md` (hoe de app werkt) en `BEHEER.md` (wat je doet).
 Wordt bij elke nieuwe versie bijgewerkt; elk nieuw SQL-script komt in de lijst
@@ -38,7 +39,7 @@ database die zelf tegen (zie "Wie mag wat").
 | veld | betekenis | verplicht | voorbeeld |
 |---|---|---|---|
 | `id` | interne code van het project | ja | `3f2a…` |
-| `naam` | projectnaam | ja (leeg mag) | `Kerkstraat 12` |
+| `naam` | projectnaam; uniek buiten de prullenbak, hoofdletters en spaties voor/achter tellen niet (index `projecten_naam_uniek`, sinds 31 alleen buiten de prullenbak; daarvoor telde de prullenbak mee). Terugzetten uit de prullenbak terwijl de naam bezet is: de database maakt er "Naam (2)" van (trigger `projecten_naam_terugzetten`, 31); de app neemt die naam bij het openen over in `data.project` | ja (leeg mag) | `Kerkstraat 12` |
 | `datum` | inmeetdatum, als **tekst** | — | `16-10-2026` |
 | `status` | waar het project staat | ja | `aangemaakt`, `bezig met inmeten/verwerken`, `besteld`, `geleverd`, `gemonteerd`, `afgerond` |
 | `data` | **de hele opname** (JSON, zie hieronder) | ja | |
@@ -56,8 +57,8 @@ database die zelf tegen (zie "Wie mag wat").
 
 | onderdeel | wat |
 |---|---|
-| `rijen[]` | de ruiten: `merk`, `aantal`, `maatsoort`, `breedte`, `hoogte`, `glasType`, `opbouw`, `rooster`, `glasbewerking`, roeden, `opmerking`, en de berekende `glasBreedte`, `glasHoogte`, `totaalDikte`, `kgM2`; per ruit ook wie hem het laatst wijzigde (`gewDoor`, `gewOp`). Sinds v111 bij een rooster eventueel `bediening` (`'stang'` of `'koord'`), `bedieningAantal` (1 of 2) en `bedieningLengte` (mm; ontbreekt = standaardlengte); geen bediening = de drie velden ontbreken. Ze gaan mee in de momentopname van een bestelling, en in het kenmerk `k` alleen als er een bediening is (anders bleven de kenmerken van bestaande bestellingen gelijk). Sinds v114 bij een rooster eventueel `biColor` (`'Ja'`; ontbreekt = Nee) en `ralBinnen` (de kleur binnen; alleen bij bi-color); `ralKleur` is dan de kleur buiten. Op dezelfde manier alleen in het kenmerk als bi-color gekozen is. Uit een maatstaat-import eventueel `maxPakket` (mm, max glaspakket incl. band; v117: de app controleert ertegen, niets aan de database veranderd; v120: tekst met één getal in mm, een halve mm naar beneden; onleesbaar = leeg met een melding). Verder: `fotoId` (bij welk fotoblok de ruit hoort), `correctie` (eigen speling of bijtelling), `tochBestellen` (het `op` van de bestelling waarna "toch zo bestellen" gekozen is), `ducoType`, `roedenverdeling`, `roedenbreedte`, `roedenopmerking`. `id` is een heel getal van hoogstens 9 cijfers (de app deelt ze uit vanaf 1; sinds script 26 gecontroleerd door de database, en door de app bij het laden) |
-| `fotos[]` | foto's en tekeningen (`id`: letters, cijfers, - en _, max. 64; sinds script 26 gecontroleerd), met de merkbolletjes (`markeringen[]`: `{rijId, x, y}`; `rijId` een heel getal, x en y als deel van de breedte/hoogte, 0–1) en het pad in Storage. Verder `titel`, `bron` ('foto'/'tekening'), `inkt` (de getekende lijnen), `origineel` (`{pad, naam, type, grootte, datum}`, v93), `breedte`, `hoogte`, `zoom`, per blok `speling` en `bijtelling`; `soort: 'lever'` = de foto van de leverlocatie; een blok zonder `pad` is een groep zonder foto. Een regel ×3 heeft drie bolletjes met dezelfde `rijId`. Sinds v110 houdt de app het `aantal` van een regel met bolletjes gelijk aan het aantal bolletjes (alleen samen te wijzigen); de database controleert dat niet, en een oud project kan nog verschillen |
+| `rijen[]` | de ruiten: `merk`, `aantal`, `maatsoort`, `breedte`, `hoogte`, `glasType`, `opbouw`, `rooster`, `glasbewerking`, roeden, `opmerking`, en de berekende `glasBreedte`, `glasHoogte`, `totaalDikte`, `kgM2`; per ruit ook wie hem het laatst wijzigde (`gewDoor`, `gewOp`). Sinds v111 bij een rooster eventueel `bediening` (`'stang'` of `'koord'`), `bedieningAantal` (1 of 2) en `bedieningLengte` (mm; ontbreekt = standaardlengte); geen bediening = de drie velden ontbreken. Ze gaan mee in de momentopname van een bestelling, en in het kenmerk `k` alleen als er een bediening is (anders bleven de kenmerken van bestaande bestellingen gelijk). Sinds v114 bij een rooster eventueel `biColor` (`'Ja'`; ontbreekt = Nee) en `ralBinnen` (de kleur binnen; alleen bij bi-color); `ralKleur` is dan de kleur buiten. Op dezelfde manier alleen in het kenmerk als bi-color gekozen is. Uit een maatstaat-import eventueel `maxPakket` (mm, max glaspakket incl. band; v117: de app controleert ertegen, niets aan de database veranderd; v120: tekst met één getal in mm, een halve mm naar beneden; onleesbaar = leeg met een melding). Verder: `fotoId` (bij welk fotoblok de ruit hoort), `correctie` (eigen speling of bijtelling), `correctieMee` (v125, `true`: de `correctie` kwam er vanzelf bij toen de ruit naar een blok met een andere speling of bijtelling verhuisde, zodat de glasmaat gelijk bleef; telt dan niet in het kenmerk `k`, want voor de leverancier veranderde er niets. Weg zodra iemand zelf een speling kiest. Geen SQL), `tochBestellen` (het `op` van de bestelling waarna "toch zo bestellen" gekozen is), `ducoType`, `roedenverdeling`, `roedenbreedte`, `roedenopmerking`. `id` is een heel getal van hoogstens 9 cijfers (de app deelt ze uit vanaf 1; sinds script 26 gecontroleerd door de database, en door de app bij het laden) |
+| `fotos[]` | foto's en tekeningen (`id`: letters, cijfers, - en _, max. 64; sinds script 26 gecontroleerd), met de merkbolletjes (`markeringen[]`: `{rijId, x, y}`; `rijId` een heel getal, x en y als deel van de breedte/hoogte, 0–1) en het pad in Storage. Verder `titel`, `bron` ('foto'/'tekening'), `inkt` (de getekende lijnen), `origineel` (`{pad, naam, type, grootte, datum}`, v93), `breedte`, `hoogte`, `zoom`, per blok `speling` en `bijtelling`; `soort: 'lever'` = de foto van de leverlocatie (er is er één; sinds script 31 kan ook de werkvloer hem zetten, dan vervangt hij de vorige en heeft hij `_erbij`; een oude die een apparaat nog had kan terugkomen, de app toont dan de laatste); een blok zonder `pad` is een groep zonder foto. Een regel ×3 heeft drie bolletjes met dezelfde `rijId`. Sinds v110 houdt de app het `aantal` van een regel met bolletjes gelijk aan het aantal bolletjes (alleen samen te wijzigen); de database controleert dat niet, en een oud project kan nog verschillen |
 | `info` | klant en werk (`contact` en `telefoon` = contact **op het werk**, niet de besteller; `referentie`, `bereikbaar`, `notities`, `straat`, `postcode`, `plaats`), levering (`leverAdres`, `leverSoort`, `leverDatum`, `leverWeek`, `leverWeekTekst`, `leverInstructie`), `bestelmail` (`{op, door, aan}`), `status`, `opnemer` (opgenomen door), `slot` (leeg = normaal; `{open:true, door, op}` = na bestellen met wachtwoord **ontgrendeld**. Het slot zelf volgt uit de status: vanaf 'besteld' staat de invoer vast), `bestellingen[]` (elke bestelling met momentopname), `besteld` (samenvatting daarvan), en sinds v111 `toebehoren` (zie hieronder) |
 | `info.toebehoren` (v111) | alleen wat in dit project anders is dan de standaard op het tabblad Toebehoren: `latPositie` ('binnen'/'buiten'; sinds v114 niet meer gebruikt), `standaardLat`, `standaardOnderlat` (sinds v114 niet meer gebruikt: de onderlat volgt de latzijde per ruit; het veld blijft bewaard), `binnen` en `buiten` (`{kleur: 'wit'|'grijs', dikte}`), `beideGezien` (v119: ids van ruiten op latzijde "beide" zonder eigen onderlat waarvoor op Toebehoren op Begrepen is getikt; dan staan ze niet meer in de melding), `afwijkingen` (`{INSTELLING: getal}`, bijv. `{KITVOEG_BREEDTE_MM: 5}`; de namen zijn die uit `INSTELLINGEN` in `toebehoren.js`; v121 nieuw: `NEUSLAT_TOESLAG_MM`, oude projecten zonder krijgen de standaard 20), en `perRuit` (`{<id van de ruit>: {…}}`, zie hieronder). Bewust niet op de ruit zelf: dat gaf de ruit een nieuw stempel (`gewOp`). Ontbreekt het, dan geldt overal de standaard. Gaat niet naar de leverancier; de database kijkt er niet naar (geen SQL nodig) |
 | — lattypen (v113) | `standaardLat` en `onderlat` zijn een id uit `LATTEN` in `latten.js` ('A4', 'B5', 'E7', 'C1', 'N35' …) of voor de onderlat `'NEUS'` (passende neuslat, de app kiest de maat) of sinds v115 `'ZELFDE'` (dezelfde lat als boven, ook bij latzijde buiten). Oude namen uit v111/v112 worden bij het lezen omgezet (niet in de database): 'Glaslat' → 'A4' als standaardlat, maar als onderlat 'ZELFDE' (v115; tot v114 werd dat '' = automatisch); 'Neuslat' → 'NEUS'; 'Ventilatielat' → 'C1' (als standaardlat → 'A4'). Pas bij een nieuwe keuze komt het nieuwe id in het project |
@@ -225,8 +226,8 @@ begint als werkvloer) en `mag_bestellen`, `mag_ontgrendelen`, `mag_nieuw`,
 | ontgrendelen (status besteld of verder en `info.slot.open` waar, zoals de app het leest) | `mag_ontgrendelen`; intrekken met bestelrecht mag het project openen. Loopt ná het samenvoegen van script 23 (trigger `projecten_bestellingen_zz_ontgrendelen`), dus een apparaat dat een bestelling miste wordt niet geweigerd |
 | weggooien (`verwijderd_op` zetten) | `mag_weggooien` |
 | definitief verwijderen (delete) | een beheerder; anderen alleen als het project al 30 dagen in de prullenbak staat (serverklok; het automatische opruimen) |
-| het project wijzigen | niet de werkvloer; die mag alleen foto's toevoegen via `glas_foto_erbij` (hoogstens 20 nieuwe logregels per project per uur; foto's na elkaar van één persoon worden één logregel) |
-| taken | de werkvloer alleen eigen taken afvinken; wie en wanneer zet de database |
+| het project wijzigen | niet de werkvloer; die mag alleen foto's toevoegen via `glas_foto_erbij` (hoogstens 20 nieuwe logregels per project per uur; foto's na elkaar van één persoon worden één logregel), en sinds script 31 de leverfoto zetten (zelfde functie, `soort: 'lever'`, pad `<project>/lever-…`; vervangt de vorige) |
+| taken | de werkvloer alleen eigen taken afvinken, sinds script 31 ook taken zonder eigenaar (niet die van een ander); wie en wanneer zet de database |
 | mailadressen, bewerkslot | niet de werkvloer (restrictive regels `werkvloer_…`) |
 | een foto uit de opslag halen | niet de werkvloer; anderen alleen als geen enkel project het pad nog noemt (regel `projectfotos_definitief`, tabel `glas_foto_pad`); een beheerder altijd |
 | je eigen rol of rechten | niemand; een beheerder zet die van anderen via `glas_beheer_zet`; er blijft altijd minstens één beheerder |
@@ -268,6 +269,8 @@ Een weigering begint altijd met "Geen recht: …". De app werkt zonder script
 | `glas_foto_nog_nodig(paden)`, `glas_pad_in_gebruik(pad)` (30) | welke van deze foto's noemt een project nog? Vóór het opruimen |
 | `glas_beheer_gebruikers()`, `glas_beheer_zet(id, veld, waarde)` (30, alleen beheerder) | Beheer: de gebruikers met laatst ingelogd (uit `auth.users`), laatst actief, versie en bezig in; rol, actief en rechten zetten (niet bij jezelf of het back-upaccount) |
 | `glas_beheer_opslag()`, `glas_beheer_wees(max)` (30, alleen beheerder) | Opslag nakijken: foto's per soort (zonder project, prullenbak, weggehaald, alleen in het logboek, in gebruik) en de lijst van foto's die geen enkel project noemt |
+| `glas_naam_vrij_in_prullenbak()` (31) | geeft `true`: zo weet de app dat script 31 gedraaid is (de naam in de prullenbak telt niet, de werkvloer mag de leverfoto en taken zonder eigenaar). Zonder script 31 bestaat hij niet en werkt de app als in v124 |
+| `naam_bij_terugzetten()` (31) | trigger: bij terugzetten uit de prullenbak "Naam (2)", "(3)" … als de naam intussen bezet is (alleen de kolom `naam`; `data` blijft gelijk, dus het bewerkslot merkt er niets van) |
 | `glas_aanwezig(versie, apparaat)`, `glas_mijn_status()`, `glas_project_bestaat(ids)` (30) | laatst actief bijwerken; je eigen rol en of je actief bent (ook als je geblokkeerd bent); welke projecten bestaan nog (voor de fotowachtrij) |
 
 **Triggers** (op dezelfde tabel lopen ze op alfabetische naam):
@@ -282,6 +285,7 @@ Een weigering begint altijd met "Geen recht: …". De app werkt zonder script
 | `projecten_fotos_erbij` | projecten | `fotos_erbij_houden` | 30 |
 | `projecten_ids` | projecten | `ids_controleren` | 26/28 |
 | `projecten_logboek` | projecten | `log_project` | 13/14 |
+| `projecten_naam_terugzetten` (alleen bij een wijziging van `verwijderd_op`) | projecten | `naam_bij_terugzetten` | 31 |
 | `projecten_paden` (na de opslag) | projecten | `glas_paden_bijhouden` | 30 |
 | `projecten_prullenbak` | projecten | `log_prullenbak` | 18 |
 | `projecten_prullenbak_servertijd` | projecten | `prullenbak_servertijd` | 22 |
@@ -302,22 +306,24 @@ Realtime (live bijwerken) staat aan voor `projecten` (script 07) en
 ## Migraties (de SQL-scripts)
 
 01 t/m 27 zijn gedraaid (03 was optioneel; 26 op 22-10-2026, 27 bij v122);
-28 en 29 horen bij v123 (eerst 28, dan 29); 30 bij v124.
-01 t/m 08 staan alleen in de projectkennis op claude.ai; 09 t/m 30 ook in de
+28 en 29 horen bij v123 (eerst 28, dan 29); 30 bij v124 (gedraaid 27-10);
+31 bij v125.
+01 t/m 08 staan alleen in de projectkennis op claude.ai; 09 t/m 31 ook in de
 repo. **`test-sql.sql` nooit in Supabase
 draaien**: dat is voor de tests en begint met alles weggooien.
 
 **Na script 26 geen ouder script opnieuw draaien.** Moet het toch, draai
 daarna script 26 opnieuw: oudere scripts zetten hun eigen regels terug,
-zonder de controle op actieve collega's (en na 27, 28 en 30: draai dan ook 27,
-28 en 30 opnieuw, in die volgorde; script 30 vervangt `glas_bewerken`,
-`bewerkslot_bewaken` (24) en de regel voor definitief verwijderen (26)).
+zonder de controle op actieve collega's (en na 27, 28, 30 en 31: draai dan ook
+27, 28, 30 en 31 opnieuw, in die volgorde; script 30 vervangt `glas_bewerken`,
+`bewerkslot_bewaken` (24) en de regel voor definitief verwijderen (26); script
+31 vervangt `taken_rechten` en `glas_foto_erbij` (30) en de index van 03).
 
 | nr | versie | wat |
 |---|---|---|
 | 01 | v1 | basis: `projecten`, `app_data`, rechten, overzicht `ruiten` (alle ruiten als platte tabel, om in de SQL Editor te zoeken) |
 | 02 | | de keuzelijsten (`app_data.glas_data`) voor het eerst gevuld |
-| 03 | | *optioneel*: projectnamen uniek (hoofdletters tellen niet). Of dit gedraaid is, is niet vastgelegd |
+| 03 | | *optioneel*: projectnamen uniek (hoofdletters tellen niet). Is gedraaid (Jan kreeg op 27-10 "naam al in gebruik" door een project in de prullenbak). Sinds 31 alleen buiten de prullenbak |
 | 04 | | opslagmap `projectfotos` en de rechten daarop |
 | 05 | | correctie op 04: foto's opruimen doet de app, niet de database |
 | 06 | | kolom `aantal_ruiten` |
@@ -345,6 +351,7 @@ zonder de controle op actieve collega's (en na 27, 28 en 30: draai dan ook 27,
 | 28 | v123 | controles: `glas_ids_fout()` (één plek voor de nummers; ook een ruit zonder nummer, een bolletje zonder ruitnummer en het fotonummer bij een ruit), `ids_controleren` gebruikt hem; versiegrens ook bij een nieuw project en 5+ cijfers telt als 0; `glas_gebruik()` alleen voor collega's. Eén geheel (`begin … commit`), met een veiligheidsstop als er nu al een project (buiten de prullenbak) met vreemde nummers staat. Mag vaker gedraaid worden. Terugdraaien: `28_terug.sql` (niet in de repo) |
 | 29 | v123 | zoeken: uitbreiding `unaccent` (schema `extensions`) en de functie `glas_zoek_projecten()`. Verandert geen gegevens; niet verplicht (zonder: de app zoekt zoals in v122, plus de klantnaam). Terugdraaien: `drop function if exists public.glas_zoek_projecten(text, text);` |
 | 30 | v124 | rollen en beheer: kolommen in `gebruikers` (rol, vier rechten, laatst actief) en `bewerkslot.wie`; triggers `projecten_0_rechten`, `projecten_bestellingen_zz_ontgrendelen`, `taken_0_rechten`, `projecten_fotos_erbij`, `projecten_paden`; tabel `glas_foto_pad`; regels voor definitief verwijderen, de werkvloer en de opslag; de functies hierboven. Bovenaan het e-mailadres van de eerste beheerder invullen (staat bewust niet in de openbare repo). Eén geheel met veiligheidsstop; mag vaker gedraaid worden. Terugdraaien: `30_terug.sql` (niet in de repo) |
+| 31 | v125 | de naam van een project in de prullenbak is vrij: de unieke index alleen buiten de prullenbak, en bij terugzetten "Naam (2)" als de naam bezet is (`naam_bij_terugzetten`); `glas_naam_vrij_in_prullenbak()`; de werkvloer mag de leverfoto zetten (`glas_foto_erbij`) en taken zonder eigenaar afvinken (`taken_rechten`). Niets in te vullen, geen tijdelijke tabel. Eén geheel met veiligheidsstop (script 30 moet er zijn; geen twee projecten buiten de prullenbak met dezelfde naam). Mag vaker gedraaid worden. Terugdraaien: `31_terug.sql` (niet in de repo; stopt als er intussen twee projecten met dezelfde naam zijn, één in de prullenbak) |
 
 **Twee kleine onjuistheden in oude scripts** (gevonden bij het schrijven van
 dit document; voor de gebruiker zonder gevolgen):

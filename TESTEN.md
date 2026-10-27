@@ -800,6 +800,25 @@ harde eis wint.
   - les: **Safari geeft een knop bij een klik geen focus**: het invoervak
     blijft actief terwijl de knop zijn werk doet. Dat was de oorzaak van
     "het bolletje komt terug" (Jan, MacBook).
+- **v125** (27-10, klein en zonder agents gebouwd, volgens de werkafspraak
+  van 27-10 in de projectkennis, `claude/WERKWIJZE-27-10.md`):
+  - `test-v125.js` (±3 min, 18 mutaties, alle 18 met de hand bewezen):
+    "↩ Verder met" na de prullenbak (ook door een collega, en niets vergeten
+    tijdens zoeken), de naam in de prullenbak vrij met een namaak van script
+    31 in de test (die moet meeveranderen met de SQL), "(2)" bij
+    terugzetten en bij het openen, twee mensen tegelijk dezelfde naam
+    (23505), de werkvloer met leverfoto (ook zonder bereik) en taken zonder
+    eigenaar, spacer zwart weg bij glas zonder spouw (niet bij een leeg type)
+    en op de werkvloer-pdf, een verhuisde ruit houdt zijn glasmaat (kenmerk
+    gelijk, geel met uitleg), de onderlat met plaatjes. Gebouwd op de
+    nabootsing van `test-v124-rechten.js` (gekopieerd; de tests ombouwen naar
+    één gedeelde nabootsing is een aparte klus);
+  - script 31: proef tegen PostgreSQL 16 (`proef31.sh`, met de mutaties
+    met de hand); in de zip "niet-in-repo";
+  - les: **een tweede weg naar hetzelfde.** Een project openen gaat via
+    `cloudOpen` én via het webadres (`start()`, ook na herstarten). De
+    naam overnemen na "(2)" zat eerst alleen in de eerste; de test opende
+    via het webadres en vond het.
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

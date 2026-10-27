@@ -869,6 +869,7 @@
     var ik = mijnNaam();
     // v124 (script 30, keuze Jan): de werkvloer vinkt alleen zijn eigen
     // taken af; de rest staat uit (de database houdt het ook tegen).
+    // v125 (keuze Jan): ook taken zonder eigenaar (script 31).
     var wv = !!(window.glasWerkvloer && glasWerkvloer());
     var mijnId = wv && window.glasGebruiker ? glasGebruiker().id : null;
     var uit = wv ? 'disabled ' : '';
@@ -877,9 +878,9 @@
       var eigenaar = t.eigenaar_naam || '';
       var keuze = cloudTaken() && !wv ? eigenaarKeuzeHTML(t.eigenaar, eigenaar, sleutel) : '';
       var wees = weesTaak(t);
-      var vinkUit = wv && !(mijnId && t.eigenaar === mijnId);
+      var vinkUit = wv && !(mijnId && t.eigenaar === mijnId) && !(!t.eigenaar && window.glasScript31);
       return '<div class="taak' + (t.klaar ? ' klaar' : '') + (wees ? ' wees' : '') + '">' +
-        '<input type="checkbox"' + (t.klaar ? ' checked' : '') + (vinkUit ? ' disabled title="Alleen je eigen taken"' : '') +
+        '<input type="checkbox"' + (t.klaar ? ' checked' : '') + (vinkUit ? ' disabled title="Alleen je eigen taken' + (window.glasScript31 ? ' en taken zonder eigenaar' : '') + '"' : '') +
           ' onchange="taakKlaar(' + sleutel + ', this.checked)">' +
         '<input type="text" class="taak-tekst" value="' + esc(t.tekst) + '" ' + uit +
           'onchange="taakTekst(' + sleutel + ', this.value)" placeholder="omschrijving…">' +

@@ -3936,7 +3936,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v124';
+const APP_VERSIE = 'v125';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -4283,7 +4283,11 @@ function correctieCel(rij) {
   const teken = rij.maatsoort === 'Dagmaat' ? '+' : '\u2212';
   const opties = DATA.speling_opties.map(s => parseInt(s, 10))
     .map(v => `<option value="${v}" ${eigen && +rij.correctie === v ? 'selected' : ''}>${teken}${v} mm</option>`).join('');
-  return `<td class="correctie-cel ${eigen ? 'afwijkend' : ''}" id="corr-${rij.id}">
+  // v125: geel = eigen speling; zeggen dat hij afwijkt van het blok.
+  const uitleg = eigen && +rij.correctie !== alg
+    ? ` title="Eigen ${rij.maatsoort === 'Dagmaat' ? 'bijtelling' : 'speling'} ${teken}${rij.correctie} mm: wijkt af van de algemene blok${rij.maatsoort === 'Dagmaat' ? 'bijtelling' : 'speling'} (${teken}${alg} mm). Kies '${teken}${alg} alg.' om de blokwaarde te gebruiken."`
+    : '';
+  return `<td class="correctie-cel ${eigen ? 'afwijkend' : ''}" id="corr-${rij.id}"${uitleg}>
     <select onchange="setCorrectie(${rij.id}, this.value)">
       <option value="" ${eigen ? '' : 'selected'}>${teken}${alg} alg.</option>${opties}
     </select></td>`;
@@ -4303,11 +4307,44 @@ function maatInstelling(sel) {
   opslaan();
 }
 
+// v125 (keuze Jan): een ruit die naar een ander blok gaat (zijn bolletjes,
+// of een groep weg met ‹Ruiten bewaren›) houdt zijn glasmaat. Heeft het
+// nieuwe blok een andere speling of bijtelling, dan krijgt de ruit zijn oude
+// als eigen correctie; die staat geel in de kolom Corr. ("wijkt af van het
+// blok"). Een ruit met al een eigen correctie, of een glasmaat (direct),
+// verandert niet. Geeft { merk, was, nu } terug als dat gebeurde.
+function verhuisRuit(rij, naarFotoId) {
+  if (!rij) return null;
+  const eigen = rij.correctie != null && rij.correctie !== '';
+  const direct = rij.maatsoort === 'Glasmaat (direct)';
+  const voor = correctieVan(rij);
+  if (naarFotoId) rij.fotoId = naarFotoId; else delete rij.fotoId;
+  if (eigen || direct) return null;
+  const na = correctieVan(rij);
+  if (na === voor || isNaN(voor)) return null;
+  rij.correctie = voor;
+  rij.correctieMee = true;   // zie ruitKenmerk
+  return { merk: rij.merk || '', was: voor, nu: na };
+}
+window.verhuisRuit = verhuisRuit;
+function verhuisMelding(lijst) {
+  lijst = (lijst || []).filter(Boolean);
+  if (!lijst.length || !window.kortBericht) return;
+  const v = lijst[0];
+  kortBericht(lijst.length === 1
+    ? 'De speling van ' + (v.merk || 'deze ruit') + ' wijkt nu af van de blokspeling: hij houdt ' + v.was +
+      ' mm (het blok: ' + v.nu + ' mm), zodat de glasmaat gelijk blijft. Geel in de kolom Corr.'
+    : 'De speling van ' + lijst.map(x => x.merk || '?').join(', ') + ' wijkt nu af van de blokspeling; ze houden hun ' +
+      'eigen speling, zodat de glasmaat gelijk blijft. Geel in de kolom Corr.', { ms: 12000 });
+}
+window.verhuisMelding = verhuisMelding;
+
 function setCorrectie(id, waarde) {
   if (slotWeigert()) return;
   const rij = getRij(id);
   if (!rij) return;
   if (waarde === '') delete rij.correctie; else rij.correctie = parseInt(waarde, 10);
+  delete rij.correctieMee;   // v125: nu een eigen keuze (telt in het kenmerk)
   renderTabel(); herbereken(); opslaan();
 }
 
@@ -4562,6 +4599,7 @@ function wijzigOpbouw(id, waarde) {
   if (!rij) return;
   rij.opbouw = waarde;
   berekenDikte(rij);
+  spacerNaWissel([rij]);   // v125
   updateBerekendCellen();
   opslaan();
   herzieRegel(id);
@@ -5441,6 +5479,7 @@ function wijzigGlasType(id, type) {
   rij.glasType = type;
   rij.opbouw = '';
   berekenDikte(rij);
+  spacerNaWissel([rij]);   // v125
   updateBerekendCellen();
   opslaan();
   // De hele regel opnieuw: de opbouwlijst hoort bij het nieuwe type, en de
@@ -5578,6 +5617,21 @@ function heeftSpouw(r) {
 window.glasHeeftSpouw = heeftSpouw;
 function spacerZwart(r) { return !!(r && r.spacer === 'zwart' && heeftSpouw(r)); }
 window.spacerZwart = spacerZwart;
+// v125 (keuze Jan): gaat een ruit met een zwarte spacer naar glas zonder
+// spouw (ander type of andere opbouw, ook via ⤓ doorvoeren of Toebehoren),
+// dan gaat "zwart" weg, in dezelfde ↶-stap, met een kort bericht. Niet bij
+// het openen van een project: daar blijft staan wat er staat.
+function spacerNaWissel(lijst) {
+  let n = 0;
+  // Alleen bij een gekozen glastype: een leeg type is nog geen "glas zonder spouw".
+  (lijst || []).forEach(r => { if (r && r.spacer === 'zwart' && r.glasType && !heeftSpouw(r)) { delete r.spacer; n++; } });
+  if (n && window.kortBericht) {
+    kortBericht(n === 1 ? 'De zwarte spacer is weggehaald: dit glas heeft geen spouw.'
+                        : 'Bij ' + n + ' ruiten is de zwarte spacer weggehaald: dat glas heeft geen spouw.');
+  }
+  return n;
+}
+window.spacerNaWissel = spacerNaWissel;
 function spacerCel(rij) {
   const mag = heeftSpouw(rij);
   const zw = rij.spacer === 'zwart';
@@ -5709,7 +5763,11 @@ function ruitKenmerk(rij) {
   // Alleen bij een rooster: een overgebleven bediening zonder rooster (van een
   // ouder apparaat) staat nergens op papier, en mag de ruit dus ook niet
   // "gewijzigd" maken.
-  const tekst = KENMERK_VELDEN.map(v => String(rij[v] === undefined ? '' : rij[v])).join('|') +
+  // v125: een eigen speling die alleen ontstond doordat de ruit naar een
+  // ander blok ging (verhuisRuit, correctieMee) telt als "geen": de glasmaat
+  // is gelijk gebleven, dus de ruit is niet gewijzigd voor de leverancier.
+  const tekst = KENMERK_VELDEN.map(v => (v === 'correctie' && rij.correctieMee) ? ''
+    : String(rij[v] === undefined ? '' : rij[v])).join('|') +
     (rij.bediening && rij.rooster === 'Ja' ? '|bed:' + rij.bediening + '/' + (parseInt(rij.bedieningAantal, 10) === 2 ? 2 : 1) + '/' +
       (parseInt(rij.bedieningLengte, 10) > 0 ? parseInt(rij.bedieningLengte, 10) : '') : '') +
     // v114: bi-color op dezelfde manier: alleen als het gekozen is (en er een

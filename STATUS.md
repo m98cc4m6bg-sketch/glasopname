@@ -2,20 +2,18 @@
 
 *Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens twee
 pagina's. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 27 oktober
-2026, bij v124 (opgeleverd, nog niet live).*
+2026, bij v125 (opgeleverd, nog niet live; v124 staat live).*
 
 ## Live (27-10-2026)
 
-- **v123 staat live** (26-10, commit `b9296d7`) en is nagekeken: de repo is
+- **v124 staat live** (27-10, commit `a7fc36b`) en is nagekeken: de repo is
   gelijk aan het pakket (alleen `config.js` en het oude `.DS_Store` extra).
-  SQL-scripts **t/m 29** zijn gedraaid. De wachtwoordproef in Safari is
-  gedaan en werkt (de Wachtwoorden-app noemt het item "GitHub Pages"; dat kan
-  de app niet bepalen, Jan kan het daar zelf hernoemen).
-- **v124 is opgeleverd** (27-10), nog niet gepusht. Volgorde voor Jan:
-  eerst **script 30** in Supabase (de ingevulde kopie uit de zip
-  "niet-in-repo"), dan de bestanden (`LEES-MIJ-EERST-v124.md`). Daarna de
-  repo nakijken (clone + `diff -rq`). **Geen nieuwe accounts aanmaken vóór
-  v124 live staat.**
+  SQL-scripts **t/m 30** zijn gedraaid (28 bleek bij v123 nog niet gedraaid;
+  Jan deed het op 27-10 vóór 30). Rollen na script 30: Jan
+  (`julian@jelierbouw.nl`) beheerder, de andere collega('s) collega, het
+  back-upaccount rol collega mét `alleen_lezen` (dat wint). De wachtwoordproef
+  in Safari is gedaan en werkt (de Wachtwoorden-app noemt het item "GitHub
+  Pages"; dat kan de app niet bepalen).
 - **De automatische back-up draait** (privé repo `glasopname-backup`, elke
   nacht 01:17 UTC naar de app-map in Jans Dropbox; mail bij mislukken). Taak
   **v4** staat erin (run #7 groen, 26-10). De notice "ubuntu-latest gaat naar
@@ -30,6 +28,24 @@ pagina's. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 27 oktober
   knop meldt dat de mailfunctie niet bereikbaar is; ‹Ja, verstuurd› legt
   de bestelling wel vast.
 - Klein restje in de repo: een oud **`.DS_Store`**; Jan mag hem weghalen.
+
+## v125 in het kort (opgeleverd 27-10-2026, nog niet live)
+
+Klein gehouden en zonder agents gebouwd (werkafspraak 27-10, projectkennis
+`claude/WERKWIJZE-27-10.md`). Details: `WIJZIGINGEN-v125.md`; keuzes:
+`claude/WENSEN-v125.md`. **Eerst script 31**, dan de bestanden.
+- "↩ Verder met …" verdwijnt na de prullenbak (ook als een collega het
+  project weggooit).
+- De naam van een project in de prullenbak is meteen vrij (script 31);
+  terugzetten terwijl de naam bezet is → "Naam (2)", de app zegt het en
+  neemt de naam over.
+- Werkvloer (script 31): de leverfoto zetten, taken zonder eigenaar
+  afvinken.
+- Spacer zwart weg bij glas zonder spouw; "spacer zwart" op de werkvloer-pdf.
+- Een ruit die naar een blok met een andere speling verhuist, houdt zijn
+  glasmaat (eigen speling, geel, met uitleg).
+- Onderlat op Toebehoren met plaatjes (latkiezer).
+- Apart, in **v126**: weggehaalde foto's na 30 dagen echt opruimen.
 
 ## v124 in het kort (Jans eigen wensen, keuzes 26-10-2026)
 
@@ -54,27 +70,28 @@ keuzes: `claude/WENSEN-JAN-26-10.md` (projectkennis).
 
 ## Wacht op Jan / navragen
 
-1. **v124 plaatsen**: script 30 (ingevuld) → bestanden; dan de repo nakijken.
-2. **Op de iPad/Mac proberen**: "Hoe je het zelf controleert" in
+1. **Op de iPad/Mac proberen**: "Hoe je het zelf controleert" in
    `WIJZIGINGEN-v124.md` (vooral: de bestellijst delen/bewaren op de iPad
    nadat de app de rechten nakeek). Ook nog die van v120, v121 en v123.
-3. **Navragen voor v125** (`WIJZIGINGEN-v124.md` §5): werkvloer (leverfoto,
-   aanwijzen, taken zonder eigenaar, foto bij besteld project); onderlat met
-   plaatjes; rekenregels dicht en de naam "Alle ruiten tegelijk wijzigen";
-   te dikke opbouw blokkeren; spacer bij glas zonder spouw en op de
-   werkvloer-pdf; meer in "Onlangs verwijderd"; speling bij verhuizen;
-   weggehaalde foto's opruimen.
-4. **P3 herbeoordelen** (Jan vroeg erom, 22-10).
-5. **C1** (een glaslat): Jan meet na; dan `zeker: true` en de maat in
+2. **v125 live zetten**: eerst script 31, dan de bestanden
+   (`LEES-MIJ-EERST-v125.md`); daarna de repo nakijken. Proberen: "Hoe je
+   het zelf controleert" in `WIJZIGINGEN-v125.md`.
+3. **P3 herbeoordelen** (Jan vroeg erom, 22-10).
+4. **C1** (een glaslat): Jan meet na; dan `zeker: true` en de maat in
    `latten.js`.
-6. **Handleidingen**: Jan mag ze lezen en zeggen wat onduidelijk is.
-7. **Het webadres en het GitHub-account** (handover §9): herinneren zodra er
+5. **Handleidingen**: Jan mag ze lezen en zeggen wat onduidelijk is.
+6. **Het webadres en het GitHub-account** (handover §9): herinneren zodra er
    een site bijkomt op het account, bij een eigen domein of het
    klantportaal, en als het lang blijft liggen.
 
 ## Volgende ronde
 
-- De navraaglijst hierboven (3).
+- **v126** (keuze Jan, 27-10): weggehaalde foto's na 30 dagen echt
+  opruimen (niet als een project, een apart bewaarde kopie of "Onlangs
+  verwijderd" het pad nog noemt).
+- **Werkwijze, elk een eigen klus** (`claude/WERKWIJZE-27-10.md`): werken met
+  pull requests, de tests ombouwen (per onderdeel, één nabootsing, batterij
+  < 15 min), de app geleidelijk opknippen, de documentatie afslanken.
 - **Tests bij elke push (GitHub Actions): bewust nog niet** (Jan, 22-10).
 - **Instructievideo** bijwerken (`claude/INSTRUCTIEVIDEO.md`; nu ook Beheer,
   Onlangs verwijderd, tekeningen, Toebehoren in drie stappen).
@@ -88,7 +105,15 @@ Beheerscherm keuzelijsten (geparkeerd; herinneren als Jan een keuzelijst wil
 wijzigen) · bestelmail instellen (Jan, later; dan éérst de vraag over de
 adressen, handover §0 en §11e) · tests draaibaar buiten Claudes omgeving.
 
-## Vorige sessie (26–27 oktober 2026)
+## Vorige sessie (27 oktober 2026)
+
+- v124 live gezet door Jan (scripts 28 en 30 gedraaid) en nagekeken.
+- Jan vond twee dingen (Verder met, naam in de prullenbak) en beantwoordde de
+  navraaglijst; daarna de vraag "waarom duurt het zo lang?": analyse en
+  afspraken in `claude/WERKWIJZE-27-10.md`. v125 klein gebouwd, zonder
+  agents; de batterij één keer.
+
+## Sessie daarvoor (26–27 oktober 2026)
 
 - v123 live gezet door Jan en nagekeken; Safari-proef gedaan; back-uptaak v4
   draait.

@@ -31,6 +31,7 @@
 
   var zoekTimer = null;
   var projectenCache = [];
+  var lijstVolledig = false;   // v125: de lijst is ongefilterd en compleet opgehaald
 
   /* ─── tonen en verbergen ──────────────────────────────────── */
 
@@ -58,6 +59,7 @@
     window.glasStartTelefoonKnop();
     if (window.glasBackupKnop) glasBackupKnop();
     if (window.glasMijnLaden) glasMijnLaden().then(window.glasStartTelefoonKnop);
+    lijstVolledig = false;   // v125: de oude lijst telt niet; de nieuwe beslist
     vulVerder();
     // Eerst opruimen wat langer dan 30 dagen in de prullenbak staat, dan
     // pas de prullenbak tonen. De taken van projecten in de prullenbak
@@ -276,6 +278,15 @@
     if (!vak) return;
     var laatst = window.glasLaatsteProject ? glasLaatsteProject() : null;
     if (!laatst || !laatst.id) { vak.innerHTML = ''; return; }
+    // v125 (Jan): ook met een bewaarde naam, en vóór de
+    // naamcontrole hieronder (die verbergt alleen, en vergeet niets). Staat het project niet in de
+    // volledige lijst (niet gezocht, niet afgekapt), dan is het weg
+    // (prullenbak of definitief, ook door een collega): niet meer tonen.
+    if (lijstVolledig && !projectenCache.some(function (x) { return x.id === laatst.id; })) {
+      if (window.glasVergeetLaatste) glasVergeetLaatste(laatst.id);
+      vak.innerHTML = '';
+      return;
+    }
     // De naam weten we niet altijd (bijvoorbeeld na het herstarten van de
     // app); dan halen we hem uit de projectenlijst die hier toch al staat.
     var naam = laatst.naam;
@@ -435,6 +446,8 @@
       }
       var lijst = sorteer(res.data || [], sortering);
       projectenCache = lijst;
+      lijstVolledig = !String(zoek || '').trim() &&
+        !(typeof res.totaal === 'number' && res.totaal > lijst.length);
       vulVerder();
       var teller = el('startProjectTelling');
       var totaal = (typeof res.totaal === 'number' && res.totaal > lijst.length) ? res.totaal : lijst.length;

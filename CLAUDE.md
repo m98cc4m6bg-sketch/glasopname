@@ -474,9 +474,21 @@ Een feit staat op één plek; elders verwijs je ernaar.
   zet recht bij het laden) en `glas_ids_fout` (script 28, weigert). Wat de
   database weigert, moet de app eerst rechtzetten: verander ze samen (v123).
 * **Een oud script opnieuw draaien** zet zijn eigen regels terug: daarna 26,
-  27, 28 en 30 opnieuw, in die volgorde (proef28 §7 en proef30 §9 laten zien
-  dat dat klopt). Script 30 vervangt `glas_bewerken`/`bewerkslot_bewaken`
-  (24) en de regel voor definitief verwijderen (26).
+  27, 28, 30 en 31 opnieuw, in die volgorde (proef28 §7 en proef30 §9 laten
+  zien dat dat klopt). Script 30 vervangt `glas_bewerken`/`bewerkslot_bewaken`
+  (24) en de regel voor definitief verwijderen (26); script 31 vervangt
+  `taken_rechten` en `glas_foto_erbij` (30) en de naamindex (03). Script 31
+  opnieuw na 30: anders mag de werkvloer de leverfoto weer niet.
+* **Script 31 (v125)**: de app vraagt `glas_naam_vrij_in_prullenbak`
+  (`window.glasScript31`); zonder werkt alles als in v124. Een nieuwe route
+  die een project van de server laadt: ook `naamNaTerugzetten(rij)` (de
+  "(2)" van de database in het project overnemen; anders weigert de
+  volgende opslag met "naam al in gebruik"). Scripts voortaan zonder iets
+  in te vullen en zonder tijdelijke tabel (keuze Jan).
+* **Een ruit naar een ander blok** (v125, keuze Jan): via `verhuisRuit`
+  (index.html), die bij een andere speling de oude als eigen `correctie`
+  geeft met `correctieMee` (telt niet in het kenmerk). Nieuwe code die
+  `fotoId` verandert: ook via `verhuisRuit`.
 * **Script 30 en het e-mailadres**: bovenaan staat `VUL-HIER-JE-EMAILADRES-IN`
   (de repo is openbaar); een ingevulde kopie gaat in de zip "niet-in-repo".
   De tabel `glas_foto_pad` is afgeleid (hoeft niet in `backup.py`).
@@ -502,7 +514,7 @@ node test-index.js && node test-naslag.js && node test-cloudguard.js
 node test-herstel.js && node test-start.js && node test-import.js
 node test-slot.js && node test-offline.js && node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
-OUD=/tmp/live123 node test-overgang.js   # OUD = kopie van wat live staat (27-10-2026: v123, b9296d7; git archive); ook vanaf v98
+OUD=/tmp/live124 node test-overgang.js   # OUD = kopie van wat live staat (27-10-2026: v124, a7fc36b; git archive); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 
@@ -544,6 +556,7 @@ node test-v124-herstel.js               #  ±3 min; ↶ (bolletjes, na herladen)
 node test-v124-tekeningen.js            #  ±2,5 min; aanwijzen op meer tekeningen, verhuizen
 node test-v124-toebehoren.js            #  ±1 min; latkiezer, drie stappen
 node test-v124-cycli.js                 #  ±5 min; zeven werkgangen over alles heen
+node test-v125.js                       #  ±3 min; Verder met, naam in de prullenbak vrij (namaak van script 31!), werkvloer leverfoto/taken, spacer, speling bij verhuizen, onderlat
 ```
 
 **Mutatieproef** (`--mutaties`): alleen bij 🔴, en alleen voor de reeks
@@ -554,7 +567,9 @@ v111 51 ±40 min, v112 21 ±15 min, v113 40 ±30 min, v114 34 ±40 min,
 v115 37 ±45 min, v116 9 ±4 min, v117 17 ±10 min, v118 18 ±25 min, v119 11 ±10 min,
 v120 33 ±40 min, v121 17 ±20 min, v122 3 ±2 min, v123 34 ±18 min,
 v124-rechten 39 ±55 min, v124-werkpunten 37 ±35 min, v124-herstel 36 ±60 min,
-v124-tekeningen 27 ±30 min, v124-toebehoren 40 ±20 min, v124-cycli 7 ±25 min.
+v124-tekeningen 27 ±30 min, v124-toebehoren 40 ±20 min, v124-cycli 7 ±25 min,
+v125 18 ±4 min. Script 31: proef tegen PostgreSQL (`proef-script-31/`, zip
+"niet-in-repo").
 Script 30: proef tegen PostgreSQL (175 controles, 67 mutaties) en de app
 tegen een echte PostgREST (`proef-script-30/`, zip "niet-in-repo"). Script 28 en 29:
 proef tegen PostgreSQL, 57 controles en 18 mutaties (zip "niet-in-repo",

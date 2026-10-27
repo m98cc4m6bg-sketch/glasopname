@@ -27,7 +27,8 @@ Wordt bij elke nieuwe versie bijgewerkt, net als `BEHEER.md` en
 | wat er per versie veranderde | `WIJZIGINGEN-vNN.md` (zip "niet-in-repo" en projectkennis) |
 | hoe we testen | `TESTEN.md` |
 | regels voor Claude | `CLAUDE.md` |
-| volledige geschiedenis, beslissingen, bugboek, beveiliging | `HANDOVER.md` in de projectkennis op claude.ai (niet in de openbare repo) |
+| valkuilen per onderdeel (voor Claude) | `docs/<onderdeel>.md` |
+| beslissingen, bugboek, beveiliging | `claude/BESLISSINGEN.md`, `claude/BUGBOEK.md`, `claude/BEVEILIGING.md` in de projectkennis op claude.ai (niet in de openbare repo; tot 27-10-2026 samen `HANDOVER.md`) |
 
 ---
 
@@ -433,7 +434,8 @@ GitHub-taak, hoe vol is de opslag: `BEHEER.md` §7 en §9.
 
 Dat zijn ook de plekken waar de app nu het moeilijkst te onderhouden is. Wil
 je daar iets veranderen zonder AI, haal er dan een programmeur bij en geef
-hem `OVERZICHT.md`, `DATAMODEL.md` en de handover.
+hem `OVERZICHT.md`, `DATAMODEL.md` en de documenten uit de projectkennis
+(beslissingen, bugboek, beveiliging).
 
 ## 9. De automatische tests
 
@@ -484,6 +486,6 @@ een verbeterpunt. Tests automatisch bij elke push (GitHub): bewust nog niet
    laatste 20) bevatten de stand van daarvoor. Terugzetten daaruit kan nog
    niet in de app; vraag hulp.
 5. **Hulp nodig** → een nieuwe Claude-sessie in het project "Glas inmeet web
-   app" (die leest de handover en dit document), of een programmeur met
-   `OVERZICHT.md`, `DATAMODEL.md` en de handover. De app gebruikt geen
+   app" (die leest `START-HIER.md` en dit document), of een programmeur met
+   `OVERZICHT.md`, `DATAMODEL.md` en de documenten uit de projectkennis. De app gebruikt geen
    bijzondere techniek: HTML, JavaScript, en Supabase (Postgres).

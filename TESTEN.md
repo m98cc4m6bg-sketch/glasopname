@@ -171,8 +171,8 @@ houdbaar-bouwen). Bij twijfel kies je het hogere niveau.
 | 🟠 functie, berekening, knoppen, keuzelijsten | 🟢 + een nieuwe test die aantoonbaar rood kan worden (met de hand) + de volledige batterij **één keer** | 30–40 min |
 | 🔴 database, rechten, inloggen, service worker, data omzetten | 🟠 + de mutatieproef van de reeks die je raakt | 1–1,5 uur |
 
-De lijsten "snelle kern" en "volledige batterij" staan in `CLAUDE.md`
-onder Testen.
+De lijst "snelle kern" staat in `CLAUDE.md`, de volledige batterij en de
+mutatieproeven in `docs/testen.md`.
 
 - **Snelle kern = altijd.** Hij bewaakt de dingen die nooit stuk mogen,
   en is goedkoop: dat de app laadt, de versienummers en de offline-lijst
@@ -212,7 +212,7 @@ Moet eerst (anders vals rood):
   `minderMoment`, `blokTelt`, `kort`, `nietsTeBestellen`, `oudLos`,
   `oudStempel`, `blokBollen`, `oudOffline`; al zo in v115, gezien 21-10-2026).
   Snel nakijken voor alle reeksen: een scriptje dat van elke mutatie het
-  anker in de code zoekt (handover §10).
+  anker in de code zoekt (`docs/testen.md`).
 - `test-v106.js` §22 wil `/tmp/v105werk`, `test-v111.js` §4 wil
   `/tmp/live109`. Die mappen moeten elke sessie opnieuw klaargezet worden.
   Liever de benodigde oude stukken vast in de test opnemen.

@@ -23,6 +23,8 @@
     ['glasType',    'Glas type'],
     ['opbouw',      'Opbouw'],
     ['maxPakket',   'Max glaspakket'],
+    // v124 (keuze Jan): spacer zwart (eigen export terug inlezen); zilver = standaard.
+    ['spacer',      'Spacer'],
     ['opmerking',   'Opmerking'],
     // v120: per regel, als het bestand het zegt (bijv. een eigen export
     // terug inlezen). Anders geldt de keuze "Deze maten zijn" voor alles.
@@ -38,6 +40,7 @@
     ['glasType',  ['glastype', 'glas type', 'soort', 'type glas']],
     ['opbouw',    ['opbouw', 'samenstelling', 'spouw']],
     ['maxPakket', ['max glaspakket', 'glaspakket', 'maxpakket', 'max dikte', 'pakket']],
+    ['spacer',    ['spacer', 'afstandhouder', 'spacer kleur', 'kleur spacer']],
     ['opmerking', ['opmerking', 'notitie', 'bijzonderheden', 'omschrijving', 'toelichting']],
     ['maatsoort', ['maatsoort', 'maat soort', 'soort maat']]
   ];
@@ -57,7 +60,31 @@
     return 0;
   }
   function veldScore(s, h) {
-    return h[1].reduce(function (m, w) { return Math.max(m, kopScore(s, w)); }, 0);
+    var sc = h[1].reduce(function (m, w) { return Math.max(m, kopScore(s, w)); }, 0);
+    if (h[0] === 'maxPakket') sc = Math.max(sc, pakketKopScore(s));
+    return sc;
+  }
+
+  // v124 (echte maatstaat van een kozijnfabriek: "Max incl. band", 28mm):
+  // koppen met dezelfde betekenis als "max glaspakket incl. band" ruimer
+  // herkennen. Dat zijn koppen met
+  //   - "pakket" erin (max pakket, glaspakketdikte max, pakket incl band), of
+  //   - max/maximaal/maximum samen met band of dikte ("Max incl. band",
+  //     "Max (incl. band)", "max dikte incl band", "max glasdikte"), of
+  //   - "incl(usief) band" of "met band" samen met dikte ("dikte incl. band").
+  // Niet: "Max breedte", "Maximale hoogte" (een maat), "Band" of "Opmerking"
+  // alleen. Tot v123 werd "Max incl. band" niet herkend en gebeurde er niets.
+  function pakketKopScore(s) {
+    if (!s) return 0;
+    var w = s.split(' ');
+    if (w.some(function (d) { return d.indexOf('pakket') >= 0; })) return 2;
+    var max = w.some(function (d) { return /^max(imaal|imale|imum)?$/.test(d) || /^max(dikte|band|glasdikte)$/.test(d); });
+    var dikte = w.some(function (d) { return /dikte$/.test(d) || d === 'dik'; });
+    var band = w.some(function (d) { return /^band(en)?$/.test(d); });
+    var inclBand = /(^| )(incl|inclusief|inc|met) band( |$)/.test(s);
+    if (max && (dikte || band)) return 2;
+    if (inclBand && dikte) return 2;
+    return 0;
   }
 
   var tabel = null;    // { kop: [..], rijen: [[..]] }
@@ -708,9 +735,14 @@
       regel.tekst.breedte = b.ruw;
       regel.tekst.hoogte = h.ruw;
       regel.tekst.aantal = a.ruw || '';
-      ['merk', 'glasType', 'opbouw', 'maxPakket', 'opmerking', 'maatsoort'].forEach(function (veld) {
+      ['merk', 'glasType', 'opbouw', 'maxPakket', 'spacer', 'opmerking', 'maatsoort'].forEach(function (veld) {
         var v = cel(r, kolomVan(veld));
         if (!v) return;
+        // v124: alleen "zwart" telt; zilver/standaard/leeg = standaard (niets).
+        if (veld === 'spacer') {
+          if (/zwart|black/i.test(v)) regel.waarden.spacer = 'zwart';
+          return;
+        }
         if (veld === 'maxPakket') {
           var mp = pakketLees(v);
           if (mp.waarde) regel.waarden.maxPakket = mp.waarde;
@@ -873,7 +905,7 @@
     var uit = [];
     [['breedte', 'Breedte'], ['hoogte', 'Hoogte'], ['aantal', 'Aantal'],
      ['merk', 'Merk'], ['glasType', 'Glas type'], ['opbouw', 'Opbouw'],
-     ['maxPakket', 'Max pakket'], ['opmerking', 'Opmerking'], ['maatsoort', 'Maatsoort']].forEach(function (v) {
+     ['maxPakket', 'Max pakket'], ['spacer', 'Spacer'], ['opmerking', 'Opmerking'], ['maatsoort', 'Maatsoort']].forEach(function (v) {
       var i = mapping.indexOf(v[0]);
       if (i < 0) return;
       uit.push('<li><b>' + v[1] + '</b> ← kolom ' + (i + 1) + ': «' +
@@ -956,7 +988,7 @@
         zg.slice(0, 5).map(function (r) { return '«' + esc2(r.filter(function (c) { return String(c || '').trim(); }).join(' | ').slice(0, 60)) + '»'; }).join(', ') +
         (zg.length > 5 ? ' …' : '') + '. Staat daar een ruit tussen, vul hem dan met de hand in.</div>'
       : '';
-    var letOpHtml = zonderGetalHtml + (pakketMis.length
+    var letOpHtml = zonderGetalHtml + maxPastHtml(o.goed) + (pakketMis.length
         ? '<div class="imp-waarsch">⚠ Bij ' + pakketMis.length + ' regel' + (pakketMis.length === 1 ? '' : 's') +
           ' is het max glaspakket niet te lezen (bijv. «' + esc2(pakketMis[0].tekst.maxPakketOnbekend) +
           '»): niet overgenomen. Vul het zo nodig zelf in op Toebehoren.</div>' : '') +
@@ -991,6 +1023,39 @@
 
     document.getElementById('impToevoegen').disabled = o.goed.length === 0;
     document.getElementById('impVervangen').disabled = o.goed.length === 0;
+  }
+
+  // v124 (wens Jan): bij een max glaspakket rekent de app meteen uit welke
+  // glastypen en opbouwen erbinnen passen (met de standaardband van het
+  // project, zoals Toebehoren). Een type waarvan niets past, is daarna op
+  // Invoer grijs en niet te kiezen; te dikke opbouwen staan grijs apart.
+  function maxPastHtml(goed) {
+    var G = window.GlasLatten;
+    if (!G || !G.maxType || typeof DATA === 'undefined' || !DATA.opbouw_per_type) return '';
+    var maxen = [];
+    goed.forEach(function (r) {
+      var m = +r.waarden.maxPakket;
+      if (m > 0 && maxen.indexOf(m) < 0) maxen.push(m);
+    });
+    maxen.sort(function (a, b) { return a - b; });
+    return maxen.map(function (m) {
+      var niet = [], deels = [], band = null;
+      Object.keys(DATA.opbouw_per_type).forEach(function (t) {
+        var o = G.maxType({ maxPakket: m }, DATA.opbouw_per_type[t], DATA.lookup, t);
+        if (!o) return;
+        band = o;
+        if (!o.kan) niet.push(t);
+        else if (o.teDik) deels.push(t);
+      });
+      if (!band) return '';
+      var nl = function (x) { return String(x).replace('.', ','); };
+      var lijst = function (a) { return a.length < 2 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' en ' + a[a.length - 1]; };
+      return '<div class="imp-info">ⓘ Max glaspakket <b>' + nl(m) + ' mm</b> (met band ' + band.bandBinnen + ' + ' + band.bandBuiten +
+        ' = glas t/m ' + nl(m - band.band) + ' mm). ' +
+        (niet.length ? 'Past niet: <b>' + esc2(lijst(niet)) + '</b>. ' : 'Elk glastype heeft een opbouw die past. ') +
+        (deels.length ? 'De dikkere opbouwen van ' + esc2(lijst(deels)) + ' ook niet. ' : '') +
+        'Op Invoer is wat niet past grijs' + (niet.length ? '; een glastype zonder passende opbouw is niet te kiezen' : '') + '.</div>';
+    }).join('');
   }
 
   function toonMerkInfo() {
@@ -1061,6 +1126,8 @@
       // de opbouw zet te dikke opbouwen apart. Dus niet meer in de opmerking
       // (die gaat naar de leverancier).
       if (o.maxPakket) r.maxPakket = o.maxPakket;
+      // v124: spacer zwart (alleen zwart; ontbreekt = standaard zilver).
+      if (o.spacer === 'zwart') r.spacer = 'zwart';
       if (onbekend.length) {
         r.opmerking = (r.opmerking ? r.opmerking + ' — ' : '') + onbekend.join(', ');
       }
@@ -1279,6 +1346,9 @@
     var s = document.getElementById('statusBar');
     if (s) s.textContent = tekst + (window.__impMelding ? ' — ' + window.__impMelding : '');
     window.__impMelding = '';
+    // v124 (wens Jan): zijn er meer tekeningen, dan meteen de route "Wijs de
+    // ruiten aan op de tekeningen" (fotos.js).
+    if (window.aanwijsRouteNaImport) window.aanwijsRouteNaImport();
   }
 
   /* ─── knop en venster in de pagina zetten ──────────────────── */

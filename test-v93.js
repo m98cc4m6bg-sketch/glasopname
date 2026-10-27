@@ -561,7 +561,10 @@ async function wachtOpOpslaan(page) {
   await page.evaluate(() => leverFotoWeg());
   await wacht(500);
   await page.evaluate(() => { window.appVraag = window.__oudAppVraag; });
-  check('leverfoto weg: het origineel gaat mee uit de cloud', !S.opslag.has(lever.origineel.pad) && !S.opslag.has(lever.pad));
+  // v124 (keuze Jan: alles terug te halen): het bestand en het origineel
+  // blijven in de opslag tot het project weg is, zodat de foto via ↶ of
+  // "Onlangs verwijderd" terug kan (tot v123 gingen ze meteen weg).
+  check('leverfoto weg: de foto en het origineel blijven in de cloud (terug te zetten)', S.opslag.has(lever.origineel.pad) && S.opslag.has(lever.pad));
 
   /* ─── 6 ─────────────────────────────────────────────────────── */
   console.log('\n6. De opslag weigert het origineel (19_originelen.sql nog niet gedraaid)');

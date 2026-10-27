@@ -142,9 +142,40 @@ Een feit staat op één plek; elders verwijs je ernaar.
   van nú vast). Erna = ↶ doet niets (de fout van `tekenKies` tot v122). Een
   handeling die achteraf niets deed: `stapTerugnemen(label)` (undo.js).
 * **↶ per tabel** (`blokbalk.js`) vergelijkt regels, bolletjes, diepten én
-  (v123) speling/bijtelling (`maatVan`), onthoudt waar hij was
-  (`waarGebleven`) en zet nooit een ruit terug die elders staat. Iets nieuws
-  dat per tabel geldt: ook in `blokKenmerk` en de vergelijking.
+  (v123) speling/bijtelling (`maatVan`), en zet nooit een ruit terug die
+  elders staat. **Sinds v124 herschrijft hij de stapel** (`deelVan`/
+  `zetDeelIn`: alle stappen erboven krijgen het deel van die tabel zoals het
+  nu is; `waarGebleven` en `blokKenmerk` zijn weg). Een verhuisde ruit staat
+  in twee tabellen: `zetDeelIn` neemt hem in zijn geheel mee en laat een ruit
+  die de tabel verliet in de oude stap staan (anders verdween hij na Cmd+Z).
+  Iets nieuws dat per tabel geldt: ook in `deelVan`/`zetDeelIn`.
+* **↶ blijft bewaard** (v124, IndexedDB `glasopname_ongedaan`) en wordt na
+  herladen alleen overgenomen als de stand precies gelijk is. Elke nieuwe weg
+  waarlangs andere inhoud binnenkomt zonder `zetStaat` (zoals een
+  werkvloer-foto) moet zorgen dat ↶ hem niet weghaalt (`_erbij` in
+  `herstel`). Een nieuwe weg uit het project of uitloggen: `undoWisAlles`.
+  undo.js herkent een wachtende nieuwere stand aan de knop "… versie laden"
+  (cloud.js): knoptekst veranderen = ook daar. Wat in een vak getypt was,
+  wordt eerst een eigen stap (`undoVeldAfsluiten`): Safari geeft een knop bij
+  een klik geen focus.
+* **Iets weggooien in een project** (v124): eerst `bewaarStap`, dan
+  `glasVerwijderd…` (herstel.js, "Onlangs verwijderd"), dan pas weg. Een
+  foto-bestand gaat bij weggooien nooit uit de opslag (terugzetten moet
+  kunnen); dat doet alleen het opruimen van een heel project.
+* **Bolletjes op meer tekeningen** (v124, keuze Jan): een ruit staat in het
+  blok van de tekening met de meeste bolletjes. Nieuwe code die bolletjes
+  verandert: daarna `naarBolletjes(rij)` in dezelfde stap, vóór
+  `herbereken` (de speling hoort bij het blok).
+* **Rechten** (v124, script 30, `rechten.js`): de knoppen volgen `glasMag`/
+  `glasWerkvloer`, maar **de database beslist**. Een nieuwe handeling die
+  bestellen, ontgrendelen, een nieuw project of weggooien raakt: ook een
+  controle in `rechten.js` (met reden) én in `rechten_bewaken` (SQL), en
+  vóór de handeling de rechten vers ophalen. ‹Apart bewaren› (`_apart`) moet
+  altijd blijven werken. Zonder script 30 werkt alles als in v123.
+* **Foto's opruimen** (v124): alleen wat geen enkel project noemt
+  (`glas_foto_nog_nodig`, tabel `glas_foto_pad`): een apart bewaarde kopie
+  houdt de paden van het origineel. Geldt voor `fotosOpruimen`, de wachtrij
+  (`zonderVerdwenen`) en Opslag nakijken.
 * Alles wat `projectInfo` vervangt (zetStaat, undo, samenvoegen) behoudt
   `bestellingen` (undo.js, `bestellingenErbij`, script 23).
 * **Gebruikers nooit verwijderen**, behalve bij vertrek: verwijzingen worden
@@ -182,6 +213,9 @@ Een feit staat op één plek; elders verwijs je ernaar.
   liet dan de rest staan en maakte te veel).
   Een EXTRA/minder is een verschil: `standVan` rekent het totaal vanaf wat
   er dán geldt (`andereBasis`), niet vanaf `o.aantal`.
+* **Spacer** (v124): `spacer: 'zwart'` of afwezig; in `ruitKenmerk` alleen
+  bij zwart (`|sp:zwart`), net als bi-color; op de bestellijst alleen een
+  kolom als er zwart is (`bestellijstModel`).
 * **Bediening** (v111): `bediening`/`bedieningAantal`/`bedieningLengte` op de
   ruit; telt in `ruitKenmerk` alleen mee als hij gekozen is, met de kale
   velden (nooit de schermtekst). Rooster op Nee (ook doorvoeren in bulk.js)
@@ -440,7 +474,12 @@ Een feit staat op één plek; elders verwijs je ernaar.
   zet recht bij het laden) en `glas_ids_fout` (script 28, weigert). Wat de
   database weigert, moet de app eerst rechtzetten: verander ze samen (v123).
 * **Een oud script opnieuw draaien** zet zijn eigen regels terug: daarna 26,
-  27 en 28 opnieuw, in die volgorde (proef28 §7 laat zien dat dat klopt).
+  27, 28 en 30 opnieuw, in die volgorde (proef28 §7 en proef30 §9 laten zien
+  dat dat klopt). Script 30 vervangt `glas_bewerken`/`bewerkslot_bewaken`
+  (24) en de regel voor definitief verwijderen (26).
+* **Script 30 en het e-mailadres**: bovenaan staat `VUL-HIER-JE-EMAILADRES-IN`
+  (de repo is openbaar); een ingevulde kopie gaat in de zip "niet-in-repo".
+  De tabel `glas_foto_pad` is afgeleid (hoeft niet in `backup.py`).
 * **Zoeken** (v123): `zoekVerzoek` in cloud.js, met script 29 via
   `glas_zoek_projecten` (rpc), anders `or()` met `data->info->>klant`. Een
   nieuw zoekveld: in beide. De namaak in de tests kent sinds test-v123 het
@@ -463,7 +502,7 @@ node test-index.js && node test-naslag.js && node test-cloudguard.js
 node test-herstel.js && node test-start.js && node test-import.js
 node test-slot.js && node test-offline.js && node test-rook.js
 node test-leverpagina.js && python3 test-leverpagina.py
-OUD=/tmp/live node test-overgang.js   # OUD = kopie van wat live staat (26-10-2026: v122, e5ac52e); ook vanaf v98
+OUD=/tmp/live123 node test-overgang.js   # OUD = kopie van wat live staat (27-10-2026: v123, b9296d7; git archive); ook vanaf v98
 bun test-mailfunctie.ts
 ```
 
@@ -499,6 +538,12 @@ node test-v120.js                       #  ±6 min; grote proef: komma, aantalle
 node test-v121.js                       #  ±2 min; neuslat recht + 20, melding beide, actiebalk (P3) op pc, iPad, iPhone; PLAATJES=map
 node test-v122.js                       #  ±40 s; back-upaccount (alleen lezen) niet in de keuzelijsten, LEESMIJ van 💾
 node test-v123.js                       #  ±3 min; bekende punten v90/v103: zoeken, weestaken, import (tekst, pdf), merken, draaien, tekenen, ↶ per tabel, foto + project wisselen, apart bewaren, uitloggen, pdf invoer, leverweek, ✕, spoor; PLAATJES=map
+node test-v124-rechten.js               #  ±4 min; rollen, Beheer, werkvloer, rechten die veranderen, opruimen (namaak van script 30 in de test!)
+OUD123=/tmp/live123 node test-v124-werkpunten.js   #  ±2 min; projectnaam, max glaspakket, spacer
+node test-v124-herstel.js               #  ±3 min; ↶ (bolletjes, na herladen), Onlangs verwijderd
+node test-v124-tekeningen.js            #  ±2,5 min; aanwijzen op meer tekeningen, verhuizen
+node test-v124-toebehoren.js            #  ±1 min; latkiezer, drie stappen
+node test-v124-cycli.js                 #  ±5 min; zeven werkgangen over alles heen
 ```
 
 **Mutatieproef** (`--mutaties`): alleen bij 🔴, en alleen voor de reeks
@@ -507,7 +552,11 @@ terugdraaien, rood, terugzetten), dat kost minuten. Duur per reeks:
 v106 48 mutaties ±25–40 min, v109 22 ±25 min, v110 61 ±45+ min,
 v111 51 ±40 min, v112 21 ±15 min, v113 40 ±30 min, v114 34 ±40 min,
 v115 37 ±45 min, v116 9 ±4 min, v117 17 ±10 min, v118 18 ±25 min, v119 11 ±10 min,
-v120 33 ±40 min, v121 17 ±20 min, v122 3 ±2 min, v123 34 ±18 min. Script 28 en 29:
+v120 33 ±40 min, v121 17 ±20 min, v122 3 ±2 min, v123 34 ±18 min,
+v124-rechten 39 ±55 min, v124-werkpunten 37 ±35 min, v124-herstel 36 ±60 min,
+v124-tekeningen 27 ±30 min, v124-toebehoren 40 ±20 min, v124-cycli 7 ±25 min.
+Script 30: proef tegen PostgreSQL (175 controles, 67 mutaties) en de app
+tegen een echte PostgREST (`proef-script-30/`, zip "niet-in-repo"). Script 28 en 29:
 proef tegen PostgreSQL, 57 controles en 18 mutaties (zip "niet-in-repo",
 `proef-script-28/`). Script 27: proef
 tegen PostgreSQL, 42 controles en 8 mutaties (zip "niet-in-repo"). Script 26 (rechten): een eigen proef tegen een lokale

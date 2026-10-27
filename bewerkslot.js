@@ -64,6 +64,12 @@
   var krijgen = false;       // het project is van dit apparaat; de stand wordt nog geladen
   var losLaten = false;      // opgeslagen, het vrijgeven is onderweg
 
+  // v124 (script 30, keuze Jan): de werkvloer kijkt alleen (plus foto's
+  // toevoegen en eigen taken afvinken, rechten.js). Hij neemt nooit een
+  // project, zodat hij niemand op kantoor in de weg zit. De database doet
+  // hetzelfde (glas_bewerken geeft de werkvloer alleen de stand).
+  function werkvloer() { return !!(window.glasWerkvloer && window.glasWerkvloer()); }
+
   /* ─── wie ben ik ─────────────────────────────────────────── */
 
   function willekeurig() {
@@ -177,6 +183,7 @@
   }
 
   function zetModus(m) {
+    if (werkvloer() && project) m = 'kijken';
     var oud = modus;
     modus = m;
     if (oud !== m && m === 'kijken' && window.glasKijkModusAan) glasKijkModusAan();
@@ -231,13 +238,15 @@
       // volgnummer. Heeft niemand intussen iets opgeslagen, dan gaat het
       // werk van hier er gewoon in; anders apart (v106, na de laatste
       // testronde: tot dan ging het hier altijd apart, ook als dat niet hoefde).
-      if (hadHet && !vraagVanAnder(nieuw)) {
+      if (hadHet && !vraagVanAnder(nieuw) && !werkvloer()) {
         rpc('claim').then(function (s) { if (s) verwerk(s, 'terug'); });
         return;
       }
       // Vrijgegeven door de ander (project gesloten): dan mag dit apparaat,
       // tenzij een collega er net om vroeg (die is eerst).
-      if (bron !== 'start' && modus === 'kijken' && !vraagVanAnder(nieuw)) { claim(); return; }
+      // v124: niet na een eigen poging die niets opleverde ('claim'): dan
+      // nam de database het niet aan (werkvloer), en anders bleef dit rondgaan.
+      if (bron !== 'start' && bron !== 'claim' && modus === 'kijken' && !vraagVanAnder(nieuw) && !werkvloer()) { claim(); return; }
     }
     zetModus(nieuw.apparaat ? 'kijken' : (aanwezig ? 'kijken' : 'onbekend'));
   }
@@ -246,6 +255,7 @@
   // pas bewerken: wat de vorige bewerker als laatste deed, moet op het
   // scherm staan vóór er iets overheen kan.
   function claim() {
+    if (werkvloer()) return Promise.resolve(null);
     var wasKijken = modus === 'kijken';
     return rpc('claim').then(function (s) {
       if (!s) return null;
@@ -268,7 +278,7 @@
     seintjeAf = null;
     krijgen = false;
     modus = 'onbekend';
-    rpc('claim', pid).then(function (s) {
+    rpc(werkvloer() ? 'stand' : 'claim', pid).then(function (s) {
       if (project !== pid) return;
       if (!s) { zetModus(aanwezig === false ? 'onbekend' : modus); return; }
       verwerk(s, 'start');
@@ -337,9 +347,14 @@
   /* ─── wat de rest van de app wil weten ───────────────────── */
 
   // Alleen kijken: het project staat op naam van een ander apparaat.
-  window.glasAlleenKijken = function () { return modus === 'kijken' && !!project; };
+  // v124: de werkvloer altijd (ook zonder bereik, als de stand nog onbekend is).
+  window.glasAlleenKijken = function () {
+    return (modus === 'kijken' && !!project) || (werkvloer() && !!(project || window.glasProjectId));
+  };
 
   window.glasBewerkslotTekst = function () {
+    // v124: de werkvloer, met de knop voor een foto (rechten.js).
+    if (werkvloer() && (project || window.glasProjectId)) return window.glasWerkvloerTekst ? glasWerkvloerTekst() : '';
     if (modus !== 'kijken' || !stand) return '';
     var actief = !!stand.gezien && nuServer() - Date.parse(stand.gezien) < NU_ACTIEF_MS;
     var wanneer = stand.gezien ? ' (' + (actief ? 'nu actief' : 'laatst actief ' + esc(tijd(stand.gezien))) + ')' : '';
@@ -573,6 +588,11 @@
 
   window.bewerkslotTochBewerken = function () {
     if (!project || wachten) return;
+    // v124: de werkvloer bewerkt niet (keuze Jan).
+    if (werkvloer()) {
+      if (window.appMelding) appMelding(window.glasWerkvloerUitleg ? glasWerkvloerUitleg() : 'Je account staat op werkvloer.', { kop: 'Werkvloer' });
+      return;
+    }
     if (!navigator.onLine) {
       if (window.appFout) appFout('Overnemen kan alleen met bereik.', { kop: 'Toch bewerken' });
       return;

@@ -57,6 +57,9 @@
     if (!selectie.size) return;
     if (!await appVraag(selectie.size + ' ruit' + (selectie.size === 1 ? '' : 'en') +
         ' verwijderen?', { kop: 'Ruiten verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
+    // v124: de ruiten met hun bolletjes in "Onlangs verwijderd" (herstel.js).
+    // De stap voor ↶ is er al (undo.js omhult deze functie).
+    if (window.glasVerwijderdRuiten) glasVerwijderdRuiten(Array.from(selectie));
     // markeringen van verwijderde ruiten gaan mee
     if (typeof fotos !== 'undefined') {
       fotos.forEach(function (f) {
@@ -122,7 +125,13 @@
         // v110: een regel met bolletjes op de foto houdt zijn aantal; dat
         // gaat alleen samen met de bolletjes (optie A, keuze van Jan).
         mag: function (r) { return !(window.aantalVolgtBolletjes && aantalVolgtBolletjes(r)); },
-        nietReden: 'aantal volgt de bolletjes op de foto' },
+        nietReden: 'aantal volgt de bolletjes op de foto',
+        nietMelding: function (vast, gewijzigd) {
+          return [vast + (vast === 1 ? ' regel heeft' : ' regels hebben') + ' bolletjes op de foto; daar ' +
+            'is het aantal niet veranderd. Bij een regel met bolletjes gaat het aantal samen met de bolletjes: ' +
+            'tik op een bolletje voor een ruit erbij of eraf.', 'Aantal doorgevoerd op ' + gewijzigd +
+            (gewijzigd === 1 ? ' regel' : ' regels')];
+        } },
 
       // Merk staat hier bewust niet tussen: een merkletter hoort bij
       // precies één ruit, dus dezelfde waarde over meerdere regels
@@ -143,6 +152,21 @@
         leeg: function (r) { return !r.glasType || !r.opbouw; } },
       { kop: 'Opbouw', titel: 'Glas type en opbouw', glas: true,
         leeg: function (r) { return !r.glasType || !r.opbouw; } },
+
+      // v124 (keuze Jan): spacer standaard zilver of zwart; alleen bij
+      // isolerend glas (een opbouw met een spouw). Zwart bij een ruit zonder
+      // spouw wordt overgeslagen, met een melding.
+      { kop: 'Spacer', groep: 'kol-spacer', titel: 'Spacer (afstandhouder)', html: function () {
+          return '<select id="bulkVeld">' + LEEGKEUZE + '<option value="zilver">standaard zilver</option><option value="zwart">zwart</option></select>'; },
+        zet: function (r, v) { if (v === 'zwart') r.spacer = 'zwart'; else delete r.spacer; },
+        leeg: function (r) { return !r.spacer; },
+        mag: function (r, v) { return v !== 'zwart' || !window.glasHeeftSpouw || glasHeeftSpouw(r); },
+        nietReden: 'geen isolerend glas (geen spouw)',
+        nietMelding: function (vast, gewijzigd) {
+          return [vast + (vast === 1 ? ' ruit heeft' : ' ruiten hebben') + ' geen isolerend glas (geen spouw, bijv. enkel glas): ' +
+            'daar is de spacer niet op zwart gezet. Een spacer zit alleen in dubbel of triple glas.',
+            'Spacer doorgevoerd op ' + gewijzigd + (gewijzigd === 1 ? ' ruit' : ' ruiten')];
+        } },
 
       { kop: 'Rooster', titel: 'Rooster', html: function () {
           return '<select id="bulkVeld">' + LEEGKEUZE + opts(ROOSTER_JA_NEE) + '</select>'; },
@@ -265,10 +289,17 @@
     var body;
     if (veld.glas) {
       var types = Object.keys(DATA.opbouw_per_type);
+      // v124 (wens Jan): bij welke ruiten hier past een type niet binnen
+      // hun max glaspakket (maatstaat)? Dat staat erbij; doorvoeren slaat ze over.
+      var hier = (typeof bereikFn === 'function' ? bereikFn() : rijen).filter(function (r) { return r.maxPakket; });
       body =
         '<label>Glas type</label>' +
         '<select id="bulkType" onchange="bulkTypeGewijzigd()">' +
-        '<option value="">— niet wijzigen —</option>' + opts(types) + '</select>' +
+        '<option value="">— niet wijzigen —</option>' + types.map(function (t) {
+          var n = window.glasTypeTeDik ? hier.filter(function (r) { return glasTypeTeDik(r, t); }).length : 0;
+          return '<option value="' + esc2(t) + '"' + (n ? ' class="niet-lever"' : '') + '>' + esc2(t) +
+            (n ? ' (te dik bij ' + n + ' ruit' + (n === 1 ? '' : 'en') + ': max glaspakket)' : '') + '</option>';
+        }).join('') + '</select>' +
         '<label style="margin-top:8px;">Opbouw</label>' +
         '<select id="bulkOpbouw"><option value="">— kies eerst een type —</option></select>';
     } else {
@@ -313,11 +344,24 @@
   window.bulkAnnuleer = sluitPopover;
 
 
+  // v124: past een opbouw niet binnen het max glaspakket van deze ruit?
+  function opbouwTeDikVoor(r, type, opbouw) {
+    var G = window.GlasLatten;
+    var e = DATA.lookup ? DATA.lookup[type + '|' + opbouw] : null;
+    return !!(G && G.opbouwTeDik && r.maxPakket && e && G.opbouwTeDik(r, e.totaal));
+  }
+
   window.bulkTypeGewijzigd = function () {
     var type = document.getElementById('bulkType').value;
     var sel = document.getElementById('bulkOpbouw');
     var lijst = type ? (DATA.opbouw_per_type[type] || []) : [];
-    sel.innerHTML = '<option value="">— opbouw niet wijzigen —</option>' + opts(lijst);
+    // v124: opbouwen die bij een ruit hier te dik zijn, met het aantal erbij.
+    var hier = bereikVan().filter(function (r) { return r.maxPakket; });
+    sel.innerHTML = '<option value="">— opbouw niet wijzigen —</option>' + lijst.map(function (o) {
+      var n = hier.filter(function (r) { return opbouwTeDikVoor(r, type, o); }).length;
+      return '<option value="' + esc2(o) + '"' + (n ? ' class="niet-lever"' : '') + '>' + esc2(o) +
+        (n ? ' (te dik bij ' + n + ')' : '') + '</option>';
+    }).join('');
   };
 
   window.bulkPasToe = function () {
@@ -326,6 +370,7 @@
     var bereik = popover.querySelector('input[name="bulkBereik"]:checked').value;
     var doel = doelen(bereik);
     var gewijzigd = 0, overgeslagen = 0, vast = 0;
+    var teDik = [];   // v124: niet doorgevoerd, te dik voor het max glaspakket
 
     if (veld.glas) {
       var type = document.getElementById('bulkType').value;
@@ -335,12 +380,21 @@
         // v120: "alleen nog lege" slaat ook helemaal lege regels over (geen merk,
         // geen maat); die werden anders half ingevuld en gaven ruis bij bestellen.
         if (bereik === 'leeg' && (!veld.leeg(r) || (!r.merk && !r.breedte && !r.hoogte))) { overgeslagen++; return; }
-        if (type) { r.glasType = type; if (r.opbouw && (DATA.opbouw_per_type[type] || []).indexOf(r.opbouw) < 0) r.opbouw = ''; }
+        // Eerst uitrekenen, dan pas veranderen: een ruit die overgeslagen
+        // wordt, blijft zoals hij was (v124).
+        var t = type || r.glasType;
+        var opb = r.opbouw;
+        if (type && opb && (DATA.opbouw_per_type[type] || []).indexOf(opb) < 0) opb = '';
         if (opbouw) {
-          var t = type || r.glasType;
-          if (t && (DATA.opbouw_per_type[t] || []).indexOf(opbouw) >= 0) r.opbouw = opbouw;
+          if (t && (DATA.opbouw_per_type[t] || []).indexOf(opbouw) >= 0) opb = opbouw;
           else { overgeslagen++; return; }
         }
+        // v124 (wens Jan): niet stil iets te dik zetten. Een type waarvan
+        // niets binnen het max glaspakket past, of een te dikke opbouw: overslaan.
+        if ((type && type !== r.glasType && window.glasTypeTeDik && glasTypeTeDik(r, type)) ||
+            (opbouw && opbouwTeDikVoor(r, t, opbouw))) { teDik.push(r.merk || '(zonder merk)'); return; }
+        if (type) r.glasType = type;
+        r.opbouw = opb;
         gewijzigd++;
       });
     } else {
@@ -355,7 +409,12 @@
         // v120: "alleen nog lege" slaat ook helemaal lege regels over (geen merk,
         // geen maat); die werden anders half ingevuld en gaven ruis bij bestellen.
         if (bereik === 'leeg' && (!veld.leeg(r) || (!r.merk && !r.breedte && !r.hoogte))) { overgeslagen++; return; }
-        if (veld.mag && !veld.mag(r)) { vast++; return; }
+        if (veld.mag && !veld.mag(r, waarde)) {
+          // v124: een helemaal lege regel telt niet als "niet gelukt" (die
+          // noemde de melding anders als ruit zonder spouw).
+          if (!r.merk && !r.breedte && !r.hoogte && !r.glasType) { overgeslagen++; return; }
+          vast++; return;
+        }
         veld.zet(r, waarde);
         gewijzigd++;
       });
@@ -367,15 +426,20 @@
     if (s) {
       s.textContent = veld.titel + ' doorgevoerd op ' + gewijzigd + ' ruit' + (gewijzigd === 1 ? '' : 'en') +
         (overgeslagen ? ' (' + overgeslagen + ' overgeslagen)' : '') +
-        (vast ? ' — ' + vast + ' niet: ' + veld.nietReden : '');
+        (vast ? ' — ' + vast + ' niet: ' + veld.nietReden : '') +
+        (teDik.length ? ' — ' + teDik.length + ' niet: te dik voor het max glaspakket' : '');
     }
     // Ook als venster (v110): de statusregel valt op een iPad weg onder de
     // balk, en dan lijkt het of alles is doorgevoerd.
-    if (vast && window.appMelding) {
-      appMelding(vast + (vast === 1 ? ' regel heeft' : ' regels hebben') + ' bolletjes op de foto; daar ' +
-        'is het aantal niet veranderd. Bij een regel met bolletjes gaat het aantal samen met de bolletjes: ' +
-        'tik op een bolletje voor een ruit erbij of eraf.', { kop: 'Aantal doorgevoerd op ' + gewijzigd +
-        (gewijzigd === 1 ? ' regel' : ' regels') });
+    if (vast && window.appMelding && veld.nietMelding) {
+      var m = veld.nietMelding(vast, gewijzigd);
+      appMelding(m[0], { kop: m[1] });
+    }
+    // v124 (wens Jan): te dik voor het max glaspakket: niet stil, wel gezegd.
+    if (teDik.length && window.appMelding) {
+      appMelding('Niet gewijzigd bij ' + teDik.join(', ') + ': ' + (opbouw ? 'deze opbouw is' : 'van dit glastype is elke opbouw') +
+        ' met band te dik voor het max glaspakket uit de maatstaat. Kies daar zelf een glas dat past (de keuzelijst toont wat past).',
+        { kop: 'Glas doorgevoerd op ' + gewijzigd + (gewijzigd === 1 ? ' ruit' : ' ruiten') });
     }
   };
 

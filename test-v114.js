@@ -1019,7 +1019,7 @@ const zetPR = (page, merk, velden) => page.evaluate(([m, v]) => {
     await sluitMeldingen(page);
     await page.click('.tb-inst-kop'); await wacht(200);   // de instellingen open
     m = await page.evaluate(() => { toebehorenKeuze('standaardLat', 'B13');
-      return [GlasLatten.project().lat, document.querySelector('select[onchange*="standaardLat"]').disabled]; });
+      return [GlasLatten.project().lat, document.querySelector('#tbStdLat').disabled]; });   // v124: de latkiezer (was een keuzelijst)
     check('de standaardlat van het project ook op slot (die bepaalt de lat van elke ruit)', m[0] === 'A4' && m[1], JSON.stringify(m));
     await sluitMeldingen(page);
     m = await page.evaluate(() => [...document.querySelectorAll('.tb-getallen input, select[onchange*="binnen.kleur"]')].every(e => !e.disabled));

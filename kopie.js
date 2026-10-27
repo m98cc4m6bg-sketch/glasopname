@@ -157,6 +157,18 @@
     // nergens iets in, dan de bovenste.
     var bron = gekozen.find(heeftInhoud) || gekozen[0];
     var doelen = gekozen.filter(function (r) { return r !== bron; });
+    // v124 (wens Jan): het max glaspakket hoort bij het kozijn (uit de
+    // maatstaat), niet bij het glas: elke ruit houdt het zijne. Is het glas
+    // van het voorbeeld (met band) te dik voor het max van een doelruit, dan
+    // wordt die ruit niet stil gelijkgetrokken, maar overgeslagen en genoemd.
+    var teDik = [];
+    var G = window.GlasLatten;
+    doelen = doelen.filter(function (r) {
+      if (!G || !G.opbouwTeDik || !r.maxPakket || !bron.glasType || !bron.opbouw) return true;
+      var e = typeof DATA !== 'undefined' && DATA.lookup ? DATA.lookup[bron.glasType + '|' + bron.opbouw] : null;
+      if (e && G.opbouwTeDik(r, e.totaal)) { teDik.push(r.merk || '?'); return false; }
+      return true;
+    });
     var overschrijft = doelen.filter(heeftInhoud);
 
     if (overschrijft.length && !await appVraag(
@@ -173,7 +185,7 @@
     doelen.forEach(function (r) {
       var houdAantal = !!(window.aantalVolgtBolletjes && aantalVolgtBolletjes(r));
       if (houdAantal && String(r.aantal) !== String(bron.aantal)) aantalVast.push(r.merk || '?');
-      var eigen = function (veld) { return NIET_OVERNEMEN[veld] || (houdAantal && veld === 'aantal'); };
+      var eigen = function (veld) { return NIET_OVERNEMEN[veld] || veld === 'maxPakket' || (houdAantal && veld === 'aantal'); };
       // Eerst weg wat de bron niet heeft. Een eigen correctie (speling)
       // bleef anders in de doelruit staan, terwijl de melding zei dat de
       // ruiten gelijkgetrokken waren — met andere glasmaten tot gevolg (v83).
@@ -189,7 +201,13 @@
     if (window.bulkSelectieWissen) bulkSelectieWissen();
     afronden(doelen.length + ' ruiten gelijkgetrokken met ' + (bron.merk || 'de eerste ruit') +
       ' (' + doelen.map(function (r) { return r.merk; }).join(', ') + ')' +
-      (aantalVast.length ? ' — het aantal niet bij ' + aantalVast.join(', ') + ': dat volgt de bolletjes op de foto' : ''));
+      (aantalVast.length ? ' — het aantal niet bij ' + aantalVast.join(', ') + ': dat volgt de bolletjes op de foto' : '') +
+      (teDik.length ? ' — niet bij ' + teDik.join(', ') + ': te dik voor het max glaspakket' : ''));
+    if (teDik.length && window.appMelding) {
+      appMelding('Niet gelijkgetrokken: ' + teDik.join(', ') + '. Het glas van ' + (bron.merk || 'de eerste ruit') + ' (' +
+        bron.glasType + ' ' + bron.opbouw + ') is met band te dik voor het max glaspakket uit de maatstaat van ' +
+        (teDik.length === 1 ? 'die ruit' : 'die ruiten') + '.', { kop: doelen.length + ' ruiten gelijkgetrokken' });
+    }
   };
 
   /* ─── kopiëren naar een andere groep ───────────────────────── */

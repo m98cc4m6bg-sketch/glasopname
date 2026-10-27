@@ -47,7 +47,7 @@ const MUTATIES = {
   zoekEenKeer: ['cloud.js', "res.error.code === '42883')) zoekFunctie = false;", "res.error.code === '42883')) zoekFunctie = null;"],
   weesLabel: ['project.js', "    if (!t.eigenaar) return 'zonder eigenaar';", "    if (!t.eigenaar) return '';"],
   oudCollega: ['project.js', "    var weg = huidigId && !collegaVan(huidigId)", "    var weg = false && huidigId && !collegaVan(huidigId)"],
-  zonderGetal: ['import.js', "    var letOpHtml = zonderGetalHtml + (pakketMis.length", "    var letOpHtml = (pakketMis.length"],
+  zonderGetal: ['import.js', "    var letOpHtml = zonderGetalHtml + maxPastHtml(o.goed) + (pakketMis.length", "    var letOpHtml = maxPastHtml(o.goed) + (pakketMis.length"],   // v124: maxPastHtml erbij
   pdfKolom: ['import.js', "    if (kop.plek) data = data.map(", "    if (false) data = data.map("],
   merkBesteld: ['merken.js', "      return !!(st && st.nr && st.nr[r.id]);", "      return false;"],
   merkVenster: ['merken.js', "    var naar = function (r) { var p = plan.filter(function (x) { return x.rij === r; })[0]; return p ? p.naar : null; };",
@@ -59,7 +59,8 @@ const MUTATIES = {
   streekStap: ['teken.js', "      if (window.bewaarStap) bewaarStap('Getekend');", ""],
   tikStap: ['teken.js', "          if (window.stapTerugnemen) stapTerugnemen('Getekend');", ""],
   blokSpeling: ['blokbalk.js', "      zetMaat(fotoId, toenMaat);\n", ""],
-  blokPendel: ['blokbalk.js', "      van = stapels.terug.indexOf(w.stap) - 1;", "      van = van;"],
+  // v124: het heen en weer zit nu in het herschrijven van de stapel (blokOngedaan), niet meer in waarGebleven.
+  blokPendel: ['blokbalk.js', "          zetDeelIn(s, fotoId, deel);\n", ""],
   blokDubbel: ['blokbalk.js', "    nieuweRegels = nieuweRegels.filter(function (r) { return !elders[r.id]; });", ""],
   fotoWacht: ['cloud.js', "    if (!await fotoKlaar(wat)) return false;\n", ""],
   fotoProject: ['fotos.js', "    if (zelfdeProject(pid)) return;\n", "    return;\n"],
@@ -1418,7 +1419,17 @@ const drieDecimalen = v => Math.round(v * 1000) / 1000;
     v = await sp();
     check('↶ in de tabel: 8 → 6 → (geen eigen speling)', u === '6' && v === '', u + ' → ' + v);
     // Een ruit verhuist van "zonder foto" naar de foto; daarna ↶ in "zonder foto".
+    // v124: en hij verandert daarna nog (een opmerking). Zonder die wijziging
+    // haalt ↶ hem sinds v124 helemaal terug (verhuisd, niet gekopieerd; zie
+    // test-v124-tekeningen.js onderdeel 3 en 6).
+    // v124 (review R6): eerst een oudere wijziging in "zonder foto" (de
+    // algemene speling); ↶ slaat de stap van de verhuizing over (D is daarna
+    // gewijzigd) en zet die oudere stap terug, met D nog in die stand.
+    await page.evaluate(() => { bewaarStap('speling los'); document.getElementById('spelingGlobal').value = '6'; herbereken(); renderTabel(); opslaan(); });
+    await wacht(300);
     await page.evaluate(f => { bewaarStap('verhuisd'); rijen.find(r => r.merk === 'D').fotoId = f; renderTabel(); renderFotos(); opslaan(); }, FOTO);
+    await wacht(400);
+    await page.evaluate(() => { bewaarStap('opmerking D'); rijen.find(r => r.merk === 'D').opmerking = 'na verhuizen'; renderTabel(); opslaan(); });
     await wacht(400);
     await page.evaluate(() => blokOngedaan('los')); await wacht(400);
     u = await page.evaluate(() => { const ids = rijen.map(r => r.id); return { dubbel: ids.length - new Set(ids).size, d: rijen.filter(r => r.merk === 'D').map(r => r.fotoId || 'los') }; });
@@ -1427,9 +1438,15 @@ const drieDecimalen = v => Math.round(v * 1000) / 1000;
     // Een ruit met een bolletje verhuist naar een andere foto (bolletje mee);
     // ↶ in de tabel van de eerste foto zet zijn oude bolletje niet terug.
     ({ ctx, page } = await gevelOpen(p => { p.data.fotos.push({ id: 'f2', titel: 'Achter', breedte: 800, hoogte: 600, inkt: [], markeringen: [] }); }));
+    // v124 (review R6): eerst een oudere wijziging in de tabel van de eerste foto (speling).
+    await page.evaluate(() => { bewaarStap('speling f1'); fotos[0].speling = 6; herbereken(); renderTabel(); opslaan(); });
+    await wacht(300);
     await page.evaluate(f => { bewaarStap('verhuisd'); const a = rijen.find(r => r.merk === 'A');
       fotos[0].markeringen = fotos[0].markeringen.filter(m => m.rijId !== a.id); a.fotoId = 'f2';
       fotos[1].markeringen.push({ rijId: a.id, x: 0.5, y: 0.5 }); renderTabel(); renderFotos(); opslaan(); }, FOTO);
+    await wacht(400);
+    // v124: daarna nog een wijziging aan A (zie hierboven bij D).
+    await page.evaluate(() => { bewaarStap('opmerking A'); rijen.find(r => r.merk === 'A').opmerking = 'na verhuizen'; renderTabel(); opslaan(); });
     await wacht(400);
     await page.evaluate(f => blokOngedaan(f), FOTO); await wacht(400);
     u = await page.evaluate(() => { const a = rijen.find(r => r.merk === 'A'); return fotos.map(f => (f.markeringen || []).filter(m => m.rijId === a.id).length); });

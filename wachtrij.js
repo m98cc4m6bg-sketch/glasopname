@@ -218,16 +218,148 @@
     urls = {};
   }
 
+  // v124 (script 30): wordt een foto nog ergens genoemd? Een apart
+  // bewaarde kopie van een project noemt de foto's van het origineel (zelfde
+  // pad, in de map van het origineel), en "Onlangs verwijderd" noemt foto's
+  // die terug kunnen. Zo'n foto mag niet weg, ook niet als het origineel
+  // definitief weg is. Twee bronnen: de database (glas_foto_nog_nodig: elk
+  // project, ook in de prullenbak) en dit apparaat (een redding of opslag
+  // die nog omhoog moet, in localStorage).
+  // Geeft {pad: true} voor wat nog nodig is, of null als het niet zeker is
+  // (geen verbinding): dan alles bewaren.
+  // opties.alleenReddingen: alleen de reddingen op dit apparaat tellen (bij
+  // definitief verwijderen vanaf dít apparaat: de stand van het project dat
+  // weg moet, op het scherm of in de wachtrij, telt dan niet).
+  function lokaalGenoemd(paden, alleenReddingen) {
+    var uit = {};
+    var mappen = {};
+    paden.forEach(function (p) { mappen[String(p).split('/')[0]] = true; });
+    var mapLijst = Object.keys(mappen);
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || k.indexOf('glasopname') !== 0) continue;
+        // De foto's van de werkvloer die nog in een project moeten
+        // (rechten.js): bestaat dat project niet meer, dan komen ze er ook
+        // nooit meer in; die tellen dus niet.
+        if (k === 'glasopname_erbij') continue;
+        if (alleenReddingen && k.indexOf('redding') < 0) continue;
+        var v = localStorage.getItem(k) || '';
+        mapLijst.forEach(function (m) {
+          var j = v.indexOf(m + '/');
+          while (j >= 0) {
+            var eind = v.indexOf('"', j);
+            var pad = v.slice(j, eind < 0 ? v.length : eind).replace(/\\+$/, '');
+            uit[pad] = true;
+            j = v.indexOf(m + '/', j + 1);
+          }
+        });
+      }
+    } catch (e) { return null; }
+    return uit;
+  }
+
+  function nogNodig(paden, opties) {
+    var lijst = [];
+    var gezien = {};
+    (paden || []).forEach(function (p) {
+      if (typeof p === 'string' && p && !gezien[p]) { gezien[p] = true; lijst.push(p); }
+    });
+    if (!lijst.length) return Promise.resolve({});
+    var lok = lokaalGenoemd(lijst, !!(opties && opties.alleenReddingen));
+    if (!lok) return Promise.resolve(null);
+    var c = sb();
+    if (!c || typeof c.from !== 'function') return Promise.resolve(null);
+    var nodig = {};
+    lijst.forEach(function (p) { if (lok[p]) nodig[p] = true; });
+    if (typeof c.rpc !== 'function') {
+      return zonderScript30(c, lijst, nodig).catch(function () { return null; });
+    }
+    var stukken = [];
+    for (var i = 0; i < lijst.length; i += 200) stukken.push(lijst.slice(i, i + 200));
+    var zonder30 = false;
+    return stukken.reduce(function (keten, stuk) {
+      return keten.then(function () {
+        if (zonder30) return;
+        return Promise.resolve(c.rpc('glas_foto_nog_nodig', { paden: stuk })).then(function (res) {
+          if (res && res.error && functieOntbreekt(res.error)) { zonder30 = true; return; }
+          if (!res || res.error || !Array.isArray(res.data)) throw new Error('nog nodig: geen antwoord');
+          res.data.forEach(function (p) { nodig[p] = true; });
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      return zonder30 ? zonderScript30(c, lijst, nodig) : nodig;
+    }).catch(function (e) {
+      console.warn('[wachtrij] kan niet nakijken of foto\'s nog nodig zijn; alles blijft', e);
+      return null;
+    });
+  }
+  function functieOntbreekt(e) {
+    var t = String((e && (e.message || '')) || '') + ' ' + String((e && e.code) || '');
+    return /PGRST202|42883|Could not find the function|function .* does not exist/i.test(t);
+  }
+  // Script 30 is nog niet gedraaid (glas_foto_nog_nodig bestaat niet): dan
+  // zelf de apart bewaarde kopieën nakijken (data._apart), de enige
+  // projecten die foto's uit de map van een ander project noemen. Lukt ook
+  // dat niet, dan alles bewaren.
+  function zonderScript30(c, lijst, nodig) {
+    return Promise.resolve(c.from('projecten').select('data').eq('data->>_apart', 'true')).then(function (res) {
+      if (!res || res.error || !Array.isArray(res.data)) throw new Error('kopieën: geen antwoord');
+      var tekst = res.data.map(function (r) { try { return JSON.stringify(r.data || {}); } catch (e) { return ''; } }).join('\n');
+      lijst.forEach(function (p) { if (tekst.indexOf('"' + p + '"') >= 0) nodig[p] = true; });
+      return nodig;
+    });
+  }
+
   // Alles van een project dat definitief weg is: niet meer uploaden. Zou
   // het toch doorgaan, dan stond er een map in Storage bij een project dat
   // niet meer bestaat.
-  function vergeetProject(projectId) {
+  // v124: behalve wat nog genoemd wordt (een kopie, een redding; zie
+  // nogNodig). Weet hij dat niet zeker, dan blijft alles en gaat het omhoog.
+  function vergeetProject(projectId, opties) {
     if (!projectId) return Promise.resolve(0);
     return alleMeta().then(function (lijst) {
-      var weg = lijst.filter(function (m) { return m.projectId === projectId; });
-      return Promise.all(weg.map(function (m) { return haalWeg(m.pad); }))
-        .then(function () { return weg.length; });
+      var van = lijst.filter(function (m) { return m.projectId === projectId; });
+      if (!van.length) return 0;
+      return nogNodig(van.map(function (m) { return m.pad; }), opties).then(function (nodig) {
+        if (!nodig) return 0;
+        var weg = van.filter(function (m) { return !nodig[m.pad]; });
+        return Promise.all(weg.map(function (m) { return haalWeg(m.pad); }))
+          .then(function () { return weg.length; });
+      });
     }).catch(function () { return 0; });
+  }
+
+  // v124 (script 30): een foto van een project dat intussen definitief
+  // verwijderd is (op een ánder apparaat, of na 30 dagen opgeruimd), hoeft
+  // niet meer omhoog: anders stond hij in de opslag bij een project dat niet
+  // meer bestaat (en niemand ruimde hem op). De database zegt welke
+  // projecten er nog zijn (ook in de prullenbak). Weet hij het niet (script
+  // 30 niet gedraaid, geen bereik, geen toegang), dan gewoon uploaden.
+  function zonderVerdwenen(lijst) {
+    var c = sb();
+    var ids = {};
+    (lijst || []).forEach(function (m) { if (m && /^[0-9a-f-]{36}$/i.test(String(m.projectId || ''))) ids[m.projectId] = true; });
+    var namen = Object.keys(ids);
+    if (!namen.length || !c || typeof c.rpc !== 'function') return lijst;
+    return Promise.resolve(c.rpc('glas_project_bestaat', { p_ids: namen })).then(function (res) {
+      var d = res && !res.error && res.data;
+      if (!d || !Array.isArray(d.bestaan)) return lijst;
+      var er = {};
+      d.bestaan.forEach(function (id) { er[String(id).toLowerCase()] = true; });
+      var weg = namen.filter(function (id) { return !er[id.toLowerCase()]; });
+      if (!weg.length) return lijst;
+      console.warn('[wachtrij] project bestaat niet meer; foto\'s niet uploaden (behalve wat nog genoemd wordt)', weg);
+      return Promise.all(weg.map(function (id) { return vergeetProject(id); })).then(function () {
+        // Wat vergeetProject liet staan (nog genoemd, of niet zeker), gaat
+        // gewoon omhoog.
+        return alleMeta().then(function (nu) {
+          var er = {};
+          nu.forEach(function (m) { er[m.pad] = true; });
+          return lijst.filter(function (m) { return weg.indexOf(m.projectId) < 0 || er[m.pad]; });
+        });
+      });
+    }, function () { return lijst; });
   }
 
   /* ─── uploaden ─────────────────────────────────────────────── */
@@ -356,7 +488,7 @@
     if (navigator.onLine === false) return Promise.resolve();
     bezig = true;
     nogEenRonde = false;
-    return alleMeta().then(function (lijst) {
+    return alleMeta().then(zonderVerdwenen).then(function (lijst) {
       var rij = lijst.filter(function (m) { return !geweigerd[m.pad]; }).sort(function (a, b) {
         var sa = a.soort === 'origineel' ? 1 : 0, sb2 = b.soort === 'origineel' ? 1 : 0;
         return sa - sb2 || a.gemaakt - b.gemaakt;
@@ -521,6 +653,7 @@
     telling: telling,
     verwerk: verwerk,
     vergeetProject: vergeetProject,
+    nogNodig: nogNodig,
     vergeetPad: function (pad) { return pad && bekend[pad] ? haalWeg(pad) : Promise.resolve(); },
     vergeetUrls: vergeetUrls,
     lijst: alleMeta,

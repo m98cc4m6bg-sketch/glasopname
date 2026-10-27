@@ -1,10 +1,10 @@
 # Glasopname — beheerhandleiding
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
-Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 26 oktober 2026,
-bij v123 (script 28 en 29, §4; "Apart bewaren en doorgaan" en uitloggen,
-§9; taken van een oud-collega, §3.3). Daarvoor v122: automatische back-up,
-script 27, wachtwoord van het back-upaccount wijzigen (§8).*
+Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 27 oktober 2026,
+bij v124 (rollen en het tabblad Beheer, script 30: §3, §4, §8, §9; "Onlangs
+verwijderd": §9). Daarvoor v123: script 28 en 29, "Apart bewaren en
+doorgaan" en uitloggen, taken van een oud-collega.*
 
 Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `OVERZICHT.md`: hoe de app in elkaar zit, en wat je zonder AI zelf kunt
@@ -128,8 +128,10 @@ blijven: anders kan iedereen met de openbare sleutel een account maken.
 Geef het wachtwoord persoonlijk door. Bij de eerste keer inloggen biedt de
 browser aan het te bewaren.
 
-Een nieuwe gebruiker staat vanzelf op **actief** en kan dus meteen bij de
-projecten. Laat hem op het startscherm één keer **📞 Telefoon toevoegen**
+Een nieuwe gebruiker staat vanzelf op **actief**, maar sinds script 30
+(v124) met de rol **werkvloer**: hij kan alles bekijken, foto's toevoegen en
+zijn eigen taken afvinken, verder niets. Moet hij invoeren of bestellen: zet
+hem in de app op **Beheer** op collega (§3.4). Laat hem op het startscherm één keer **📞 Telefoon toevoegen**
 invullen. Op de bestellijst staat "Besteld door: <het stuk vóór de @>,
 tel. …": dat ziet de leverancier, dus kies het e-mailadres met zorg.
 
@@ -201,32 +203,80 @@ In deze volgorde:
 3. Gebruikte hij een eigen apparaat dat nog werk had klaarstaan zonder
    bereik? Laat hem de app eerst één keer met bereik openen, tot er
    "✓ Opgeslagen" staat.
-4. Dan pas, in de SQL Editor:
+4. Dan pas: startscherm → **Beheer** → bij die persoon **‹Blokkeren›** (sinds
+   v124). Zonder script 30 kan het ook in de SQL Editor:
    ```sql
    update public.gebruikers set actief = false where email = 'naam@jelierbouw.nl';
    ```
 
 Vanaf dat moment kan hij op de server niets meer zien of wijzigen. Wat al
 op zijn apparaat staat, blijft daar: vraag een werkapparaat terug. Zijn
-naam blijft bij zijn werk en taken staan. Terug in dienst: stap 4 met
-`true`.
+naam blijft bij zijn werk en taken staan. Terug in dienst: ‹Vrijgeven› op
+Beheer (of stap 4 met `true`). Blokkeer je iemand terwijl hij werkt, dan
+blijft zijn werk veilig apart op zijn apparaat en gaat het omhoog zodra hij
+weer toegang heeft; hij ziet dat zijn account geblokkeerd is.
 
 Stap 1 vergeten? Sinds v123 staat bij elke open taak van een oud-collega in
 het project (Project info → Taken) het label **oud-collega**, en bij een taak
 zonder eigenaar **zonder eigenaar**. Kies dan in de keuzelijst een collega.
 Op het startscherm staan zulke taken niet (keuze Jan, 26-10-2026).
 
+### 3.4 Rollen en rechten: het tabblad Beheer (v124, script 30)
+
+Alleen een **beheerder** ziet op het startscherm het tabblad **Beheer**. Daar:
+
+- **Gebruikers**: per persoon de rol, laatst ingelogd, laatst actief, welke
+  versie van de app, en in welk project hij nu bezig is.
+- **Rol** (keuzes Jan, 26-10-2026):
+  - *beheerder*: alles, plus Beheer. Er kunnen er meer zijn; er blijft altijd
+    minstens één.
+  - *collega*: werkt zoals altijd. Per persoon kun je vier dingen uitzetten:
+    **bestellen** (en de bestelmail), **ontgrendelen**, **nieuw project**
+    (ook importeren als nieuw project) en **project weggooien**.
+  - *werkvloer*: alleen kijken, plus foto's toevoegen en eigen taken
+    afvinken. Een nieuw account begint zo.
+- **Blokkeren / vrijgeven** (§3.3).
+- **💾 Back-up** (§8), **prullenbak nu legen** en **opslag nakijken** (§9).
+
+Je kunt je eigen rol en rechten niet zelf veranderen. Het back-upaccount
+staat er niet tussen (dat blijft op alleen lezen). De database houdt de
+rechten zelf tegen, niet alleen de knoppen. Een wijziging merkt de app van
+die persoon bij zijn volgende startscherm; vóór bestellen en ontgrendelen
+kijkt de app het altijd even na. ‹Apart bewaren› (werk dat niet in het
+project kon) werkt altijd, ook voor wie geen nieuw project mag maken: zo
+raakt er nooit werk kwijt.
+
 ## 4. De SQL-scripts
 
-Alle scripts staan genummerd in de repo (`09_…` t/m `29_…`; 01 t/m 08 alleen in
-de projectkennis). **01 t/m 27 zijn gedraaid** (03 was optioneel; 26 op
-22-10-2026, 27 bij v122). **28 en 29 horen bij v123** (hieronder):
-eerst 28, dan 29, dan pas de bestanden van v123 in GitHub zetten.
+Alle scripts staan genummerd in de repo (`09_…` t/m `30_…`; 01 t/m 08 alleen in
+de projectkennis). **01 t/m 29 zijn gedraaid** (03 was optioneel; 26 op
+22-10-2026, 27 bij v122, 28 en 29 bij v123). **30 hoort bij v124**
+(hieronder): eerst 30, dan pas de bestanden van v124 in GitHub zetten.
 
 Komt er een nieuw script bij, dan staat dat bovenaan de nota en in
 `LEES-MIJ-EERST-vNN.md`. **Draai een oud script niet opnieuw** zonder het
 Claude te vragen: een ouder script zet zijn eigen regels terug, en dan moeten
-de scripts 26, 27 en 28 daarna opnieuw (in die volgorde).
+de scripts 26, 27, 28 en 30 daarna opnieuw (in die volgorde).
+
+### Script 30: rollen en beheer (v124)
+
+Supabase → SQL Editor → New query → `30_rollen_en_beheer.sql` plakken.
+**Bovenaan (stap 0) staat `VUL-HIER-JE-EMAILADRES-IN`: vervang dat door je
+eigen e-mailadres** (de eerste beheerder; het staat bewust niet in de
+openbare repo). In de zip "niet-in-repo" zit een kopie waarin het al is
+ingevuld. Dan **Run**. Onderaan drie regels met **ja** en de lijst met
+rollen (jij beheerder, de anderen collega, het back-upaccount alleen
+lezen).
+
+- Stopt hij met "Script gestopt; er is niets veranderd. …": lees de zin (het
+  adres niet ingevuld, geen actief account met dat adres, of 26/27/28
+  ontbreken). Zegt de editor daarna "current transaction is aborted": eerst
+  alleen `rollback;`.
+- Nog een keer draaien kan geen kwaad.
+- **Maak geen nieuwe accounts aan vóór v124 live staat**: een nieuw account
+  is werkvloer, en de oude app (v123) kent dat niet.
+- Terugdraaien (alleen in nood, na overleg): `30_terug.sql` (zip
+  "niet-in-repo"); er gaan geen gegevens verloren.
 
 ### Script 28: controles op nummers en versie (v123)
 
@@ -398,7 +448,8 @@ Het gratis plan van Supabase heeft **geen back-ups die je kunt terugzetten**.
 Gaat de database verloren, dan is alles weg. Dat is het grootste risico van
 de hele app (handover §9). Sinds v120 is er een **handmatige back-up**:
 
-**💾 Back-up maken** (startscherm, rechtsboven). Kies *Alleen gegevens*
+**💾 Back-up maken** (startscherm, rechtsboven; sinds v124 alleen voor een
+beheerder, ook op het tabblad Beheer). Kies *Alleen gegevens*
 (klein, snel) of *Met foto's* (alle foto's en originelen; groot, doe het op
 wifi). Je krijgt één zip-bestand, bijvoorbeeld
 `Glasopname-backup_2026-10-22_1430_met-fotos.zip`, met:
@@ -522,8 +573,16 @@ De foto's (met de originelen sinds v93) zijn het eerste wat vol raakt. Dan is
 er een keuze: Supabase Pro (ongeveer $25 per maand; prijs nakijken) of
 originelen na export opruimen (nog niet gebouwd). Ruimte maken kan ook
 door de prullenbak definitief te legen: startscherm → prullenbak → per
-project ‹Nu definitief verwijderen› (ook de foto's; niet terug te draaien,
-maak eerst een 💾 back-up met foto's). Stap je over op Pro, vraag Claude
+project ‹Nu definitief verwijderen›, of Beheer → ‹Prullenbak nu legen› (ook
+de foto's; niet terug te draaien, maak eerst een 💾 back-up met foto's).
+Sinds v124 kan dat alleen een **beheerder**; na 30 dagen ruimt de app het
+nog steeds vanzelf op, ook als er geen beheerder inlogt (keuze Jan).
+
+**Opslag nakijken** (v124, Beheer): telt de foto's per soort. "Zonder
+project" zijn foto's die geen enkel project meer noemt (ook geen apart
+bewaarde kopie): die kun je daar opruimen. Een foto die een project nog
+noemt, gaat nooit weg. Foto's die in een project zijn weggehaald, blijven
+bewaard tot het project zelf weggaat (om ze terug te kunnen zetten). Stap je over op Pro, vraag Claude
 dan de grenzen in `config.js` aan te passen; anders blijven de
 waarschuwingen rekenen met 500 MB en 1 GB.
 
@@ -539,6 +598,14 @@ startscherm of uitlogt: het venster *Nog niet opgeslagen* heeft de knop
 **‹Apart bewaren en doorgaan›** (tot v122: ‹Toch doorgaan›, en dan was het
 werk weg). Het werk gaat dan als apart project naar de server zodra er
 bereik is en iemand op dat apparaat is ingelogd.
+
+**Onlangs verwijderd** (v124, wens Jan): wat iemand in een project weggooit
+(een blok met ruiten, een foto, losse ruiten, een taak, de leverfoto) staat 30
+dagen in **🗑 Onlangs verwijderd** (op Invoer en in Project info), met wie en
+wanneer. Iedereen die mag bewerken kan het met één tik terugzetten. Vraagt
+iemand "mijn blok is weg": kijk daar eerst. ↶ werkt sinds v124 ook na
+herladen, op hetzelfde apparaat, zolang niemand anders het project intussen
+veranderde.
 
 **Uitloggen** (v123): daarna staat er van het laatste project niets meer op
 het apparaat (geen klantnaam, adres of telefoon), behalve werk dat nog
@@ -568,6 +635,21 @@ Daarna:
   staat dan alleen op dat apparaat, en is daarna weg. Eerst met bereik openen
   en wachten tot er "Opgeslagen" staat.
 - Geef de antwoorden aan Claude, met de versie erbij.
+
+**Vragen die je kunt verwachten na v124**
+
+- *"Ik kan niets meer invoeren / geen project maken."* Kijk op Beheer welke
+  rol hij heeft: een nieuw account is werkvloer (alleen kijken). Zet hem op
+  collega.
+- *"Ik kan niet bestellen / ontgrendelen / weggooien."* Staat dat recht bij
+  hem uit op Beheer? Na het aanzetten kijkt de app het vóór het bestellen
+  zelf na.
+- *"Mijn blok (of mijn ruiten) is weg."* 🗑 Onlangs verwijderd, in dat
+  project.
+- *"Ik zie het tabblad Beheer niet."* Alleen een beheerder ziet het; is
+  script 30 gedraaid, en staat jouw account op beheerder?
+- *"Triple kan ik niet kiezen."* Staat er een max glaspakket bij de ruit (uit
+  de maatstaat)? Dan past triple met band niet: dat is de bedoeling.
 
 **Vragen die je kunt verwachten na v123**
 

@@ -876,7 +876,7 @@ const tbCel = (page, merk, kl) => tbR(page, merk).locator('td.' + kl).innerText(
     await page.keyboard.press('Escape'); await wacht(200);
     // Alle ruiten → glaslat: een voorbeeld.
     check('nog geen voorbeeld zolang "niet wijzigen"', await page.locator('#tbAlleVoorbeeld').isHidden());
-    await page.selectOption('#tbAlleLat', 'E22|om'); await wacht(200);
+    await page.click('#tbAlleLat'); await page.click('.tb-lk-optie[data-waarde="E22|om"]'); await wacht(200);   // v124: latkiezer
     t = await page.locator('#tbAlleVoorbeeld').innerText().catch(() => '');
     m = await page.locator('#tbAlleVoorbeeld .lat-plaatje, #tbAlleVoorbeeld img, #tbAlleVoorbeeld svg').count();
     check('glaslat E22 omgekeerd gekozen: voorbeeld met plaatje, maat en "omgekeerd"', await page.locator('#tbAlleVoorbeeld').isVisible() &&
@@ -887,7 +887,7 @@ const tbCel = (page, merk, kl) => tbR(page, merk).locator('td.' + kl).innerText(
     await page.click('.lat-groot').catch(() => {}); await wacht(200);
     await page.evaluate(() => renderToebehoren()); await wacht(300);
     check('het voorbeeld blijft na opnieuw tekenen', /E22/.test(await page.locator('#tbAlleVoorbeeld').innerText().catch(() => '')));
-    await page.selectOption('#tbAlleLat', '-'); await wacht(200);
+    await page.click('#tbAlleLat'); await page.click('.tb-lk-optie[data-waarde="-"]'); await wacht(200);   // v124: latkiezer
     // Alle ruiten → onderlat N30: niet bij binnen, en zeggen welke.
     await page.selectOption('#tbAlleOnderlat', 'N30');
     await page.click('.tb-alles button:has-text("Toepassen")'); /* v120: eerst een vraag */ await page.click('.melding-laag button:has-text("Toepassen")'); await wacht(500);

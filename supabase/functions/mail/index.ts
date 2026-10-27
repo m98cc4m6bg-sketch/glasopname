@@ -98,6 +98,27 @@ Deno.serve(async (verzoek) => {
     (Array.isArray(body?.cc) ? body.cc : []).map((a: unknown) => String(a ?? '').trim()).filter(geldigAdres),
   )).slice(0, MAX_ONTVANGERS);
 
+  // v124 (script 30): mag dit account dit? Deze functie werkt met de
+  // dienstsleutel (de database controleert dan niets), dus hier zelf: wie
+  // geblokkeerd is of op alleen lezen staat, niets; de werkvloer niets; een
+  // bestelling alleen een beheerder of een collega met bestelrecht. Is
+  // script 30 nog niet gedraaid (geen kolom rol), dan zoals vroeger.
+  try {
+    const gRes = await fetch(url + '/rest/v1/gebruikers?select=*&id=eq.' + encodeURIComponent(wie.id), {
+      headers: { Authorization: 'Bearer ' + dienstSleutel, apikey: dienstSleutel },
+    });
+    const g = gRes.ok ? (await gRes.json())?.[0] : null;
+    if (g && (g.actief === false || g.alleen_lezen === true)) {
+      return antwoord({ ok: false, fout: 'Je account heeft geen toegang.' }, 403);
+    }
+    if (g && 'rol' in g) {
+      const magBestellen = g.rol === 'beheerder' || (g.rol === 'collega' && g.mag_bestellen !== false);
+      if (g.rol === 'werkvloer' || (soort === 'bestelling' && !magBestellen)) {
+        return antwoord({ ok: false, fout: 'Jouw account mag dit niet versturen (de beheerder heeft het uitgezet).' }, 403);
+      }
+    }
+  } catch { /* niet na te gaan: dan zoals vroeger */ }
+
   if (!aan.length) return antwoord({ ok: false, fout: 'Geen geldig mailadres opgegeven' }, 400);
   if (!tekst.trim()) return antwoord({ ok: false, fout: 'Geen tekst om te versturen' }, 400);
 

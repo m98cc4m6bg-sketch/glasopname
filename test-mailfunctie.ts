@@ -29,6 +29,8 @@ type Aanroep = { url: string; methode: string; lichaam: any };
 let aanroepen: Aanroep[] = [];
 let resendFaalt = false;
 let gebruikerBekend = true;
+// v124: de regel in gebruikers (script 30). null = de standaard (leeg antwoord).
+let gebruikerRij: any = null;
 
 const echteFetch = globalThis.fetch;
 (globalThis as any).fetch = async (url: any, opties: any = {}) => {
@@ -40,6 +42,9 @@ const echteFetch = globalThis.fetch;
   if (adres.indexOf('/auth/v1/user') >= 0) {
     if (!gebruikerBekend) return new Response('nee', { status: 401 });
     return new Response(JSON.stringify({ id: 'u1', email: 'julian@voorbeeld.test' }), { status: 200 });
+  }
+  if (adres.indexOf('/rest/v1/gebruikers') >= 0 && gebruikerRij) {
+    return new Response(JSON.stringify([gebruikerRij]), { status: 200 });
   }
   if (adres.indexOf('api.resend.com') >= 0) {
     if (resendFaalt) {
@@ -166,6 +171,34 @@ check('duidelijke melding dat het nog niet ingesteld is',
   res.status === 500 && /niet ingesteld/.test(uit.fout), JSON.stringify(uit));
 check('en geen poging tot versturen', naar('api.resend.com').length === 0);
 OMGEVING.RESEND_API_KEY = 're_test';
+
+console.log('\n7. Rechten (v124, script 30): de functie kijkt zelf');
+async function probeer(rij: any, lichaam: any) {
+  gebruikerRij = rij; aanroepen = [];
+  const r = await behandelaar!(verzoek(lichaam));
+  const u = await r.json();
+  return { status: r.status, fout: u.fout || '', mails: naar('api.resend.com').length, besteld: naar('/rest/v1/projecten').length };
+}
+const TAAK = { soort: 'taak', projectId: BESTELLING.projectId, aan: ['bart@voorbeeld.test'], onderwerp: 'Taak', tekst: 'x', wieNaam: 'julian' };
+let p = await probeer({ id: 'u1', rol: 'werkvloer', actief: true, alleen_lezen: false, mag_bestellen: true }, BESTELLING);
+check('de werkvloer: geen bestelmail, niets verstuurd, niet op besteld', p.status === 403 && p.mails === 0 && p.besteld === 0, JSON.stringify(p));
+p = await probeer({ id: 'u1', rol: 'werkvloer', actief: true, alleen_lezen: false }, TAAK);
+check('de werkvloer: ook geen taakbericht', p.status === 403 && p.mails === 0, JSON.stringify(p));
+p = await probeer({ id: 'u1', rol: 'collega', actief: true, alleen_lezen: false, mag_bestellen: false }, BESTELLING);
+check('een collega zonder bestelrecht: geen bestelmail', p.status === 403 && p.mails === 0 && /uitgezet/.test(p.fout), JSON.stringify(p));
+p = await probeer({ id: 'u1', rol: 'collega', actief: true, alleen_lezen: false, mag_bestellen: false }, TAAK);
+check('… een taakbericht mag wel', p.status === 200 && p.mails === 1, JSON.stringify(p));
+p = await probeer({ id: 'u1', rol: 'collega', actief: true, alleen_lezen: false, mag_bestellen: true }, BESTELLING);
+check('een collega met bestelrecht: verstuurd en op besteld', p.status === 200 && p.mails === 1 && p.besteld === 1, JSON.stringify(p));
+p = await probeer({ id: 'u1', rol: 'beheerder', actief: true, alleen_lezen: false, mag_bestellen: false }, BESTELLING);
+check('de beheerder mag altijd', p.status === 200 && p.mails === 1, JSON.stringify(p));
+p = await probeer({ id: 'u1', rol: 'collega', actief: false, alleen_lezen: false }, BESTELLING);
+check('een geblokkeerd account: niets', p.status === 403 && p.mails === 0, JSON.stringify(p));
+p = await probeer({ id: 'u1', rol: 'collega', actief: true, alleen_lezen: true }, TAAK);
+check('het back-upaccount (alleen lezen): niets', p.status === 403 && p.mails === 0, JSON.stringify(p));
+p = await probeer({ id: 'u1', naam: 'julian', actief: true }, BESTELLING);
+check('zonder script 30 (geen kolom rol): zoals vroeger', p.status === 200 && p.mails === 1, JSON.stringify(p));
+gebruikerRij = null;
 
 (globalThis as any).fetch = echteFetch;
 console.log('\n' + (fouten ? fouten + ' fout(en).' : 'Alles goed.'));

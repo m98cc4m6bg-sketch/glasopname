@@ -867,25 +867,31 @@
     }
 
     var ik = mijnNaam();
+    // v124 (script 30, keuze Jan): de werkvloer vinkt alleen zijn eigen
+    // taken af; de rest staat uit (de database houdt het ook tegen).
+    var wv = !!(window.glasWerkvloer && glasWerkvloer());
+    var mijnId = wv && window.glasGebruiker ? glasGebruiker().id : null;
+    var uit = wv ? 'disabled ' : '';
     houder.innerHTML = lijst.map(function (t, i) {
       var sleutel = t.id != null ? "'" + String(t.id).replace(/'/g, '') + "'" : i;
       var eigenaar = t.eigenaar_naam || '';
-      var keuze = cloudTaken() ? eigenaarKeuzeHTML(t.eigenaar, eigenaar, sleutel) : '';
+      var keuze = cloudTaken() && !wv ? eigenaarKeuzeHTML(t.eigenaar, eigenaar, sleutel) : '';
       var wees = weesTaak(t);
+      var vinkUit = wv && !(mijnId && t.eigenaar === mijnId);
       return '<div class="taak' + (t.klaar ? ' klaar' : '') + (wees ? ' wees' : '') + '">' +
-        '<input type="checkbox"' + (t.klaar ? ' checked' : '') +
+        '<input type="checkbox"' + (t.klaar ? ' checked' : '') + (vinkUit ? ' disabled title="Alleen je eigen taken"' : '') +
           ' onchange="taakKlaar(' + sleutel + ', this.checked)">' +
-        '<input type="text" class="taak-tekst" value="' + esc(t.tekst) + '" ' +
+        '<input type="text" class="taak-tekst" value="' + esc(t.tekst) + '" ' + uit +
           'onchange="taakTekst(' + sleutel + ', this.value)" placeholder="omschrijving…">' +
         (keuze ||
           (eigenaar
             ? '<span class="taak-eigenaar' + (eigenaar === ik ? ' ik' : '') + '" title="Eigenaar">' +
               esc(eigenaar) + '</span>'
-            : (cloudTaken() ? '<button class="taak-eigenaar leeg" title="Deze taak op mijn naam zetten" ' +
+            : (cloudTaken() && !wv ? '<button class="taak-eigenaar leeg" title="Deze taak op mijn naam zetten" ' +
                 'onclick="taakVoorMij(' + sleutel + ')">+ mij</button>' : ''))) +
         (wees ? '<span class="taak-wees" title="Deze taak staat in niemands lijst Mijn taken. Kies een eigenaar.">' +
           esc(wees) + '</span>' : '') +
-        '<button class="taak-weg" onclick="taakWeg(' + sleutel + ')" title="Taak verwijderen">✕</button>' +
+        (wv ? '' : '<button class="taak-weg" onclick="taakWeg(' + sleutel + ')" title="Taak verwijderen">✕</button>') +
       '</div>';
     }).join('');
   };
@@ -1009,8 +1015,10 @@
   window.taakWeg = function (sleutel) {
     var t = vindTaak(sleutel);
     if (!t) return;
+    var pidNu = window.glasProjectId;
     if (!cloudTaken()) {
       if (window.bewaarStap) bewaarStap('Taak verwijderd');
+      if (window.glasVerwijderdTaken) glasVerwijderdTaken([t], null, true);   // v124
       var i = taken().indexOf(t);
       if (i >= 0) taken().splice(i, 1);
       renderTaken();
@@ -1019,7 +1027,13 @@
     }
     taakLijst = (taakLijst || []).filter(function (x) { return x !== t; });
     renderTaken();
-    glasTaakWeg(t.id).then(function () { takenLaden(); });
+    // v124: in "Onlangs verwijderd" van het project (herstel.js), pas als de
+    // taak echt weg is. Terugzetten = opnieuw aanmaken (taakTerugzetten).
+    glasTaakWeg(t.id).then(function (gelukt) {
+      if (gelukt && window.glasVerwijderdTaken && window.glasProjectId === pidNu &&
+          glasVerwijderdTaken([t])) opslaan();
+      takenLaden();
+    });
   };
 
   window.takenOpruimen = async function () {
@@ -1032,6 +1046,7 @@
 
     if (!cloudTaken()) {
       if (window.bewaarStap) bewaarStap('Afgeronde taken opgeruimd');
+      if (window.glasVerwijderdTaken) glasVerwijderdTaken(klaarLijst, klaarLijst.length + ' afgeronde taken', true);   // v124
       projectTaken = taken().filter(function (t) { return !t.klaar; });
       renderTaken();
       opslaan();
@@ -1039,8 +1054,38 @@
     }
     taakLijst = (taakLijst || []).filter(function (t) { return !t.klaar; });
     renderTaken();
+    var pidNu = window.glasProjectId;
     Promise.all(klaarLijst.map(function (t) { return glasTaakWeg(t.id); }))
-      .then(function () { takenLaden(); });
+      .then(function (uit) {
+        // v124: wat echt weg is, in "Onlangs verwijderd" (één item).
+        var weg = klaarLijst.filter(function (t, i) { return uit[i]; });
+        if (weg.length && window.glasVerwijderdTaken && window.glasProjectId === pidNu &&
+            glasVerwijderdTaken(weg, weg.length === 1 ? null : weg.length + ' afgeronde taken')) opslaan();
+        takenLaden();
+      });
+  };
+
+  // v124: een taak uit "Onlangs verwijderd" opnieuw aanmaken, met dezelfde
+  // tekst, eigenaar en afgevinkt of niet (herstel.js). Het nummer en de
+  // aanmaakdatum zijn nieuw (de tabel kiest ze). Geeft true als het lukte.
+  window.taakTerugzetten = async function (t) {
+    if (!t || !String(t.tekst || '').trim()) return false;
+    if (!cloudTaken()) {
+      if (window.bewaarStap) bewaarStap('Taak teruggezet');
+      taken().push({ tekst: t.tekst, klaar: !!t.klaar });
+      renderTaken();
+      return true;
+    }
+    var nieuw = await glasTaakNieuw(t.tekst, null, t.eigenaar ? { id: t.eigenaar, naam: t.eigenaar_naam || '' } : null);
+    if (!nieuw) return false;
+    var velden = {};
+    if (t.klaar) velden.klaar = true;
+    // Een taak zonder eigenaar blijft zonder eigenaar (glasTaakNieuw zet
+    // anders jouw naam erop).
+    if (!t.eigenaar) { velden.eigenaar = null; velden.eigenaar_naam = ''; }
+    if (Object.keys(velden).length) await glasTaakWijzig(nieuw.id, velden);
+    takenLaden();
+    return true;
   };
 
   /* ─── logboek ─────────────────────────────────────────────────

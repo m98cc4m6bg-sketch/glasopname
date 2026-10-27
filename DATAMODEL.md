@@ -1,9 +1,9 @@
 # Glasopname — datamodel
 
 *Wat er in Supabase staat, wie wat mag, en welk script wat deed. Bijgewerkt
-op 26 oktober 2026, bij v123 (script 28: controles op nummers en versie;
-script 29: zoeken). Daarvoor v122: script 27, alleen lezen en nummering.
-Bron: de SQL-scripts 01 t/m 29 zelf.*
+op 27 oktober 2026, bij v124 (script 30: rollen, rechten en beheer).
+Daarvoor v123: script 28 (controles op nummers en versie) en 29 (zoeken).
+Bron: de SQL-scripts 01 t/m 30 zelf.*
 
 Zie ook `OVERZICHT.md` (hoe de app werkt) en `BEHEER.md` (wat je doet).
 Wordt bij elke nieuwe versie bijgewerkt; elk nieuw SQL-script komt in de lijst
@@ -27,7 +27,9 @@ alleen het apparaat dat het project "heeft", mag opslaan. Ze gelden ook voor
 een oude versie die nog ergens draait; een te oude versie houdt het
 versieslot tegen. Ze zijn er om vergissingen te voorkomen. Sinds script 26 (v120) kan alleen een
 **actieve collega** (tabel `gebruikers`, `actief`) bij de projecten, en zet de
-database zelf wie iets wijzigde.
+database zelf wie iets wijzigde. Sinds script 30 (v124) heeft elke collega een
+**rol** (beheerder, collega, werkvloer) en vier **rechten**, en houdt de
+database die zelf tegen (zie "Wie mag wat").
 
 ## Tabellen
 
@@ -67,6 +69,11 @@ database zelf wie iets wijzigde.
 | `volgendId` | het volgende vrije ruitnummer |
 | `taken` | oude plek van de taken (sinds script 13 leeg; de app schrijft hem nog mee) |
 | `_versieNr` | het versienummer van de app die opsloeg (versieslot, script 21) |
+| `rijen[].spacer` (v124) | `'zwart'` of afwezig (= standaard zilver). Alleen bij glas met een spouw; in het kenmerk `k` alleen als zwart, ook in de momentopname en (als zwart) in een ingekorte bestelling. Geen SQL |
+| `info.onlangsVerwijderd` (v124) | "Onlangs verwijderd" (`herstel.js`): items `{id, soort: ruiten/groep/afbeelding/lever/taken, wat, wie, op, ruiten: [{rij, plek, na, bollen}], foto, plek, los, taken}`; 30 dagen, hoogstens 60 items (±250 kB). De pdf, Excel, de bestellijst en script 28 kijken er niet naar. Geen SQL |
+| `fotos[]._erbij` (v124, script 30) | `{door, op, rev}`: deze foto zette de werkvloer erbij via `glas_foto_erbij`. Zo'n foto blijft staan als een apparaat hem nog niet kende, en ↶ haalt hem nooit weg |
+| `_erbijVan` (v124, script 30) | tijdelijk, door de database gezet na een werkvloer-foto: het bewerkslot accepteert dan werk op de stand van daarvoor. Verdwijnt bij de volgende opslag |
+| `_apart` (v124) | `true` bij een apart bewaard project (‹Apart bewaren›): dat mag altijd, ook zonder het recht "nieuw project". De app laat het bij de eerste gewone opslag vallen |
 | `_rev` | volgnummer, verhoogd door de database bij elke opslag (script 24) |
 | `_basis`, `_apparaat`, `_sessie`, `_apparaatNaam`, `_apparaatSoort` | stuurt de app mee voor het bewerkslot (script 24) |
 | `_projectId` | alleen in de kopie op het apparaat: van welk project dit werk is |
@@ -95,7 +102,10 @@ database schrijft dit zelf (trigger), de app niet.
 ### `gebruikers` — leesbare kopie van de accounts (sinds 14)
 
 `id` (= de code van het account in Supabase), `naam` (standaard het stuk vóór
-de @), `email`, `actief`, sinds script 27 `alleen_lezen` (true = kan alles lezen, niets
+de @), `email`, `actief`, sinds script 30 `rol`, `mag_bestellen`,
+`mag_ontgrendelen`, `mag_nieuw`, `mag_weggooien` (zie "Wie mag wat") en
+`gezien_op`, `app_versie`, `apparaat` (laatst actief, gezet door
+`glas_aanwezig`, hoogstens om de 10 minuten), sinds script 27 `alleen_lezen` (true = kan alles lezen, niets
 veranderen; voor het back-upaccount; standaard false), sinds script 26 `telefoon` (max. 30 tekens; zet
 ieder zelf met 📞 op het startscherm, voor op de bestellijst). Een trigger
 zet er iedereen in die je in Supabase aanmaakt (de naam uit "naam" bij het
@@ -119,7 +129,19 @@ erin. **De mailfunctie is nog niet ingesteld** (zie `BEHEER.md`).
 Eén rij per project: welk apparaat het project heeft (`apparaat`, `naam`,
 `omschrijving`), sinds wanneer (`sinds`), de hartslag (`gezien`), en een
 lopende vraag om over te nemen (`overname_…`). Live gedeeld met alle
-apparaten.
+apparaten. Sinds script 30 ook `wie` (het account, voor "bezig in" op Beheer).
+De werkvloer neemt nooit een project (`glas_bewerken` geeft hem alleen de
+stand).
+
+### `glas_foto_pad` — welke foto's een project noemt (sinds 30)
+
+Per project de paden van de foto's die in zijn gegevens staan (ook een apart
+bewaarde kopie, die de paden van het origineel houdt, en "Onlangs
+verwijderd"). Bijgehouden door de trigger `projecten_paden` bij elke opslag;
+alleen de database leest en schrijft hem (geen rechten voor de app). Gebruikt
+door `glas_foto_nog_nodig`, `glas_pad_in_gebruik` en de regel op de opslag:
+een foto die een project noemt, gaat nooit weg. Afgeleid; hoeft niet in de
+back-up.
 
 ### `app_data` — de keuzelijsten
 
@@ -167,7 +189,7 @@ hetzelfde adres krijgt een nieuwe code en hoort er niet meer bij. Zie
 
 Het model is eenvoudig: **een actieve collega (ingelogd, en in `gebruikers`
 op actief; geen anonieme aanmelding) mag alles zien; verder niemand iets.**
-Er zijn geen rollen. ("collega" hieronder = `is_lid()`, sinds script 26;
+Tot script 30 waren er geen rollen; zie de rollen hieronder. ("collega" hieronder = `is_lid()`, sinds script 26;
 daarvoor: iedereen die ingelogd is.) **Alleen lezen** (script 27): een
 account met `alleen_lezen = true` (het back-upaccount) mag lezen wat een
 collega mag, maar niets toevoegen, wijzigen of weggooien, ook niet in de
@@ -189,6 +211,28 @@ die blijven zelf ongewijzigd.
 | Storage `projectfotos` | collega | collega | **niemand** (26: niet overschrijven) | collega |
 
 Zelf een account aanmaken staat **uit**; accounts maakt Jan in Supabase.
+
+**Rollen en rechten (script 30, v124; keuzes Jan).** Kolommen in
+`gebruikers`: `rol` (`beheerder`, `collega`, `werkvloer`; een nieuw account
+begint als werkvloer) en `mag_bestellen`, `mag_ontgrendelen`, `mag_nieuw`,
+`mag_weggooien` (standaard aan). Hulpfuncties `glas_rol()`,
+`is_beheerder()`, `glas_mag(recht)`. Wat de database tegenhoudt:
+
+| wat | wie mag het |
+|---|---|
+| een nieuw project (insert) | `mag_nieuw`; een apart bewaard project (`data._apart`) mag altijd (nooit werk kwijt) |
+| een bestelling toevoegen, intrekken of de inhoud van een bestelling veranderen | `mag_bestellen` |
+| ontgrendelen (status besteld of verder en `info.slot.open` waar, zoals de app het leest) | `mag_ontgrendelen`; intrekken met bestelrecht mag het project openen. Loopt ná het samenvoegen van script 23 (trigger `projecten_bestellingen_zz_ontgrendelen`), dus een apparaat dat een bestelling miste wordt niet geweigerd |
+| weggooien (`verwijderd_op` zetten) | `mag_weggooien` |
+| definitief verwijderen (delete) | een beheerder; anderen alleen als het project al 30 dagen in de prullenbak staat (serverklok; het automatische opruimen) |
+| het project wijzigen | niet de werkvloer; die mag alleen foto's toevoegen via `glas_foto_erbij` (hoogstens 20 nieuwe logregels per project per uur; foto's na elkaar van één persoon worden één logregel) |
+| taken | de werkvloer alleen eigen taken afvinken; wie en wanneer zet de database |
+| mailadressen, bewerkslot | niet de werkvloer (restrictive regels `werkvloer_…`) |
+| een foto uit de opslag halen | niet de werkvloer; anderen alleen als geen enkel project het pad nog noemt (regel `projectfotos_definitief`, tabel `glas_foto_pad`); een beheerder altijd |
+| je eigen rol of rechten | niemand; een beheerder zet die van anderen via `glas_beheer_zet`; er blijft altijd minstens één beheerder |
+
+Een weigering begint altijd met "Geen recht: …". De app werkt zonder script
+30 zoals in v123 (geen rol = alles mag).
 
 **Controles in de database bij het opslaan van een project** (triggers op
 `projecten`, ze gelden voor iedereen):
@@ -219,20 +263,31 @@ Zelf een account aanmaken staat **uit**; accounts maakt Jan in Supabase.
 | `wie_is_het()`, `ids_controleren()` (26; `ids_controleren` vervangen in 28) | triggers: wie wijzigde, en de nummers in een project |
 | `versie_niet_terug()` (21, vervangen in 26 en 28) | het versieslot |
 | `mag_schrijven()` (27) | staat wie nu vraagt níet op alleen lezen? De restrictive regels gebruiken hem |
+| `glas_rol()`, `is_beheerder()`, `glas_mag(recht)` (30) | de rol en de rechten van wie nu vraagt |
+| `glas_foto_erbij(project, foto)` (30) | de werkvloer zet één foto in een project (alleen toegestane velden, pad binnen het project, niet in de prullenbak), langs het bewerkslot; merkt de foto met `_erbij` |
+| `glas_foto_nog_nodig(paden)`, `glas_pad_in_gebruik(pad)` (30) | welke van deze foto's noemt een project nog? Vóór het opruimen |
+| `glas_beheer_gebruikers()`, `glas_beheer_zet(id, veld, waarde)` (30, alleen beheerder) | Beheer: de gebruikers met laatst ingelogd (uit `auth.users`), laatst actief, versie en bezig in; rol, actief en rechten zetten (niet bij jezelf of het back-upaccount) |
+| `glas_beheer_opslag()`, `glas_beheer_wees(max)` (30, alleen beheerder) | Opslag nakijken: foto's per soort (zonder project, prullenbak, weggehaald, alleen in het logboek, in gebruik) en de lijst van foto's die geen enkel project noemt |
+| `glas_aanwezig(versie, apparaat)`, `glas_mijn_status()`, `glas_project_bestaat(ids)` (30) | laatst actief bijwerken; je eigen rol en of je actief bent (ook als je geblokkeerd bent); welke projecten bestaan nog (voor de fotowachtrij) |
 
 **Triggers** (op dezelfde tabel lopen ze op alfabetische naam):
 
 | trigger | op | functie | script |
 |---|---|---|---|
+| `projecten_0_rechten` | projecten | `rechten_bewaken` | 30 (loopt als eerste) |
 | `projecten_a_wie` | projecten | `wie_is_het` | 26 |
 | `projecten_bestellingen_samenvoegen` | projecten | `bestellingen_samenvoegen` | 23 (nummering 27) |
-| `projecten_bewerkslot` | projecten | `bewerkslot_bewaken` | 24 |
+| `projecten_bestellingen_zz_ontgrendelen` | projecten | `ontgrendelen_bewaken` | 30 (ná het samenvoegen) |
+| `projecten_bewerkslot` | projecten | `bewerkslot_bewaken` | 24 (aangevuld in 30) |
+| `projecten_fotos_erbij` | projecten | `fotos_erbij_houden` | 30 |
 | `projecten_ids` | projecten | `ids_controleren` | 26/28 |
 | `projecten_logboek` | projecten | `log_project` | 13/14 |
+| `projecten_paden` (na de opslag) | projecten | `glas_paden_bijhouden` | 30 |
 | `projecten_prullenbak` | projecten | `log_prullenbak` | 18 |
 | `projecten_prullenbak_servertijd` | projecten | `prullenbak_servertijd` | 22 |
 | `projecten_updated_at` | projecten | `set_updated_at` | 01 |
 | `projecten_versie_niet_terug` | projecten (sinds 28 ook bij een nieuw project) | `versie_niet_terug` | 21/26/28 |
+| `taken_0_rechten` | taken | `taken_rechten` | 30 |
 | `taken_tellen` | taken | `tel_open_taken` | 13 |
 | `taken_updated_at`, `gebruikers_updated_at` | taken, gebruikers | `set_updated_at` | 13/14 |
 | `gebruikers_bijschrijven` | auth.users | `gebruiker_bijschrijven` | 14 |
@@ -247,15 +302,16 @@ Realtime (live bijwerken) staat aan voor `projecten` (script 07) en
 ## Migraties (de SQL-scripts)
 
 01 t/m 27 zijn gedraaid (03 was optioneel; 26 op 22-10-2026, 27 bij v122);
-28 en 29 horen bij v123 (eerst 28, dan 29).
-01 t/m 08 staan alleen in de projectkennis op claude.ai; 09 t/m 29 ook in de
+28 en 29 horen bij v123 (eerst 28, dan 29); 30 bij v124.
+01 t/m 08 staan alleen in de projectkennis op claude.ai; 09 t/m 30 ook in de
 repo. **`test-sql.sql` nooit in Supabase
 draaien**: dat is voor de tests en begint met alles weggooien.
 
 **Na script 26 geen ouder script opnieuw draaien.** Moet het toch, draai
 daarna script 26 opnieuw: oudere scripts zetten hun eigen regels terug,
-zonder de controle op actieve collega's (en na 27 en 28: draai dan ook 27 en
-28 opnieuw, in die volgorde).
+zonder de controle op actieve collega's (en na 27, 28 en 30: draai dan ook 27,
+28 en 30 opnieuw, in die volgorde; script 30 vervangt `glas_bewerken`,
+`bewerkslot_bewaken` (24) en de regel voor definitief verwijderen (26)).
 
 | nr | versie | wat |
 |---|---|---|
@@ -288,6 +344,7 @@ zonder de controle op actieve collega's (en na 27 en 28: draai dan ook 27 en
 | 27 | v122 | alleen lezen: kolom `gebruikers.alleen_lezen`, `mag_schrijven()`, restrictive regels op alle tabellen en de foto's; nummering na samenvoegen gelijk aan de app (ingetrokken telt niet mee). Mag vaker gedraaid worden. Terugdraaien: `27_terug.sql` (niet in de repo) |
 | 28 | v123 | controles: `glas_ids_fout()` (één plek voor de nummers; ook een ruit zonder nummer, een bolletje zonder ruitnummer en het fotonummer bij een ruit), `ids_controleren` gebruikt hem; versiegrens ook bij een nieuw project en 5+ cijfers telt als 0; `glas_gebruik()` alleen voor collega's. Eén geheel (`begin … commit`), met een veiligheidsstop als er nu al een project (buiten de prullenbak) met vreemde nummers staat. Mag vaker gedraaid worden. Terugdraaien: `28_terug.sql` (niet in de repo) |
 | 29 | v123 | zoeken: uitbreiding `unaccent` (schema `extensions`) en de functie `glas_zoek_projecten()`. Verandert geen gegevens; niet verplicht (zonder: de app zoekt zoals in v122, plus de klantnaam). Terugdraaien: `drop function if exists public.glas_zoek_projecten(text, text);` |
+| 30 | v124 | rollen en beheer: kolommen in `gebruikers` (rol, vier rechten, laatst actief) en `bewerkslot.wie`; triggers `projecten_0_rechten`, `projecten_bestellingen_zz_ontgrendelen`, `taken_0_rechten`, `projecten_fotos_erbij`, `projecten_paden`; tabel `glas_foto_pad`; regels voor definitief verwijderen, de werkvloer en de opslag; de functies hierboven. Bovenaan het e-mailadres van de eerste beheerder invullen (staat bewust niet in de openbare repo). Eén geheel met veiligheidsstop; mag vaker gedraaid worden. Terugdraaien: `30_terug.sql` (niet in de repo) |
 
 **Twee kleine onjuistheden in oude scripts** (gevonden bij het schrijven van
 dit document; voor de gebruiker zonder gevolgen):

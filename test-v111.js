@@ -813,6 +813,7 @@ async function naarToebehoren(page) {
     // Tape: Y heeft 2 horizontale (892) en 2 verticale (1492) roeden, 1 strook per kant, ×2 ruiten.
     check('tape: (2×892 + 2×1492) × 2 kanten × 2 ruiten = 19,072 m, 1 rol', Math.abs(u.tape.meters - 19.072) < 1e-6 && u.tape.rollen === 1,
       JSON.stringify(u.tape));
+    if (await page.locator('#tbStap3 .tb-reken-knop[aria-pressed="false"]').count()) { await page.click('#tbStap3 .tb-reken-knop'); await wacht(300); }   // v124: de rekenregels staan eerst dicht
     t = await tbTekst(page);
     check('op het tabblad: "5 × 4,0 m A4 glaslat", "2 × 4,0 m Neuslat", "31,0 m Glasband wit 3 mm", "3 kokers"',
       /5 × 4,0 m A4 glaslat schuin 17x15 \(boven en zijkanten\)/.test(t) && /2 × 4,0 m Neuslat, maat nog onbekend \(onder\)/.test(t) && /31,0 m Glasband wit 3 mm/.test(t) &&
@@ -859,6 +860,7 @@ async function naarToebehoren(page) {
     await inv.fill('5'); await inv.dispatchEvent('change'); await wacht(300);
     inv = page.locator('.tb-getallen label', { hasText: 'Kitvoeg diepte' }).locator('input');
     await inv.fill('6'); await inv.dispatchEvent('change'); await wacht(300);
+    if (await page.locator('#tbStap3 .tb-reken-knop[aria-pressed="false"]').count()) { await page.click('#tbStap3 .tb-reken-knop'); await wacht(300); }   // v124: de rekenregels staan eerst dicht
     t = await tbTekst(page);
     check('kitvoeg 5 × 6: 930 ml → 4 kokers', /4 kokers Glaskit wit/.test(t) && /= 930 ml/.test(t), (t.match(/kokers Glaskit.{0,160}/) || [''])[0]);
     check('de balk zegt "Gerekend met 2 afwijkende waarden: kitvoeg breedte 5 mm, kitvoeg diepte 6 mm"',
@@ -1008,6 +1010,7 @@ async function naarToebehoren(page) {
     check('Z met rooster: band 11,104 m (2 × de breedte extra per kant), kit 158,72 ml, tape 7,616 m (rooster eraf)',
       Math.abs(pz.band - 11.104) < 1e-6 && Math.abs(pz.kit - 158.72) < 1e-6 && Math.abs(pz.tape - 7.616) < 1e-6, JSON.stringify(pz));
     await naarToebehoren(page);
+    if (await page.locator('#tbStap3 .tb-reken-knop[aria-pressed="false"]').count()) { await page.click('#tbStap3 .tb-reken-knop'); await wacht(300); }   // v124: de rekenregels staan eerst dicht
     t = await tbTekst(page);
     check('met een rooster: de rekenregel noemt "plus bij een rooster 2 × de breedte; binnen en buiten samen 4 ×"',
       /plus bij een rooster 2 × de breedte; binnen en buiten samen 4 ×/.test(t), (t.match(/omtrek van elke ruit.{0,120}/) || [''])[0]);

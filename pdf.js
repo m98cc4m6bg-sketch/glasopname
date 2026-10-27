@@ -14,7 +14,7 @@
   // Zelfde nummer als APP_VERSIE in index.html. Staat hier zodat je in de
   // console kunt zien wélke pdf.js een apparaat werkelijk geladen heeft;
   // dat scheelt zoeken als een update ergens blijft hangen.
-  var PDF_VERSIE = 'v123';
+  var PDF_VERSIE = 'v124';
   // v114 (keuze van Jan): vaste zin bovenaan elke aanvulling (pdf en mail).
   var BEVESTIG_AANVULLING = 'Graag bevestigen dat u deze aanvulling verwerkt, met name VERVANGT en ANNULEREN.';
   // Uit de repo, niet van de CDN (v91): dan staan ze in de cache van de
@@ -55,6 +55,9 @@
       { kop: 'Glas H',    w: 14, haal: function (r) { return r.glasHoogte; }, altijd: true },
       { kop: 'Glastype',  w: 26, haal: function (r) { return r.glasType; } },
       { kop: 'Opbouw',    w: 22, haal: function (r) { return r.opbouw; } },
+      // v124 (keuze Jan): alleen zwart; standaard zilver = leeg (en zonder
+      // zwart valt de kolom weg).
+      { kop: 'Spacer',    w: 15, haal: function (r) { return window.spacerZwart && spacerZwart(r) ? 'zwart' : ''; } },
       { kop: 'Dikte',     w: 12, haal: function (r) { return r.totaalDikte; } },
       { kop: 'kg/m2',     w: 12, haal: function (r) { return r.kgM2; } },
       // v113: sponningdiepte en de glaslat met het oordeel (past/krap/ruim/
@@ -269,13 +272,21 @@
     // bolletjes — per regel hooguit zoveel als het aantal. Staan er op het
     // scherm meer (aantal achteraf verlaagd), dan is dat daar al met een
     // rode rand gemeld; op papier hoort het beeld bij de bestelling.
-    var getekend = {};
+    // v124: geteld over álle foto's, zoals op het scherm (volgnummerVan in
+    // fotos.js): een ruit kan nu bolletjes op meer tekeningen hebben, en per
+    // foto tellen liet er dan samen te veel op papier.
+    var nrVan = new Map(), teller = {};
+    fotos.forEach(function (f2) {
+      (f2.markeringen || []).forEach(function (m) {
+        teller[m.rijId] = (teller[m.rijId] || 0) + 1;
+        nrVan.set(m, teller[m.rijId]);
+      });
+    });
     foto.markeringen.forEach(function (m) {
       var rij = getRij(m.rijId);
       if (!rij) return;
       var max = parseInt(rij.aantal, 10) > 0 ? parseInt(rij.aantal, 10) : 1;
-      getekend[m.rijId] = (getekend[m.rijId] || 0) + 1;
-      if (getekend[m.rijId] > max) return;
+      if ((nrVan.get(m) || 1) > max) return;
       var cx = x + m.x * b;
       var cy = y + m.y * h;
       doc.setFillColor(240, 165, 0);
@@ -289,6 +300,34 @@
     });
 
     return y + h + 5;
+  }
+
+  // v124 (keuze Jan: één ruit, bolletjes verdeeld): onder de tabel van een
+  // foto of tekening de ruiten die hier een bolletje hebben maar bij een
+  // ander blok staan, en de eigen ruiten die ook elders staan. naam(nr, f)
+  // geeft het woord zoals in de koppen van díe pdf ("Foto 2", "tekening 2").
+  function verwijzingTekst(f, naam) {
+    if (!window.fotoVerwijzingen) return '';
+    var v = fotoVerwijzingen(f.id);
+    var hier = v.elders.map(function (x) {
+      return (x.rij.merk || '?') + ' x' + x.hier + ' hier (de regel staat bij ' +
+        (x.thuisNr > 0 ? naam(x.thuisNr, fotos.find(function (g) { return g.id === x.thuis; })) : 'Zonder foto') + ')';
+    });
+    var ook = v.ookElders.map(function (x) {
+      return (x.rij.merk || '?') + ' ook x' + x.n + ' op ' + naam(x.nr, fotos.find(function (g) { return g.id === x.foto; }));
+    });
+    return [hier.length ? 'Ook op deze ' + (f.bron === 'tekening' ? 'tekening' : 'foto') + ': ' + hier.join('; ') + '.' : '',
+            ook.length ? 'Verdeeld: ' + ook.join('; ') + '.' : ''].filter(Boolean).join(' ');
+  }
+  function verwijzingSchrijf(doc, tekst, y, titel) {
+    if (!tekst) return y;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(29, 29, 27);
+    var regels = doc.splitTextToSize(schoon(tekst), INHOUD);
+    if (y + regels.length * 4 > HOOGTE - MARGE - 8) { doc.addPage(); kopregel(doc, titel + ' (vervolg)'); y = MARGE + 12; }
+    doc.text(regels, MARGE, y);
+    return y + regels.length * 4 + 2;
   }
 
   // De exportknoppen zitten sinds v44 in een uitklaplijst en zijn dus niet
@@ -561,8 +600,14 @@
             y += 8;
           }
 
+          // v124: de verwijzingen (ruiten van een andere tekening met een
+          // bolletje hier), met de namen van deze pdf ("Foto 2").
+          var verw = verwijzingTekst(f, function (nr) { return 'Foto ' + nr; });
           if (eigen.length) {
-            tekenTabel(doc, eigen, y, titel);
+            var naTabel = tekenTabel(doc, eigen, y, titel);
+            verwijzingSchrijf(doc, verw, naTabel + 5, titel);
+          } else if (verw) {
+            verwijzingSchrijf(doc, verw, y + 4, titel);
           } else {
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(8.5);
@@ -704,9 +749,13 @@
             didDrawPage: function (data) { if (data.pageNumber > 1) kopregel(doc, titel + ' (vervolg)'); }
           });
         };
+        var onderY = null;     // v124: waar de laatste foto ophield (tabel of verwijzingen)
         kozijnFotos.forEach(function (f, i) {
           var eigen = rijen.filter(function (r) { return r.fotoId === f.id && (r.breedte || r.hoogte || r.merk); });
-          if (!eigen.length) return;
+          // v124: ook een tekening met alleen ruiten van een ander blok (de
+          // werkplaats moet zien welke ruit waar komt).
+          var verwW = verwijzingTekst(f, function (nr, g) { return (g && g.pad && window.soortNaam ? soortNaam(g) : 'groep') + ' ' + nr; });
+          if (!eigen.length && !verwW) return;
           if (!eerste) doc.addPage();
           eerste = false;
           // Zelfde naam als op Toebehoren: foto of tekening (v118, controle).
@@ -723,12 +772,16 @@
             doc.setTextColor(29, 29, 27);
             y += 9;
           }
-          tabel(eigen, y, titel);
+          if (eigen.length) {
+            tabel(eigen, y, titel);
+            onderY = verwW ? verwijzingSchrijf(doc, verwW, doc.lastAutoTable.finalY + 5, titel) : doc.lastAutoTable.finalY;
+          } else onderY = verwijzingSchrijf(doc, verwW, y + 4, titel);
         });
         var los = losseRijen().filter(function (r) { return r.merk || r.breedte || r.hoogte; });
         if (los.length) {
           // Past het nog onder de laatste foto, dan daar (geen halflege pagina).
-          var onder = !eerste && doc.lastAutoTable ? doc.lastAutoTable.finalY + 9 : null;
+          // v124: onder de verwijzingen, niet erdoorheen (onderY).
+          var onder = !eerste && onderY ? onderY + 9 : null;
           var hoogte = doc.internal.pageSize.getHeight();
           if (onder && onder + 12 + 7 * Math.min(los.length, 4) < hoogte - MARGE - 6) {
             doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(29, 29, 27);
@@ -1128,6 +1181,10 @@
     if (oud.glasType !== r.glasType || oud.opbouw !== r.opbouw) {
       was += ', ' + [oud.glasType, oud.opbouw].filter(Boolean).join(' ');
     }
+    // v124: de spacer anders (alleen als die bekend is; een oudere ingekorte bestelling kent hem niet).
+    if (window.spacerZwart && (!oud.kort || oud.spacer !== undefined) && spacerZwart(oud) !== spacerZwart(r)) {
+      was += ', spacer ' + (spacerZwart(oud) ? 'zwart' : 'standaard zilver');
+    }
     // v111: is de bediening anders, dan ziet de leverancier wat het was.
     var bedOud = window.bedieningTekst ? bedieningTekst(oud) : '', bedNu = window.bedieningTekst ? bedieningTekst(r) : '';
     if (bedOud !== bedNu) was += ', ' + (bedOud || 'standaard bediening');
@@ -1233,6 +1290,10 @@
         }, altijd: true },
       { kop: 'Glas type',  w: 24, haal: function (r) { return r.glasType; } },
       { kop: 'Opbouw',     w: 21, haal: function (r) { return r.opbouw; } },
+      // v124 (keuze Jan): de spacer alleen als hij zwart is. Staat er nergens
+      // zwart, dan is er geen kolom (lege kolommen vallen weg) en is alles de
+      // standaard (zilver).
+      { kop: 'Spacer',     w: 13, haal: function (r) { return window.spacerZwart && spacerZwart(r) ? 'zwart' : ''; } },
       { kop: 'Rooster',    w: 14, haal: function (r) { return r.rooster === 'Ja' ? 'Ja ^' : ''; } },
       { kop: 'Duco type',  w: 26, haal: function (r) { return r.ducoType; } },
       // v114 (keuze Jan): bi-color duidelijk op de bestellijst, buiten en binnen apart.
@@ -2339,11 +2400,46 @@
   // opgeslagen of gedeeld. Ja: vastleggen (een nieuwe bestelling erbij,
   // nooit overschrijven), status 'besteld', op slot. Nee of wegtikken: er
   // verandert niets.
+  // v124 (script 30, reparatie A5): de bestellijst voor de leverancier en
+  // de bestelmail alleen met bestelrecht. Het overzicht (geen bestelling),
+  // de foto-pdf en de pdf voor de werkvloer mogen wel.
+  function magLeverancier(modus) {
+    if (modus === 'overzicht') return true;
+    return !window.glasMag || glasMag('bestellen');
+  }
+  function leverancierWeigerTekst() {
+    if (window.glasWerkvloer && glasWerkvloer()) {
+      return 'Je account staat op werkvloer. Een bestellijst voor de leverancier of een bestelmail maakt een ' +
+        'collega; de foto-pdf en de pdf voor de werkvloer kun je wel maken.';
+    }
+    return 'Jouw account mag niet bestellen (de beheerder heeft dat uitgezet). Daarom maakt de app geen ' +
+      'bestellijst voor de leverancier en geen bestelmail. Het overzicht, de foto-pdf en de pdf voor de ' +
+      'werkvloer kun je wel maken. Vraag een collega met bestelrecht, of vraag de beheerder het aan te zetten.';
+  }
+  function leverancierGeweigerd(kop) {
+    if (window.appMelding) appMelding(leverancierWeigerTekst(), { kop: kop || 'Bestellijst niet gemaakt', soort: 'letop' });
+  }
+  function nietVastgelegdTekst() {
+    if (window.glasWerkvloer && glasWerkvloer()) {
+      return 'Je account staat op werkvloer, dus de app legt deze lijst niet vast als bestelling en het project ' +
+        'gaat niet op slot. Is hij naar de leverancier gegaan? Laat het een collega vastleggen.';
+    }
+    return 'Jouw account mag geen bestelling vastleggen (de beheerder heeft dat uitgezet). De pdf is ' +
+      'gemaakt, maar de app legt hem niet vast als bestelling en het project gaat niet op slot. Is hij naar ' +
+      'de leverancier gegaan? Laat het een collega met bestelrecht vastleggen.';
+  }
+
   function vraagVerstuurd(lijst, moment) {
     if (!lijst || !window.bestellingVastleggen || !window.appVraag) return Promise.resolve(false);
     // Het overzicht (er is niets bij te bestellen) is geen bestelling: dan
     // is er geen momentopname, en niets te vragen (v105).
     if (!moment) return Promise.resolve(false);
+    // v124 (script 30): dit account mag geen bestelling vastleggen (de
+    // beheerder zette dat uit). De pdf maken mag wel; dan niets vastleggen.
+    if (window.glasMag && !glasMag('bestellen')) {
+      if (window.appMelding) appMelding(nietVastgelegdTekst(), { kop: 'Bestelling niet vastgelegd', soort: 'letop' });
+      return Promise.resolve(false);
+    }
     // Alleen wie het project bewerkt, kan iets als bestelling vastleggen
     // (v106). Kijken en een pdf maken mag wel.
     if (window.glasAlleenKijken && glasAlleenKijken()) {
@@ -2384,18 +2480,28 @@
       { kop: 'Naar de leverancier?', ja: 'Ja, verstuurd', nee: 'Nee, alleen bekeken' })
       .then(function (ja) {
         if (!ja) return false;
-        bestellingVastleggen(lijst, 'pdf', moment);
-        // Is er tussen de pdf en het antwoord iets veranderd (een collega,
-        // of Ctrl+Z)? Vastgelegd is wat op de pdf staat; het verschil is
-        // geel. Dat zeggen, anders lijkt het alsof het besteld is.
-        var w = window.wijzigingenSindsBestelling ? wijzigingenSindsBestelling() : null;
-        if (w && w.aantal && window.appMelding) {
-          appMelding('Vastgelegd is wat op de pdf staat. Na het maken van de pdf is er intussen iets ' +
-            'veranderd (' + w.aantal + (w.aantal === 1 ? ' ruit' : ' ruiten') + '); dat staat geel en ' +
-            'is dus nog niet besteld.', { kop: 'Let op', soort: 'letop' });
-        }
-        return true;
+        // v124 (A5): de rechten vers, vlak vóór het vastleggen.
+        return Promise.resolve(window.glasRechtenVers ? glasRechtenVers() : null).then(function () {
+          if (window.glasMag && !glasMag('bestellen')) {
+            if (window.appMelding) appMelding(nietVastgelegdTekst(), { kop: 'Bestelling niet vastgelegd', soort: 'letop' });
+            return false;
+          }
+          return verstuurdVastleggen(lijst, moment);
+        });
       });
+  }
+  function verstuurdVastleggen(lijst, moment) {
+    bestellingVastleggen(lijst, 'pdf', moment);
+    // Is er tussen de pdf en het antwoord iets veranderd (een collega,
+    // of Ctrl+Z)? Vastgelegd is wat op de pdf staat; het verschil is
+    // geel. Dat zeggen, anders lijkt het alsof het besteld is.
+    var w = window.wijzigingenSindsBestelling ? wijzigingenSindsBestelling() : null;
+    if (w && w.aantal && window.appMelding) {
+      appMelding('Vastgelegd is wat op de pdf staat. Na het maken van de pdf is er intussen iets ' +
+        'veranderd (' + w.aantal + (w.aantal === 1 ? ' ruit' : ' ruiten') + '); dat staat geel en ' +
+        'is dus nog niet besteld.', { kop: 'Let op', soort: 'letop' });
+    }
+    return true;
   }
   window.glasVraagVerstuurd = vraagVerstuurd;
 
@@ -2528,13 +2634,16 @@
     var project = (document.getElementById('projectNaam') || {}).value || 'Glasopname';
     var datum = (document.getElementById('projectDatum') || {}).value || '';
     var bmVenster = bestelModus();
-
+    // v124 (A5): zonder bestelrecht geen bestelmail (een overzicht wel); dat
+    // wordt bekeken met de rechten vers opgehaald (hieronder).
     mailVensterOpen = true;
     Promise.all([
       Promise.resolve(window.glasMailAdressen ? glasMailAdressen() : []),
-      eerdereBestelling()
+      eerdereBestelling(),
+      Promise.resolve(window.glasRechtenVers ? glasRechtenVers() : null)
     ]).then(function (uit) {
       var adressen = uit[0], eerder = uit[1];
+      if (!magLeverancier(bmVenster.modus)) { mailVensterOpen = false; leverancierGeweigerd('Bestelmail'); return; }
       var laag = document.createElement('div');
       laag.className = 'melding-laag';
       var vinkjes = (adressen || []).map(function (a, n) {
@@ -2864,6 +2973,16 @@
   window.startExport = function (wat) {
     // v118: de werkvloer-pdf gaat niet naar de leverancier: geen controle op de levergegevens.
     if (wat === 'werkvloer') { exportVerder(wat); return Promise.resolve(); }
+    // v124 (A5): de bestellijst voor de leverancier alleen met bestelrecht,
+    // en dan met de rechten vers opgehaald (hooguit een paar seconden).
+    if (wat === 'bestellijst' || wat === 'alles') {
+      // Ook als de app denkt dat het niet mag: de beheerder kan het net
+      // weer aangezet hebben.
+      return Promise.resolve(window.glasRechtenVers ? glasRechtenVers() : null).then(function () {
+        if (wat === 'bestellijst' && !magLeverancier(bestelModus().modus)) { leverancierGeweigerd(); return; }
+        window.exportMetControle(function () { exportVerder(wat); });
+      });
+    }
     window.exportMetControle(function () { exportVerder(wat); });
     return Promise.resolve();
   };
@@ -2896,14 +3015,18 @@
       // v105: ook hier eerst de vragen, dan pas de mapkeuze. Na Stoppen
       // wordt er niets opgeslagen (ook de foto-pdf niet), zodat niemand
       // denkt dat de bestellijst erbij zit (beoordeling).
-      return voorControles(bestelModus()).then(function (k) {
+      // v124 (A5): zonder bestelrecht alles behalve de bestellijst voor de
+      // leverancier (een overzicht mag wel).
+      var lever = magLeverancier(bestelModus().modus);
+      return (lever ? voorControles(bestelModus()) : Promise.resolve('door')).then(function (k) {
         if (k !== 'door') { bezig(''); return { gestopt: true }; }
         return Promise.resolve(mapVragen()).then(function (keuze) { return { keuze: keuze }; });
       }).then(function (stap) {
         if (stap.gestopt) return;
         var keuze = stap.keuze;
         if (keuze && keuze.afgebroken) { bezig(''); return; }
-        return bouwBestellijstVerder().then(function (a) {
+        if (!lever) leverancierGeweigerd('Bestellijst niet gemaakt (de rest wel)');
+        return (lever ? bouwBestellijstVerder() : Promise.resolve(null)).then(function (a) {
           // v119 (Jan): ook de pdf voor de werkvloer.
           return bouwFotoPdf().then(function (b) {
             return bouwWerkvloerPdf().then(function (c) { return [b, c]; });

@@ -47,6 +47,8 @@
     if (!scherm) return;
     scherm.hidden = false;
     document.body.classList.add('op-start');
+    // v124: op het startscherm geen projectnaam in de vaste kop.
+    if (window.zetProjectKop) window.zetProjectKop();
     // Altijd op Start beginnen; de naslag terug naar zijn eigen tabblad.
     window.startTab('start');
     var naam = (window.glasGebruiker ? glasGebruiker().naam : '') || '';
@@ -206,16 +208,66 @@
   };
 
   // De naam van het project waar je in zit, bovenin, met een weg terug.
+  // v124 (wens Jan): de naam staat nu in de vaste kop (#vasteProjectNaam,
+  // bij de tabbladen): die blijft bij het scrollen staan en is ook op de
+  // iPad en de telefoon te zien. Tot v123 stond hij hier in de paginakop,
+  // die wegschuift, en onder 820 px was hij verborgen. In de paginakop
+  // blijft alleen ‹← Projecten›.
   window.zetProjectKop = function () {
+    var naam = String((el('projectNaam') || {}).value || '').trim();
+    var open = !!window.glasProjectId && !document.body.classList.contains('op-start');
     var vak = el('kopProject');
-    if (!vak) return;
-    var naam = (el('projectNaam') || {}).value || '';
-    var open = !!window.glasProjectId;
-    vak.hidden = !open;
-    if (open) vak.innerHTML = '<button class="btn btn-ghost btn-sm" onclick="glasNaarStart()" ' +
-      'title="Terug naar het startscherm">← Projecten</button>' +
-      '<b class="kop-projectnaam">' + esc2(naam || '(naamloos)') + '</b>';
+    if (vak) {
+      vak.hidden = !open;
+      if (open && !vak.firstChild) vak.innerHTML = '<button class="btn btn-ghost btn-sm" onclick="glasNaarStart()" ' +
+        'title="Terug naar het startscherm">← Projecten</button>';
+    }
+    var vast = el('vasteProjectNaam');
+    if (!vast) return;
+    var b = vast.querySelector('.vpn-naam');
+    var tekst = naam || '(naamloos)';
+    var was = vast.hidden;
+    vast.hidden = !open;
+    if (b && b.textContent !== tekst) b.textContent = tekst;
+    if (b) b.classList.toggle('naamloos', !naam);
+    vast.title = naam ? naam + ' (tik voor de hele naam)' : 'Dit project heeft nog geen naam (Invoer, vak Project)';
+    if (!open) vast.classList.remove('open');
+    if (was !== vast.hidden && window.meetVasteKop) meetVasteKop();
   };
+  // Een tik op de naam: de hele naam (lange namen), nog een tik: weer kort.
+  window.projectNaamUitklap = function () {
+    var vast = el('vasteProjectNaam');
+    if (!vast) return;
+    vast.classList.toggle('open');
+    if (window.meetVasteKop) meetVasteKop();
+  };
+  // Elke weg waarlangs de naam verandert: typen (input), en de app zelf
+  // (een ander project openen, een collega die de naam wijzigde, ongedaan
+  // maken). Die laatste zetten alleen .value, zonder event; daarom vangen we
+  // het zetten van de waarde van dit ene vak op (werkt in Safari en Chrome).
+  var kopGepland = false;
+  function planKop() {
+    if (kopGepland) return;
+    kopGepland = true;
+    setTimeout(function () { kopGepland = false; window.zetProjectKop(); }, 0);
+  }
+  function volgNaamVak() {
+    var vak = el('projectNaam');
+    if (!vak || vak.__kopVolgt) return;
+    vak.__kopVolgt = true;
+    vak.addEventListener('input', window.zetProjectKop);
+    var d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    if (!d || !d.set || !d.get) return;
+    try {
+      Object.defineProperty(vak, 'value', {
+        configurable: true,
+        get: function () { return d.get.call(this); },
+        set: function (v) { d.set.call(this, v); planKop(); }
+      });
+    } catch (e) { /* dan alleen via typen en het openen van een project */ }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', volgNaamVak);
+  else volgNaamVak();
 
   /* ─── verder waar je gebleven was ─────────────────────────── */
 

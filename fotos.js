@@ -104,6 +104,105 @@
     return n;
   }
 
+  /* ─── v124: één ruit, bolletjes verdeeld over de tekeningen ────
+     Keuze van Jan (26-10-2026): een regel uit de maatstaat (bijv. A, 3
+     stuks) blijft één ruit en één regel op de bestellijst; zijn bolletjes
+     mogen op verschillende tekeningen staan (3 ruiten uit één regel in 2 of
+     3 kozijnen). De ruit zelf staat in het blok van de tekening met de
+     meeste bolletjes (bij gelijk: de eerste); in de andere blokken staat
+     een verwijzing ("A1 ×1 hier, staat bij tekening 1"). Een ruit zonder
+     bolletjes blijft waar hij is. Verhuizen gebeurt alleen bij een
+     handeling met de bolletjes (aanwijzen, weghalen), in dezelfde stap voor
+     ↶; nooit vanzelf bij het openen. Het blok (fotoId) zit niet in het
+     kenmerk (ruitKenmerk), dus verhuizen is geen wijziging van de bestelling. */
+
+  // Per foto hoeveel bolletjes een ruit heeft: [{ foto, n }] op volgorde
+  // van de foto's (de leverfoto telt niet).
+  function bollenPerFoto(rijId) {
+    var uit = [];
+    werkFotos().forEach(function (f) {
+      var n = (f.markeringen || []).filter(function (m) { return m.rijId === rijId; }).length;
+      if (n) uit.push({ foto: f, n: n });
+    });
+    return uit;
+  }
+  window.bollenPerFoto = bollenPerFoto;
+
+  // De tekening waar de ruit thuishoort: de meeste bolletjes, bij gelijk de
+  // eerste. Geen bolletjes: null (de ruit blijft dan waar hij is).
+  function thuisVan(rijId) {
+    var beste = null;
+    bollenPerFoto(rijId).forEach(function (x) { if (!beste || x.n > beste.n) beste = x; });
+    return beste ? beste.foto.id : null;
+  }
+  window.ruitThuis = thuisVan;
+
+  // De ruit naar zijn tekening verhuizen (alleen fotoId; de bolletjes
+  // blijven waar ze staan). Geeft true als hij verhuisde.
+  function naarBolletjes(rij) {
+    if (!rij) return false;
+    var thuis = thuisVan(rij.id);
+    if (!thuis || rij.fotoId === thuis) return false;
+    rij.fotoId = thuis;
+    return true;
+  }
+
+  // Het nummer en de naam van een blok zoals in de kop ("tekening 2").
+  function blokNaam(fotoId) {
+    var lijst = werkFotos();
+    var f = fotoVan(fotoId);
+    var i = lijst.indexOf(f);
+    if (!f || i < 0) return 'de losse maten';
+    return (f.pad || f.bron === 'tekening' ? soortNaam(f) : 'groep') + ' ' + (i + 1);
+  }
+
+  // Ruiten die (ook) op deze foto bolletjes hebben, maar in een ander blok
+  // staan: de verwijzingen. En voor het eigen blok: waar de eigen ruiten nog
+  // meer staan. Voor het scherm en de pdf invoer.
+  window.fotoVerwijzingen = function (fotoId) {
+    var foto = fotoVan(fotoId);
+    if (!foto) return { elders: [], ookElders: [] };
+    var gezien = {}, elders = [], ookElders = [];
+    (foto.markeringen || []).forEach(function (m) {
+      if (gezien[m.rijId]) return;
+      gezien[m.rijId] = true;
+      var rij = getRij(m.rijId);
+      if (!rij || rij.fotoId === fotoId) return;
+      var per = bollenPerFoto(rij.id);
+      var hier = (per.filter(function (x) { return x.foto.id === fotoId; })[0] || { n: 0 }).n;
+      var nr = werkFotos().indexOf(fotoVan(rij.fotoId)) + 1;
+      elders.push({ rij: rij, hier: hier, thuis: rij.fotoId || null, thuisNr: nr, thuisNaam: blokNaam(rij.fotoId) });
+    });
+    rijenVan(fotoId).forEach(function (rij) {
+      bollenPerFoto(rij.id).forEach(function (x) {
+        if (x.foto.id === fotoId) return;
+        ookElders.push({ rij: rij, n: x.n, foto: x.foto.id, nr: werkFotos().indexOf(x.foto) + 1, naam: blokNaam(x.foto.id) });
+      });
+    });
+    return { elders: elders, ookElders: ookElders };
+  };
+
+  // Naar een ruit in zijn eigen blok (een tik op de verwijzing): het blok
+  // openklappen, ernaartoe en de regel even laten oplichten. Alleen kijken:
+  // ook op slot en bij alleen kijken.
+  window.naarRuit = function (rijId) {
+    var rij = getRij(rijId);
+    if (!rij) return;
+    var blok = rij.fotoId && fotoVan(rij.fotoId) ? rij.fotoId : 'los';
+    if (typeof blokDicht !== 'undefined' && blokDicht[blok] && window.blokKlap) blokKlap(blok);
+    var tr = el('rij-' + rijId);
+    if (!tr) return;
+    tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    tr.classList.add('gemarkeerd');
+    setTimeout(function () { tr.classList.remove('gemarkeerd'); }, 2200);
+  };
+  // Naar een andere tekening (vanuit "ook op tekening 2").
+  window.naarFoto = function (fotoId) {
+    if (typeof blokDicht !== 'undefined' && blokDicht[fotoId] && window.blokKlap) blokKlap(fotoId);
+    var b = el('blok-' + fotoId);
+    if (b) b.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
   // Klasse en uitleg van een bolletje op één plek, zodat tekenen en
   // bijwerken hetzelfde laten zien.
   function bolStaat(fotoId, index) {
@@ -346,6 +445,9 @@
         return;
       }
       f.origineel = o;
+      // v124: de werkvloer bewerkt het project niet; zijn foto gaat via
+      // rechten.js (glas_foto_erbij) het project in, nu met het origineel.
+      if (window.glasWerkvloerFoto && glasWerkvloerFoto(f, pid)) return;
       opslaan();
     });
   }
@@ -504,6 +606,9 @@
     }, Promise.resolve())).then(function () {
       melding('');
       tekeningPdf = null;
+      // v124: staan er nu meer tekeningen en ruiten zonder plek (de maatstaat
+      // was al ingelezen), dan de route om ze aan te wijzen.
+      if (zelfdeProject(pid)) window.aanwijsRouteNaImport();
     }).catch(function (e) {
       console.error('[tekening]', e);
       melding('Omzetten mislukt: ' + e.message, true);
@@ -620,13 +725,16 @@
     if (!f) return;
     if (!await appVraag('De foto van de leverlocatie verwijderen?',
         { kop: 'Foto verwijderen', ja: 'Verwijderen', gevaarlijk: true })) return;
-    if (!window.leverFoto()) return;
-    var sb = sbClient();
-    // Het origineel gaat mee weg, en wat nog in de wachtrij stond ook:
-    // hier is geen ongedaan maken (v93).
-    var paden = [f.pad, f.origineel && f.origineel.pad].filter(Boolean);
-    if (sb && paden.length) sb.storage.from(BUCKET).remove(paden);
-    if (window.glasWachtrij) paden.forEach(function (p) { glasWachtrij.vergeetPad(p); });
+    f = window.leverFoto();
+    if (!f) return;
+    // v124 (keuze Jan: alles terug te halen): het bestand blijft in de
+    // opslag staan, net als bij fotoVerwijder (v83), en ook wat nog in de
+    // wachtrij stond gaat gewoon omhoog. Zo kan de foto met ↶ of via
+    // "Onlangs verwijderd" terug. Tot v123 ging hij meteen uit de opslag
+    // (v93: "hier is geen ongedaan maken"). Opruimen gebeurt als het project
+    // verwijderd wordt (fotosOpruimen, met de map origineel/).
+    if (window.bewaarStap) bewaarStap('Foto van de leverlocatie verwijderd');
+    if (window.glasVerwijderdLever) glasVerwijderdLever(f);
     fotos = fotos.filter(function (x) { return x.soort !== 'lever'; });
     opslaan();
     renderLeverFoto();
@@ -702,7 +810,9 @@
             pad: pad, titel: '', breedte: res.breedte, hoogte: res.hoogte, markeringen: []
           };
           if (!bestaand) fotos.push(doel);
-          opslaan();
+          // v124 (keuze Jan): de werkvloer mag foto's toevoegen, maar het
+          // project niet bewerken: de foto gaat apart het project in.
+          if (!(window.glasWerkvloerFoto && glasWerkvloerFoto(doel, pid))) opslaan();
           renderFotos();
           melding('');
           if (bestaand && rijenVan(bestaand.id).length) {
@@ -859,6 +969,7 @@
       // wijziging kwam telBlok met de juiste telling.
       var telling = window.ruitenTelling ? ruitenTelling(rijenVan(f.id), 'nog geen ruiten')
         : (aantal ? aantal + (aantal === 1 ? ' ruit' : ' ruiten') : 'nog geen ruiten');
+      telling = metElders(f.id, telling);     // v124
       var balk =
         '<div class="blok-balk" onclick="blokKlap(\'' + f.id + '\')">' +
           '<span class="blok-pijl" id="pijl-' + f.id + '">▾</span>' +
@@ -991,9 +1102,19 @@
     if (!blok) return;
     var teller = blok.querySelector('.blok-telling');
     if (!teller) return;
+    teller.textContent = tellingVan(fotoId);
+  }
+
+  // De telling in de kop van een blok; v124: plus de ruiten die hier een
+  // bolletje hebben maar bij een andere tekening staan.
+  function tellingVan(fotoId) {
     var eigen = rijenVan(fotoId);
-    teller.textContent = window.ruitenTelling ? ruitenTelling(eigen, 'nog geen ruiten')
-      : (eigen.length ? eigen.length + (eigen.length === 1 ? ' ruit' : ' ruiten') : 'nog geen ruiten');
+    return metElders(fotoId, window.ruitenTelling ? ruitenTelling(eigen, 'nog geen ruiten')
+      : (eigen.length ? eigen.length + (eigen.length === 1 ? ' ruit' : ' ruiten') : 'nog geen ruiten'));
+  }
+  function metElders(fotoId, t) {
+    var n = window.fotoVerwijzingen(fotoId).elders.reduce(function (s, x) { return s + x.hier; }, 0);
+    return n ? t + ' \u00b7 ' + n + ' van elders' : t;
   }
 
   window.fotoTellingen = function () { fotos.forEach(function (f) { telBlok(f.id); }); };
@@ -1032,8 +1153,9 @@
     var kop = body ? body.closest('table').querySelector('thead') : null;
 
     if (!eigen.length) {
+      var verw = verwijzingHTML(fotoId);
       wrap.innerHTML = (window.blokBalkHTML ? blokBalkHTML(fotoId) : '') +
-        '<div class="foto-geenrijen">Nog geen ruiten in deze groep.</div>' + voetHTML(fotoId);
+        (verw ? '' : '<div class="foto-geenrijen">Nog geen ruiten in deze groep.</div>') + verw + voetHTML(fotoId);
       return;
     }
 
@@ -1042,7 +1164,7 @@
       '<div class="invoer-wrap"><table class="invoer">' +
         (kop ? kop.outerHTML : '') +
         '<tbody id="fotoBody-' + fotoId + '"></tbody>' +
-      '</table></div>' + voetHTML(fotoId);
+      '</table></div>' + verwijzingHTML(fotoId) + voetHTML(fotoId);
 
     vulTabelBody(el('fotoBody-' + fotoId), eigen);
 
@@ -1058,19 +1180,24 @@
 
   // Regels die nog niet al hun bolletjes hebben. Een regel met aantal 3 en
   // één bolletje staat er dus nog in. Ook losse regels tellen mee, zodat
-  // je een geïmporteerde lijst alsnog op een foto kunt zetten. Een regel
-  // die al bij een andere foto hoort, blijft daar: alle ruiten van één
-  // regel staan in één groep.
+  // je een geïmporteerde lijst alsnog op een foto kunt zetten.
+  // v124 (wens Jan): ook de regels van een ander blok. Tot v123 bleef een
+  // regel die al bij een andere foto hoorde daar ("alle ruiten van één regel
+  // in één groep"), en werkte aanwijzen maar op één blok, ook bij een pdf met
+  // meer tekeningen. Volgorde: eerst die van dit blok, dan de losse, dan die
+  // van een ander blok.
   window.zonderMarkering = function (fotoId) {
     var geteld = {};
     fotos.forEach(function (f) {
-      f.markeringen.forEach(function (m) { geteld[m.rijId] = (geteld[m.rijId] || 0) + 1; });
+      (f.markeringen || []).forEach(function (m) { geteld[m.rijId] = (geteld[m.rijId] || 0) + 1; });
     });
+    var plek = function (r) { return r.fotoId === fotoId ? 0 : (!r.fotoId || !fotoVan(r.fotoId)) ? 1 : 2; };
     return rijen.filter(function (r) {
       if ((geteld[r.id] || 0) >= aantalVan(r)) return false;
-      if (r.fotoId && r.fotoId !== fotoId) return false;
       return !!(r.merk || r.breedte || r.hoogte || r.glasType);
-    });
+    }).map(function (r, i) { return { r: r, i: i }; })
+      .sort(function (a, b) { return plek(a.r) - plek(b.r) || a.i - b.i; })
+      .map(function (x) { return x.r; });
   };
 
   // Elke nog open ruit afzonderlijk, voor de wachtrij van het aanwijzen:
@@ -1090,24 +1217,22 @@
   // maar wel in een project van vóór v110, of als een ruit nog half is
   // aangewezen. Niets wordt stil rechtgezet (afspraak met Jan): per regel
   // kies je zelf wat klopt.
-  // Elke regel staat in precies één strook: die van de foto met zijn eerste
-  // bolletje (meestal zijn eigen groep; een oud project kan bolletjes op een
-  // andere foto hebben, beoordeling v110). Tijdens het aanwijzen op deze
+  // Elke regel staat in precies één strook (beoordeling v110): tot v123 die
+  // van de foto met zijn eerste bolletje, sinds v124 die van de tekening waar
+  // hij thuishoort (thuisVan). Tijdens het aanwijzen op deze
   // foto blijven de regels die nog aangewezen worden weg: dat is geen fout,
   // en een misser op "aantal wordt 1" zou een ingelezen aantal verlagen.
-  function eersteFotoVan(rijId) {
-    for (var i = 0; i < fotos.length; i++) {
-      if ((fotos[i].markeringen || []).some(function (m) { return m.rijId === rijId; })) return fotos[i].id;
-    }
-    return null;
-  }
   function scheefIn(fotoId) {
     return rijen.map(function (r) {
       return { rij: r, bol: bollenVan(r.id), aantal: aantalVan(r) };
     }).filter(function (x) {
       if (!(x.bol > 0 && x.bol !== x.aantal)) return false;
-      if (eersteFotoVan(x.rij.id) !== fotoId) return false;
-      if (x.bol < x.aantal && aanwijzen && aanwijzen.fotoId === fotoId &&
+      // v124: de strook staat bij de tekening waar de ruit thuishoort (de
+      // meeste bolletjes; bij gelijk de eerste), niet bij die met het eerste
+      // bolletje: de ruit kan nu over meer tekeningen verdeeld zijn.
+      if (thuisVan(x.rij.id) !== fotoId) return false;
+      // v124: ook als hij op een ándere tekening aangewezen wordt.
+      if (x.bol < x.aantal && aanwijzen &&
           aanwijzen.wachtrij.indexOf(x.rij.id) >= 0) return false;
       return true;
     });
@@ -1120,10 +1245,14 @@
     return '<div class="foto-scheef">' + lijst.map(function (x) {
       var id = x.rij.id, l = esc(labelVan(x.rij));
       var bollen = x.bol === 1 ? 'één bolletje' : x.bol + ' bolletjes';
+      // v124: verdeeld over meer tekeningen? Dan zegt "op de foto" te weinig.
+      var per = bollenPerFoto(id);
+      var opDe = per.length > 1 ? ' op ' + per.length + ' ' + (per.every(function (p) { return p.foto.bron === 'tekening'; })
+        ? 'tekeningen' : "foto's") : ' op de foto';
       if (x.bol > x.aantal) {
         var teveel = x.bol - x.aantal;
         return '<div class="foto-scheef-regel"><span><b>' + l + '</b>: aantal ' + x.aantal + ', maar ' + bollen +
-          ' op de foto. Wat klopt?</span>' +
+          opDe + '. Wat klopt?</span>' +
           '<button class="btn btn-secondary btn-sm" onclick="markAantalNaarBollen(' + id + ')">' +
             'Er zijn er ' + x.bol + ' (aantal wordt ' + x.bol + ')</button>' +
           '<button class="btn btn-secondary btn-sm" onclick="markTeveelWeg(' + id + ')">' +
@@ -1132,12 +1261,36 @@
       }
       var open = x.aantal - x.bol;
       return '<div class="foto-scheef-regel"><span><b>' + l + '</b>: aantal ' + x.aantal + ', ' + bollen +
-        ' op de foto: nog ' + open + ' aan te wijzen.</span>' +
+        opDe + ': nog ' + open + ' aan te wijzen.</span>' +
         '<button class="btn btn-secondary btn-sm" onclick="markAanwijzenRij(\'' + fotoId + '\',' + id + ')">' +
           'Aanwijzen</button>' +
         '<button class="btn btn-secondary btn-sm" onclick="markAantalNaarBollen(' + id + ')">' +
           'Er ' + (x.bol === 1 ? 'is er' : 'zijn er') + ' maar ' + x.bol + ' (aantal wordt ' + x.bol + ')</button></div>';
     }).join('') + '</div>';
+  }
+
+  // v124: de verwijzingen onder de tabel. Een ruit die hier bolletjes heeft
+  // maar in een ander blok staat ("A1 ×1 hier, staat bij tekening 1"), en
+  // bij een eigen ruit waar zijn andere bolletjes staan. Aantikken = erheen
+  // (alleen kijken, dus ook op slot: vrij-bij-slot).
+  function verwijzingHTML(fotoId) {
+    var v = window.fotoVerwijzingen(fotoId);
+    if (!v.elders.length && !v.ookElders.length) return '';
+    var knop = function (actie, tekst, titel) {
+      return '<button type="button" class="btn btn-ghost btn-sm elders-knop vrij-bij-slot" onclick="' + actie + '" title="' +
+        esc(titel) + '">' + tekst + '</button>';
+    };
+    return '<div class="foto-elders">' +
+      v.elders.map(function (x) {
+        return knop('naarRuit(' + (+x.rij.id) + ')',
+          '<b>' + esc(labelVan(x.rij)) + '</b> ×' + x.hier + ' hier, staat bij ' + esc(x.thuisNaam) + ' →',
+          'De regel van ' + labelVan(x.rij) + ' (' + aantalVan(x.rij) + ' stuks) staat bij ' + x.thuisNaam + '. Tik om erheen te gaan.');
+      }).join('') +
+      v.ookElders.map(function (x) {
+        return knop('naarFoto(\'' + esc(x.foto) + '\')',
+          '<b>' + esc(labelVan(x.rij)) + '</b> ook ×' + x.n + ' op ' + esc(x.naam) + ' →',
+          labelVan(x.rij) + ' heeft ook ' + x.n + (x.n === 1 ? ' bolletje' : ' bolletjes') + ' op ' + x.naam + '.');
+      }).join('') + '</div>';
   }
 
   function voetHTML(fotoId) {
@@ -1338,6 +1491,8 @@
     if (!f || !f.pad) return;
     if (!rijenVan(id).length) {
       if (window.bewaarStap) bewaarStap('Foto en lege groep verwijderd');
+      // v124: in "Onlangs verwijderd" (herstel.js), na de stap voor ↶.
+      if (window.glasVerwijderdGroep) glasVerwijderdGroep(id, false);
       // Het bestand blijft in Storage staan, net als hieronder (ongedaan maken).
       fotos = fotos.filter(function (x) { return x.id !== id; });
       aanwijzen = null;
@@ -1347,6 +1502,7 @@
       return;
     }
     if (window.bewaarStap) bewaarStap('Foto verwijderd');
+    if (window.glasVerwijderdAfbeelding) glasVerwijderdAfbeelding(id);   // v124
     // Het bestand blijft in Storage staan: anders is ongedaan maken een
     // lege huls en krijg je de melding dat de foto 'er wel staat maar niet
     // binnenkomt' (v83). Opruimen gebeurt als het project verwijderd wordt.
@@ -1382,12 +1538,22 @@
     if (!f) return;
     eigen = rijenVan(id);
     if (window.bewaarStap) bewaarStap('Groep verwijderd');
+    // v124: de groep met zijn foto, bolletjes en (als ze meegaan) ruiten in
+    // "Onlangs verwijderd"; terugzetten kan dus ook later en op een ander
+    // apparaat. Na de stap voor ↶: ↶ haalt het item dan ook weer weg.
+    if (window.glasVerwijderdGroep) glasVerwijderdGroep(id, ookRuiten);
     // Zie fotoVerwijder: het bestand blijft staan zodat ongedaan maken
     // werkt. Het wordt opgeruimd bij het verwijderen van het project.
     if (ookRuiten) {
       var weg = {};
       eigen.forEach(function (r) { weg[r.id] = true; });
       rijen = rijen.filter(function (r) { return !weg[r.id]; });
+      // v124 (review): ook hun bolletjes op andere tekeningen (een ruit kan
+      // op meer tekeningen staan); anders bleven daar losse bolletjes achter.
+      // Ze staan in "Onlangs verwijderd" en komen daarmee terug.
+      fotos.forEach(function (x) {
+        if (x.id !== id) x.markeringen = (x.markeringen || []).filter(function (m) { return !weg[m.rijId]; });
+      });
     } else {
       rijen.forEach(function (r) { if (r.fotoId === id) delete r.fotoId; });
     }
@@ -1420,14 +1586,13 @@
     if (!open.length) { aanwijzenStop(); return; }
     aanwijzen = { fotoId: fotoId, wachtrij: open };
     tekenAanwijsbalk();
-    voetBijwerken(fotoId);
+    voetenBijwerken();
   };
 
   window.aanwijzenStop = function () {
-    var was = aanwijzen && aanwijzen.fotoId;
     aanwijzen = null;
     tekenAanwijsbalk();
-    if (was) voetBijwerken(was);
+    voetenBijwerken();
   };
 
   // De strook en de knoppen onder één foto opnieuw (v110): de strook laat
@@ -1441,12 +1606,52 @@
     if (voet) voet.outerHTML = voetHTML(fotoId);
     if (window.slotToepassen) slotToepassen();
   }
+  // v124: aanwijzen gaat over alle tekeningen, dus alle voeten (en stroken).
+  function voetenBijwerken() { werkFotos().forEach(function (f) { voetBijwerken(f.id); }); }
 
   window.aanwijzenOverslaan = function () {
     if (!aanwijzen) return;
+    aanwijzen.alle = false;
     aanwijzen.wachtrij.push(aanwijzen.wachtrij.shift());
     tekenAanwijsbalk();
   };
+
+  // v124: zelf kiezen welke ruit je aanwijst (wens Jan: uit álle ruiten van
+  // het project). Een tik op de ruit in de gele balk zet hem vooraan.
+  window.aanwijzenKies = function (rijId) {
+    if (!aanwijzen || aanwijzen.erbij) return;
+    rijId = +rijId;
+    var zijn = aanwijzen.wachtrij.filter(function (id) { return id === rijId; });
+    if (!zijn.length) return;
+    aanwijzen.wachtrij = zijn.concat(aanwijzen.wachtrij.filter(function (id) { return id !== rijId; }));
+    aanwijzen.alle = false;
+    tekenAanwijsbalk();
+  };
+
+  // v124: een tekening met "3 getek." toont één kozijn voor drie gelijke:
+  // dan alle open ruiten van deze regel met één tik op die plek (iets naast
+  // elkaar, zodat je ze ziet). Nog een keer = uit.
+  window.aanwijzenAlle = function () {
+    if (!aanwijzen || aanwijzen.erbij || !aanwijzen.wachtrij.length) return;
+    aanwijzen.alle = !aanwijzen.alle;
+    tekenAanwijsbalk();
+  };
+
+  // De ruiten die nog een plek nodig hebben, één keer per regel, voor de
+  // keuze in de balk: [{ rij, open }].
+  function keuzeRuiten() {
+    var uit = [], bij = {};
+    aanwijzen.wachtrij.forEach(function (id) {
+      if (bij[id]) return;
+      var rij = getRij(id);
+      if (!rij) return;
+      var open = aantalVan(rij) - bollenVan(id);
+      if (open < 1) return;
+      bij[id] = true;
+      uit.push({ rij: rij, open: open });
+    });
+    return uit;
+  }
 
   function tekenAanwijsbalk() {
     fotos.forEach(function (f) {
@@ -1474,16 +1679,133 @@
         aanwijzen.wachtrij.shift(); tekenAanwijsbalk(); return;
       }
       var aantal = aantalVan(rij);
+      var open = aantal - bollenVan(rij.id);
       var welke = aantal > 1 ? ' — ruit ' + (bollenVan(rij.id) + 1) + ' van ' + aantal : '';
+      // v124: staat de ruit (nog) bij een ander blok, dan zeggen we dat.
+      var elders = rij.fotoId && rij.fotoId !== f.id && fotoVan(rij.fotoId) ? ' · staat nu bij ' + blokNaam(rij.fotoId) : '';
+      var keuze = keuzeRuiten();
+      var volgende = routeVolgende(f.id);
       balk.style.display = 'flex';
       balk.innerHTML =
         '<span class="aanwijs-letter">' + esc(labelVan(rij)) + '</span>' +
-        '<span class="aanwijs-tekst">Tik op de foto waar deze ruit zit' +
-        (rij.breedte && rij.hoogte ? ' (' + rij.breedte + ' × ' + rij.hoogte + ')' : '') +
-        welke + ' · nog ' + aanwijzen.wachtrij.length + ' te gaan</span>' +
+        '<span class="aanwijs-tekst">' + (aanwijzen.alle && open > 1
+          ? 'Tik op de ' + soortNaam(f) + ': alle ' + open + ' ruiten ' + esc(labelVan(rij)) + ' komen op die plek'
+          : 'Tik op de ' + soortNaam(f) + ' waar deze ruit zit' +
+            (rij.breedte && rij.hoogte ? ' (' + rij.breedte + ' × ' + rij.hoogte + ')' : '') + welke) +
+        elders + ' · nog ' + aanwijzen.wachtrij.length + ' te gaan</span>' +
+        (open > 1 ? '<button class="btn btn-ghost btn-sm' + (aanwijzen.alle ? ' aan' : '') + '" onclick="aanwijzenAlle()" ' +
+          'title="Eén kozijn op de tekening voor ' + open + ' gelijke ruiten: alle ' + open + ' met één tik">' +
+          (aanwijzen.alle ? '✓ ' : '') + 'Alle ' + open + ' op één plek</button>' : '') +
         '<button class="btn btn-ghost btn-sm" onclick="aanwijzenOverslaan()">Overslaan</button>' +
-        '<button class="btn btn-secondary btn-sm" onclick="aanwijzenStop()">Klaar</button>';
+        (volgende ? '<button class="btn btn-secondary btn-sm" onclick="aanwijsOpTekening(\'' + esc(volgende) + '\')">' +
+          'Volgende ' + soortNaam(fotoVan(volgende)) + ' →</button>' : '') +
+        '<button class="btn btn-secondary btn-sm" onclick="aanwijzenStop()">Klaar</button>' +
+        // De keuze uit alle ruiten die nog een plek nodig hebben (v124).
+        (keuze.length > 1 ? '<div class="aanwijs-keuze" role="group" aria-label="Kies de ruit">' +
+          '<span class="aanwijs-keuze-kop">Of kies:</span>' +
+          keuze.map(function (k) {
+            var waar = k.rij.fotoId && fotoVan(k.rij.fotoId) ? blokNaam(k.rij.fotoId) : 'nog geen plek';
+            return '<button type="button" class="aanwijs-ruit' + (k.rij.id === rij.id ? ' nu' : '') + '" ' +
+              'onclick="aanwijzenKies(' + (+k.rij.id) + ')" title="' + esc(labelVan(k.rij) + ' · ' + waar) + '">' +
+              '<b>' + esc(labelVan(k.rij)) + '</b>' +
+              (k.rij.breedte && k.rij.hoogte ? '<span>' + esc(k.rij.breedte + '×' + k.rij.hoogte) + '</span>' : '') +
+              (k.open > 1 ? '<i>×' + k.open + '</i>' : '') + '</button>';
+          }).join('') + '</div>' : '');
     });
+    routeBijwerken();
+  }
+
+  /* ─── v124: de route na de import ────────────────────────────────
+     Een maatstaat en een pdf met meer tekeningen (wens Jan): na de import
+     bovenaan een korte route "Wijs de ruiten aan op de tekeningen", met per
+     tekening een knop. De knop opent het aanwijzen op die tekening; in de
+     gele balk staat dan "Volgende tekening →". Alleen in het geheugen (niet
+     in het project): na herladen staat de knop "🎯 Ruiten aanwijzen" er nog. */
+  var route = null;     // { pid }
+  var routeDicht = {};  // per project: met ✕ gesloten (alleen in het geheugen)
+  function routeTekeningen() { return werkFotos().filter(function (f) { return f.pad; }); }
+  // Meer dan één tekening (uit een pdf of als afbeelding ingelezen)?
+  function meerTekeningen() {
+    return routeTekeningen().filter(function (f) { return f.bron === 'tekening'; }).length >= 2;
+  }
+  // "Volgende tekening →" in de gele balk: bij meer tekeningen altijd.
+  function routeVolgende(fotoId) {
+    if (!meerTekeningen()) return null;
+    var lijst = routeTekeningen();
+    var i = lijst.findIndex(function (f) { return f.id === fotoId; });
+    return i >= 0 && i < lijst.length - 1 ? lijst[i + 1].id : null;
+  }
+
+  // Na een import (maatstaat of tekening): de route als er meer tekeningen
+  // zijn en er ruiten nog een plek nodig hebben. Op slot of alleen kijken:
+  // niet (aanwijzen mag dan niet).
+  window.aanwijsRouteNaImport = function () {
+    if (window.invoerOpSlot && invoerOpSlot()) return;
+    if (!meerTekeningen() || !openPlekken(null).length) return;
+    delete routeDicht[window.glasProjectId];
+    route = { pid: window.glasProjectId };
+    routeBijwerken();
+    var r = el('aanwijsRoute');
+    if (r && r.scrollIntoView) setTimeout(function () { r.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 60);
+  };
+  window.aanwijsRouteSluit = function () {
+    if (window.glasProjectId) routeDicht[window.glasProjectId] = true;
+    route = null;
+    routeBijwerken();
+  };
+  // Aanwijzen op deze tekening: openklappen, erheen, en de gele balk.
+  window.aanwijsOpTekening = function (fotoId) {
+    if (!fotoVan(fotoId)) return;
+    if (typeof blokDicht !== 'undefined' && blokDicht[fotoId] && window.blokKlap) blokKlap(fotoId);
+    window.fotoAanwijzen(fotoId);
+    var b = el('blok-' + fotoId);
+    if (b && b.scrollIntoView) b.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
+  function routeHTML() {
+    if (window.invoerOpSlot && invoerOpSlot()) return '';
+    if (!meerTekeningen()) return '';
+    var open = openPlekken(null).length;
+    // Ook bij het openen van zo'n project (de werkvloer opent wat kantoor
+    // importeerde), zolang er ruiten zonder plek zijn en hij niet met ✕ dicht
+    // is gedaan.
+    if ((!route || route.pid !== window.glasProjectId) && open && window.glasProjectId && !routeDicht[window.glasProjectId]) {
+      route = { pid: window.glasProjectId };
+    }
+    if (!route || route.pid !== window.glasProjectId) return '';
+    var lijst = routeTekeningen();
+    var bezig = aanwijzen && !aanwijzen.erbij ? aanwijzen.fotoId : null;
+    var eerste = true;
+    return '<div class="aanwijs-route" id="aanwijsRoute">' +
+      '<button type="button" class="sluit-x vrij-bij-slot" aria-label="Route sluiten" onclick="aanwijsRouteSluit()">✕</button>' +
+      '<div class="ar-kop"><b>🎯 Wijs de ruiten aan op de tekeningen</b> <span>' + (open
+        ? (open === 1 ? 'nog 1 ruit zonder plek' : 'nog ' + open + ' ruiten zonder plek')
+        : '✓ alle ruiten hebben een plek') + '</span></div>' +
+      (open ? '<div class="ar-uitleg">Tik op een tekening hieronder. Kies in de gele balk de ruit, en tik op de tekening waar hij zit.</div>' : '') +
+      '<div class="ar-stappen">' + lijst.map(function (f, i) {
+        var n = (f.markeringen || []).filter(function (m) { return getRij(m.rijId); }).length;
+        var primair = open && !bezig && eerste;
+        eerste = false;
+        return '<button type="button" class="btn btn-sm ar-stap ' + (primair ? 'btn-primary' : 'btn-secondary') +
+          (bezig === f.id ? ' nu' : '') + '" onclick="aanwijsOpTekening(\'' + esc(f.id) + '\')">' +
+          '<span class="ar-nr">' + (i + 1) + '</span>' + esc(f.titel || soortNaam(f, true) + ' ' + (i + 1)) +
+          '<small>' + (n ? n + ' aangewezen' : 'nog niets') + '</small></button>';
+      }).join('') + '</div></div>';
+  }
+  // De route bovenaan bijwerken, alleen als hij anders is (een
+  // MutationObserver kijkt mee, v93).
+  function routeBijwerken() {
+    var houder = el('fotoHouder');
+    if (!houder) return;
+    var html = routeHTML();
+    var oud = el('aanwijsRoute');
+    if (!html) { if (oud) oud.remove(); return; }
+    if (oud && oud.getAttribute('data-html') === html) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    var nieuw = tmp.firstChild;
+    nieuw.setAttribute('data-html', html);
+    if (oud) oud.replaceWith(nieuw); else houder.insertBefore(nieuw, houder.firstChild);
   }
 
   window.fotoTik = function (e, fotoId) {
@@ -1510,15 +1832,22 @@
         var was = aantalVan(erbijRij);
         if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(erbijRij) + ' erbij: aantal ' + was + ' → ' + (was + 1));
         erbijRij.aantal = was + 1;
-        // Hoort de regel al bij een (bestaande) groep, dan blijft hij daar.
-        if (!erbijRij.fotoId || !fotoVan(erbijRij.fotoId)) erbijRij.fotoId = fotoId;
         foto.markeringen.push({ rijId: erbijRij.id, x: x, y: y });
+        // v124: de ruit staat bij de tekening met de meeste bolletjes (tot
+        // v123: hoorde hij al bij een groep, dan bleef hij daar).
+        naarBolletjes(erbijRij);
         herbereken();
         renderTabel();
         opslaan();
       }
       tekenAanwijsbalk();
       return;
+    }
+    // v124: een tik op een ándere tekening tijdens het aanwijzen zet de ruit
+    // dáár (aanwijzen werkt op elke tekening); tot v123 kwam er dan stil een
+    // nieuwe ruit met een nieuwe letter bij. De gele balk verhuist mee.
+    if (aanwijzen && !aanwijzen.erbij && aanwijzen.fotoId !== fotoId && aanwijzen.wachtrij.length && foto.pad) {
+      aanwijzen.fotoId = fotoId;
     }
     if (aanwijzen && aanwijzen.fotoId === fotoId && aanwijzen.wachtrij.length) {
       var bestaandeId = aanwijzen.wachtrij.shift();
@@ -1527,9 +1856,21 @@
       // weggehaald: één bolletje per merk. Nu komt er een bij, zolang de
       // regel er nog niet genoeg heeft voor zijn aantal.
       if (bestaande && bollenVan(bestaandeId) < aantalVan(bestaande)) {
-        if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(bestaande) + ' aangewezen');
-        bestaande.fotoId = fotoId;
-        foto.markeringen.push({ rijId: bestaandeId, x: x, y: y });
+        // v124: "Alle N op één plek": alle open ruiten van deze regel met deze
+        // tik, iets naast elkaar. Eén stap voor ↶.
+        var erbij = aanwijzen.alle ? aantalVan(bestaande) - bollenVan(bestaandeId) : 1;
+        aanwijzen.alle = false;
+        if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(bestaande) + ' aangewezen' + (erbij > 1 ? ' (' + erbij + '×)' : ''));
+        // Ongeveer een bolletje breed uit elkaar (het bolletje is ±4,5 % van
+        // de breedte), met de tik in het midden.
+        for (var k = 0; k < erbij; k++) {
+          var nx = Math.min(1, Math.max(0, x + (k - (erbij - 1) / 2) * 0.045));
+          foto.markeringen.push({ rijId: bestaandeId, x: nx, y: y });
+        }
+        if (erbij > 1) aanwijzen.wachtrij = aanwijzen.wachtrij.filter(function (id) { return id !== bestaandeId; });
+        // v124: de ruit staat bij de tekening met de meeste bolletjes; tot
+        // v123 altijd bij de foto waarop hij aangewezen werd.
+        naarBolletjes(bestaande);
         herbereken();
         renderTabel();
         opslaan();
@@ -1766,6 +2107,7 @@
         return ++n <= max;
       });
     });
+    naarBolletjes(rij);     // v124
     herbereken();
     renderTabel();
     opslaan();
@@ -1782,7 +2124,7 @@
     for (var i = 0; i < open; i++) rij2.push(rijId);
     aanwijzen = { fotoId: fotoId, wachtrij: rij2 };
     tekenAanwijsbalk();
-    voetBijwerken(fotoId);
+    voetenBijwerken();
   };
 
   window.markNaarRegel = function (fotoId, index) {
@@ -1795,7 +2137,10 @@
     var foto = fotoVan(fotoId);
     if (!foto) return;
     if (window.bewaarStap) bewaarStap('Markering verwijderd');
-    foto.markeringen.splice(index, 1);
+    var weg = foto.markeringen.splice(index, 1)[0];
+    // v124: staan de andere bolletjes nu vooral op een andere tekening, dan
+    // gaat de ruit mee (zelfde stap). Zonder bolletjes blijft hij staan.
+    if (weg) naarBolletjes(getRij(weg.rijId));
     opslaan();
     // renderTabel (v110): zonder bolletje is het aantal weer vrij, ook als de
     // regel in de losse tabel staat.
@@ -1815,6 +2160,7 @@
     if (window.bewaarStap) bewaarStap('Ruit ' + labelVan(rij) + ': aantal ' + aantal + ' → ' + (aantal - 1));
     foto.markeringen.splice(index, 1);
     rij.aantal = aantal - 1;
+    naarBolletjes(rij);     // v124
     herbereken();
     renderTabel();
     opslaan();
@@ -1869,6 +2215,10 @@
     // bolletjes ook te blijven staan. Tot v90 waren ze dan al weggehaald,
     // en de volgende opslag nam dat mee (v91).
     if (window.invoerOpSlot && invoerOpSlot()) return origVerwijder(id);
+    // v124: de ruit met zijn bolletjes in "Onlangs verwijderd" (herstel.js),
+    // vóór de bolletjes hieronder weg zijn. De stap voor ↶ is er dan al
+    // (undo.js omhult verwijderRij van buitenaf).
+    if (window.glasVerwijderdRuiten) glasVerwijderdRuiten([id]);
     fotos.forEach(function (f) {
       f.markeringen = f.markeringen.filter(function (m) { return m.rijId !== id; });
     });

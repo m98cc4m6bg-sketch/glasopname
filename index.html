@@ -379,6 +379,8 @@
      zonder de hele tabel breed te maken. */
   table.invoer .kol-type { min-width: 92px; }
   table.invoer .kol-opbouw { min-width: 78px; }
+  table.invoer .kol-spacer select { min-width: 64px; }
+  table.invoer .kol-spacer select.spacer-zwart { background: #2b2b2b; color: #fff; border-color: #2b2b2b; font-weight: 700; }
   table.invoer .kol-bewerking { min-width: 100px; }
   table.invoer .kol-maatsoort { min-width: 80px; }
   table.invoer .kol-duco { min-width: 88px; }
@@ -1359,6 +1361,48 @@
     border-radius: 15px; font-weight: 800; font-size: 14px;
   }
   .aanwijs-tekst { flex: 1; }
+  /* v124: aanwijzen op elke tekening. De gele balk blijft onderin beeld
+     terwijl je over een hoge tekening schuift (iPad staand), met de keuze uit
+     alle ruiten die nog een plek nodig hebben. */
+  .foto-aanwijsbalk { position: sticky; bottom: 8px; z-index: 6; box-shadow: 0 2px 10px rgba(29,29,27,0.25); }
+  .foto-aanwijsbalk .btn-ghost { background: rgba(255,255,255,0.85); color: var(--ink); border-color: #c98a00; }
+  .foto-aanwijsbalk .btn.aan { background: var(--ink); color: white; border-color: var(--ink); }
+  .aanwijs-keuze { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    max-height: 124px; overflow-y: auto; }
+  .aanwijs-keuze-kop { font-weight: 600; }
+  .aanwijs-ruit { font: inherit; font-size: 13px; display: inline-flex; align-items: baseline; gap: 5px;
+    min-height: 34px; padding: 4px 10px; border-radius: 999px; border: 1px solid #c98a00;
+    background: white; color: var(--ink); cursor: pointer; }
+  .aanwijs-ruit span { font-weight: 400; font-size: 12px; color: var(--grijs-tekst); }
+  .aanwijs-ruit i { font-style: normal; font-weight: 700; font-size: 12px; }
+  .aanwijs-ruit.nu { background: var(--ink); color: white; border-color: var(--ink); }
+  .aanwijs-ruit.nu span { color: #e6e3df; }
+  @media (pointer: coarse) { .aanwijs-ruit { min-height: 44px; padding: 6px 12px; } }
+  /* Telefoon: de balk zo laag mogelijk (hij staat over de tekening heen); de
+     ruiten in één rij om zijwaarts door te vegen. */
+  @media (max-width: 640px) {
+    .foto-aanwijsbalk { gap: 6px 8px; padding: 6px 8px; }
+    .foto-aanwijsbalk .aanwijs-tekst { flex: 1 1 calc(100% - 50px); font-size: 12px; }
+    .aanwijs-keuze { flex-wrap: nowrap; overflow-x: auto; max-height: none; padding-bottom: 2px; }
+    .aanwijs-ruit { flex: 0 0 auto; }
+  }
+  /* v124: verwijzingen onder de tabel ("A1 ×1 hier, staat bij tekening 1"). */
+  .foto-elders { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .foto-elders .elders-knop { text-align: left; white-space: normal; border: 1px dashed var(--grijs-rand);
+    background: var(--grijs-licht); color: var(--ink); font-weight: 400; }
+  /* v124: de route na de import: per tekening een knop. */
+  .aanwijs-route { position: relative; background: #fff6e0; border: 1px solid var(--geel); border-left: 5px solid var(--geel);
+    border-radius: var(--radius); padding: 10px 48px 10px 14px; margin: 0 0 12px; font-size: 13px;
+    scroll-margin-top: calc(var(--vaste-kop-h, 0px) + 12px); }
+  .aanwijs-route .ar-kop b { font-size: 14px; }
+  .aanwijs-route .ar-kop span { color: var(--grijs-tekst); }
+  .aanwijs-route .ar-uitleg { margin-top: 4px; color: #3a2a00; }
+  .aanwijs-route .ar-stappen { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .aanwijs-route .ar-stap { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; text-align: left; white-space: normal; }
+  .aanwijs-route .ar-stap.nu { outline: 3px solid var(--geel); outline-offset: 1px; }
+  .aanwijs-route .ar-nr { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px;
+    border-radius: 11px; background: var(--geel); color: #3a2a00; font-weight: 800; font-size: 12px; }
+  .aanwijs-route .ar-stap small { font-size: 11px; opacity: .8; }
 
   /* ─── FOTO: zoomen, slepen, menu ─── */
   .foto-zoombalk { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
@@ -1758,6 +1802,25 @@
     .melding-knoppen { flex-direction: column-reverse; }
     .melding-knoppen .btn { width: 100%; justify-content: center; }
   }
+  /* v124: "Onlangs verwijderd" (herstel.js). */
+  .verwijderd-venster { max-width: 580px; position: relative; padding-right: 20px; }
+  .verwijderd-venster h3 { padding-right: 36px; }
+  .vw-uitleg, .vw-pi-tekst { font-size: 13px; color: var(--grijs-tekst); line-height: 1.5; margin-bottom: 10px; }
+  .vw-slot { font-size: 13px; color: var(--ink); background: var(--grijs-licht); border-radius: var(--radius);
+    padding: 8px 10px; margin-bottom: 10px; }
+  .vw-slot[hidden] { display: none; }
+  .vw-lijst { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--grijs-rand); }
+  .vw-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--grijs-rand); }
+  .vw-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .vw-tekst b { font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+  .vw-tekst span { font-size: 12px; color: var(--grijs-tekst); }
+  .vw-terug { flex: 0 0 auto; white-space: nowrap; }
+  .vw-leeg { font-size: 13px; color: var(--grijs-tekst); padding: 12px 0; }
+  .verwijderd-knop[hidden] { display: none; }
+  @media (max-width: 480px) {
+    .vw-item { flex-direction: column; align-items: stretch; gap: 8px; }
+    .vw-terug { width: 100%; justify-content: center; }
+  }
 
 
   /* Veilige marges op een iPhone met notch of streep onderin */
@@ -1929,6 +1992,9 @@
   .imp-waarsch { font-size: 12px; line-height: 1.5; padding: 8px 10px; margin: 8px 0; border-radius: var(--radius);
     border-left: 3px solid var(--geel); background: #fff6e0; color: #5a3d00; }
   .imp-waarsch-kort { color: #8a5a00; font-size: 11px; }
+  /* v124: wat er binnen het max glaspakket past (informatie, geen fout). */
+  .imp-info { font-size: 12px; line-height: 1.5; padding: 8px 10px; margin: 8px 0; border-radius: var(--radius);
+    border-left: 3px solid #8a97a6; background: #f1f4f7; color: var(--ink); }
   .imp-splits { font-size: 12px; color: var(--grijs-tekst); display: flex; align-items: center; gap: 6px; }
   .imp-splits input { accent-color: var(--merk); }
 
@@ -2085,6 +2151,43 @@
      bleef hangen. De balk staat nu pal tegen de rand. */
   body.kop-vast .vaste-kop { box-shadow: 0 4px 12px rgba(29,29,27,0.16); }
   #kopAnker { height: 1px; margin-bottom: -1px; }
+
+  /* v124 (wens Jan): de projectnaam in de vaste kop. Smal scherm (iPad
+     staand, telefoon): een dunne regel boven de tabbladen, zodat die er
+     allemaal blijven. Breed (vanaf 1100 px, ook iPad liggend): rechts naast
+     de tabbladen. Te lang: ingekort met …; een tik toont de hele naam. */
+  .vaste-projectnaam {
+    display: flex; align-items: baseline; gap: 6px; min-width: 0;
+    padding: 6px 20px 0; background: var(--grijs-licht);
+    font-size: 13px; line-height: 18px; color: var(--grijs-tekst); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .vaste-projectnaam[hidden] { display: none; }
+  .vaste-projectnaam .vpn-label { flex: 0 0 auto; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .vaste-projectnaam .vpn-naam {
+    flex: 0 1 auto; min-width: 0; color: var(--blauw); font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .vaste-projectnaam.open .vpn-naam { white-space: normal; overflow-wrap: anywhere; }
+  .vaste-projectnaam .vpn-naam.naamloos { color: var(--grijs-tekst); font-style: italic; font-weight: 600; }
+  @media (max-width: 820px) {
+    .vaste-projectnaam { padding: 6px 14px 0; }
+  }
+  @media (pointer: coarse) {
+    /* Aanraken: de hele regel is de tikplek. */
+    .vaste-projectnaam { min-height: 30px; align-items: center; padding-top: 4px; }
+  }
+  @media (min-width: 1100px) {
+    .vaste-kop { display: flex; flex-wrap: wrap; }
+    .vaste-kop > * { flex: 0 0 100%; min-width: 0; order: 3; }
+    /* De tabbladen houden hun breedte; de naam krijgt wat er over is. */
+    .vaste-kop > .tabs { flex: 0 0 auto; order: 1; min-width: auto; }
+    .vaste-kop > .vaste-projectnaam {
+      flex: 1 1 0; order: 2; align-items: center; justify-content: flex-end;
+      padding: 7px 20px 0 12px; border-bottom: 1px solid var(--grijs-rand);
+    }
+  }
+  @media print { .vaste-projectnaam { display: none !important; } }
   @media print {
     .vaste-kop { position: static; box-shadow: none; padding-top: 0; }
   }
@@ -2448,6 +2551,52 @@
   /* .start-inhoud is een flexbox; zonder deze regel wint display:flex van
      het attribuut hidden en bleef Start onder de naslag staan (v98). */
   .start-inhoud[hidden], .start-naslag[hidden] { display: none; }
+
+  /* ─── v124 Rechten (script 30, rechten.js) ─────────────────────
+     Knoppen die voor dit account niet gelden, weg. Wie er toch bij komt
+     (een andere weg), krijgt van rechten.js te horen waarom niet; de
+     database houdt het hoe dan ook tegen. */
+  .start-tab[hidden], .start-beheer[hidden], .kop-rechten[hidden], .start-geblokkeerd[hidden] { display: none !important; }
+  .start-blok.start-geblokkeerd { border-left: 4px solid var(--err, #b3261e); line-height: 1.5; padding: 12px 16px; }
+  body.geen-nieuw button[onclick^="cloudNieuw"],
+  body.geblokkeerd button[onclick^="cloudNieuw"],
+  body.geen-weggooien button[onclick*="cloudVerwijder"],
+  body.geen-beheer #startBackup,
+  body.geen-beheer button[onclick^="startDefinitief"],
+  body.rol-werkvloer button[onclick^="startTerugzetten"],
+  body.rol-werkvloer .slot-balk.kijken button[onclick^="bewerkslotTochBewerken"],
+  body.rol-werkvloer #kijkChip button[onclick^="bewerkslotTochBewerken"],
+  body.rol-werkvloer .taak-nieuw,
+  body.rol-werkvloer #actieBalk button[onclick^="importMenu"],
+  body.rol-werkvloer .taken-opruimen { display: none !important; }
+  .kop-rechten { font-size: 12px; color: var(--grijs-tekst); background: var(--grijs-licht);
+    border: 1px solid var(--grijs-rand); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+  .wv-wacht { color: var(--warn, #8a5a00); font-weight: 600; }
+  .slot-balk .wv-foto-knop { margin-left: 6px; }
+  .beheer-blok h2 { margin: 0; }
+  .beheer-uitleg { font-size: 13px; color: var(--grijs-tekst); margin: 4px 0 10px; line-height: 1.45; }
+  .beheer-tabel { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .beheer-tabel th { text-align: left; font-weight: 600; color: var(--grijs-tekst); border-bottom: 1px solid var(--grijs-rand); padding: 6px 8px; }
+  .beheer-tabel td { border-bottom: 1px solid var(--grijs-licht); padding: 8px; vertical-align: top; }
+  .beheer-tabel select { font-size: 14px; min-height: 32px; }
+  .beheer-recht { display: inline-flex; align-items: center; gap: 4px; margin: 0 10px 4px 0; white-space: nowrap; }
+  .beheer-uit td { color: var(--grijs-tekst); }
+  .beheer-geblokkeerd { color: var(--err, #b3261e); font-weight: 600; font-size: 12px; }
+  .beheer-vast { font-size: 12px; color: var(--grijs-tekst); }
+  .beheer-gevaar { margin-top: 8px; }
+  @media (pointer: coarse) {
+    .beheer-tabel select, .beheer-tabel button { min-height: 44px; font-size: 16px; }
+    .beheer-recht input { width: 22px; height: 22px; }
+  }
+  /* Telefoon: elke gebruiker een kaartje (de kop van de kolom ervoor). */
+  @media (max-width: 720px) {
+    .beheer-tabel thead { display: none; }
+    .beheer-tabel, .beheer-tabel tbody, .beheer-tabel tr, .beheer-tabel td { display: block; width: 100%; }
+    .beheer-tabel tr { border: 1px solid var(--grijs-rand); border-radius: 8px; margin-bottom: 10px; padding: 4px 0; }
+    .beheer-tabel td { border: 0; padding: 4px 10px; }
+    .beheer-tabel td::before { content: attr(data-kop); display: block; font-size: 11px; color: var(--grijs-tekst); }
+    .kop-rechten { white-space: normal; }
+  }
   /* Zelfde valkuil, al ouder: de slotbalk (display:flex) stond bij elk
      project dat níet op slot staat als lege grijze strook boven de invoer,
      ook al had hij hidden. Gevonden bij v98; hetzelfde bij de tabbladkeuze
@@ -2550,12 +2699,12 @@
     display: inline-flex; align-items: center; gap: 8px;
     border-left: 1px solid var(--grijs-rand); padding-left: 12px; margin-left: 4px;
   }
-  .kop-projectnaam { font-size: 13px; color: var(--blauw); font-weight: 600; }
+  /* v124: hidden verliest van display hierboven (test-v98 §5). */
+  .kop-project[hidden] { display: none; }
   @media (max-width: 820px) {
     .start-kop { padding: 10px 14px; padding-top: calc(10px + var(--ios-band) + env(safe-area-inset-top)); }
     .start-inhoud, .start-naslag { padding: 12px 10px 32px; }
     .start-tabs { padding: 0 8px; }
-    .kop-projectnaam { display: none; }
   }
 
   /* ─── BEDIENING PER TABEL ─── */
@@ -2656,6 +2805,123 @@
     .tb-balk-knop .btn { width: 100%; }
   }
   @media (pointer: coarse) { .tb-balk-velden select, .tb-balk-diepte input { min-height: 44px; } .tb-balk-kop { min-height: 46px; } }
+
+  /* ═══ v124 Toebehoren (wens Jan, 26-10-2026) ══════════════════════════
+     1. De latkiezer met plaatjes (toebehoren.js, lk…): een knop die eruitziet
+        als een keuzelijst, en een paneel met per lat het plaatje. Op een groot
+        scherm onder of boven de knop (JS zet de plek), op een telefoon van
+        onderen.
+     2. De opbouw van het tabblad in drie stappen, rustig: antraciet en grijs,
+        rood alleen voor fouten (v120, Jan). Deze regels staan na de oudere
+        Toebehoren-regels en gaan daar dus voor. */
+  .tb-lk-knop { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; min-width: 0; max-width: 100%; padding: 2px 8px 2px 3px; vertical-align: middle;
+    font: inherit; font-size: 12.5px; color: var(--ink); background: white; border: 1px solid #b9b5b0; border-radius: var(--radius); cursor: pointer; text-align: left; }
+  .tb-lk-knop:hover:not(:disabled) { border-color: var(--ink); }
+  .tb-lk-knop:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .tb-lk-knop:disabled { opacity: .55; cursor: not-allowed; }
+  .tb-lk-knop[aria-expanded="true"] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .tb-lk-knop .lat-plaatje { width: 30px; height: 30px; cursor: inherit; }
+  .tb-lk-knop.zonder-plaatje { padding-left: 8px; }
+  .tb-alles .tb-lk-knop { min-height: 28px; }
+  .tb-alles .tb-lk-knop .lat-plaatje { width: 24px; height: 24px; }
+  .tb-lk-knop-tekst { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tb-lk-pijl { flex: none; color: var(--grijs-tekst); font-size: 11px; }
+  .tb-alles .tb-lk-knop { max-width: 260px; }
+  .tb-balk-velden .tb-lk-knop { min-height: 36px; font-size: 14px; }
+  .tb-keuzes .tb-lk-knop { width: 100%; font-size: 13px; }
+  .tb-lk-laag { position: fixed; inset: 0; z-index: 9250; }
+  .tb-lk-paneel { position: fixed; display: flex; flex-direction: column; background: white; border: 1px solid var(--grijs-rand);
+    border-top: 3px solid var(--ink); border-radius: 8px; box-shadow: 0 14px 40px rgba(29, 29, 27, .28); max-height: 70vh; overflow: hidden; }
+  .tb-lk-kop { position: relative; flex: none; padding: 9px 52px 8px 12px; border-bottom: 1px solid var(--grijs-rand); font-size: 14px; }
+  .tb-lk-kop small { display: block; font-size: 11.5px; color: var(--grijs-tekst); margin-top: 1px; }
+  .tb-lk-kop .sluit-x { top: 50%; right: 8px; transform: translateY(-50%); }
+  .tb-lk-lijst { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px 10px; }
+  .tb-lk-groep { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--grijs-tekst); margin: 10px 4px 4px; }
+  .tb-lk-optie { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin-bottom: 4px; padding: 6px 8px; text-align: left;
+    font: inherit; color: var(--ink); background: white; border: 1px solid var(--grijs-rand); border-radius: var(--radius); cursor: pointer; }
+  .tb-lk-optie .lat-plaatje { cursor: inherit; }
+  .tb-lk-optie .lat-montage { flex: none; }
+  @media (hover: hover) { .tb-lk-optie:hover { background: var(--grijs-licht); } }
+  .tb-lk-optie:focus { outline: none; }
+  .tb-lk-optie:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; background: var(--grijs-licht); }
+  .tb-lk-optie.gekozen { border: 2px solid var(--ink); padding: 5px 7px; background: #f3f2f0; }
+  .tb-lk-vink { flex: none; width: 16px; font-weight: 800; text-align: center; }
+  .tb-lk-geen { color: var(--grijs-tekst); font-size: 18px; }
+  @media (pointer: coarse) {
+    .tb-lk-laag { cursor: pointer; }   /* iOS: anders geeft een tik naast het paneel geen klik */
+    .tb-lk-paneel { cursor: auto; }
+    .tb-lk-toets { display: none; }
+    .tb-lk-knop, .tb-alles .tb-lk-knop, .tb-balk-velden .tb-lk-knop { min-height: 44px; font-size: 16px; }
+  }
+  @media (max-width: 640px) {
+    .tb-lk-laag { background: rgba(29, 29, 27, .45); }
+    .tb-lk-paneel { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 82vh; border-radius: 12px 12px 0 0;
+      padding-bottom: env(safe-area-inset-bottom); }
+    .tb-alles .tb-lk-knop { max-width: 100%; flex: 1 1 100%; }
+    .tb-balk-velden .tb-lk-knop { width: 100%; min-width: 0; }
+    /* De vensters van latten.js (glaslat, onderlat en pakket per ruit) ook van onderen. */
+    .lat-laag { align-items: flex-end; padding: max(16px, env(safe-area-inset-top)) 0 0; }
+    .lat-venster { max-width: none; max-height: 88vh; border-radius: 12px 12px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  }
+  /* De uitleg van het tabblad, inklapbaar. */
+  .tb-hulp { position: relative; margin: 2px 0 12px; padding: 0 12px; font-size: 13px; background: var(--grijs-licht);
+    border: 1px solid var(--grijs-rand); border-radius: var(--radius); }
+  .tb-hulp > summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .tb-hulp > summary::before { content: "?"; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+    border-radius: 50%; background: #8b97a8; color: white; font-size: 12px; font-weight: 700; }
+  .tb-hulp > summary::-webkit-details-marker { display: none; }
+  .tb-hulp > summary { list-style: none; }
+  .tb-hulp[open] { padding-bottom: 10px; }
+  .tb-hulp[open] > summary { padding-right: 44px; }
+  .tb-hulp > .sluit-x { top: 4px; right: 4px; }
+  .tb-hulp-stappen { margin: 2px 0 10px 20px; line-height: 1.5; }
+  .tb-hulp-stappen li { margin-bottom: 4px; }
+  .tb-hulp-woorden { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; line-height: 1.45; margin: 0; }
+  .tb-hulp-woorden dt { font-weight: 700; }
+  .tb-hulp-woorden dd { margin: 0; }
+  .tb-hulp .pk-chip { pointer-events: none; }
+  /* De drie stappen bovenin, als knoppen ernaartoe. */
+  .tb-stappen { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+  .tb-stappen button { display: flex; align-items: flex-start; gap: 8px; min-width: 0; min-height: 44px; padding: 8px 10px; text-align: left;
+    font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: white; border: 1px solid var(--grijs-rand);
+    border-radius: var(--radius); cursor: pointer; }
+  .tb-stappen button:hover { border-color: var(--ink); }
+  .tb-stappen button > span:last-child { min-width: 0; }
+  .tb-stappen small { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 400; color: var(--grijs-tekst); }
+  .tb-stappen small.tb-stap-let { display: inline; color: var(--warn); font-weight: 600; }
+  .tb-stap-nr { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--ink); color: white; font-size: 12px; font-weight: 700; line-height: 1; }
+  .tb-letop { margin: 0 0 6px; }
+  .tb-letop .tb-strook { margin-bottom: 6px; }
+  /* Een stap: een kop met nummer, gescheiden door een lijn (geen extra kader:
+     op een telefoon blijft de breedte voor de tabellen en de blokken). */
+  .tb-stap { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--grijs-rand); }
+  .tb-stap-kop, .tb-stap-kop.tb-perruit-titel { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 16px; }
+  .tb-stap-kop .tb-stap-nr { width: 26px; height: 26px; font-size: 14px; }
+  .tb-weg { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tb-stap-regel { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tb-stap-regel .tb-stap-kop { margin: 0; }
+  .tb-stap .tb-uitleg { margin: -2px 0 10px; }
+  /* De rekenregel onder elk totaal: alleen met "Rekenregels tonen". */
+  .tb-stap:not(.tb-met-reken) .tb-blok > .tb-reken { display: none; }
+  .tb-stap .tb-alles-blok { margin: 0 0 10px; background: #f7f7f6; border: 1px solid var(--grijs-rand); border-left: 4px solid var(--ink); }
+  .tb-stap .tb-alles-blok.tb-alles-gekozen { background: #eef4fb; }
+  .tb-alles-kop b { font-size: 14px; }
+  button.tb-inst-kop { display: flex; align-items: flex-start; gap: 8px; width: 100%; min-height: 44px; margin: 0 0 10px; text-align: left;
+    font: inherit; font-size: 13px; color: var(--ink); border: 1px solid var(--grijs-rand); }
+  button.tb-inst-kop:hover { border-color: var(--ink); }
+  button.tb-inst-kop small { display: block; font-size: 12px; color: var(--grijs-tekst); margin-top: 1px; }
+  .tb-inst-pijl { flex: none; width: 12px; }
+  .tb-getallen-kop { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--grijs-tekst); margin: 6px 0 6px; }
+  /* Op slot of alleen kijken: de latknoppen per ruit zien er ook uit als "uit" (zoals de keuzelijsten). */
+  .lat-knop:disabled { opacity: .55; cursor: not-allowed; }
+  .tb-slotregel { font-size: 12.5px; color: var(--grijs-tekst); background: var(--grijs-licht); padding: 6px 10px; border-radius: var(--radius); margin: 0 0 10px; }
+  @media (max-width: 640px) {
+    .tb-stappen { grid-template-columns: 1fr; gap: 6px; }
+    .tb-stappen button { padding: 6px 10px; }
+    .tb-hulp-woorden { grid-template-columns: 1fr; gap: 0; }
+    .tb-hulp-woorden dd { margin-bottom: 6px; }
+  }
 </style>
 </head>
 <body>
@@ -2677,6 +2943,8 @@
       <div class="subtitle">Startscherm · <span class="app-versie"></span></div>
     </div>
     <span class="kop-gebruiker" id="startGebruiker"></span>
+    <!-- v124: wat dit account mag (werkvloer, of rechten die uit staan). -->
+    <span class="kop-rechten" id="startRechten" hidden></span>
     <!-- v120: je eigen telefoonnummer, voor op de bestellijst. -->
     <button class="btn btn-ghost btn-sm" id="startTelefoon" onclick="glasMijnTelefoon()" title="Mijn telefoonnummer (voor op de bestellijst)">📞</button>
     <!-- v120: handmatige back-up van alles (backup.js). -->
@@ -2693,7 +2961,13 @@
             onclick="startTab('start')">🏠 Start</button>
     <button type="button" class="start-tab" id="startTabNaslag" role="tab" aria-selected="false"
             onclick="startTab('naslag')">📖 Naslag</button>
+    <!-- v124 (script 30): alleen voor beheerders (rechten.js zet hidden uit). -->
+    <button type="button" class="start-tab" id="startTabBeheer" role="tab" aria-selected="false"
+            onclick="startTab('beheer')" hidden>🛠 Beheer</button>
   </nav>
+
+  <!-- v124: het tabblad Beheer (rechten.js vult het). -->
+  <div class="start-inhoud start-beheer" id="startBeheer" hidden></div>
 
   <!-- Hier hangt de inhoud van de naslag zolang hij op het startscherm
        openstaat; start.js verplaatst hem, er is er maar één (v98). -->
@@ -2703,6 +2977,11 @@
     <!-- Waarschuwingen (v103): ruimte bijna op, foto's die al lang wachten,
          werk dat apart bewaard moet worden. Verborgen als er niets is. -->
     <section class="start-blok start-waarschuwing" id="startWaarschuwing" hidden></section>
+    <!-- v124 (script 30): dit account is geblokkeerd (rechten.js). -->
+    <section class="start-blok start-geblokkeerd" id="startGeblokkeerd" hidden>
+      <b>Je account is geblokkeerd door de beheerder.</b>
+      Je werk staat veilig apart op dit apparaat en gaat omhoog zodra je weer toegang hebt.
+    </section>
 
     <section class="start-blok">
       <div class="start-blokkop">
@@ -2804,6 +3083,10 @@
      kleefbalken onder elkaar krijg je op Safari niet betrouwbaar op
      elkaar aangesloten. -->
 <div class="vaste-kop" id="vasteKop">
+<!-- v124 (wens Jan): de naam van het open project, altijd in beeld (deze
+     balk blijft bij het scrollen staan; op elk scherm). Lang = ingekort met
+     …; een tik toont de hele naam. start.js zetProjectKop vult hem. -->
+<div class="vaste-projectnaam" id="vasteProjectNaam" hidden onclick="projectNaamUitklap()"><span class="vpn-label">Project</span><b class="vpn-naam"></b></div>
 <div class="tabs">
   <button class="tab-btn" onclick="toon('project')">📋 Project info</button>
   <button class="tab-btn active" onclick="toon('invoer')">📋 Invoer</button>
@@ -2824,6 +3107,10 @@
   <button class="btn btn-secondary btn-sm foto-toevoegen" onclick="importKies('foto')">📷 Foto toevoegen</button>
   <!-- v120: niet meer rood (rood = hoofdknop en fouten). -->
   <button class="btn btn-secondary btn-sm" onclick="exportMenu(event)">⬇ Exporteren</button>
+  <!-- v124 (keuze Jan): wat er in dit project is weggegooid, 30 dagen terug
+       te zetten (herstel.js). Alleen zichtbaar als er iets in staat. -->
+  <button class="btn btn-secondary btn-sm verwijderd-knop" onclick="verwijderdOpenen()" hidden
+          title="Wat in dit project is weggegooid, en terugzetten">🗑 Onlangs verwijderd (0)</button>
   <span class="foto-melding" id="fotoMelding"></span>
   <input type="file" id="fotoBestand" accept="image/*" onchange="fotoGekozen(this)" hidden>
   <input type="file" id="tekeningBestand" accept="application/pdf,image/*"
@@ -2900,6 +3187,14 @@
           <button class="btn btn-ghost btn-sm taken-opruimen" onclick="takenOpruimen()">Afgeronde taken opruimen</button>
         </section>
 
+        <!-- v124 (keuze Jan): ook hier, altijd zichtbaar, zodat iedereen weet
+             waar weggegooid werk te vinden is (herstel.js). -->
+        <section class="pi-groep" id="projectVerwijderd">
+          <div class="taken-kop"><h3>🗑 Onlangs verwijderd</h3></div>
+          <p class="vw-pi-tekst" id="projectVerwijderdTekst"></p>
+          <button class="btn btn-secondary btn-sm" id="projectVerwijderdKnop" onclick="verwijderdOpenen()">Bekijken en terugzetten (0)</button>
+        </section>
+
         <!-- Het spoor van dit project: wie wat wanneer veranderde. De
              database houdt dit zelf bij (13_taken_en_geschiedenis.sql);
              hier lezen we het alleen terug. -->
@@ -2963,7 +3258,7 @@
         <!-- De maten staan zonder 'mm' in de cellen; dat scheelt twee
              regels afbreken en een kolom of dertig aan breedte. -->
         <th colspan="2">Glasmaat (mm)</th>
-        <th colspan="3" class="groep-glas">Glasspecificatie</th>
+        <th colspan="4" class="groep-glas">Glasspecificatie</th>
         <!-- v113: sponningdiepte en glaslat: past het pakket? (latten.js).
              v115 (Jan): op Invoer alleen de twee diepten; de latten kies je
              op Toebehoren. -->
@@ -2990,6 +3285,8 @@
         <th class="groep-glas kol-type">Glas Type</th>
         <th class="groep-glas kol-opbouw">Opbouw</th>
         <th class="groep-glas">Dikte</th>
+        <!-- v124 (keuze Jan): spacer standaard zilver of zwart (bulk.js: ⤓). -->
+        <th class="groep-glas kol-spacer">Spacer <i class="info-icon" onclick="toonInfo(this)" data-info="De <b>spacer</b> (afstandhouder) in de spouw van isolerend glas (dubbel of triple).<br><br><b>zilver</b> = standaard. <b>zwart</b> alleen als je dat kiest: dan staat het op de bestellijst.<br><br>Bij glas zonder spouw (enkel glas, gelaagd, gehard) is er geen spacer.">i</i></th>
         <th class="groep-spon kol-spon">Diepte <i class="info-icon" onclick="toonInfo(this)" data-info="De <b>sponningdiepte</b> van de stijlen en de bovendorpel, in mm: loodrecht op het glas, van de aanslag tot de buitenkant van het kozijn.<br><br>Meet de <b>bruikbare</b> diepte: zit er een scharniersponning (het hol voor de knoop van het scharnier), dan is er daar minder ruimte.<br><br>Daarin moet passen: band + glas + band + glaslat. Welke lat, aan welke kant en of het past, kies en zie je op het tabblad <b>Toebehoren</b>.<br><br>Na de bestelling op slot, net als de maten.">i</i></th>
         <th class="groep-spon kol-sponon">Onder <i class="info-icon" onclick="toonInfo(this)" data-info="De diepte van de sponning <b>onderin</b> (de onderdorpel), in mm. Die is vaak dieper dan aan de zijkanten en boven: de onderdorpel heeft geen scharniersponning, wel een schuin afwateringsvlak.<br><br><b>Leeg</b> = gelijk aan Diepte (het grijze getal).<br><br>Onderin komt bij buitenbeglazing een neuslat; welke, zie je op Toebehoren.">i</i></th>
         <th>Rooster</th>
@@ -3066,7 +3363,8 @@
     <div class="pi-kop">
       <div>
         <h2>Toebehoren</h2>
-        <div class="pi-sub">Wat er naast het glas nodig is. Alleen voor eigen gebruik, niet voor de leverancier.</div>
+        <!-- v124: zeggen wat hier staat, in de woorden van de werkplaats. -->
+        <div class="pi-sub">Glaslatten, glasband, glaskit en tape: wat er naast het glas nodig is. Alleen voor eigen gebruik, niet voor de leverancier.</div>
       </div>
     </div>
     <div id="toebehorenInhoud"><em style="color:var(--grijs-tekst)">Vul regels in op het Invoer tabblad.</em></div>
@@ -3638,7 +3936,7 @@ document.addEventListener('click', e => {
 
 // ═══════════════ VERSIE ═══════════════
 // Bij elke publicatie ophogen, samen met VERSIE in sw.js.
-const APP_VERSIE = 'v123';
+const APP_VERSIE = 'v124';
 // Telefoon of tablet (v104)? Dan gaan bestanden via het deelvenster, anders
 // via opslaan of downloaden. Alleen 'aanraakscherm' is niet genoeg: veel
 // Windows-laptops hebben er een. Een iPad doet zich in Safari voor als Mac,
@@ -3725,13 +4023,20 @@ function toon(tabNaam) {
   // dik voor het max glaspakket: de rode dikte op Invoer meteen bijwerken.
   if (tabNaam === 'invoer' && typeof updateBerekendCellen === 'function') updateBerekendCellen();
   // … en de keuzelijst van de opbouw: welke opbouwen nu te dik zijn (grijs, apart).
+  // v124: en die van het glastype (een type zonder passende opbouw: niet te kiezen).
   if (tabNaam === 'invoer' && typeof opbouwKeuzeHTML === 'function') {
     rijen.forEach(r => {
       if (!r.maxPakket) return;
       const o = document.getElementById('opb-' + r.id);
-      if (!o || o === document.activeElement) return;
-      o.innerHTML = opbouwKeuzeHTML(r);
-      o.value = r.opbouw || '';
+      if (o && o !== document.activeElement) {
+        o.innerHTML = opbouwKeuzeHTML(r);
+        o.value = r.opbouw || '';
+      }
+      const t = document.getElementById('typ-' + r.id);
+      if (t && t !== document.activeElement && typeof glasTypeKeuzeHTML === 'function') {
+        t.innerHTML = glasTypeKeuzeHTML(r);
+        t.value = r.glasType || '';
+      }
     });
   }
   if (tabNaam === 'project') {
@@ -3916,7 +4221,13 @@ function verwijderRijKnop(id) {
   verwijderRij(id);
   const leeg = !kopie.merk && !kopie.breedte && !kopie.hoogte && !kopie.glasType && !bollen.length;
   if (leeg) return;
-  kortBericht('Regel ' + (kopie.merk || '(zonder merk)') + ' verwijderd.', { soort: 'info', knop: '↶ Terugzetten', ms: 12000, actie: () => {
+  // v124: de ruit staat ook in "Onlangs verwijderd" (herstel.js); dan zet
+  // Terugzetten hem via dát item terug, zodat hij niet ook nog in de lijst
+  // blijft staan.
+  const item = window.glasVerwijderdVoorRij ? glasVerwijderdVoorRij(id) : null;
+  kortBericht('Regel ' + (kopie.merk || '(zonder merk)') + ' verwijderd' + (item ? ' (ook later terug te zetten via 🗑 Onlangs verwijderd).' : '.'),
+              { soort: 'info', knop: '↶ Terugzetten', ms: 12000, actie: () => {
+    if (item && window.glasVerwijderdTerug) { if (!getRij(id)) glasVerwijderdTerug(item.id); return; }
     if (getRij(id) || slotWeigert()) return;
     if (window.bewaarStap) bewaarStap('Rij teruggezet');
     rijen.splice(Math.min(plek, rijen.length), 0, kopie);
@@ -4407,8 +4718,8 @@ function slotWeigert() {
     if (window.glasAlleenKijken && glasAlleenKijken()) {
       if (window.appFout) {
         const st = window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
-        appFout((st.naam || 'Een collega') + ' bewerkt dit project nu; je kunt alleen kijken. Wil je zelf ' +
-                'iets wijzigen, kies dan ‹Toch bewerken› in de balk bovenaan Invoer.', { kop: 'Alleen kijken' });
+        appFout(werkvloerUitleg() || ((st.naam || 'Een collega') + ' bewerkt dit project nu; je kunt alleen kijken. Wil je zelf ' +
+                'iets wijzigen, kies dan ‹Toch bewerken› in de balk bovenaan Invoer.'), { kop: 'Alleen kijken' });
       }
     } else if (window.appFout) {
       appFout('Dit project is besteld, dus de maten en de foto\'s staan vast. Moet er toch iets ' +
@@ -4433,13 +4744,17 @@ function kijkWeigert() {
     slotGemeld = Date.now();
     const st = window.glasBewerkslotStand ? (glasBewerkslotStand().stand || {}) : {};
     if (window.appFout) {
-      appFout((st.naam || 'Een collega') + ' bewerkt dit project nu; je kunt alleen kijken. Wil je zelf ' +
-              'iets wijzigen, kies dan ‹Toch bewerken› in de balk bovenaan Invoer.', { kop: 'Alleen kijken' });
+      appFout(werkvloerUitleg() || ((st.naam || 'Een collega') + ' bewerkt dit project nu; je kunt alleen kijken. Wil je zelf ' +
+              'iets wijzigen, kies dan ‹Toch bewerken› in de balk bovenaan Invoer.'), { kop: 'Alleen kijken' });
     }
   }
   return true;
 }
 window.kijkWeigert = kijkWeigert;
+// v124 (script 30): de werkvloer kijkt altijd alleen; dan die uitleg (rechten.js).
+function werkvloerUitleg() {
+  return window.glasWerkvloer && glasWerkvloer() && window.glasWerkvloerUitleg ? glasWerkvloerUitleg() : '';
+}
 
 function slotToepassen() {
   const opSlot = invoerOpSlot();
@@ -4700,6 +5015,8 @@ function rijHTML(rij, nr) {
   // v118: te dik voor het max glaspakket uit de maatstaat (zie updateBerekendCellen).
   const mxR = window.GlasLatten && GlasLatten.maxOordeel ? GlasLatten.maxOordeel(rij) : null;
   const teDikMx = mxR && mxR.status === 'past niet' ? mxR : null;
+  // v124: een glastype waarvan geen enkele opbouw binnen het max past: rood.
+  const typeMx = glasTypeTeDik(rij);
   const dikteTitel = rij.totaalDikte != null
     ? `${rij.totaalDikte} mm · ${berekenGewicht(rij)} kg per ruit` : '';
 
@@ -4718,9 +5035,10 @@ function rijHTML(rij, nr) {
     ${correctieCel(rij)}
     <td class="berekend ${rij.glasBreedte == null ? 'ongeldig' : ''}" id="br-${id}">${glasBr}</td>
     <td class="berekend ${rij.glasHoogte == null ? 'ongeldig' : ''}" id="bh-${id}">${glasH}</td>
-    <td class="kol-type"><select onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
+    <td class="kol-type"><select id="typ-${id}"${typeMx ? ' class="te-dik" title="' + esc(typeMx) + '"' : ''} onchange="wijzigGlasType(${id},this.value)">${glasTypeOpts}</select></td>
     <td class="kol-opbouw"><select id="opb-${id}"${teDikMx ? ' class="te-dik" title="' + esc('Te dik voor het max glaspakket uit de maatstaat: ' + teDikMx.tekst) + '"' : ''} onchange="wijzigOpbouw(${id},this.value)">${opbouwOpts}</select></td>
     <td class="berekend ${rij.totaalDikte == null ? 'ongeldig' : ''}${teDikMx ? ' te-dik' : ''}" id="dk-${id}" title="${esc(teDikMx ? teDikMx.tekst : dikteTitel)}">${dikteKg}${teDikMx ? ' · te dik' : ''}</td>
+    ${spacerCel(rij)}
     ${window.sponCellenHTML ? sponCellenHTML(rij) : '<td></td><td></td>'}
     <td><select onchange="setVal(${id},'rooster',this.value); toggleDuco(${id},this.value); opslaan()">
       <option value="Nee" ${rij.rooster==='Nee'?'selected':''}>Nee</option>
@@ -4799,6 +5117,13 @@ function updateBerekendCellen() {
     if (opbEl) {
       opbEl.classList.toggle('te-dik', teDik);
       if (teDik) opbEl.title = 'Te dik voor het max glaspakket uit de maatstaat: ' + mx.tekst; else if (opbEl.title && /max glaspakket/.test(opbEl.title)) opbEl.title = '';
+    }
+    // v124: het glastype zelf (geen enkele opbouw past binnen het max).
+    const typEl = document.getElementById('typ-' + rij.id);
+    if (typEl) {
+      const tm = glasTypeTeDik(rij);
+      typEl.classList.toggle('te-dik', !!tm);
+      if (tm) typEl.title = tm; else if (typEl.title && /max glaspakket/.test(typEl.title)) typEl.title = '';
     }
 
     // Roosterwaarschuwing: kleur de Duco-cel rood indien incompatibel
@@ -5085,10 +5410,34 @@ window.setBedieningLengte = setBedieningLengte;
 // v120 (beveiliging): ook > en ' (een ' brak anders uit een attribuut tussen enkele aanhalingstekens).
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+// v124 (wens Jan): past geen enkele opbouw van het glastype van deze ruit
+// binnen het max glaspakket (met band)? Dan de reden als tekst, anders ''.
+// Zonder max glaspakket, zonder type of met een opbouw zonder bekende dikte:
+// '' (niet te beoordelen; zoals bij de opbouw sinds v117).
+function glasTypeTeDik(rij, type) {
+  const t = type === undefined ? (rij && rij.glasType) : type;
+  if (!t || !window.glasTypeMax) return '';
+  const m = glasTypeMax(rij, t);
+  if (!m || m.kan) return '';
+  return t + ' past niet binnen het max glaspakket uit de maatstaat (' + String(m.max).replace('.', ',') + ' mm): ' +
+    'de dunste opbouw is met band ' + m.bandBinnen + ' + ' + m.bandBuiten + ' al ' + String(m.dunste).replace('.', ',') + ' mm.';
+}
+window.glasTypeTeDik = glasTypeTeDik;
+
 function wijzigGlasType(id, type) {
   if (slotWeigert()) return;
   const rij = getRij(id);
   if (!rij) return;
+  // v124: een type waarvan niets binnen het max glaspakket past, is in de
+  // keuzelijst niet te kiezen (grijs). Komt het toch hier (een andere weg,
+  // bijv. een oud apparaat of Toebehoren), dan niet stil overnemen.
+  const teDik = type && type !== rij.glasType ? glasTypeTeDik(rij, type) : '';
+  if (teDik) {
+    if (window.kortBericht) kortBericht(teDik + ' Niet gekozen.', { soort: 'fout' });
+    if (document.getElementById('rij-' + id)) herzieRegel(id);
+    if (window.toebehorenNaWijziging) toebehorenNaWijziging();
+    return;
+  }
   rij.glasType = type;
   rij.opbouw = '';
   berekenDikte(rij);
@@ -5208,6 +5557,55 @@ function roosterTekst(r) {
 }
 window.roosterTekst = roosterTekst;
 
+// ═══════════════ SPACER (v124, keuze van Jan) ═══════════════
+// De afstandhouder in de spouw van isolerend glas (dubbel, triple). Per ruit
+// "standaard zilver" (het veld ontbreekt) of zwart (rij.spacer = 'zwart').
+// Zo blijft het kenmerk van elke bestaande ruit gelijk (ruitKenmerk): alleen
+// zwart telt mee, net als bediening en bi-color. Op de bestellijst alleen
+// als er zwart is (keuze Jan); zilver = niets.
+// Isolerend = een opbouw met een spouw ("4-15-4", "33.1-13-4", "4-15-4 ZW");
+// nog geen opbouw gekozen: een glastype dat zo'n opbouw heeft. Enkel glas,
+// gelaagd zonder spouw ("33.1") en gehard ("6 mm ESG") hebben geen spacer.
+// Een zwarte spacer bij glas zonder spouw (het type is later veranderd)
+// blijft bewaard maar telt nergens mee (niet stil weggooien).
+const SPOUW_RE = /\d\s*-\s*\d/;
+function heeftSpouw(r) {
+  if (!r) return false;
+  if (r.opbouw) return SPOUW_RE.test(String(r.opbouw));
+  const lijst = r.glasType && DATA.opbouw_per_type ? (DATA.opbouw_per_type[r.glasType] || []) : [];
+  return lijst.some(o => SPOUW_RE.test(String(o)));
+}
+window.glasHeeftSpouw = heeftSpouw;
+function spacerZwart(r) { return !!(r && r.spacer === 'zwart' && heeftSpouw(r)); }
+window.spacerZwart = spacerZwart;
+function spacerCel(rij) {
+  const mag = heeftSpouw(rij);
+  const zw = rij.spacer === 'zwart';
+  const titel = mag ? 'Spacer (afstandhouder in de spouw): standaard zilver, of zwart'
+    : 'Geen spouw (geen isolerend glas): geen spacer' + (zw ? '. Er stond zwart; dat telt nu niet mee.' : '');
+  // Zonder spouw: grijs en niet aan te tikken, zoals de roosterkolommen
+  // zonder rooster (geen "disabled": dat zet slotToepassen voor de hele tabel).
+  return `<td class="kol-spacer" id="sp-${rij.id}"${mag ? '' : ' style="opacity:.35;pointer-events:none"'}>` +
+    `<select class="${zw ? 'spacer-zwart' : ''}" title="${esc(titel)}"${mag ? '' : ' tabindex="-1" aria-disabled="true"'} onchange="zetSpacer(${rij.id},this.value)">` +
+    `<option value=""${zw ? '' : ' selected'}>zilver</option><option value="zwart"${zw ? ' selected' : ''}>zwart</option></select></td>`;
+}
+function zetSpacer(id, waarde) {
+  if (slotWeigert()) { herzieRegel(id); return; }
+  const r = getRij(id);
+  if (!r) return;
+  // Zonder spouw geen zwarte spacer (de cel is dan grijs; dit is het vangnet).
+  if (waarde === 'zwart' && !heeftSpouw(r)) {
+    if (window.kortBericht) kortBericht('Geen spouw (geen isolerend glas): hier hoort geen spacer.', { soort: 'fout' });
+    herzieRegel(id);
+    return;
+  }
+  if (waarde === 'zwart') r.spacer = 'zwart'; else delete r.spacer;
+  const sel = document.querySelector('#sp-' + id + ' select');
+  if (sel) sel.classList.toggle('spacer-zwart', r.spacer === 'zwart');
+  opslaan();
+}
+window.zetSpacer = zetSpacer;
+
 // ═══════════════ SAMENVATTING ═══════════════
 function renderSamenvatting() {
   const ingevuld = rijen.filter(r => r.glasType && r.opbouw && r.breedte && r.hoogte);
@@ -5225,6 +5623,8 @@ function renderSamenvatting() {
   // invoer ge-escapet (ook de maatvelden), en de opmerking van de ruit in
   // de kolom Opmerking (stond er de roedenopmerking).
   const nlGetal = (n, d) => Number(n).toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d });
+  // v124: een kolom Spacer alleen als er ergens zwart gekozen is (zoals de bestellijst).
+  const metSpacer = ingevuld.some(spacerZwart);
   let rows = ingevuld.map((r, i) => {
     berekenGlasMaat(r); berekenDikte(r);
     const opp = r.glasBreedte && r.glasHoogte
@@ -5246,6 +5646,7 @@ function renderSamenvatting() {
       <td class="num highlight">${esc(r.glasHoogte ?? '—')}</td>
       <td>${esc(r.glasType)}</td>
       <td>${esc(r.opbouw)}</td>
+      ${metSpacer ? '<td>' + (spacerZwart(r) ? '<b>zwart</b>' : '') + '</td>' : ''}
       <td class="num">${r.rooster === 'Ja' ? 'Ja' : 'Nee'}</td>
       <td class="num">${opp}</td>
       <td class="num">${r.totaalDikte == null || r.totaalDikte === '' ? '—' : esc(String(r.totaalDikte).replace('.', ','))}</td>
@@ -5271,7 +5672,7 @@ function renderSamenvatting() {
         <th>#</th><th>Merk</th><th>Maatsoort</th>
         <th class="num">Breedte<br>invoer</th><th class="num">Hoogte<br>invoer</th>
         <th class="num">Glasbreedte<br>(mm)</th><th class="num">Glashoogte<br>(mm)</th>
-        <th>Glas Type</th><th>Opbouw</th><th>Rooster</th>
+        <th>Glas Type</th><th>Opbouw</th>${metSpacer ? '<th>Spacer</th>' : ''}<th>Rooster</th>
         <th class="num">Opp.<br>(m²)</th><th class="num">Dikte<br>(mm)</th>
         <th class="num">Gewicht<br>p/stuk (kg)</th><th class="num">Aantal</th>
         <th>Duco Type</th><th>RAL</th><th>Bediening</th><th>Bewerking</th>
@@ -5279,7 +5680,7 @@ function renderSamenvatting() {
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr class="totaal-rij">
-        <td colspan="13" style="text-align:right;padding-right:8px;">Totalen →</td>
+        <td colspan="${metSpacer ? 14 : 13}" style="text-align:right;padding-right:8px;">Totalen →</td>
         <td class="num">${totAantal}</td>
         <td colspan="7"></td>
       </tr></tfoot>
@@ -5313,7 +5714,10 @@ function ruitKenmerk(rij) {
       (parseInt(rij.bedieningLengte, 10) > 0 ? parseInt(rij.bedieningLengte, 10) : '') : '') +
     // v114: bi-color op dezelfde manier: alleen als het gekozen is (en er een
     // rooster is), anders verandert het kenmerk van elke bestaande ruit.
-    (rij.biColor === 'Ja' && rij.rooster === 'Ja' ? '|bi:' + (rij.ralBinnen || '') : '');
+    (rij.biColor === 'Ja' && rij.rooster === 'Ja' ? '|bi:' + (rij.ralBinnen || '') : '') +
+    // v124: spacer zwart op dezelfde manier: alleen als hij gekozen is (en er
+    // een spouw is). Zilver (= standaard) laat het kenmerk zoals het was.
+    (spacerZwart(rij) ? '|sp:zwart' : '');
   let h = 5381;
   for (let i = 0; i < tekst.length; i++) h = ((h * 33) ^ tekst.charCodeAt(i)) >>> 0;
   return h.toString(36);
@@ -5354,7 +5758,8 @@ window.ruitKenmerk = ruitKenmerk;
 // dat is de besteld stand, voor apparaten die nog een oudere versie
 // draaien tot ze bijgewerkt zijn.
 const MOMENT_VELDEN = KENMERK_VELDEN.concat(['glasBreedte', 'glasHoogte', 'bediening', 'bedieningAantal', 'bedieningLengte',
-  'biColor', 'ralBinnen']);   // v114
+  'biColor', 'ralBinnen',   // v114
+  'spacer']);   // v124
 const BEDIENING_VELDEN = ['bediening', 'bedieningAantal', 'bedieningLengte'];
 // v114 (keuze van Jan): alleen het rooster anders (Duco type, kleur, bi-color)
 // bij een bestelde ruit = blok ALLEEN ROOSTER, het glas NIET opnieuw maken.
@@ -5365,12 +5770,17 @@ const BI_VELDEN = ['biColor', 'ralBinnen'];
 // opslag in zijn geheel omhoog).
 const KORT_VELDEN = ['aantal', 'merk', 'breedte', 'hoogte', 'glasBreedte', 'glasHoogte', 'glasType', 'opbouw',
   'bediening', 'bedieningAantal', 'bedieningLengte',   // v111
-  'rooster', 'ducoType', 'ralKleur', 'biColor', 'ralBinnen'];   // v114: voor ALLEEN ROOSTER
+  'rooster', 'ducoType', 'ralKleur', 'biColor', 'ralBinnen',   // v114: voor ALLEEN ROOSTER
+  'spacer'];   // v124: alleen als hij er staat (zwart); zie kortBewaard
 // Een ingekorte bestelling van vóór v114 (kort: 1) kent de roostervelden
 // niet: die zijn dan onbekend, niet leeg. Sinds v114 is het kort: 2.
 const KORT_VELDEN_V114 = ['rooster', 'ducoType', 'ralKleur', 'biColor', 'ralBinnen'];
 function kortBewaard(oud, v) {
   if (!oud || !oud.kort) return true;
+  // v124: de spacer staat pas sinds v124 in een ingekorte bestelling, en dan
+  // alleen als hij zwart was. Staat hij er niet, dan weten we het niet (een
+  // oudere ingekorte kende het veld niet): onbekend, geen "zilver".
+  if (v === 'spacer') return oud.spacer !== undefined;
   if (KORT_VELDEN.indexOf(v) < 0) return false;
   return KORT_VELDEN_V114.indexOf(v) < 0 || oud.kort >= 2;
 }
@@ -5638,7 +6048,8 @@ function standVan(lijst) {
 
 // De velden die een leverancier maakt (maat, aantal, glas). Daarop letten
 // we bij een oudere stand per veld.
-const MAAKVELDEN = ['aantal', 'breedte', 'hoogte', 'maatsoort', 'correctie', 'glasType', 'opbouw', 'merk'];
+const MAAKVELDEN = ['aantal', 'breedte', 'hoogte', 'maatsoort', 'correctie', 'glasType', 'opbouw', 'merk',
+  'spacer'];   // v124: de leverancier maakt hem
 
 // Welke velden van de ruit staan terug op een eerder bestelde waarde, terwijl
 // de geldende bestelling iets anders heeft (v105, beoordeling ronde 2)?
@@ -6078,6 +6489,11 @@ function ruitVerschil(oud, rij) {
     const a = bin(oud), b = bin(rij);
     if (a !== b) uit.push('RAL binnen ' + (a || '(geen bi-color)') + ' → ' + (b || '(geen bi-color)'));
   }
+  // Spacer (v124), alleen als bekend (een ingekorte bestelling: zie kortBewaard).
+  if (kortBewaard(oud, 'spacer')) {
+    const a = spacerZwart(oud), b = spacerZwart(rij);
+    if (a !== b) uit.push('spacer ' + (a ? 'zwart' : 'standaard zilver') + ' → ' + (b ? 'zwart' : 'standaard zilver'));
+  }
   const gb = maatGetal(oud.glasBreedte), gh = maatGetal(oud.glasHoogte);
   if (('glasBreedte' in oud || 'glasHoogte' in oud) &&
       (gb !== maatGetal(rij.glasBreedte) || gh !== maatGetal(rij.glasHoogte))) {
@@ -6091,6 +6507,19 @@ function ruitVerschil(oud, rij) {
     const terug = Object.assign({}, rij);
     velden.forEach(v => { terug[v] = oud[v] === undefined ? '' : oud[v]; });
     BEDIENING_VELDEN.concat(BI_VELDEN).forEach(v => { if (oud[v] === undefined) delete terug[v]; else terug[v] = oud[v]; });   // v111, v114
+    if (kortBewaard(oud, 'spacer')) terug.spacer = oud.spacer;   // v124
+    else {
+      // v124: niet bewaard (een ingekorte bestelling zonder het veld). Was
+      // hij zilver of zwart? Dat zegt het kenmerk: probeer het allebei.
+      const zonder = Object.assign({}, terug); delete zonder.spacer;
+      const met = Object.assign({}, terug, { spacer: 'zwart' });
+      const was = ruitKenmerk(zonder) === oud.k ? false : ruitKenmerk(met) === oud.k ? true : null;
+      if (was !== null) {
+        if (was) terug.spacer = 'zwart'; else delete terug.spacer;
+        const nu = spacerZwart(rij);
+        if (was !== nu) uit.push('spacer ' + (was ? 'zwart' : 'standaard zilver') + ' → ' + (nu ? 'zwart' : 'standaard zilver'));
+      }
+    }
     if (ruitKenmerk(terug) !== oud.k) {
       uit.push((uit.length ? 'en ' : '') + 'overige gegevens gewijzigd (de details van die bestelling zijn niet meer bewaard)');
     }
@@ -6197,6 +6626,7 @@ function ruitenTerugZoalsBesteld(ids) {
     const os = bestaand ? oudereStand(bestaand, st, oud) : true;
     const velden = Array.isArray(os) ? os : KENMERK_VELDEN;
     velden.forEach(v => {
+      if (v === 'spacer') return;        // v124: hieronder (afwezig = zilver, niet '')
       if (!kortBewaard(oud, v)) return;  // niet bewaard: laten staan (v114: ook rooster bij kort 1)
       doel[v] = oud[v] === undefined ? (v === 'aantal' ? 1 : '') : oud[v];
     });
@@ -6207,6 +6637,10 @@ function ruitenTerugZoalsBesteld(ids) {
         if (BI_VELDEN.indexOf(v) >= 0 && !kortBewaard(oud, v)) return;   // vóór v114 ingekort: onbekend
         if (oud[v] === undefined) delete doel[v]; else doel[v] = oud[v];
       });
+    }
+    // v124: de spacer zoals besteld (ontbreekt = standaard zilver; ingekort en onbekend: laten staan).
+    if (!Array.isArray(os) || os.indexOf('spacer') >= 0) {
+      if (kortBewaard(oud, 'spacer')) { if (oud.spacer === undefined) delete doel.spacer; else doel.spacer = oud.spacer; }
     }
     // Komt het rooster terug op Nee, dan hoort er geen bediening bij (anders
     // kwam hij stil terug zodra het rooster later weer op Ja ging).
@@ -6854,7 +7288,10 @@ function exportTabel() {
     // v114: bi-color rooster; RAL Kleur hierboven is dan de kleur buiten.
     'Bi-color','RAL binnen',
     // v115: de onderlat (automatisch, zelfde, neuslat …).
-    'Onderlat'];
+    'Onderlat',
+    // v124: het max glaspakket uit de maatstaat (zodat het heen en terug
+    // meegaat) en de spacer (zwart, of zilver bij glas met een spouw).
+    'Max glaspakket (mm)', 'Spacer'];
   const getal = v => {
     if (v === null || v === undefined || v === '') return '';
     const n = Number(String(v).replace(',', '.'));
@@ -6880,7 +7317,8 @@ function exportTabel() {
       G ? getal(G.ruit(r).sponningDiepte) : '', lat && G.zijde(r) !== 'geen' ? lat.naam + (G.omgekeerd(r) ? ' (omgekeerd)' : '') : '', pk,
       G ? G.zijde(r) : '', G ? getal(G.ruit(r).diepteOnder) : '',
       r.rooster === 'Ja' && r.biColor === 'Ja' ? 'Ja' : 'Nee', r.rooster === 'Ja' && r.biColor === 'Ja' ? (r.ralBinnen || '') : '',
-      G && G.zijde(r) !== 'geen' && (G.ruit(r).sponningDiepte > 0 || G.zijde(r)) ? G.keuzeNaam(r) : ''
+      G && G.zijde(r) !== 'geen' && (G.ruit(r).sponningDiepte > 0 || G.zijde(r)) ? G.keuzeNaam(r) : '',
+      getal(r.maxPakket), spacerZwart(r) ? 'zwart' : (heeftSpouw(r) ? 'zilver' : '')
     ];
   });
   return { koppen, regels };
@@ -7027,6 +7465,8 @@ window.veiligeBestandsnaam = veiligeBestandsnaam;
 <script src="pdf.js"></script>
 <script src="originelen.js"></script>
 <script src="backup.js"></script>
+<script src="rechten.js"></script>
+<script src="herstel.js"></script>
 <script src="undo.js"></script>
 </body>
 </html>

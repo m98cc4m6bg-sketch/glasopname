@@ -757,6 +757,49 @@ harde eis wint.
     `lib/`. In de zip "niet-in-repo". Niet getest: de echte Supabase.
   - De back-uptaak v4: `test_backup.py` 35 controles, 14 mutaties (nieuw:
     de uitleg van Dropbox bij een geweigerde koppeling).
+- **v124** (27-10, wensen van Jan; vijf onderdelen, door aparte bouwers
+  gebouwd en samengevoegd, daarna een onafhankelijke controle, een
+  beveiligingscontrole van script 30 en een tester van werkgangen):
+  - `test-v124-rechten.js` (±4 min, 39 mutaties): rollen en rechten met een
+    namaak van script 30 in de test (die moet meeveranderen met de SQL),
+    Beheer, werkvloer-foto's (ook zonder bereik), bestelrecht uit terwijl
+    iemand bestelt, geblokkeerd terwijl iemand werkt, opruimen na 30 dagen,
+    apart bewaren zonder recht op nieuw, foto's die een aparte kopie nog
+    noemt;
+  - `test-v124-werkpunten.js` (±2 min, 37 mutaties; `OUD123=/tmp/live123` =
+    git archive van v123): projectnaam op 390/820/1280, maatstaat met "Max
+    incl. band" (xlsx en csv uit Windows Excel), glastypes grijs, spacer
+    heen en terug, een oud project zonder spacer telt niet als gewijzigd;
+  - `test-v124-herstel.js` (±3 min, 36 mutaties): de ↶-fout met bolletjes
+    (Safari: een knop krijgt bij een klik geen focus, nagebootst), ↶ na
+    herladen, de stapel vervalt na een wijziging elders, "Onlangs
+    verwijderd" (ook na een bestelling, bolletjes op meer tekeningen),
+    werkvloer-foto en ↶, twee tabbladen;
+  - `test-v124-tekeningen.js` (±2,5 min, 27 mutaties): maatstaat + pdf van 3
+    pagina's (nagemaakt), aanwijzen op elke tekening met vinger en pen, een
+    ruit verdeeld, verhuizen en ↶/↷ per tabel, pdf's teruggelezen;
+  - `test-v124-toebehoren.js` (±1 min, 40 mutaties; `AFDRUK=voor|na` voor
+    schermafdrukken): de latkiezer (plaatje, toetsenbord, sluiten, op slot),
+    de nieuwe indeling, latzijde "geen" bij Toepassen;
+  - `test-v124-cycli.js` (±5 min, 7 mutaties): zeven complete werkgangen over
+    de onderdelen heen, met meer apparaten en storingen (project van begin
+    tot eind, per ongeluk weggegooid, werkvloer op de bouw, rechten die
+    veranderen, prullenbak en opslag, update v123 → v124, twee tabbladen).
+    Regels met "LET OP" zijn opmerkingen, geen fout;
+  - script 30: proef tegen PostgreSQL 16 (`proef30.sh`, 175 controles;
+    `mutaties30.py`, 67 mutaties) en de app tegen een **echte PostgREST
+    12.2** met de echte `supabase-js` (`app-echt.js`, 39 controles). In de
+    zip "niet-in-repo";
+  - les: **onderdelen die apart groen zijn, zijn samen nog niet groen.** De
+    fouten zaten in de naden: een werkvloer-foto en de ↶-stapel, ↶ per tabel
+    en een verhuisde ruit, een aparte kopie die de foto's van het origineel
+    gebruikt terwijl het opruimen de map van het origineel leegmaakt. Een
+    test van werkgangen over alles heen vond ze;
+  - les: **een stapel die blijft bestaan (IndexedDB), moet weten of hij nog
+    klopt.** ↶ na herladen mag alleen als de stand precies dezelfde is;
+  - les: **Safari geeft een knop bij een klik geen focus**: het invoervak
+    blijft actief terwijl de knop zijn werk doet. Dat was de oorzaak van
+    "het bolletje komt terug" (Jan, MacBook).
 - **Valkuil (v109): het afgeschermde inlogkader.** Playwright zet zijn
   hulpscripts (`addInitScript`) in élk kader, ook in `#cloudLoginKader`, dat
   `sandbox` heeft. Dat geeft meldingen met "sandboxed" (SecurityError bij

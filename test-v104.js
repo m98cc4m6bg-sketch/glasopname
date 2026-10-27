@@ -120,8 +120,11 @@ const MUTATIES = {
   // 25. Geen MacRoman.
   macroman: ['import.js', "      if (lijktMacRoman(b)) {", "      if (false) {"],
   // 27. Na Ctrl+Z vanaf een vakje is Ctrl+Y verdwenen.
-  undofocus: ['undo.js', "wiste het opnieuw-doen (gevonden bij v104).\n    bijBetreden = null;",
-                         "wiste het opnieuw-doen (gevonden bij v104)."],
+  // v124: in ongedaan() staat nu veldAfsluiten() (wat in het veld getypt was
+  // eerst als eigen stap, dan de stand van het veld op); na herstel() zet hij
+  // bijBetreden daarnaast nog eens op null.
+  undofocus: ['undo.js', "dan het eerste wat ↶ terugdraait.\n    veldAfsluiten();",
+                         "dan het eerste wat ↶ terugdraait."],
   // 28. Na offline zonder script 23 niet eerst de server lezen.
   voorlezen: ['cloud.js', "    if (naOffline) { voorlezenEnVersturen(); return; }", ''],
   // 29. Het opslagvenster krijgt de naam van de 1e lijst.

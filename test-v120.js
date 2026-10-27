@@ -1361,6 +1361,7 @@ const statusVan = (page, merk, opties, onder) => R(page, merk, new Function('r',
     latProject(LATTEN119);
     ({ ctx, page } = await apparaat(null, 'pc', 1));
     await naarToebehoren(page);
+    if (await page.locator('#tbStap3 .tb-reken-knop[aria-pressed="false"]').count()) { await page.click('#tbStap3 .tb-reken-knop'); await wacht(300); }   // v124: de rekenregels staan eerst dicht
     t = await tbTekst(page);
     check('strook: "Bij 1 ruit komt de lat precies vlak met het kozijn: Y"', /Bij 1 ruit komt de lat precies vlak met het kozijn: Y\./.test(t), (t.match(/.{0,20}precies vlak.{0,80}/) || [''])[0]);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen().latten)));
@@ -1402,7 +1403,8 @@ const statusVan = (page, merk, opties, onder) => R(page, merk, new Function('r',
     // v121 (P3): aangevinkte ruiten gaan via de actiebalk (test-v121); dit
     // blok is voor alle ruiten, met eerst de vraag.
     t = await page.$eval('.tb-alles-blok', e => e.innerText.replace(/\s+/g, ' '));
-    check('niets aangevinkt: het blok is "Voor het hele project (alle ruiten)"', /Voor het hele project \(alle ruiten\)/.test(t) &&
+    // v124: het blok heet "Alle ruiten tegelijk wijzigen" (in stap 1 "Voor het hele project").
+    check('niets aangevinkt: het blok is "Alle ruiten tegelijk wijzigen"', /Alle ruiten tegelijk wijzigen/.test(t) &&
       /Toepassen op alle ruiten/.test(t), t.slice(0, 200));
     await page.selectOption('#tbAlleZijde', 'buiten');
     await page.click('.tb-alles button:has-text("Toepassen")');

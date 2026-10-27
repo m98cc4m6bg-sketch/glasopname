@@ -526,6 +526,33 @@
     var m = maxOordeel(r, getal(dikte));
     return !!(m && m.status === 'past niet');
   }
+  // v124 (wens Jan): past er van dit glastype nog één opbouw binnen het max
+  // glaspakket (met de band van deze ruit)? opbouwen = de opbouwen die je mag
+  // kiezen (al gefilterd op de bewerking), lookup = DATA.lookup.
+  // Geeft null zonder max glaspakket, anders
+  //   { past, teDik, onbekend (aantallen), dunste (dikste pakket van de
+  //     dunste opbouw, met band), max, band, kan (er is iets te kiezen) }.
+  // Een opbouw zonder bekende dikte (niet in de lookup: een oude waarde, of
+  // de lijst in de database is anders) beoordelen we niet: die telt als
+  // "onbekend" en houdt het type kiesbaar, zoals de opbouw zelf ook nooit
+  // grijs werd zonder dikte (v117).
+  function maxType(r, opbouwen, lookup, type) {
+    var max = maxPakket(r);
+    if (!max) return null;
+    var u = pakket(r);
+    var band = u.bandBinnen + u.bandBuiten;
+    var uit = { past: 0, teDik: 0, onbekend: 0, dunste: null, max: max, band: band, bandBinnen: u.bandBinnen, bandBuiten: u.bandBuiten };
+    (opbouwen || []).forEach(function (o) {
+      var e = lookup ? lookup[type + '|' + o] : null;
+      var d = e ? getal(e.totaal) : NaN;
+      if (!(d > 0)) { uit.onbekend++; return; }
+      var pk = rond(d + band);
+      if (uit.dunste == null || pk < uit.dunste) uit.dunste = pk;
+      if (pk > max) uit.teDik++; else uit.past++;
+    });
+    uit.kan = uit.past > 0 || uit.onbekend > 0 || !(opbouwen || []).length;
+    return uit;
+  }
 
   function oordeelRuit(r) {
     var mx = maxOordeel(r);
@@ -882,6 +909,21 @@
   // Escape: eerst de grote foto, dan het venster (controle v113). Staat er een
   // melding van de app boven (appFout), dan sluit Escape alleen die.
   function toets(e) {
+    // v124: met de pijltjes langs de keuzes in het venster (glaslat, onderlat),
+    // zoals in de latkiezer op Toebehoren; Enter kiest (het zijn knoppen).
+    // Niet in een keuzelijst of vak: daar zijn de pijltjes van dat vak.
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && laag && !document.querySelector('.lat-groot')) {
+      var t = e.target;
+      if (t && (t.tagName === 'SELECT' || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      var lijst = Array.prototype.slice.call(laag.querySelectorAll('.lat-item')).filter(function (b) { return b.offsetParent !== null; });
+      if (!lijst.length) return;
+      var i = lijst.indexOf(document.activeElement);
+      var naar = lijst[e.key === 'ArrowDown' ? Math.min(lijst.length - 1, i + 1) : Math.max(0, i - 1)];
+      e.preventDefault();
+      try { naar.focus({ preventScroll: true }); } catch (x) { naar.focus(); }
+      if (naar.scrollIntoView) naar.scrollIntoView({ block: 'nearest' });
+      return;
+    }
     if (e.key !== 'Escape') return;
     if (window.appMeldingBezig && document.querySelector('.melding-laag')) return;
     e.preventDefault();
@@ -1424,7 +1466,8 @@
     onderlatVoorRuit: onderlatVoorRuit, oordeelRuit: oordeelRuit, kortRuit: kortRuit, adviezenMet: adviezenMet, zijdeOpties: zijdeOpties,
     opSlot: opSlot, ERNST: ERNST,
     BAND_BINNEN: BAND_BINNEN, BAND_BUITEN: BAND_BUITEN, bandBuitenVan: bandBuitenVan,
-    pakketDikte: pakketDikte, maxPakket: maxPakket, maxOordeel: maxOordeel, opbouwTeDik: opbouwTeDik, onderMagBij: onderMagBij
+    pakketDikte: pakketDikte, maxPakket: maxPakket, maxOordeel: maxOordeel, opbouwTeDik: opbouwTeDik, onderMagBij: onderMagBij,
+    maxType: maxType   // v124
   };
   window.latPakket = pakketVenster;
   window.latKiezen = kiezer;

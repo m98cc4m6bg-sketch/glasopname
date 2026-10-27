@@ -977,7 +977,8 @@ async function invoerScherm(page) { await naarInvoer(page); await wacht(300); }
     m = await page.evaluate(() => rijen.filter(r => r.merk).map(r => r.merk + ':' + GlasLatten.zijde(r)).join(' '));
     check('"latzijde hier" bij de foto: A B C E F binnen, D (los) niet', m === 'A:binnen B:binnen C:binnen D: E:binnen F:binnen', m);
     // Alle ruiten: E22 omgekeerd.
-    await page.selectOption('#tbAlleLat', 'E22|om');
+    // v124: de glaslat voor alle ruiten kies je met de latkiezer (plaatjes), geen keuzelijst meer.
+    await page.click('#tbAlleLat'); await page.click('.tb-lk-optie[data-waarde="E22|om"]');
     await page.click('.tb-alles button:has-text("Toepassen")'); /* v120: eerst een vraag */ await page.click('.melding-laag button:has-text("Toepassen")'); await wacht(500);
     m = await page.evaluate(() => rijen.filter(r => r.merk).every(r => GlasLatten.ruit(r).glaslat === 'E22' && GlasLatten.omgekeerd(r)));
     check('"Alle ruiten": glaslat E22 omgekeerd voor elke ruit', m);

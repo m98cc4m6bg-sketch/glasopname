@@ -51,7 +51,8 @@ const { chromium, devices } = require('/home/claude/node_modules/playwright');
 /* ─── de reparaties terugdraaien (proef op de som) ─────────────── */
 const MUTATIES = {
   teller: ["fotos.js", "      var telling = window.ruitenTelling ? ruitenTelling(rijenVan(f.id), 'nog geen ruiten')", "      var telling = 0 ? ruitenTelling(rijenVan(f.id), 'nog geen ruiten')"],
-  strookAanwijzen: ["fotos.js", "      if (x.bol < x.aantal && aanwijzen && aanwijzen.fotoId === fotoId &&", "      if (0 &&"],
+  // v124: de strook verbergt de regel nu bij aanwijzen op elke tekening (de regel kan op meer tekeningen staan).
+  strookAanwijzen: ["fotos.js", "      if (x.bol < x.aantal && aanwijzen &&\n", "      if (0 &&\n"],
   vrijVak: ["index.html", "  if (!bol) {\n    return `<td><input type=\"number\" inputmode=\"numeric\" class=\"aantal-input\"", "  if (true) {\n    return `<td><input type=\"number\" inputmode=\"numeric\" class=\"aantal-input\""],
   vangnet: ["index.html", "  if (r && veld === 'aantal' && aantalVolgtBolletjes(r)) {\n", "  if (0) {\n"],
   vangnetScherm: ["index.html", "    // Het vak terugzetten op wat er echt staat (het kon net getypt zijn).\n    if (window.renderTabel) renderTabel();\n", ""],
@@ -59,7 +60,8 @@ const MUTATIES = {
   menuErbij: ["fotos.js", "      (rij && !teveel ? '<button onclick=\"markErbij(\\'' + fotoId + '\\',' + index + ')\">' +", "      (0 ? '<button onclick=\"markErbij(\\'' + fotoId + '\\',' + index + ')\">' +"],
   erbijAantal: ["fotos.js", "        erbijRij.aantal = was + 1;\n", ""],
   erbijModus: ["fotos.js", "    if (aanwijzen && aanwijzen.erbij && aanwijzen.fotoId === fotoId) {", "    if (0) {"],
-  erbijStap: ["fotos.js", "        foto.markeringen.push({ rijId: erbijRij.id, x: x, y: y });\n        herbereken();", "        herbereken(); opslaan(); if (window.bewaarStap) bewaarStap('tussen');\n        foto.markeringen.push({ rijId: erbijRij.id, x: x, y: y });\n        herbereken();"],
+  // v124: tussen het aantal en het bolletje staat nu ook het verhuizen (naarBolletjes); de tussenstap blijft dezelfde proef.
+  erbijStap: ["fotos.js", "        erbijRij.aantal = was + 1;\n        foto.markeringen.push(", "        erbijRij.aantal = was + 1;\n        herbereken(); opslaan(); if (window.bewaarStap) bewaarStap('tussen');\n        foto.markeringen.push("],
   erbijBlijft: ["fotos.js", "    if (aanwijzen && (aanwijzen.erbij || !fotoVan(aanwijzen.fotoId))) aanwijzen = null;", "    if (aanwijzen && !fotoVan(aanwijzen.fotoId)) aanwijzen = null;"],
   markWegLos: ["fotos.js", "    // renderTabel (v110): zonder bolletje is het aantal weer vrij, ook als de\n    // regel in de losse tabel staat.\n    renderTabel();", "    renderFotoTabellen();"],
   menuTeveel: ["fotos.js", "    var meer = rij && st.aantal > 1 && !teveel;", "    var meer = rij && st.aantal > 1;"],
@@ -112,7 +114,8 @@ const MUTATIES = {
   oudOffline: ["index.html", "      Date.parse(rij.gewOp) >= Date.parse(oud.g)) return false;", "      Date.parse(rij.gewOp) > Date.parse(oud.g)) return false;"],
   andereBasis: ["index.html", "      if (basis && stuks != null && vorig > 0 && vorig !== basis && !o.kort) {", "      if (0) {"],
   menuOpenPlek: ["fotos.js", "      (rij && !teveel && bollenVan(rij.id) < st.aantal\n", "      (0\n"],
-  aanwijzenRijStrook: ["fotos.js", "    aanwijzen = { fotoId: fotoId, wachtrij: rij2 };\n    tekenAanwijsbalk();\n    voetBijwerken(fotoId);\n", "    aanwijzen = { fotoId: fotoId, wachtrij: rij2 };\n    tekenAanwijsbalk();\n"],
+  // v124: voetenBijwerken (alle tekeningen) in plaats van voetBijwerken(fotoId).
+  aanwijzenRijStrook: ["fotos.js", "    aanwijzen = { fotoId: fotoId, wachtrij: rij2 };\n    tekenAanwijsbalk();\n    voetenBijwerken();\n", "    aanwijzen = { fotoId: fotoId, wachtrij: rij2 };\n    tekenAanwijsbalk();\n"],
 };
 // Welke onderdelen een mutatie moeten vangen (de proef draait alleen die).
 const WAAR = {

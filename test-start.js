@@ -216,9 +216,12 @@ function maakApp(url, lsProject) {
   check('het startscherm is weg', start().hidden);
   check('het project staat in het webadres',
     w.location.hash.indexOf('11111111-1111-4111-8111-111111111111') >= 0, w.location.hash);
-  check('de projectnaam staat in de kopbalk',
-    w.document.getElementById('kopProject').textContent.indexOf('Verhoef') >= 0,
-    w.document.getElementById('kopProject').textContent);
+  // v124 (wens Jan): de naam staat in de vaste kop bij de tabbladen
+  // (#vasteProjectNaam); in de paginakop alleen nog ‹← Projecten›.
+  check('de projectnaam staat in de vaste kop',
+    w.document.getElementById('vasteProjectNaam').textContent.indexOf('Verhoef') >= 0 &&
+    !w.document.getElementById('vasteProjectNaam').hidden && !w.document.getElementById('kopProject').hidden,
+    w.document.getElementById('vasteProjectNaam').textContent);
   // De tekst van een taak staat in een invoerveld, dus in de HTML.
   check('de taken van dit project zijn geladen',
     w.document.getElementById('takenLijst').innerHTML.indexOf('Rooster nameten') >= 0,

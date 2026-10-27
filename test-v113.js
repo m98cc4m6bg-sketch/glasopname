@@ -1089,6 +1089,7 @@ function latProject(extra) {
     ({ ctx, page } = await openProject());
     await naarToebehoren(page);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen().latten)));
+    if (await page.locator('#tbStap3 .tb-reken-knop[aria-pressed="false"]').count()) { await page.click('#tbStap3 .tb-reken-knop'); await wacht(300); }   // v124: de rekenregels staan eerst dicht
     t = await tbTekst(page);
     // v120 (keuze Jan): niet meer 10 %, maar het zaagplan + 1 reserve per type.
     const groot = (t.match(/(\d+) × 4,0 m A4 glaslat/) || [])[1], klein = (t.match(/ \+ 1 reserve = (\d+) lengtes?/) || [])[1];
@@ -1102,6 +1103,7 @@ function latProject(extra) {
     ({ ctx, page } = await openProject());
     await naarToebehoren(page);
     u = await page.evaluate(() => JSON.parse(JSON.stringify(toebehorenBerekenen().latten)));
+    if (await page.locator('#tbStap3 .tb-reken-knop[aria-pressed="false"]').count()) { await page.click('#tbStap3 .tb-reken-knop'); await wacht(300); }   // v124: de rekenregels staan eerst dicht
     t = await tbTekst(page);
     check('4 latten van 2,1 m: zaagplan 4 (er past er maar één per lengte) + 1 reserve → overal 5, met uitleg',
       u[0].zaagplanStaven === 4 && u[0].staven === 5 && /^5 × 4,0 m A4/.test((t.match(/\d+ × 4,0 m A4.*/) || [''])[0]) &&
@@ -1138,7 +1140,8 @@ function latProject(extra) {
       /N30/.test(await tbRij(page, 'X').innerText()), (await tbRij(page, 'X').innerText()).replace(/\s+/g, ' '));
     // Standaardlat van het project → de chips op Invoer lopen mee (zonder het tabblad te wisselen).
     await page.click('.tb-inst-kop'); await wacht(200);
-    await page.selectOption('select[onchange*="standaardLat"]', 'A12');
+    // v124: de standaardlat kies je met de latkiezer (plaatjes), geen keuzelijst meer.
+    await page.click('#tbStdLat'); await page.click('.tb-lk-optie[data-waarde="A12"]');
     await wacht(300);
     m = [await page.evaluate(() => projectInfo.toebehoren.standaardLat), await tbRij(page, 'X').locator('td.tb-oordeel').innerText()];
     check('standaardlat A12: X (50 mm) wordt 23 + 6 + 26 = 55 → "past niet −5" in de tabel', m[0] === 'A12' && m[1] === 'past niet −5',

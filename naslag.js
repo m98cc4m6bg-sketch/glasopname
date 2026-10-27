@@ -485,6 +485,21 @@ function bewerkingKeuzeHTML(huidig, glasType, opbouw) {
 // ook als hij niet meer past: anders zie je iets anders dan er in de regel
 // zit. Zo'n waarde krijgt een eigen kopje, zodat duidelijk is waar het
 // conflict zit.
+// v124 (wens Jan): staat er een max glaspakket bij de ruit (uit de
+// maatstaat), dan komt een glastype waarvan géén enkele opbouw (met band)
+// binnen dat max past onder een eigen kopje met de reden, grijs en NIET te
+// kiezen (bijv. triple bij max 28 mm). Staat zo'n type er al, dan blijft het
+// staan en zichtbaar (niet stil veranderen); de keuzelijst wordt dan rood
+// (glasTypeTeDik, index.html).
+function glasTypeMax(rij, t) {
+  var G = window.GlasLatten;
+  if (!G || !G.maxType || !G.maxPakket(rij)) return null;
+  var lookup = typeof DATA !== 'undefined' ? DATA.lookup : null;
+  return G.maxType(rij, opbouwVoorBewerking(t, (rij && rij.glasbewerking) || ''), lookup, t);
+}
+function maxKopje(m) {
+  return 'Te dik voor max glaspakket ' + String(m.max).replace('.', ',') + ' mm (met band ' + m.bandBinnen + ' + ' + m.bandBuiten + ')';
+}
 function glasTypeKeuzeHTML(rij) {
   var huidig = (rij && rij.glasType) || '';
   var bew = (rij && rij.glasbewerking) || '';
@@ -492,11 +507,24 @@ function glasTypeKeuzeHTML(rij) {
   var html = '<option value="">— kies type —</option>';
   var alle = (typeof DATA !== 'undefined' && DATA.opbouw_per_type)
     ? Object.keys(DATA.opbouw_per_type) : [];
+  var dik = [], kop = '';
   alle.forEach(function (t) {
     if (mag.indexOf(t) < 0) return;
+    var m = glasTypeMax(rij, t);
+    if (m && !m.kan) { dik.push([t, m]); kop = maxKopje(m); return; }
     html += '<option value="' + naslagEsc(t) + '"' +
             (t === huidig ? ' selected' : '') + '>' + naslagEsc(t) + '</option>';
   });
+  if (dik.length) {
+    // Op een iPad/iPhone negeert Safari de kleur van een optie; het kopje en
+    // "disabled" (grijs, niet te kiezen) werken daar wel.
+    html += '<optgroup label="' + naslagEsc(kop) + '">' + dik.map(function (x) {
+      var t = x[0], m = x[1];
+      var reden = m.dunste != null ? ' \u00b7 dunste ' + String(m.dunste).replace('.', ',') + ' mm' : '';
+      return '<option value="' + naslagEsc(t) + '" class="niet-lever"' + (t === huidig ? ' selected' : ' disabled') + '>' +
+             naslagEsc(t + reden) + '</option>';
+    }).join('') + '</optgroup>';
+  }
   if (huidig && mag.indexOf(huidig) < 0) {
     html += '<optgroup label="Huidig · past niet bij de bewerking">' +
             '<option value="' + naslagEsc(huidig) + '" selected class="niet-lever">' +
@@ -527,7 +555,9 @@ function opbouwKeuzeHTML(rij) {
             (o === huidig ? ' selected' : '') + '>' + naslagEsc(o) + '</option>';
   });
   if (dik.length) {
-    html += '<optgroup label="Te dik voor max glaspakket ' + naslagEsc(String(G.maxPakket(rij)).replace('.', ',')) + ' mm (met band)">' +
+    // v124: met de band erbij in het kopje ("met band 3 + 3"), zoals bij het glastype.
+    var mt = G.maxType ? G.maxType(rij, [], null, type) : null;
+    html += '<optgroup label="' + naslagEsc(mt ? maxKopje(mt) : 'Te dik voor max glaspakket ' + String(G.maxPakket(rij)).replace('.', ',') + ' mm (met band)') + '">' +
       dik.map(function (o) {
         return '<option value="' + naslagEsc(o) + '"' + (o === huidig ? ' selected' : '') + ' class="niet-lever">' + naslagEsc(o) + '</option>';
       }).join('') + '</optgroup>';
@@ -1153,7 +1183,7 @@ if (typeof module !== 'undefined' && module.exports) {
     CATALOGUS, glasbewerkingLijst, BEWERKING_OUD, bewerkingBijwerken, NASLAG_TABELLEN,
     bladDiktes, bewerkingDiktes, bewerkingKan, opbouwVoorBewerking,
     glasTypesVoorBewerking, regelStrijdig, bewerkingKeuzeHTML,
-    glasTypeKeuzeHTML, opbouwKeuzeHTML, strijdigUitleg, STRIJDIG_NOOT,
+    glasTypeKeuzeHTML, opbouwKeuzeHTML, glasTypeMax, strijdigUitleg, STRIJDIG_NOOT,
     BEWERKING_STANDAARD, BEWERKING_OVERIG,
     DUCO_ROOSTERS, DUCO_BRON, ducoTabel, ROOSTER_SCHETS, roosterSchets, roosterFotoFout,
     ROEDE_BREEDTES, roedeSoort, roedeBreedtesVoor,

@@ -1122,6 +1122,7 @@ const vink = async (page, mk) => { await tbR(page, mk).locator('label.tb-kies in
     v = u.stukken.find(s => s.rol === 'onder');
     check('D: een zelf gekozen N45 is ook recht', v && v.type === 'N45' && v.recht === true, JSON.stringify(u.stukken));
     // De uitleg onder het totaal.
+    if (await page.locator('#tbStap3 .tb-reken-knop[aria-pressed="false"]').count()) { await page.click('#tbStap3 .tb-reken-knop'); await wacht(300); }   // v124: de rekenregels staan eerst dicht
     t = await tbTekst(page);
     check('uitleg bij de neuslat: "20 mm per neuslat: recht afgekort … scharniersponning"',
       /\d+ (lat,|latten, samen) [\d,]+ m \(incl\. 20 mm per neuslat: recht afgekort, langer dan de sponning voor de scharniersponning\)/.test(t),

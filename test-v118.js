@@ -925,7 +925,8 @@ const GEVEL118 = p => { LATTEN_GEVEL(p); p.data.rijen.find(r => r.merk === 'D').
       };
     });
     check('"Voor het hele project (alle ruiten)" staat los, boven de tabellen, met "Toepassen op alle ruiten"', m.blok && !m.blokInTabel && m.blokVoor &&
-      /Voor het hele project \(alle ruiten\)/.test(m.blokTekst) && m.knop.indexOf('Toepassen op alle ruiten') >= 0, JSON.stringify(m).slice(0, 300));
+      /Alle ruiten tegelijk wijzigen/.test(m.blokTekst)   // v124: kop van het blok (was "Voor het hele project (alle ruiten)"; nu stap 1 "Voor het hele project")
+      && m.knop.indexOf('Toepassen op alle ruiten') >= 0, JSON.stringify(m).slice(0, 300));
     check('twee tabellen, zoals op Invoer: de foto "Voorgevel" (A B C E F) en de losse regels (D)', m.secties.length === 2 &&
       m.secties[0].titel === 'Voorgevel' && m.secties[0].merken.join('') === 'ABCEF' && /Losse regels/.test(m.secties[1].titel) &&
       m.secties[1].merken.join('') === 'D', JSON.stringify(m.secties.map(s => [s.titel, s.merken.join('')])));
@@ -1131,10 +1132,10 @@ const GEVEL118 = p => { LATTEN_GEVEL(p); p.data.rijen.find(r => r.merk === 'D').
     await kruis(page, '.fv-groot .lat-groot-inhoud', 'foto groot', async () => !(await page.locator('.fv-groot').count()));
     // Toebehoren: tekening groot, zaagplan, instellingen, venster.
     await naarToebehoren(page);
-    await page.selectOption('#tbAlleLat', 'E22|om'); await wacht(300);
+    await page.click('#tbAlleLat'); await page.click('.tb-lk-optie[data-waarde="E22|om"]'); await wacht(300);   // v124: latkiezer
     await page.click('#tbAlleVoorbeeld'); await wacht(300);
     await kruis(page, '.lat-groot .lat-groot-inhoud', 'tekening van de lat groot', async () => !(await page.locator('.lat-groot').count()));
-    await page.selectOption('#tbAlleLat', '-'); await wacht(200);
+    await page.click('#tbAlleLat'); await page.click('.tb-lk-optie[data-waarde="-"]'); await wacht(200);   // v124: latkiezer
     const zaag = page.locator('details.tb-zaag').first();
     await zaag.locator('summary').click(); await wacht(300);
     await kruis(page, 'details.tb-zaag[open]', 'zaagplan', async () => !(await zaag.evaluate(d => d.open)));

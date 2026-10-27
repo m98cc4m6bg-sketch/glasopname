@@ -466,6 +466,10 @@
         // v123: dezelfde nummercontrole als bij het laden (de database weigert
         // anders ook dit aparte project, en dan blijft het hier hangen).
         if (window.glasVeiligeIdsVan) { try { glasVeiligeIdsVan(d); } catch (e) {} }
+        // v124 (script 30): het merkteken "apart bewaard". Dan neemt de
+        // database het ook aan van wie geen nieuw project mag maken (keuze:
+        // apart bewaren moet altijd kunnen, anders raakt er werk kwijt).
+        d._apart = true;
         var t = new Date(r.op || Date.now());
         var naam = (d.project || '(naamloos)') + ' (apart bewaard ' + tweeCijfers(t.getDate()) + '-' +
                    tweeCijfers(t.getMonth() + 1) + ' ' + tweeCijfers(t.getHours()) + ':' +
@@ -571,6 +575,69 @@
   var apartLoopt = null;
   // alsNiets: de melding als er niets apart hoefde (het werk was gelijk aan
   // de server), bijvoorbeeld "julian heeft dit project overgenomen" (v107).
+  // v124 (script 30, reparatie A5): de database weigerde een bestelling, een
+  // intrekking of het ontgrendelen (geen recht; de beheerder zette het net
+  // uit). Niet het hele werk apart: alleen het bestel-deel (bestellingen,
+  // besteld, status, slot) terug naar de stand van de server, en de rest
+  // opslaan zoals altijd.
+  var rechtenHersteld = {};
+  function bestelDeelTerug(waarom) {
+    var pid = projectId;
+    vuil = true;
+    try { localStorage.setItem(LS_PENDING, '1'); } catch (e) {}
+    return sb.from('projecten').select('data,status').eq('id', pid).maybeSingle().then(function (res) {
+      if (pid !== projectId) return;
+      var server = res && !res.error && res.data;
+      if (!server) {
+        // Geen stand van de server: dan toch apart (niets weg).
+        return zonderUndoMelding(function () {
+          return apartEnLaden('rechten', waarom + ' Wat je deed, kon daarom niet in het project. Het is niet weg: ' +
+            'het staat apart in de projectenlijst.');
+        });
+      }
+      var si = (server.data && typeof server.data.info === 'object' && server.data.info) || {};
+      if (!projectInfo || typeof projectInfo !== 'object') projectInfo = {};
+      ['bestellingen', 'besteld', 'status', 'slot'].forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(si, k)) projectInfo[k] = JSON.parse(JSON.stringify(si[k]));
+        else delete projectInfo[k];
+      });
+      statusVanServer(server);
+      if (window.renderProject) try { renderProject(); } catch (e) {}
+      if (window.slotToepassen) try { slotToepassen(); } catch (e) {}
+      if (window.renderBestellijst) try { renderBestellijst(); } catch (e) {}
+      opslaanLokaal();
+      vuil = true;
+      plan();
+      if (window.appMelding) {
+        appMelding(zonderSpatie(waarom) + ' Dat deel is daarom niet vastgelegd en staat weer zoals op de server; de rest ' +
+          'van je werk wordt gewoon opgeslagen. Ging er al een bestellijst naar de leverancier? Laat een collega ' +
+          'met bestelrecht hem vastleggen.', { kop: 'Niet vastgelegd', soort: 'letop' });
+      }
+    }, function () {
+      vuil = true;
+      setTimeout(plan, 30000);
+    });
+  }
+  function zonderSpatie(t) { return String(t || '').replace(/\s+$/, ''); }
+
+  // De melding "↶ kan niet verder terug: op een ander apparaat gewijzigd"
+  // (undo.js) klopt niet als de database om de rechten weigerde: dan is er
+  // niets op een ander apparaat gebeurd. Zolang de stand van de server erop
+  // komt, die ene melding niet tonen.
+  function zonderUndoMelding(stap) {
+    var orig = window.kortBericht;
+    if (typeof orig !== 'function') return stap();
+    var filter = function (t) {
+      if (/^↶ kan niet verder terug/.test(String(t || ''))) return;
+      return orig.apply(this, arguments);
+    };
+    window.kortBericht = filter;
+    var terug = function () { if (window.kortBericht === filter) window.kortBericht = orig; };
+    var uit;
+    try { uit = stap(); } catch (e) { terug(); throw e; }
+    return Promise.resolve(uit).then(function (x) { terug(); return x; }, function (e) { terug(); throw e; });
+  }
+
   function apartEnLaden(reden, melding, alsNiets) {
     if (apartLoopt) return apartLoopt;
     apartLoopt = apartEnLadenNu(reden, melding, alsNiets);
@@ -650,7 +717,9 @@
       laatsteJson = JSON.stringify(huidigeStaat());
       statusOpgeslagen();
       geladenOk = true;
-      return bestellingenAlsnog(pid, eigenInfo).then(klaar);
+      // v124: weigerde de database om de rechten (bijv. geen bestelrecht),
+      // dan ook de bestelling niet alsnog proberen: die staat apart.
+      return (reden === 'rechten' ? Promise.resolve() : bestellingenAlsnog(pid, eigenInfo)).then(klaar);
     }
     return Promise.resolve(klaar());
   }
@@ -694,6 +763,13 @@
       throw new Error((r && r.error && r.error.message) || 'onbekend');
     }).catch(function (e) {
       console.warn('[cloud] bestelling alsnog in het project zetten mislukt', e);
+      // v124 (script 30): dit account mag geen bestelling vastleggen.
+      if (/Geen recht/.test(String((e && e.message) || '')) && window.appFout) {
+        appFout('LET OP: je bestelling (' + (nieuw || 'Ja, verstuurd') + ') staat alleen in het aparte project: je ' +
+          'account mag geen bestelling vastleggen. Laat een collega met bestelrecht hem vastleggen (niet nog eens naar ' +
+          'de leverancier sturen).', { kop: 'Bestelling niet in het project' });
+        return;
+      }
       if (window.appFout) {
         appFout('LET OP: je bestelling (' + (nieuw || 'Ja, verstuurd') + ') staat nog niet in het project, alleen in ' +
           'het aparte project. Zeg het de collega die het project nu bewerkt, anders wordt er dubbel besteld.',
@@ -1018,6 +1094,30 @@
           spoorKolommen = false;
           vuil = true;
           plan();
+          return;
+        }
+        // v124 (script 30): dit mag dit account niet (bijv. een bestelling
+        // zonder bestelrecht, of de werkvloer). Niet eindeloos opnieuw
+        // proberen: het werk gaat apart (niets weg), de stand van de server
+        // komt op het scherm.
+        if (/^Geen recht:/.test(String(res.error.message || ''))) {
+          if (window.glasRechtenVernieuwen) glasRechtenVernieuwen();
+          var waarom = String(res.error.message).replace(/^Geen recht:\s*/, '').replace(/\s*Je werk blijft.*$/, '');
+          waarom = waarom.charAt(0).toUpperCase() + waarom.slice(1);
+          // v124 (reparatie A5): alleen de bestelling (of het ontgrendelen)
+          // mocht niet. Dan alleen dat deel terug naar de stand van de server
+          // en de rest gewoon opslaan; één keer per minuut per project, gaat
+          // het daarna nog mis, dan apart zoals hieronder.
+          var vorigeHerstel = rechtenHersteld[projectId] || 0;
+          if (/bestelling vastleggen of intrekken|niet ontgrendelen/.test(waarom) && Date.now() - vorigeHerstel > 60000) {
+            rechtenHersteld[projectId] = Date.now();
+            bestelDeelTerug(waarom);
+            return;
+          }
+          zonderUndoMelding(function () {
+            return apartEnLaden('rechten', waarom +
+              ' Wat je deed, kon daarom niet in het project. Het is niet weg: het staat apart in de projectenlijst.');
+          });
           return;
         }
         // Een ander heeft het project (v106): de database weigert. Het werk
@@ -2181,6 +2281,10 @@
   function vanElders(rij) {
     if (!rij || !rij.data) return;
     nieuwereVersieGezien(rij.data);
+    // v124 (script 30): een foto die de werkvloer toevoegde (of die de
+    // database na onze opslag terugzette) meteen ook hier, ook als dit
+    // onze eigen opslag is die terugkaatst of er hier werk openstaat.
+    if (rij.id === projectId && window.glasErbijFotosErbij) glasErbijFotosErbij(rij.data);
     // Een collega heeft het project naar de prullenbak verplaatst. Geen
     // eigen werk open: netjes loslaten. Wel eigen werk open: dat gaat
     // gewoon nog omhoog (de rij bestaat nog), en we zeggen waar het
@@ -2223,6 +2327,8 @@
     // uitzondering: die neemt dit apparaat meteen over, anders zou zijn
     // volgende opslag een bestelling van een collega wissen (v104).
     bestellingenErbij(rij.data, rij.status);
+    // v124: undo.js herkent aan de knop "… versie laden" dat er een nieuwere
+    // stand klaarstaat (dan geen ↶). Knoptekst veranderen = ook daar.
     toonMelding('Een collega heeft dit project gewijzigd.' +
       (vuil ? ' Jouw wijzigingen staan nog open en overschrijven die van hem zodra ze omhoog gaan.' : ''),
       'Hun versie laden', async function () {
@@ -2777,6 +2883,8 @@
       if (getoond) return;
       getoond = true;
       gebruiker = null;
+      // v124: ook hier is de gebruiker uitgelogd: de ↶-stappen weg (undo.js).
+      if (window.undoWisAlles) { try { undoWisAlles(); } catch (e) {} }
       toonLogin(twijfel
         ? 'Uitgelogd. Let op: je laatste poging kwam misschien toch aan. Lukt inloggen met je oude wachtwoord ' +
           'niet, probeer dan het nieuwe.'
@@ -2824,6 +2932,10 @@
   // iemand op dit apparaat inlogt. De keuzelijsten blijven ook (geen
   // klantgegevens).
   function wisKopieNaUitloggen() {
+    // v124: de bewaarde ↶-stappen (IndexedDB, undo.js) altijd weg: ze
+    // bevatten klantgegevens en zijn geen werk (dat staat op de server of
+    // apart bewaard, zie magVerlaten).
+    if (window.undoWisAlles) { try { undoWisAlles(); } catch (e) {} }
     if (openstaandWerk()) return;          // voor de zekerheid: nooit werk weggooien
     geladen = false;
     laatsteJson = null;
@@ -3012,8 +3124,36 @@
     return keus === 'door';
   }
 
+  // v124 (script 30): foto's van de werkvloer die nog niet in het project
+  // staan (rechten.js). Ze horen bij dit account en gaan pas omhoog als
+  // hetzelfde account weer inlogt op dit apparaat. Bij uitloggen eerst
+  // proberen, en anders zeggen.
+  async function erbijKlaar(wat) {
+    if (wat !== 'uitloggen' || !window.glasErbijWachtend) return true;
+    var n = 0;
+    try { n = glasErbijWachtend(); } catch (e) { n = 0; }
+    if (!n) return true;
+    if (navigator.onLine && window.glasErbijVersturen) {
+      try { await Promise.race([glasErbijVersturen(), wacht(8000)]); } catch (e) {}
+      try { n = glasErbijWachtend(); } catch (e) { n = 0; }
+      if (!n) return true;
+    }
+    var keus = await appKeuze((n === 1 ? 'Er staat nog 1 foto' : 'Er staan nog ' + n + ' foto\'s') +
+      ' van jou op dit apparaat die nog niet in het project ' + (n === 1 ? 'staat' : 'staan') +
+      ' (geen bereik, of de server nam ' + (n === 1 ? 'hem' : 'ze') + ' nog niet aan). Log je nu uit, dan ' +
+      (n === 1 ? 'blijft hij hier staan en gaat hij' : 'blijven ze hier staan en gaan ze') +
+      ' pas omhoog als jij weer op dit apparaat inlogt.',
+      [{ tekst: 'Annuleren', waarde: null },
+       { tekst: 'Opnieuw proberen', waarde: 'opnieuw' },
+       { tekst: 'Toch uitloggen', waarde: 'door', soort: 'btn-danger' }],
+      { kop: 'Foto\'s nog niet verstuurd' });
+    if (keus === 'opnieuw') return erbijKlaar(wat);
+    return keus === 'door';
+  }
+
   async function magVerlaten(wat) {
     if (!await fotoKlaar(wat)) return false;
+    if (!await erbijKlaar(wat)) return false;
     if (!openstaandWerk()) return true;
     // Eerst gewoon proberen alsnog op te slaan.
     if (navigator.onLine) {
@@ -3179,28 +3319,71 @@
   // `list` geeft een submap terug als een regel zonder id; die wordt apart
   // leeggemaakt. Zonder dit bleven alle originelen van een verwijderd
   // project in Storage staan — en die zijn het grootst.
-  function fotosOpruimen(id, ronde, diepte) {
+  // v124 (script 30): alleen wat niemand meer noemt. Een apart bewaarde
+  // kopie van dit project (ook een redding die nog op een apparaat staat)
+  // noemt dezelfde foto's, in deze map; die blijven staan
+  // (glasWachtrij.nogNodig). Weet de app dat niet zeker, dan blijft alles
+  // staan: liever een foto te veel in de opslag (Beheer ruimt die later
+  // op) dan een kapotte foto in een kopie. `bewaard` = hoeveel bestanden in
+  // deze map bleven staan; die slaat de volgende ronde over (de lijst is op
+  // naam, en wat bleef staan, komt vooraan).
+  function nogNodigVan(paden) {
+    if (!paden.length) return Promise.resolve({});
+    // Zonder wachtrij.js (alleen in een kale proefopstelling): zoals v123.
+    if (!window.glasWachtrij || typeof glasWachtrij.nogNodig !== 'function') return Promise.resolve({});
+    // Dit apparaat verwijdert zelf: alleen een redding hier telt mee (niet
+    // de stand van het project dat weg moet, op het scherm of in de wachtrij).
+    return glasWachtrij.nogNodig(paden, { alleenReddingen: true });
+  }
+  function fotosOpruimen(id, ronde, diepte, bewaard) {
     if (!sb) return Promise.resolve();
     ronde = ronde || 1;
     diepte = diepte || 0;
-    return sb.storage.from('projectfotos').list(id, { limit: 500 })
+    bewaard = bewaard || 0;
+    return sb.storage.from('projectfotos').list(id, { limit: 500, offset: bewaard })
       .then(function (res) {
         if (res.error || !res.data || !res.data.length) return null;
         var bestanden = res.data.filter(function (f) { return f && f.id !== null; });
         var mappen = res.data.filter(function (f) { return f && f.id === null && f.name; });
         var paden = bestanden.map(function (f) { return id + '/' + f.name; });
-        var weg = paden.length ? sb.storage.from('projectfotos').remove(paden) : Promise.resolve(null);
-        return weg.then(function (uit) {
+        var houden = paden.length + mappen.length;
+        return nogNodigVan(paden).then(function (nodig) {
+          if (!nodig) return null;
+          var weg = paden.filter(function (p) { return !nodig[p]; });
+          houden = paden.length - weg.length + mappen.length;
+          return weg.length ? sb.storage.from('projectfotos').remove(weg) : null;
+        }).then(function (uit) {
           if (diepte >= 3) return uit;
           return mappen.reduce(function (keten, m) {
             return keten.then(function () { return fotosOpruimen(id + '/' + m.name, 1, diepte + 1); });
           }, Promise.resolve()).then(function () { return uit; });
         }).then(function (uit) {
-          if (paden.length === 500 && ronde < 20) return fotosOpruimen(id, ronde + 1, diepte);
+          if (res.data.length === 500 && ronde < 20) return fotosOpruimen(id, ronde + 1, diepte, bewaard + houden);
           return uit;
         });
       })
       .catch(function (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); });
+  }
+
+  // v124: een apart bewaarde kopie noemt foto's in de map van zijn
+  // origineel. Gaat de kopie definitief weg, dan die foto's ook opruimen,
+  // als niemand ze nog noemt (meestal is het origineel dan al weg).
+  function paddenBuitenMap(data, id) {
+    var uit = {};
+    try {
+      var t = JSON.stringify(data || {});
+      var re = /"([0-9a-fA-F-]{36}\/[^"\\]{1,200})"/g, m;
+      while ((m = re.exec(t))) { if (m[1].indexOf(id + '/') !== 0) uit[m[1]] = true; }
+    } catch (e) {}
+    return Object.keys(uit);
+  }
+  function fotosElders(paden) {
+    if (!paden.length || !sb) return Promise.resolve();
+    return nogNodigVan(paden).then(function (nodig) {
+      if (!nodig) return;
+      var weg = paden.filter(function (p) { return !nodig[p]; });
+      if (weg.length) return sb.storage.from('projectfotos').remove(weg);
+    }).catch(function (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); });
   }
 
   // Definitief: de rij, en daarmee taken en logboek, en daarna de foto's.
@@ -3229,6 +3412,12 @@
     // koppeling met het verwijderde project vast (v85).
     var gelukt = false;
     var melding = '';
+    var elders = [];
+    try {
+      // v124: alleen voor een apart bewaarde kopie (zie paddenBuitenMap).
+      var kop = await sb.from('projecten').select('data').eq('id', id).maybeSingle();
+      if (kop && !kop.error && kop.data && kop.data.data && kop.data.data._apart) elders = paddenBuitenMap(kop.data.data, id);
+    } catch (e) {}
     try {
       var wegQ = sb.from('projecten').delete().eq('id', id);
       if (alleenUitPrullenbak) wegQ = wegQ.not('verwijderd_op', 'is', null);
@@ -3258,9 +3447,10 @@
     // niemand kan er nog bij.
     if (gelukt) {
       try { await fotosOpruimen(id); } catch (e) { console.warn('[cloud] foto\'s opruimen mislukt', e); }
+      try { await fotosElders(elders); } catch (e) {}
       // Wat van dit project nog op dit apparaat wachtte, hoeft niet meer
       // omhoog (v93).
-      if (window.glasWachtrij) { try { await glasWachtrij.vergeetProject(id); } catch (e) {} }
+      if (window.glasWachtrij) { try { await glasWachtrij.vergeetProject(id, { alleenReddingen: true }); } catch (e) {} }
     }
 
     if (lijst) lijst.style.opacity = '';
@@ -3414,6 +3604,9 @@
     return true;
   };
 
+  // v124: de prullenbak legen vanuit Beheer (één vraag vooraf, daar).
+  window.glasDefinitiefZonderVraag = function (id) { return definitiefVerwijderen(id, null, true); };
+
   window.glasNuDefinitief = function (id, naam) {
     return definitiefVerwijderen(id, 'Project ‹' + (naam || 'naamloos') + '› nu definitief verwijderen? ' +
       'Dit kan niet ongedaan gemaakt worden; de foto\'s en het logboek gaan ook weg.');
@@ -3543,8 +3736,49 @@
     sessieCheck().then(function (s) {
       if (s === 'weg') { sessieKwijt(); return; }
       if (s === 'onbekend') { mislukt('sessie nagaan'); return; }
-      projectEchtWeg();
+      // v124 (script 30, A6): geblokkeerd door de beheerder? Dan ziet de
+      // database het project niet meer, maar het bestaat nog wel.
+      geblokkeerdNagaan().then(function (geblokkeerd) {
+        if (geblokkeerd) projectGeblokkeerd(); else projectEchtWeg();
+      });
     });
+  }
+
+  function geblokkeerdNagaan() {
+    if (!sb || typeof sb.rpc !== 'function') return Promise.resolve(false);
+    return Promise.resolve(sb.rpc('glas_mijn_status')).then(function (res) {
+      return !!(res && !res.error && res.data && res.data.actief === false);
+    }, function () { return false; });
+  }
+
+  // Het werk dat nog niet op de server stond, apart op dit apparaat (zoals
+  // bij "project bestaat niet meer"); het gaat omhoog als apart project
+  // zodra dit account weer toegang heeft (reddingenUploaden).
+  function projectGeblokkeerd() {
+    status('⚠ Account geblokkeerd — je werk staat op dit apparaat', '#a3231a');
+    var openWerk = vuil || localStorage.getItem(LS_PENDING) === '1';
+    if (openWerk && !reddingBewaar(huidigeStaat(), 'account geblokkeerd')) {
+      if (window.appFout) {
+        appFout('Je account is geblokkeerd door de beheerder, en dit apparaat kan je werk niet apart bewaren ' +
+                '(geheugen vol). Het staat nog op het scherm: sluit de app niet en vraag de beheerder.', { kop: 'Account geblokkeerd' });
+      }
+      return;
+    }
+    try { localStorage.removeItem(LS_PENDING); } catch (e) {}
+    vuil = false;
+    werkTeRedden = false;
+    projectId = null;
+    window.glasProjectId = null;
+    try { localStorage.removeItem(LS_PROJECT); } catch (e) {}
+    zetHash(null);
+    toonStart();
+    if (window.glasMijnLaden) glasMijnLaden();
+    if (wegGemeld) return;
+    wegGemeld = true;
+    if (window.appMelding) {
+      appMelding('Je account is geblokkeerd door de beheerder. Je werk staat veilig apart op dit apparaat en gaat ' +
+        'omhoog zodra je weer toegang hebt.', { kop: 'Account geblokkeerd', soort: 'letop' });
+    }
   }
 
   function projectEchtWeg() {

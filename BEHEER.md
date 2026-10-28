@@ -1,8 +1,9 @@
 # Glasopname — beheerhandleiding
 
 *Voor wie de app draaiende houdt: Jan, of wie het van hem overneemt.
-Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 27 oktober 2026,
-bij v125 (script 31: de naam van een project in de prullenbak is vrij, de
+Gewone taal, geen programmeerkennis nodig. Bijgewerkt op 28 oktober 2026:
+nieuwe versies komen via een pull request, met tests op GitHub (§2, §12).
+Daarvoor 27 oktober 2026, bij v125 (script 31: de naam van een project in de prullenbak is vrij, de
 werkvloer zet de leverfoto en vinkt taken zonder eigenaar af: §3, §4, §10).
 Daarvoor v124 (rollen en het tabblad Beheer, script 30: §3, §4, §8, §9; "Onlangs
 verwijderd": §9). Daarvoor v123: script 28 en 29, "Apart bewaren en
@@ -19,7 +20,7 @@ vaste afspraken voor Claude in `CLAUDE.md`.
 
 **Deze documenten (en `STATUS.md`) worden bij elke nieuwe versie bijgewerkt** (afspraak
 met Claude, 17 oktober 2026). Wat er veranderde, staat per versie in
-de nota per versie (`WIJZIGINGEN-vNN.md`, sinds v111 in de zip "niet-in-repo", niet meer in de repo) onder "Handleidingen". Klopt er iets niet meer met de
+de nota per versie (`WIJZIGINGEN-vNN.md`, in de projectkennis op claude.ai; sinds v111 niet meer in de repo) onder "Handleidingen". Klopt er iets niet meer met de
 app, meld het: dan is dat een fout, net als een fout in de app.
 
 ---
@@ -68,49 +69,54 @@ dienst? Zie [§3.3](#33-iemand-gaat-uit-dienst).
 openbaar zijn. **Nooit** een `service_role`- of `sb_secret_…`-sleutel in de
 repo zetten: daarmee kan iedereen alles.
 
-## 2. Een nieuwe versie zetten
+## 2. Een nieuwe versie zetten (via een pull request)
 
-1. **Staat er een SQL-script bij?** Dat eerst: Supabase → SQL Editor →
-   script plakken → Run. Pas daarna de bestanden.
-2. Pak de zip uit. Open de map `glasopname`, druk op **Cmd+Shift+.** (dan zie
-   je ook de verborgen bestanden), selecteer alles (Cmd+A) en sleep het naar
-   je repomap. Kies overal **Vervang**. Let op: een **map** vervangen haalt
-   weg wat niet in de zip zit. Zette je zelf een foto in `latten/`,
-   `catalogus/` of `roosters/`, zeg dat dan vooraf tegen Claude, zodat hij
-   in de zip komt.
-3. Moeten er bestanden **uit** de repo (dat staat in `LEES-MIJ-EERST-vNN.md`),
-   gooi die dan zelf weg in de repomap: slepen kan alleen toevoegen en
-   vervangen, niet weghalen.
-4. Kijk in **GitHub Desktop** of de bestanden uit `LEES-MIJ-EERST-vNN.md`
-   erbij staan (weggegooide staan er rood bij). Commit en push.
-   Staat `.gitignore` er niet bij en mist daarin de regel `Claude outputs/`
-   (verborgen bestanden komen bij slepen vaak niet mee): menubalk bovenaan
-   het scherm → **Repository → Repository Settings… → Ignored Files**, de
-   regel `Claude outputs/` onderaan, **Save**, en meecommitten.
-5. Zeg tegen Claude dat je gepusht hebt: die kijkt de repo na tegen het
-   pakket. (Bij v106 ontbraken vier bestanden; daardoor deed een hele functie
-   niets.)
-6. De apparaten krijgen de nieuwe versie vanzelf: de app zoekt ernaar en
+*Sinds 28-10-2026 (jouw keuze van 27-10): geen zips meer. Claude zet een
+nieuwe versie op een eigen **tak** (een zijspoor naast `main`) en opent een
+**pull request**: een voorstel "zet deze wijzigingen in `main`". Jij leest,
+probeert en klikt op ‹Merge›. Pas dan staat het live. Hoe GitHub dat bewaakt:
+§12.*
+
+1. **Claude meldt de pull request** (een link als
+   `github.com/m98cc4m6bg-sketch/glasopname/pull/7`). Open hem.
+2. **Staat er bovenaan een SQL-script?** Dat eerst: Supabase → SQL Editor →
+   script plakken → Run. Pas daarna mergen. (Andersom kan de nieuwe app iets
+   vragen wat de database nog niet kent.)
+3. **Kijk naar de controle onderaan** de pull request:
+   - groen vinkje ✓ *Snelle kern*: de tests zijn op GitHub goed gegaan;
+   - geel bolletje: ze lopen nog (±3–5 min), even wachten;
+   - rood kruis ✗: niet mergen. Zeg het tegen Claude (in een nieuw gesprek,
+     met de link); de knop ‹Merge› blijft dan ook grijs.
+4. **Lees** de beschrijving: wat er veranderde, hoe je het zelf controleert,
+   wat niet getest is. Het tabblad **Files changed** laat per bestand zien
+   wat er anders is (groen erbij, rood eraf); dat hoef je niet regel voor
+   regel te lezen.
+5. Klik op **‹Merge pull request›** → **‹Confirm merge›**. De tak wordt
+   daarna vanzelf weggehaald (instelling "Automatically delete head
+   branches"). GitHub Pages zet de nieuwe versie binnen een paar minuten
+   live (tabblad **Actions** → *pages build and deployment*).
+6. **Op je Mac**: GitHub Desktop → **Fetch origin** → **Pull origin**, zodat
+   je map weer gelijk is. Zelf niets committen op `main`: dat kan niet meer
+   (§12).
+7. De apparaten krijgen de nieuwe versie vanzelf: de app zoekt ernaar en
    werkt eerst het open werk weg naar de server. Op een iPhone/iPad met de app
    op het beginscherm kan dat even duren; de knop **↻** (startscherm) of
    **↻ Bijwerken** (in een project) versnelt het.
+8. Sluit het gesprek met Claude; de volgende wens begint in een nieuw
+   gesprek.
 
 **Nooit** `config.js` vervangen, en **nooit** `test-sql.sql` in Supabase
 draaien (dat script begint met alles weggooien; het is alleen voor de tests).
 
-**Twee zips** (sinds v109, jouw wens): `glasopname-vNN.zip` is precies wat
-in de repo hoort. `glasopname-vNN-niet-in-repo.zip` hoort er bewust **niet**
-in: de handover (met de zwakke plekken in de beveiliging; de repo is
-openbaar) en een archief van bestanden die uit de repo gehaald zijn. Bewaar
-die op een eigen plek, bijvoorbeeld in OneDrive.
+Wat niet in de openbare repo hoort (de nota per versie, beslissingen,
+bugboek, beveiliging, terugdraaiscripts) zet Claude in de **projectkennis**
+op claude.ai, niet meer in een zip.
 
-*Bijgewerkt 27-10-2026:* de handover is gesplitst in `claude/BESLISSINGEN.md`,
-`claude/BUGBOEK.md` en `claude/BEVEILIGING.md` in de projectkennis op
-claude.ai; wat daar weg kon, staat in het archief
-`glasopname-archief-projectkennis-2026-10-27.zip`. Je koos op 27-10 voor
-opleveren via een **pull request** in plaats van zips (Claude zet een tak
-klaar, jij klikt op GitHub ‹Merge›); hoe dat precies gaat, komt hier bij de
-volgende stap (GitHub-werkwijze).
+**Zelf een kleinigheid wijzigen** (een foto in `latten/`, een tikfout): in
+GitHub Desktop eerst **Current Branch → New Branch** (naam bv.
+`jan/latfoto-c1`), daar committen, **Publish branch**, dan **Create Pull
+Request**. Op github.com met het potloodje: GitHub stelt zelf voor om een
+nieuwe tak en een pull request te maken; dat is goed.
 
 ### Een vorige versie terugzetten
 
@@ -120,10 +126,11 @@ kwijt). Zet je een oude versie terug, dan loopt het opslaan in die
 projecten vast ("Verouderde app-versie"). Vraag Claude daarom liever om een
 herstelversie met een **hoger** nummer.
 
-Moet het toch meteen: GitHub Desktop → **History** → rechtsklik op de
-commit van de versie die problemen geeft → **Revert changes in commit** →
-push, en vraag Claude dezelfde dag om een nieuwe versie. Een SQL-script
-wordt met een revert **niet** teruggedraaid.
+Moet het toch meteen: open op github.com de pull request die de problemen
+gaf (tabblad **Pull requests** → **Closed**) → knop **‹Revert›** onderaan.
+GitHub maakt dan een nieuwe pull request die alles terugdraait; wacht op het
+groene vinkje en merge die. Vraag Claude dezelfde dag om een nieuwe versie.
+Een SQL-script wordt met een revert **niet** teruggedraaid.
 
 ## 3. Gebruikers
 
@@ -441,7 +448,8 @@ alleen een controlepagina ("Challenge Validation"). Daarom is
    `latten/<id>.jpg` (bijv. `latten/A4.jpg`, ±600 px breed), en vraag
    Claude de foto bij de volgende versie in de offline-lijst te zetten
    (`LAT_FOTOS` in `sw.js`).
-3. **Commit `latten/` mee** in GitHub Desktop. Zonder versie omhoog vraagt
+3. **Commit `latten/` mee** in GitHub Desktop, op een eigen tak met een
+   pull request (§2, "Zelf een kleinigheid wijzigen"). Zonder versie omhoog vraagt
    de app een ontbrekende foto vanzelf opnieuw; offline zie je hem pas na
    de volgende versie.
 4. **Een maat anders?** Pas `latten.js` aan (en `GLASLATTEN.md`), of vraag
@@ -972,3 +980,67 @@ Daarna:
 - Een eigen domein voor de app (in plaats van `github.io`)? Dan eerst Claude
   vragen: daar horen voorzorgen bij tegen domeinovername, en de Site URL in
   Supabase moet mee.
+
+## 12. GitHub: pull requests, tests en de bescherming van `main`
+
+*Ingericht 28-10-2026 (stap 2 van de strategie). Wat je per versie doet,
+staat in §2; hier hoe het werkt en wat je doet als het hapert.*
+
+**Woorden.** `main` is de hoofdlijn: wat daar staat, is live. Een **tak**
+is een kopie ernaast waarop Claude (of jij) werkt. Een **pull request**
+vraagt "zet deze tak in `main`". **Mergen** is dat toestaan.
+
+**De bescherming van `main`** (github.com → repo → **Settings → Branches**,
+regel voor `main`):
+- Wijzigen kan **alleen via een pull request**, ook voor jou als beheerder.
+  Rechtstreeks pushen naar `main` (ook vanuit GitHub Desktop) wordt
+  geweigerd. Zo kan er niets live komen dat niet getest is.
+- Mergen kan pas als de controle **Snelle kern** groen is.
+- Er is geen goedkeuring van een tweede persoon nodig (je bent de enige
+  beheerder; de pull requests van Claude staan op jouw naam, en je eigen
+  pull request kun je niet goedkeuren).
+- `main` weggooien of overschrijven ("force push") kan niet.
+- Na het mergen wordt de tak vanzelf weggehaald (Settings → General →
+  "Automatically delete head branches"). Een weggehaalde tak is terug te
+  halen met de knop **Restore branch** op de pull request.
+
+**De tests op GitHub (Actions).** Twee taken in `.github/workflows/`:
+
+| taak | wanneer | wat | duur |
+|---|---|---|---|
+| `tests.yml` → *Snelle kern* | bij elke pull request (en elke nieuwe push erop) | de snelle kern (`test/draai.sh kern`) en de meetlat | ±3–5 min |
+| `batterij.yml` → *Batterij (nachtelijk)* | elke nacht 02:23 UTC, op `main` | alle testreeksen (`test/draai.sh batterij`) | ±30–60 min |
+| `supabase-wakker-houden.yml` | ma en do (§7) | Supabase wakker houden | seconden |
+
+Ze draaien op een computer van GitHub, buiten Claude om, en kosten niets
+(openbare repo). Alleen lezen: ze kunnen niets aan de repo of aan Supabase
+veranderen en gebruiken geen geheime sleutels (de tests werken met een
+nagebootste database).
+
+**Uitslag bekijken.** Op de pull request onderaan, of tabblad **Actions** →
+de run → bovenaan een tabel per testreeks (goed / FOUT, duur) en de
+meetlat. Bij de batterij staat de uitvoer per reeks onder **Artifacts**
+(`testuitvoer`, 7 dagen bewaard).
+
+**Rood?**
+- Op een pull request: niet mergen; geef Claude de link in een nieuw
+  gesprek ("de snelle kern is rood op pull request #N").
+- Hapert een test één keer (zelden, bv. een time-out): knop **Re-run
+  jobs → Re-run failed jobs** rechtsboven in de run. Weer rood: Claude.
+- De batterij 's nachts rood: GitHub mailt je. Er staat niets kapot live
+  door, maar laat het in de volgende sessie uitzoeken.
+- Mails over Actions: github.com → je foto → **Settings → Notifications →
+  Actions** ("Only notify for failed workflows" is genoeg).
+
+**Geplande taken vallen stil** als er 60 dagen niets in de repo verandert
+(regel van GitHub). Tabblad **Actions** → de taak → **Enable workflow**.
+
+**Nood: toch direct iets in `main`** (bijna nooit nodig; een revert via een
+pull request kan altijd, §2). Settings → Branches → regel `main` → **Edit**
+→ vinkje **"Do not allow bypassing the above settings"** uit → **Save
+changes**; na je wijziging hetzelfde vinkje weer aan. Of vraag het Claude.
+
+**Een andere app** (materieelbeheer, projectportaal, …) krijgt dezelfde
+opzet: twee workflowbestanden, `test/draai.sh` en deze bescherming. Claude
+zet die bij de start van zo'n app klaar.
+

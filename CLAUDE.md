@@ -21,18 +21,14 @@ en fouten in de projectkennis op claude.ai.
 ## Commando's
 
 ```
-# snelle kern (±1,5 min), in de werkmap
-node test-index.js && node test-naslag.js && node test-cloudguard.js
-node test-herstel.js && node test-start.js && node test-import.js
-node test-slot.js && node test-offline.js && node test-rook.js
-node test-leverpagina.js && python3 test-leverpagina.py
-OUD=/tmp/live node test-overgang.js   # OUD = git archive van wat live staat
-bun test-mailfunctie.ts
-# meetlat (bij elke pull request)
-./meet.sh
+test/draai.sh kern       # snelle kern (±1 min); maakt OUD zelf uit origin/main
+test/draai.sh batterij   # kern + alle reeksen (±30–60 min)
+./meet.sh                # meetlat (bij elke pull request)
 ```
 
-Reeksen per onderdeel, de volledige batterij en mutatieproeven:
+GitHub draait de kern bij elke pull request (`.github/workflows/tests.yml`,
+controle "Snelle kern", verplicht om te mergen) en de batterij elke nacht
+(`batterij.yml`). Losse reeksen, opstelling en mutatieproeven:
 `docs/testen.md`. Hoeveel testen bij welk niveau: `TESTEN.md`.
 
 ## Harde regels
@@ -50,8 +46,10 @@ Reeksen per onderdeel, de volledige batterij en mutatieproeven:
   pull request. In tests en voorbeelden `naam@voorbeeld.test`.
 * **Gebruikers nooit verwijderen** (behalve bij vertrek).
 * **Opleveren via een tak en een pull request** (keuze Jan, 27-10-2026):
-  nooit naar `main` pushen, nooit zelf mergen; Jan merget. Staat er SQL bij:
-  bovenaan de pull request "eerst in Supabase → SQL Editor, dan mergen".
+  nooit naar `main` pushen (de bescherming weigert het ook), nooit zelf
+  mergen; Jan merget. Pas "klaar" melden als "Snelle kern" op GitHub groen
+  is. Staat er SQL bij: bovenaan de pull request "eerst in Supabase → SQL
+  Editor, dan mergen". Werkwijze voor Jan: `BEHEER.md` §2 en §12.
 * De bestelmail (Edge Function `mail`) is **niet uitgerold**: schrijf niets
   alsof hij werkt.
 * Toets de belofte op de gegevens **én** klik één keer echt in Chromium op

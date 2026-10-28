@@ -171,8 +171,9 @@ houdbaar-bouwen). Bij twijfel kies je het hogere niveau.
 | 🟠 functie, berekening, knoppen, keuzelijsten | 🟢 + een nieuwe test die aantoonbaar rood kan worden (met de hand) + de volledige batterij **één keer** | 30–40 min |
 | 🔴 database, rechten, inloggen, service worker, data omzetten | 🟠 + de mutatieproef van de reeks die je raakt | 1–1,5 uur |
 
-De lijst "snelle kern" staat in `CLAUDE.md`, de volledige batterij en de
-mutatieproeven in `docs/testen.md`.
+De lijst "snelle kern" en de volledige batterij staan in `test/draai.sh`
+(uitleg en mutatieproeven: `docs/testen.md`). GitHub draait de kern bij
+elke pull request en de batterij elke nacht (`BEHEER.md` §12).
 
 - **Snelle kern = altijd.** Hij bewaakt de dingen die nooit stuk mogen,
   en is goedkoop: dat de app laadt, de versienummers en de offline-lijst

@@ -203,7 +203,8 @@ terugvindt (Cmd+F).
 | `manifest.webmanifest`, `favicon-v3.*`, `icon-*.png`, `apple-touch-icon.png`, `icoon-bron.svg` | — | de app op het beginscherm en het icoon (met versie in de naam, ook in `SHELL`) |
 | `catalogus-fotos.txt`, `roosterfotos.txt`, `latfotos.txt`, `fotos-ophalen.sh`, `roosterfotos-ophalen.sh` | — | waar de foto's van de naslag vandaan komen (`BEHEER.md` §6) |
 | `supabase/functions/mail/` | — | de bestelmail (Edge Function); **nog niet uitgerold** |
-| `.github/workflows/` | — | Supabase wakker houden |
+| `.github/workflows/` | — | taken op GitHub: Supabase wakker houden, de snelle kern bij elke pull request (`tests.yml`), de batterij elke nacht (`batterij.yml`); `BEHEER.md` §12 |
+| `test/draai.sh` | — | draait de snelle kern of de hele batterij in één keer, met een overzicht (`docs/testen.md`) |
 
 **De volgorde van de scripts onderaan `index.html` doet ertoe**: melding →
 cloud → bewerkslot → wachtrij → start → import → bulk → project → blokbalk →

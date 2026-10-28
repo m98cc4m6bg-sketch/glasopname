@@ -1,0 +1,68 @@
+# Snelle kern: draait bij elke pull request de snelle testkern op GitHub,
+# buiten elke Claude-sessie om. Groen = de pull request mag gemerged worden;
+# rood = niet mergen, eerst laten repareren. (Keuze Jan, 27-10-2026.)
+#
+# De naam van de taak ("Snelle kern") is ook de verplichte controle in de
+# bescherming van main (Settings → Branches). Verander je die naam, pas dan
+# ook de bescherming aan, anders kan er niets meer gemerged worden.
+# Uitleg voor Jan: BEHEER.md §12.
+
+name: Snelle kern
+
+on:
+  pull_request:          # bij elke nieuwe of bijgewerkte pull request
+  workflow_dispatch:     # knop "Run workflow" om met de hand te draaien
+
+permissions:
+  contents: read         # alleen lezen; deze workflow verandert niets in de repo
+
+concurrency:             # nieuwe push op dezelfde tak: de oude run stopt
+  group: kern-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kern:
+    name: Snelle kern
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Code ophalen
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Bun (voor test-mailfunctie.ts)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.4'
+
+      - name: Testbibliotheken en Chromium klaarzetten
+        # De reeksen verwachten vaste paden (zoals in de cloudomgeving van Claude):
+        # /home/claude/node_modules en /opt/pw-browsers/chromium.
+        # Versies vast, gelijk aan die in de cloudomgeving (docs/testen.md).
+        run: |
+          sudo mkdir -p /home/claude /opt/pw-browsers
+          sudo chown "$USER" /home/claude /opt/pw-browsers
+          cd /home/claude
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund jsdom@30.1.3 jspdf@2.5.2 jspdf-autotable@3.8.4 playwright@1.63.0
+          PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npx playwright install --with-deps chromium
+          ln -sf "$(ls -d /opt/pw-browsers/chromium-*/chrome-linux64/chrome | head -n 1)" /opt/pw-browsers/chromium
+          pip install pdfplumber==0.11.10
+
+      - name: Snelle kern draaien
+        run: test/draai.sh kern
+
+      - name: Meetlat (ter info, keurt niets af)
+        if: always()
+        run: ./meet.sh >> "$GITHUB_STEP_SUMMARY" || true

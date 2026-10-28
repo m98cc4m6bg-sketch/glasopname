@@ -12,8 +12,19 @@ de knop die ertoe doet (v90, v93).
 Volg `TESTEN.md` (hoofdstuk "Hoeveel testen"). Tijden gemeten op
 20-10-2026 in de cloudomgeving van Claude (2 processorkernen), v113.
 
-**Snelle kern** (±1,5 min). Bij het begin van een sessie, tijdens het
-bouwen, na elke ronde van een beoordelaar, en bij elke oplevering:
+**Alles in één keer** (sinds 28-10-2026): `test/draai.sh kern` en
+`test/draai.sh batterij`. Het script draait elke reeks, stopt niet bij een
+fout, zegt per reeks goed/FOUT met de duur en eindigt met een overzicht
+(eindcode 1 bij een fout). Uitvoer per reeks in `LOGMAP` (anders een
+tijdelijke map). Een overgeslagen `test-overgang.js` (geen `OUD`) telt als
+FOUT. Zonder `OUD` maakt het script zelf een kopie van `origin/main` (= wat
+live staat); de oude versies voor v106/v111/v124-werkpunten haalt het zelf
+op (ook in een ondiepe kloon). Nieuwe reeks in de kern of de batterij: in
+`test/draai.sh` erbij zetten, anders draait GitHub hem niet.
+
+**Snelle kern** (±1 min; 28-10-2026 gemeten). Bij het begin van een sessie,
+tijdens het bouwen, na elke ronde van een beoordelaar, en bij elke
+oplevering. Los, per reeks:
 
 ```
 node test-index.js && node test-naslag.js && node test-cloudguard.js
@@ -29,8 +40,9 @@ Draai daarnaast altijd de reeks(en) van het onderdeel dat je raakt
 bestellen → `test-v104/105/110/112/114.js`,
 bewerkslot → `test-v106.js`, inloggen → `test-v109.js`).
 
-**Volledige batterij** (±25 min). Bij 🟠 en 🔴, één keer, op de
-eindversie. De snelle kern plus:
+**Volledige batterij** (`test/draai.sh batterij`). Bij 🟠 en 🔴, één keer,
+op de eindversie; GitHub draait hem ook elke nacht op `main`. De snelle kern
+plus:
 
 ```
 node test-verbinding.js && node test-verwijderen.js     #  38 s,  9 s
@@ -94,6 +106,35 @@ staat in deze omgeving in `/usr/lib/postgresql/16/bin` (draaien als
 `su postgres`, map in `/tmp`). `config.js` zit niet in de zip; voor
 `test-index.js` in de werkmap kopiëren uit de repo-clone (nooit meesturen).
 
+
+## Op GitHub (Actions)
+
+- `.github/workflows/tests.yml`, taak **Snelle kern**: bij elke pull request
+  (en met de hand). Die taaknaam is de verplichte controle in de bescherming
+  van `main`: hernoemen = de bescherming mee aanpassen, anders kan niets meer
+  gemerged worden. Meetlat in de samenvatting van de run.
+- `.github/workflows/batterij.yml`: elke nacht 02:23 UTC op `main`, uitvoer
+  per reeks als artifact `testuitvoer` (7 dagen).
+- De reeksen hebben vaste paden (`/home/claude/node_modules`,
+  `/opt/pw-browsers/chromium`); de workflows zetten die op de runner klaar
+  met dezelfde versies als hier: jsdom 30.1.3, jspdf 2.5.2, jspdf-autotable
+  3.8.4, playwright 1.63.0 (Chromium 1243), pdfplumber 0.11.10, bun 1.4.4,
+  Node 22. Een versie omhoog: in beide workflows tegelijk.
+- Acties staan vast op een commit (`@<sha> # vX`), niet op een tag die kan
+  verschuiven.
+- Alleen leesrechten (`permissions: contents: read`), geen geheimen: de
+  tests gebruiken alleen de nagebootste database. Zo houden.
+- Bescherming van `main` (ingesteld 28-10-2026): alleen via pull request,
+  ook voor beheerders; "Snelle kern" verplicht groen; geen goedkeuring
+  nodig (de pull requests van Claude staan op Jans naam); geen force push
+  of verwijderen; tak na mergen automatisch weg. Een rode kern blokkeert
+  het mergen echt (proef 28-10: pull request #3, status *blocked*).
+- **Wat een Claude-sessie hier wel en niet kan** (28-10-2026): een tak pushen
+  en een pull request openen, bijwerken, becommentariëren en sluiten kan
+  (`gh api …/pulls`, de REST-weg; `gh pr` werkt niet), runs en de
+  bescherming uitlezen ook. Repo-instellingen wijzigen, de bescherming
+  aanpassen en een tak op GitHub weghalen kan **niet**: dat doet Jan.
+  Logboeken van een run zijn niet te downloaden; de uitslag per stap wel.
 
 ## Valkuilen van de opstelling (jsdom en Chromium)
 

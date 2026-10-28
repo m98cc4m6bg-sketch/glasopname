@@ -127,7 +127,14 @@ staat in deze omgeving in `/usr/lib/postgresql/16/bin` (draaien als
 - Bescherming van `main` (ingesteld 28-10-2026): alleen via pull request,
   ook voor beheerders; "Snelle kern" verplicht groen; geen goedkeuring
   nodig (de pull requests van Claude staan op Jans naam); geen force push
-  of verwijderen; tak na mergen automatisch weg.
+  of verwijderen; tak na mergen automatisch weg. Een rode kern blokkeert
+  het mergen echt (proef 28-10: pull request #3, status *blocked*).
+- **Wat een Claude-sessie hier wel en niet kan** (28-10-2026): een tak pushen
+  en een pull request openen, bijwerken, becommentariëren en sluiten kan
+  (`gh api …/pulls`, de REST-weg; `gh pr` werkt niet), runs en de
+  bescherming uitlezen ook. Repo-instellingen wijzigen, de bescherming
+  aanpassen en een tak op GitHub weghalen kan **niet**: dat doet Jan.
+  Logboeken van een run zijn niet te downloaden; de uitslag per stap wel.
 
 ## Valkuilen van de opstelling (jsdom en Chromium)
 

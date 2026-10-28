@@ -14,7 +14,7 @@ Dit document zegt **wat je doet**, en waarom. Erbij horen:
 - `DATAMODEL.md`: wat er in de database staat en wie wat mag.
 
 Waar we nu staan en wat er openstaat: `STATUS.md`. De volledige
-ontwikkelgeschiedenis staat in `HANDOVER.md` (projectkennis op claude.ai), de
+ontwikkelgeschiedenis (beslissingen, bugboek, beveiliging) staat in de projectkennis op claude.ai, de
 vaste afspraken voor Claude in `CLAUDE.md`.
 
 **Deze documenten (en `STATUS.md`) worden bij elke nieuwe versie bijgewerkt** (afspraak
@@ -102,8 +102,15 @@ draaien (dat script begint met alles weggooien; het is alleen voor de tests).
 in de repo hoort. `glasopname-vNN-niet-in-repo.zip` hoort er bewust **niet**
 in: de handover (met de zwakke plekken in de beveiliging; de repo is
 openbaar) en een archief van bestanden die uit de repo gehaald zijn. Bewaar
-die op een eigen plek, bijvoorbeeld in OneDrive. De handover staat ook in de
-projectkennis op claude.ai.
+die op een eigen plek, bijvoorbeeld in OneDrive.
+
+*Bijgewerkt 27-10-2026:* de handover is gesplitst in `claude/BESLISSINGEN.md`,
+`claude/BUGBOEK.md` en `claude/BEVEILIGING.md` in de projectkennis op
+claude.ai; wat daar weg kon, staat in het archief
+`glasopname-archief-projectkennis-2026-10-27.zip`. Je koos op 27-10 voor
+opleveren via een **pull request** in plaats van zips (Claude zet een tak
+klaar, jij klikt op GitHub ‹Merge›); hoe dat precies gaat, komt hier bij de
+volgende stap (GitHub-werkwijze).
 
 ### Een vorige versie terugzetten
 
@@ -387,7 +394,7 @@ veranderd.
 De keuzelijsten staan **twee keer**: in `index.html` én in de database
 (`app_data`, sleutel `glas_data`). De database wint. Een glastype toevoegen
 kan daarom nu alleen via Claude, met een SQL-script erbij. Een
-beheerscherm hiervoor staat op de lijst (handover §11c).
+beheerscherm hiervoor staat op de lijst (projectkennis, `claude/BESLISSINGEN.md` §11c).
 
 ### 5a. Rekenwaarden van Toebehoren (v111)
 
@@ -465,7 +472,7 @@ gaat het werk vanzelf omhoog.
 De knop *✉️ Bestelmail versturen* werkt pas als de mailfunctie in Supabase
 ingesteld is (een maildienst, een eigen afzenderdomein en de functie
 `mail`). Dat is nog niet gebeurd; Jan pakt dit later op met Claude. De
-stappen staan in de handover (niet in deze openbare repo).
+stappen staan in de projectkennis (`claude/BEVEILIGING.md` §11e; niet in deze openbare repo).
 
 **Eerst één vraag beantwoorden** (afspraak van Jan, 20-10-2026): mag de
 bestelmail naar **elk** adres, of **alleen** naar de vaste adressen
@@ -477,7 +484,7 @@ keuzes, zodra de mail ingesteld wordt. Zonder antwoord niet instellen.
 
 Het gratis plan van Supabase heeft **geen back-ups die je kunt terugzetten**.
 Gaat de database verloren, dan is alles weg. Dat is het grootste risico van
-de hele app (handover §9). Sinds v120 is er een **handmatige back-up**:
+de hele app (projectkennis, `claude/BEVEILIGING.md` §9). Sinds v120 is er een **handmatige back-up**:
 
 **💾 Back-up maken** (startscherm, rechtsboven; sinds v124 alleen voor een
 beheerder, ook op het tabblad Beheer). Kies *Alleen gegevens*

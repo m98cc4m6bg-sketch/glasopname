@@ -58,7 +58,7 @@ jobs:
           npm install --no-audit --no-fund jsdom@30.1.3 jspdf@2.5.2 jspdf-autotable@3.8.4 playwright@1.63.0
           PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npx playwright install --with-deps chromium
           ln -sf "$(ls -d /opt/pw-browsers/chromium-*/chrome-linux64/chrome | head -n 1)" /opt/pw-browsers/chromium
-          pip install pdfplumber==0.11.10
+          pip install pdfplumber==0.11.10 openpyxl==3.1.5   # openpyxl: maatstaten in test-v124-tekeningen/-cycli
 
       - name: Snelle kern draaien
         run: test/draai.sh kern

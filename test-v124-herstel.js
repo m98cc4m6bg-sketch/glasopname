@@ -1771,6 +1771,10 @@ const dbStand = () => {
     await pB.evaluate(() => { bewaarStap('in B'); rijen.find(r => r.merk === 'D').opmerking = 'van tabblad B'; renderTabel(); opslaan(); });
     await wachtTot(() => dbRij('D').opmerking === 'van tabblad B', 8000);
     await wachtTot(() => pA.evaluate(() => /versie laden/i.test((document.getElementById('syncMelding') || {}).innerText || '')), 8000);
+    // Het berichtje "Twee tabbladen" verschijnt ±3 s nadat B opent (tabbladWacht in index.html).
+    // Eerst afwachten: anders kan het net ná ↶ komen en het berichtje van ↶ overschrijven
+    // (gezien op GitHub, 28-10-2026; de app draaide ook toen niets terug).
+    await wachtTot(async () => /Twee tabbladen/.test(await kortBer(pA)), 8000);
     await pA.mouse.click(5, 5); await wacht(300);
     await blokU(pA, FOTO);
     u = [await bolNu(pA), await kortBer(pA)];

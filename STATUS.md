@@ -39,8 +39,8 @@ wens per sessie en pull request, vooraf niveau en budget, een meetlat
 
 ## Wacht op Jan / navragen
 
-1. **De pull request van stap 2** lezen en mergen (workflows, `test/draai.sh`,
-   uitleg; de app verandert niet). Daarna GitHub Desktop: Fetch + Pull.
+1. Na elk mergen: GitHub Desktop → Fetch origin → Pull origin. Een rode
+   nachtelijke batterij (mail van GitHub): doorgeven aan Claude.
 2. **Op de iPad/Mac proberen**: "Hoe je het zelf controleert" in
    `WIJZIGINGEN-v125.md` (vooral 📍 Leverfoto met de camera) en
    `WIJZIGINGEN-v124.md` (2.9: delen/bewaren van de bestellijst na het

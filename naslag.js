@@ -1,3 +1,4 @@
+throw new Error("PROEF: bewust kapot om te zien dat GitHub dit tegenhoudt");
 /* Glasopname — tabblad Naslag
    ------------------------------------------------------------------
    Eén bestand voor alles wat je op locatie wilt kunnen opzoeken:

@@ -114,7 +114,12 @@ staat in deze omgeving in `/usr/lib/postgresql/16/bin` (draaien als
   van `main`: hernoemen = de bescherming mee aanpassen, anders kan niets meer
   gemerged worden. Meetlat in de samenvatting van de run.
 - `.github/workflows/batterij.yml`: elke nacht 02:23 UTC op `main`, uitvoer
-  per reeks als artifact `testuitvoer` (7 dagen).
+  per reeks als artifact `testuitvoer` (7 dagen). **Herkansing** (keuze Jan
+  28-10): in `batterij` draait een rode reeks nog één keer; goed = "goed
+  (haperde)", telt niet als fout (eerste uitvoer: `<naam>.poging1.txt`).
+  De kern krijgt geen herkansing. Eerste runs op GitHub haperden in
+  v110 (§ annuleren), v114 (latfoto geladen), v124-cycli en v124-herstel
+  (berichtje "Twee tabbladen" ±3 s na openen): kandidaten voor stap 3.
 - De reeksen hebben vaste paden (`/home/claude/node_modules`,
   `/opt/pw-browsers/chromium`); de workflows zetten die op de runner klaar
   met dezelfde versies als hier: jsdom 30.1.3, jspdf 2.5.2, jspdf-autotable

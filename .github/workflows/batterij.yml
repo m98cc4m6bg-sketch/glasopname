@@ -1,6 +1,8 @@
 # Batterij: draait elke nacht alle testreeksen op wat nu op main staat
 # (= wat live staat). Te lang voor elke pull request (±30–60 min); 's nachts
 # vangt hij wat de snelle kern mist. Mislukt hij, dan stuurt GitHub een mail.
+# Een rode reeks krijgt één herkansing ("goed (haperde)", geen mail); zie
+# test/draai.sh en BEHEER.md §12.
 # Uitleg voor Jan: BEHEER.md §12.
 #
 # Let op: GitHub zet geplande workflows in een openbare repo uit na 60 dagen

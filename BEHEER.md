@@ -1028,7 +1028,15 @@ meetlat. Bij de batterij staat de uitvoer per reeks onder **Artifacts**
 - Hapert een test één keer (zelden, bv. een time-out): knop **Re-run
   jobs → Re-run failed jobs** rechtsboven in de run. Weer rood: Claude.
 - De batterij 's nachts rood: GitHub mailt je. Er staat niets kapot live
-  door, maar laat het in de volgende sessie uitzoeken.
+  door, maar laat het in de volgende sessie uitzoeken (geef de link van de
+  run mee; Claude kan de uitvoer niet zelf downloaden, dus download
+  **testuitvoer** onder Artifacts en koppel die map).
+- **"goed (haperde)"** in de tabel van de batterij: die reeks was de eerste
+  keer rood en bij de herkansing goed (jouw keuze, 28-10). Geen mail. De
+  oudere reeksen wachten met vaste tijden en haperen soms op een computer
+  van een andere snelheid; stap 3 van de strategie haalt dat weg. Twee keer
+  achter elkaar rood = echt FOUT = mail. De snelle kern krijgt geen
+  herkansing.
 - Mails over Actions: github.com → je foto → **Settings → Notifications →
   Actions** ("Only notify for failed workflows" is genoeg).
 

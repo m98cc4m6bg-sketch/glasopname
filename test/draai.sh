@@ -13,6 +13,13 @@
 # dan maakt dit script hem zelf uit origin/main (git archive).
 # Stopt nooit halverwege: alle reeksen draaien, aan het eind volgt een overzicht.
 # Eindcode 0 = alles goed, 1 = minstens één reeks FOUT (of overgeslagen).
+#
+# Herkansing (alleen bij "batterij", keuze Jan 28-10-2026): een rode reeks
+# draait nog één keer. Goed bij de tweede keer = "goed (haperde)": zichtbaar in
+# het overzicht, maar geen fout en dus geen mail. Twee keer rood = FOUT.
+# Reden: de oudere reeksen wachten met vaste tijden en haperen soms op een
+# computer van een andere snelheid (stap 3 van de strategie haalt die weg).
+# De snelle kern ("kern") krijgt géén herkansing: die blijft streng.
 
 set -u
 cd "$(dirname "$0")/.."
@@ -23,7 +30,10 @@ mkdir -p "$LOGMAP"
 BUN=$(command -v bun || echo /root/.bun/bin/bun)
 
 FOUTEN=0
+HAPERDE=0
 OVERZICHT=""
+HERKANSING=0
+[ "$SOORT" = batterij ] && HERKANSING=1
 
 # Pakt een oude versie uit naar een map (eenmalig). Haalt de commit zo nodig
 # op, want GitHub en de cloudomgeving hebben vaak maar een ondiepe kopie.
@@ -34,24 +44,37 @@ maak_oud() { # map commit
   mkdir -p "$map" && git archive "$commit" | tar -x -C "$map"
 }
 
+# Eén poging: commando naar het logbestand; zegt goed, FOUT of FOUT (overgeslagen).
+poging() { # log commando...
+  local log=$1; shift
+  "$@" > "$log" 2>&1
+  local code=$?
+  # test-overgang.js slaat zichzelf over zonder OUD: dat telt hier als fout.
+  if grep -q '^OVERGESLAGEN' "$log"; then echo "FOUT (overgeslagen)"
+  elif [ $code -ne 0 ]; then echo "FOUT"
+  else echo "goed"; fi
+}
+
 # Draait één reeks: naam, dan het commando. Uitvoer naar LOGMAP; bij FOUT de
-# laatste 40 regels op het scherm.
+# laatste 40 regels op het scherm. Bij een herkansing blijft de uitvoer van de
+# eerste poging bewaard als <naam>.poging1.txt.
 draai() {
   local naam=$1; shift
-  local log="$LOGMAP/$naam.txt" begin eind duur code status
+  local log="$LOGMAP/$naam.txt" begin eind duur status
   begin=$(date +%s)
-  "$@" > "$log" 2>&1
-  code=$?
-  eind=$(date +%s); duur=$((eind - begin))
-  status="goed"
-  if [ $code -ne 0 ]; then status="FOUT"; fi
-  # test-overgang.js slaat zichzelf over zonder OUD: dat telt hier als fout.
-  if grep -q '^OVERGESLAGEN' "$log"; then status="FOUT (overgeslagen)"; fi
-  printf '%-28s %-20s %4ss\n' "$naam" "$status" "$duur"
-  if [ "$status" != "goed" ]; then
-    FOUTEN=$((FOUTEN + 1))
-    echo "  ---- laatste regels van $naam ----"; tail -n 40 "$log" | sed 's/^/  | /'
+  status=$(poging "$log" "$@")
+  if [ "$status" = "FOUT" ] && [ $HERKANSING -eq 1 ]; then
+    mv "$log" "$LOGMAP/$naam.poging1.txt"
+    status=$(poging "$log" "$@")
+    if [ "$status" = "goed" ]; then status="goed (haperde)"; HAPERDE=$((HAPERDE + 1)); fi
   fi
+  eind=$(date +%s); duur=$((eind - begin))
+  printf '%-28s %-20s %4ss\n' "$naam" "$status" "$duur"
+  case "$status" in
+    goed*) ;;
+    *) FOUTEN=$((FOUTEN + 1))
+       echo "  ---- laatste regels van $naam ----"; tail -n 40 "$log" | sed 's/^/  | /' ;;
+  esac
   OVERZICHT="$OVERZICHT| $naam | $status | $duur s |"$'\n'
 }
 
@@ -129,8 +152,10 @@ esac
 TOTAAL=$(( $(date +%s) - START ))
 
 echo
-if [ $FOUTEN -eq 0 ]; then KOP="Alles goed ($SOORT, $((TOTAAL / 60)) min $((TOTAAL % 60)) s)"
-else KOP="$FOUTEN reeks(en) FOUT ($SOORT, $((TOTAAL / 60)) min $((TOTAAL % 60)) s)"; fi
+DUUR="$SOORT, $((TOTAAL / 60)) min $((TOTAAL % 60)) s"
+if [ $FOUTEN -eq 0 ]; then KOP="Alles goed ($DUUR)"
+else KOP="$FOUTEN reeks(en) FOUT ($DUUR)"; fi
+if [ $HAPERDE -gt 0 ]; then KOP="$KOP; $HAPERDE reeks(en) haperde(n) en ging(en) bij de herkansing goed"; fi
 echo "$KOP"
 echo "Uitvoer per reeks: $LOGMAP"
 

@@ -2302,10 +2302,17 @@ function letop(naam, ok, extra) {
       await openId(A, P(1));
       const B = await nieuwePagina(ctx);
       await openId(B, P(1));
-      await wacht(1000);
+      // De tabbladen vinden elkaar via een BroadcastChannel; de app vraagt
+      // pas 3 s na het openen "wie heeft dit project nog open?" (index.html,
+      // tabbladWacht). Hoe snel het bericht in B komt, hangt dus af van de
+      // tijd tussen het openen van A en B: op GitHub (sneller) kwam het ná de
+      // vaste 1 s die hier tot 30-10-2026 stond. Nu wacht de test op het
+      // bericht zelf, hoogstens 8 s (de vraag na 3 s, met ruimte). In beide
+      // varianten: daarna weten de twee tabbladen zeker van elkaar.
+      const tweeTabs = await wachtTot(async () => /tabblad/i.test(await kortBer(B)), 8000);
       if (variant === 'klikt ernaast') {
         t = await kortBer(B) + ' ' + await meldTekst(B);
-        check('tabblad B: een kort bericht dat het project ook in een ander tabblad open is (geen venster)', /tabblad/i.test(t) && !(await meldingen(B)).length, t.slice(0, 160));
+        check('tabblad B: een kort bericht dat het project ook in een ander tabblad open is (geen venster)', tweeTabs && /tabblad/i.test(t) && !(await meldingen(B)).length, t.slice(0, 160));
         check('beide tabbladen mogen bewerken (zelfde apparaat)', !(await A.evaluate(() => glasAlleenKijken())) && !(await B.evaluate(() => glasAlleenKijken())));
       }
       await A.bringToFront();

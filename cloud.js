@@ -866,6 +866,34 @@
   window.glasGebruikerDeedIets = function () { return gebruikerDeedIets; };
   window.glasMarkeerWerk = function () { if (projectId) gebruikerDeedIets = true; };
 
+  // v126 (gevonden door Jan, 30-10): een foto of leverfoto van de werkvloer
+  // gaat langs zijn eigen weg het project in (rechten.js, glas_foto_erbij).
+  // De stand op het scherm verandert daardoor wel, maar dat is geen werk dat
+  // apart moet: anders kwam bij de eerstvolgende stand van kantoor het
+  // venster "Werk apart bewaard" met een kopie. Vergelijk daarom zonder
+  // nieuwe foto's, zonder leverfoto's en zonder de velden die er later bij
+  // komen (origineel, _erbij). Elke andere wijziging telt nog wel.
+  function alleenWerkvloerFotos(voorJson, nuJson) {
+    if (!(window.glasWerkvloer && glasWerkvloer()) || !voorJson) return false;
+    try {
+      var voor = JSON.parse(voorJson), nu = JSON.parse(nuJson);
+      if (!voor || !nu) return false;
+      var bekend = {};
+      (voor.fotos || []).forEach(function (f) { if (f && f.id) bekend[f.id] = true; });
+      var schoon = function (staat) {
+        staat.fotos = (staat.fotos || []).filter(function (f) {
+          return f && f.soort !== 'lever' && bekend[f.id];
+        }).map(function (f) {
+          var k = Object.assign({}, f);
+          delete k.origineel; delete k._erbij;
+          return k;
+        });
+        return JSON.stringify(staat);
+      };
+      return schoon(voor) === schoon(nu);
+    } catch (e) { return false; }
+  }
+
   window.opslaan = function () {
     // De app roept dit ook elke tien seconden vanzelf aan. Is er niets
     // veranderd, dan hoeft er niets te gebeuren: anders knippert het
@@ -874,6 +902,7 @@
     vulOpnemer();
     var nu = JSON.stringify(huidigeStaat());
     if (nu === laatsteJson && !vuil) return;
+    var vorige = laatsteJson;
     laatsteJson = nu;
     opslaanLokaal();
     // Geen project open: er is niets om naartoe te sturen.
@@ -882,7 +911,7 @@
     // maakt (lege regels erbij) is geen werk; iets wat de gebruiker toch
     // veranderde wel: dat gaat apart vóór er een andere stand komt.
     if (window.glasAlleenKijken && glasAlleenKijken()) {
-      if (gebruikerDeedIets && !kijkWijziging) {
+      if (gebruikerDeedIets && !kijkWijziging && !alleenWerkvloerFotos(vorige, nu)) {
         kijkWijziging = true;
         toonMelding('Je kunt dit project alleen bekijken; wat je hier verandert, wordt niet in het project ' +
           'opgeslagen. Kies ‹Toch bewerken› om het over te nemen.');

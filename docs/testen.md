@@ -74,7 +74,7 @@ node test-v124-herstel.js               #  ±3 min; ↶ (bolletjes, na herladen)
 node test-v124-tekeningen.js            #  ±2,5 min; aanwijzen op meer tekeningen, verhuizen
 node test-v124-toebehoren.js            #  ±1 min; latkiezer, drie stappen
 node test-v124-cycli.js                 #  ±5 min; zeven werkgangen over alles heen
-node test-v125.js                       #  ±3 min; Verder met, naam in de prullenbak vrij (namaak van script 31!), werkvloer leverfoto/taken, spacer, speling bij verhuizen, onderlat
+node test-v125.js                       #  ±3 min; Verder met, naam in de prullenbak vrij (namaak van script 31!), werkvloer leverfoto/taken, spacer, speling bij verhuizen, onderlat; §7 (v126): foto/leverfoto van de werkvloer zonder venster "Werk apart bewaard"
 ```
 
 **Mutatieproef** (`--mutaties`): alleen bij 🔴, en alleen voor de reeks
@@ -86,7 +86,7 @@ v115 37 ±45 min, v116 9 ±4 min, v117 17 ±10 min, v118 18 ±25 min, v119 11 ±
 v120 33 ±40 min, v121 17 ±20 min, v122 3 ±2 min, v123 34 ±18 min,
 v124-rechten 39 ±55 min, v124-werkpunten 37 ±35 min, v124-herstel 36 ±60 min,
 v124-tekeningen 27 ±30 min, v124-toebehoren 40 ±20 min, v124-cycli 7 ±25 min,
-v125 18 ±4 min. Script 31: proef tegen PostgreSQL (`proef-script-31/`, zip
+v125 20 ±5 min. Script 31: proef tegen PostgreSQL (`proef-script-31/`, zip
 "niet-in-repo").
 Script 30: proef tegen PostgreSQL (175 controles, 67 mutaties) en de app
 tegen een echte PostgREST (`proef-script-30/`, zip "niet-in-repo"). Script 28 en 29:

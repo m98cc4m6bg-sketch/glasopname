@@ -63,10 +63,12 @@ const MUTATIES = {
   spelingKenmerk: ['index.html', "(v === 'correctie' && rij.correctieMee) ? ''", "false ? ''"],
   spelingUitleg: ['index.html', '  const uitleg = eigen && +rij.correctie !== alg\n', '  const uitleg = false\n'],
   spelingZelf: ['index.html', '  delete rij.correctieMee;   // v125: nu een eigen keuze (telt in het kenmerk)\n', ''],
+  wvGeenKopie: ['cloud.js', ' && !alleenWerkvloerFotos(vorige, nu)) {', ') {'],
+  wvAndersApart: ['cloud.js', '      return schoon(voor) === schoon(nu);', '      return true;'],
 };
 const WAAR = { verderElders: '1', verderZoek: '1', naamVrij: '2', naam23505: '2', naamOpen: '2', terugMelding: '2',
   wvLeverKnop: '3', wvLeverSoort: '3', wvLeverLokaal: '3', script31Onthouden: '3', wvTaakZonder: '3', spacerWis: '4', spacerLeeg: '4', spacerPdf: '4',
-  spelingHoud: '5', spelingKenmerk: '5', spelingUitleg: '5', spelingZelf: '5' };
+  spelingHoud: '5', spelingKenmerk: '5', spelingUitleg: '5', spelingZelf: '5', wvGeenKopie: '7', wvAndersApart: '7' };
 
 
 if (process.argv.indexOf('--mutaties') >= 0) {
@@ -1860,6 +1862,86 @@ function tweeBlokken(extra) {
     t = await page.$eval('#tbAlleOnderlat', e => e.innerText.replace(/\s+/g, ' '));
     check('gekozen: de knop zegt "onderlat: N30 …"', /onderlat: N30/.test(t), t);
     if (PLAATJES) await page.screenshot({ path: path.join(PLAATJES, 'v125-onderlat.png') });
+    await ctx.close();
+  }
+
+  /* ══ 7 ════════════════════════════════════════════════════════ */
+  // Gevonden door Jan (30-10-2026, iPad): de werkvloer zet een foto of
+  // leverfoto, kantoor (Mac) opent het project, en op de iPad komt het
+  // venster "Werk apart bewaard" met een kopie "(apart bewaard … iPad)".
+  // De foto zelf kwam goed aan. Oorzaak: de foto verandert de stand op het
+  // scherm terwijl de iPad alleen kijkt; de tik van elke tien seconden
+  // (opslaan) zag dat als "gewijzigd tijdens meekijken", en de eerstvolgende
+  // stand van kantoor zette het werk dan apart. Belofte: een foto of
+  // leverfoto van de werkvloer gaat het project in zonder venster en zonder
+  // kopie, ook offline en ook als kantoor het project open heeft.
+  if (doe('7')) {
+    console.log('\n7. De werkvloer zet een foto of leverfoto, kantoor opent het project: geen venster, geen kopie');
+    for (const [soort, offline] of [['lever', false], ['foto', false], ['lever', true], ['foto', true]]) {
+      const wat = (soort === 'lever' ? 'leverfoto' : 'foto') + (offline ? ', zonder bereik' : '');
+      gevelProject(); metRollen(); S.s31 = true;
+      ({ ctx, page } = await als('wim', IPAD, 'ipad', 1));
+      await wachtTot(async () => /Leverfoto/.test(await page.$eval('#slotBalk', e => e.innerText)), 6000);
+      if (offline) { S.weg.ipad = true; await page.evaluate(() => window.dispatchEvent(new Event('offline'))); }
+      const fotosVoor = (rijVan(1).data.fotos || []).length;
+      {
+        const k = page.waitForEvent('filechooser', { timeout: 8000 }).catch(() => null);
+        await page.locator('#slotBalk button:has-text("' + (soort === 'lever' ? 'Leverfoto' : 'Foto toevoegen') + '")').tap({ timeout: 8000 }).catch(() => {});
+        const kz = await k;
+        if (kz) await kz.setFiles(GEVEL_JPG);
+      }
+      // Op de iPad: de foto staat erin; het origineel komt als laatste.
+      const nieuw = () => page.evaluate(s => { const f = fotos.filter(x => s === 'lever' ? x.soort === 'lever' : x.soort !== 'lever' && x.id !== 'f1');
+        return f.length ? { id: f[f.length - 1].id, origineel: !!f[f.length - 1].origineel } : {}; }, soort);
+      await wachtTot(async () => !!(await nieuw()).id, 15000);
+      const id = (await nieuw()).id;
+      // De app slaat elke tien seconden vanzelf op (opslaan). Op de iPad valt
+      // die tik vaak tussen de foto op het scherm en de foto in het project
+      // (uploaden duurt even): hier meteen, en nog eens na het origineel.
+      await page.evaluate(() => window.opslaan());
+      await wachtTot(async () => (await nieuw()).origineel, 15000);
+      if (!offline) await wachtTot(() => (rijVan(1).data.fotos || []).some(f => f.id === id && f.origineel), 15000);
+      await page.evaluate(() => window.opslaan());
+      // Kantoor opent het project en werkt erin.
+      const mac = await als('jan', null, 'mac', 1);
+      await wachtTot(async () => !(await mac.page.evaluate(() => window.glasAlleenKijken && glasAlleenKijken())), 10000);
+      await typOpmerking(mac.page, 'van kantoor');
+      await wachtTot(() => dbRij('A').opmerking === 'van kantoor', 10000);
+      if (offline) { S.weg.ipad = false; await page.evaluate(() => window.dispatchEvent(new Event('online'))); }
+      // Wachten tot de iPad de stand van kantoor heeft én de foto in het project staat.
+      await wachtTot(async () => (rijVan(1).data.fotos || []).some(f => f.id === id) &&
+        await page.evaluate(() => (rijen.find(r => r.merk === 'A') || {}).opmerking === 'van kantoor'), 20000);
+      await page.evaluate(() => window.opslaan());
+      await wacht(1500);   // een venster dat nog zou komen
+      t = await meldTekst(page);
+      check(wat + ': de foto staat in het project', (rijVan(1).data.fotos || []).some(f => f.id === id) &&
+        (soort === 'lever' ? levers(1).length === 1 : rijVan(1).data.fotos.length === fotosVoor + 1), JSON.stringify((rijVan(1).data.fotos || []).map(f => f.id)));
+      check('… de iPad heeft de stand van kantoor', await page.evaluate(() => (rijen.find(r => r.merk === 'A') || {}).opmerking === 'van kantoor'));
+      check('… geen venster "Werk apart bewaard" op de iPad', !/apart bewaard|Werk apart/i.test(t), t);
+      check('… geen apart bewaarde kopie in de projectenlijst', !apartBewaard().length, apartBewaard().map(p => p.naam).join(', '));
+      check('… en niets dat op de iPad nog apart wacht', !JSON.parse((await ls(page, 'glasopname_redding')) || '[]').length);
+      check('… niets van kantoor overschreven (opmerking, zes ruiten)', dbRij('A').opmerking === 'van kantoor' &&
+        rijVan(1).data.rijen.filter(r => r.merk).length === 6, rijVan(1).data.rijen.map(r => r.merk).join());
+      await mac.ctx.close();
+      await ctx.close();
+    }
+    // De andere kant: verandert er op de iPad tóch iets anders dan een foto
+    // (langs het slot heen), dan gaat dat nog steeds apart, niet weg.
+    gevelProject(); metRollen(); S.s31 = true;
+    ({ ctx, page } = await als('wim', IPAD, 'ipad', 1));
+    await wachtTot(async () => /Leverfoto/.test(await page.$eval('#slotBalk', e => e.innerText)), 6000);
+    await fotoViaKnop(page);
+    await wachtTot(() => erbijFotos(1).some(f => f.origineel), 15000);
+    await page.evaluate(() => { rijen.find(r => r.merk === 'B').opmerking = 'langs het slot'; glasMarkeerWerk(); window.opslaan(); });
+    const mac = await als('jan', null, 'mac', 1);
+    await wachtTot(async () => !(await mac.page.evaluate(() => window.glasAlleenKijken && glasAlleenKijken())), 10000);
+    await typOpmerking(mac.page, 'van kantoor');
+    await wachtTot(() => apartBewaard().length > 0, 15000);
+    w = apartBewaard();
+    check('een andere wijziging op de werkvloer (geen foto) gaat nog wel apart, één kopie, met die wijziging',
+      w.length === 1 && (w[0].data.rijen.find(r => r.merk === 'B') || {}).opmerking === 'langs het slot', w.map(p => p.naam).join(', '));
+    check('… en het project houdt het werk van kantoor', dbRij('A').opmerking === 'van kantoor' && dbRij('B').opmerking !== 'langs het slot');
+    await mac.ctx.close();
     await ctx.close();
   }
 

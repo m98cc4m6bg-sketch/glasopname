@@ -1,9 +1,8 @@
 # Glasopname — stand van zaken
 
 *Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens twee
-pagina's. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 28 oktober
-2026, bij stap 2 van de strategie (GitHub-werkwijze; geen nieuwe
-appversie).*
+pagina's. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 30 oktober
+2026, bij v126 (fout "Werk apart bewaard" bij een foto van de werkvloer).*
 
 ## Live (27-10-2026)
 
@@ -53,11 +52,22 @@ wens per sessie en pull request, vooraf niveau en budget, een meetlat
    bijkomt op het account, bij een eigen domein of het klantportaal, en als
    het lang blijft liggen (uitleg in de projectkennis).
 
+## In deze pull request: v126 (30-10)
+
+- Gevonden door Jan op de iPad: na 📍 Leverfoto of 📷 Foto toevoegen op de
+  werkvloer kwam, zodra kantoor het project opende, het venster "Werk apart
+  bewaard" en een kopie "(apart bewaard … iPad)". Nu gaat zo'n foto het
+  project in zonder venster en zonder kopie, ook zonder bereik
+  (`alleenWerkvloerFotos` in cloud.js; test-v125 §7). Geen SQL.
+
 ## Volgende ronde
 
-- **v126** (keuze Jan, 27-10): weggehaalde foto's na 30 dagen echt
-  opruimen (niet als een project, een apart bewaarde kopie of "Onlangs
-  verwijderd" het pad nog noemt).
+- Stap 3: haperende testreeksen betrouwbaar maken (wachten op wat je
+  verwacht in plaats van een vaste wachttijd).
+- "— niemand —" ook in het keuzevak bij een nieuwe taak (wens Jan, 30-10).
+- **Geparkeerd** (keuze Jan, 30-10): weggehaalde foto's na 30 dagen echt
+  opruimen. Spec ligt klaar in de projectkennis (heette "v126"; krijgt bij
+  het bouwen het eerstvolgende versienummer).
 - Daarna afwisselend: tests ombouwen (stap 3), de app opknippen zonder
   gedragsverandering (stap 4), en wensen.
 - **Instructievideo** bijwerken (`claude/INSTRUCTIEVIDEO.md`; nu ook Beheer,

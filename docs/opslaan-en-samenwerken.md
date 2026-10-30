@@ -50,6 +50,16 @@
   als de kopie bij een bekend project hoort. Hetzelfde project in twee
   tabbladen: een `kortBericht` (BroadcastChannel), **geen venster**.
 
+* **Alleen kijken en toch iets veranderd** (`kijkWijziging`): gaat apart
+  vóór de volgende stand op het scherm komt. Een foto of leverfoto van de
+  werkvloer telt daarbij **niet** (v126, gevonden door Jan): die gaat langs
+  `glas_foto_erbij` het project in, en anders kwam bij de eerste stand van
+  kantoor het venster "Werk apart bewaard" met een kopie
+  (`alleenWerkvloerFotos` in cloud.js: vergelijkt zonder nieuwe foto's,
+  leverfoto's, `origineel` en `_erbij`). Een nieuwe handeling van de
+  werkvloer die de stand op het scherm verandert, hoort daar ook bij.
+  Test: test-v125 §7.
+
 * **Een open venster (`.melding-laag`) houdt het bewerkslot op**
   (`anderVenster()` in bewerkslot.js): een collega die wil overnemen, wacht
   tot het dicht is. Iets wat alleen informeert en vanzelf kan komen: een

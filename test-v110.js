@@ -742,8 +742,36 @@ async function tikFoto(page, x, y) {
   await img.click({ position: { x: b.width * x, y: b.height * y } });
   await wacht(350);
 }
+// Na het aanraken van een bolletje negeert de foto even elke tik (de naklik
+// van iOS; fotos.js pauzeerFototik). Een mens tikt nooit zo snel, een test
+// wel. Tot 30-10-2026 wachtte de test hier een vaste tijd; op GitHub (een
+// snellere computer) viel de tik na ‹Annuleren› nog binnen de pauze en werd
+// genegeerd: de reeks was elke nacht rood. Nu onthoudt de pagina wanneer een
+// bolletje voor het laatst geraakt werd, en wacht de test tot de pauze vanaf
+// dát moment voorbij is. De duur leest de test uit fotos.js zelf: verandert
+// die, dan wacht de test mee (en vindt hij hem niet, dan stopt hij meteen).
+const FOTOTIK_PAUZE = Number((fs.readFileSync(path.join(__dirname, 'fotos.js'), 'utf8')
+  .match(/function pauzeerFototik\(ms\) \{ negeerTikTot = Date\.now\(\) \+ \(ms \|\| (\d+)\); \}/) || [])[1]);
+if (!(FOTOTIK_PAUZE > 0)) throw new Error('pauzeerFototik niet gevonden in fotos.js: pas test-v110.js aan');
+async function volgBolletjes(page) {
+  await page.evaluate(() => {
+    if (window.__volgBol) return;
+    window.__volgBol = true;
+    // Vangen vóór de app (capture op document): die stopt de gebeurtenis.
+    for (const soort of ['pointerdown', 'pointermove', 'pointerup']) {
+      document.addEventListener(soort, e => {
+        if (e.target && e.target.closest && e.target.closest('.foto-mark')) window.__bolGeraakt = Date.now();
+      }, true);
+    }
+  });
+}
+async function wachtTotFotoTikt(page) {
+  const ok = await wachtTot(() => page.evaluate(p => Date.now() > (window.__bolGeraakt || 0) + p, FOTOTIK_PAUZE + 50), 5000);
+  if (!ok) throw new Error('de pauze na het aanraken van een bolletje ging niet voorbij');
+}
 // Het menu van het n-de bolletje van een regel openen (echte klik).
 async function bolMenu(page, merk, n) {
+  await volgBolletjes(page);
   const idx = await page.evaluate(([m, n]) => {
     const r = rijen.find(x => x.merk === m); let k = 0;
     const lijst = fotos[0].markeringen;
@@ -945,8 +973,8 @@ async function gevelOpen(extra, apparaat) {
     check('de balk: tik waar de extra ruit B zit, het aantal wordt 4', /extra ruit B zit — het aantal wordt dan 4/.test(t), t);
     check('nog niets veranderd voor de tik', dbRij('B').aantal === 3 && dbBollen('B') === 3);
     // Na het aanraken van een bolletje negeert de foto even elke tik (de
-    // naklik van iOS, fotos.js pauzeerFototik); een mens tikt nooit zo snel.
-    await wacht(800);
+    // naklik van iOS): eerst die pauze voorbij laten gaan (wachtTotFotoTikt).
+    await wachtTotFotoTikt(page);
     await tikFoto(page, 0.45, 0.9);
     check('na de tik: B 4 en 4 bolletjes, samen', await opgeslagenAls(() => dbRij('B').aantal === 4 && dbBollen('B') === 4),
       dbRij('B').aantal + ' / ' + dbBollen('B'));
@@ -965,6 +993,7 @@ async function gevelOpen(extra, apparaat) {
     await page.waitForSelector('#img-' + FOTO, { timeout: 8000 });
     await wacht(900);
     check('na het opnieuw opbouwen: geen balk "extra ruit B" meer', await page.$eval('#aanwijs-' + FOTO, e => e.style.display === 'none'));
+    await wachtTotFotoTikt(page);
     await tikFoto(page, 0.3, 0.9);
     check('en de volgende tik is een nieuwe ruit, geen stille B +1', await opgeslagenAls(() =>
       (rijVan(1).data.rijen || []).filter(r => r.merk).length === 7) && dbRij('B').aantal === 3 && dbBollen('B') === 3,
@@ -974,7 +1003,10 @@ async function gevelOpen(extra, apparaat) {
     await bolMenu(page, 'B', 1);
     await menuKnop(page, 'Nog een ruit');
     await page.locator('#aanwijs-' + FOTO + ' button', { hasText: 'Annuleren' }).click();
-    await wacht(300);
+    check('Annuleren: de balk is weg', await wachtTot(() => page.$eval('#aanwijs-' + FOTO, e => e.style.display === 'none'), 5000));
+    // Hier wachtte de test tot 30-10 een vaste 300 ms; gemeten bleef er dan
+    // ±1 ms over van de pauze: op GitHub viel de tik erbinnen.
+    await wachtTotFotoTikt(page);
     await tikFoto(page, 0.45, 0.9);
     check('Annuleren: B blijft 3, en de volgende tik is gewoon een nieuwe ruit G',
       await opgeslagenAls(() => dbRij('G').aantal === 1 && dbBollen('G') === 1) && dbRij('B').aantal === 3 && dbBollen('B') === 3,

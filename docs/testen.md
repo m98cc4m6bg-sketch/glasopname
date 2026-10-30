@@ -120,6 +120,25 @@ staat in deze omgeving in `/usr/lib/postgresql/16/bin` (draaien als
   De kern krijgt geen herkansing. Eerste runs op GitHub haperden in
   v110 (§ annuleren), v114 (latfoto geladen), v124-cycli en v124-herstel
   (berichtje "Twee tabbladen" ±3 s na openen): kandidaten voor stap 3.
+  **30-10-2026 gerepareerd**: v110 §4 en v124-cycli §7 wachten nu op wat ze
+  verwachten (zie hieronder); v114 en v124-herstel nog niet.
+
+**Wachten op wat je verwacht, niet een vaste tijd** (stap 3; 30-10-2026).
+Een vaste `wacht(ms)` gokt hoe snel de computer is: op GitHub (sneller) viel
+een tik of een controle net te vroeg. Twee voorbeelden om na te doen:
+
+- **De pauze na een bolletje** (`test-v110.js`, `wachtTotFotoTikt`): de foto
+  negeert 700 ms elke tik na het aanraken van een bolletje (de naklik van
+  iOS, `pauzeerFototik` in `fotos.js`). De pagina onthoudt wanneer een
+  bolletje het laatst geraakt werd; de test wacht tot de pauze vanaf dát
+  moment voorbij is. De duur leest de test uit `fotos.js` zelf. Gemeten: de
+  oude `wacht(300)` liet ±1 ms marge.
+- **Het bericht "Twee tabbladen"** (`test-v124-cycli.js` §7): de app vraagt
+  pas 3 s na het openen wie het project nog open heeft. De test wacht op het
+  bericht zelf (hoogstens 8 s) in plaats van 1 s.
+- Bewijs dat zo'n test nog kan falen: de app langzamer maken (pauze 1,5 s,
+  vraag na 5 s: oude test rood, nieuwe groen) én stuk (Annuleren telt de tik
+  toch bij B, de foto blijft tikken negeren, geen bericht: nieuwe test rood).
 - De reeksen hebben vaste paden (`/home/claude/node_modules`,
   `/opt/pw-browsers/chromium`); de workflows zetten die op de runner klaar
   met dezelfde versies als hier: jsdom 30.1.3, jspdf 2.5.2, jspdf-autotable

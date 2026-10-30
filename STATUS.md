@@ -2,7 +2,7 @@
 
 *Lees dit als eerste in een nieuwe sessie (na `CLAUDE.md`). Hoogstens twee
 pagina's. **Bijwerken bij elke oplevering.** Laatst bijgewerkt: 30 oktober
-2026, bij v126 (fout "Werk apart bewaard" bij een foto van de werkvloer).*
+2026, bij stap 3 (eerste deel: twee haperende tests betrouwbaar).*
 
 ## Live (27-10-2026)
 
@@ -52,18 +52,25 @@ wens per sessie en pull request, vooraf niveau en budget, een meetlat
    bijkomt op het account, bij een eigen domein of het klantportaal, en als
    het lang blijft liggen (uitleg in de projectkennis).
 
-## In deze pull request: v126 (30-10)
+## Live sinds 30-10: v126
 
-- Gevonden door Jan op de iPad: na 📍 Leverfoto of 📷 Foto toevoegen op de
-  werkvloer kwam, zodra kantoor het project opende, het venster "Werk apart
-  bewaard" en een kopie "(apart bewaard … iPad)". Nu gaat zo'n foto het
-  project in zonder venster en zonder kopie, ook zonder bereik
-  (`alleenWerkvloerFotos` in cloud.js; test-v125 §7). Geen SQL.
+- Foto of 📍 Leverfoto van de werkvloer gaat het project in zonder venster
+  "Werk apart bewaard" en zonder kopie (`alleenWerkvloerFotos`, test-v125 §7).
+
+## In deze pull request: stap 3, eerste deel (30-10)
+
+- De nachtelijke batterij was rood door twee tests die een vaste tijd
+  wachtten: `test-v110` (tik na ‹Annuleren› viel nog in de pauze na een
+  bolletje) en `test-v124-cycli` §7 (het bericht "Twee tabbladen" kwam op
+  GitHub later dan de 1 s). Nu wachten ze op wat ze verwachten
+  (`docs/testen.md`). Alleen tests; de app is niet veranderd, geen
+  versienummer omhoog.
 
 ## Volgende ronde
 
-- Stap 3: haperende testreeksen betrouwbaar maken (wachten op wat je
-  verwacht in plaats van een vaste wachttijd).
+- Stap 3 verder: ook `test-v114` (latfoto geladen) en `test-v124-herstel`
+  ("Twee tabbladen") haperden eerder op GitHub; daarna de vaste wachttijden
+  in de rest, per onderdeel.
 - "— niemand —" ook in het keuzevak bij een nieuwe taak (wens Jan, 30-10).
 - **Geparkeerd** (keuze Jan, 30-10): weggehaalde foto's na 30 dagen echt
   opruimen. Spec ligt klaar in de projectkennis (heette "v126"; krijgt bij
